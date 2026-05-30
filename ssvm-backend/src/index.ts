@@ -25,6 +25,7 @@ import galleryRoutes from "./routes/gallery";
 import alumniRoutes from "./routes/alumni";
 import cmsRoutes from "./routes/cms";
 import statsRoutes from "./routes/stats";
+import paymentRoutes from "./routes/payments";
 
 // ─── Validate environment on startup ───
 const env = getEnv();
@@ -86,6 +87,7 @@ app.use("/api/faculty", facultyRoutes);
 app.use("/api/gallery", galleryRoutes);
 app.use("/api/alumni", alumniRoutes);
 app.use("/api/stats", statsRoutes);
+app.use("/api/payments", paymentRoutes);
 app.use("/api", cmsRoutes);
 
 // ─── Health Check ───

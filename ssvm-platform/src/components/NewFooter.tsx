@@ -136,10 +136,10 @@ export function NewFooter() {
               </div>
               <div>
                 <div className="text-white text-sm font-semibold mb-1">Contact</div>
-                <div className="text-white/60 text-sm">
-                  +91 123-456-7890
+                <div className="text-white/60 text-sm break-words">
+                  (0671) 2548577, 3582999
                   <br />
-                  info@mis.edu.in
+                  ssvmcollegesquare1987@gmail.com
                 </div>
               </div>
             </div>

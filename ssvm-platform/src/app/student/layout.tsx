@@ -9,6 +9,7 @@ const studentSidebar: SidebarItem[] = [
   { icon: "📅", label: "Timetable", href: "/student/timetable" },
   { icon: "📝", label: "Assignments", href: "/student/assignments", badge: "2" },
   { icon: "📊", label: "Results", href: "/student/results" },
+  { icon: "💳", label: "Fees & Payments", href: "/student/fees" },
   { icon: "📢", label: "Notices", href: "/student/notices" },
   { icon: "👤", label: "Profile", href: "/student/profile" },
 ];

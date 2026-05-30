@@ -76,17 +76,8 @@ export function CinematicHeroSection() {
 
   const { data: rawHeroGallery } = useGallery("Hero");
   const { data: statsData } = usePublicStats();
-  const { data: rawPillarsGallery } = useGallery("Pillars");
-  
   const heroGallery = Array.isArray(rawHeroGallery) ? rawHeroGallery : rawHeroGallery?.data || [];
   const heroImages = heroGallery.map((img: any) => img.imageUrl);
-
-  const pillarsGallery = Array.isArray(rawPillarsGallery) ? rawPillarsGallery : rawPillarsGallery?.data || [];
-  const pillars = [
-    { role: "Pradhan Acharya", data: pillarsGallery.find((img: any) => img.title === "Pradhan Acharya") },
-    { role: "President", data: pillarsGallery.find((img: any) => img.title === "President") },
-    { role: "Secretary", data: pillarsGallery.find((img: any) => img.title === "Secretary") },
-  ].filter(p => p.data);
 
   // Dynamic achievements from API with fallback to defaults
   const achievements = useMemo(() => {
@@ -340,38 +331,6 @@ export function CinematicHeroSection() {
                   {slide.description}
                 </p>
 
-                {/* CTAs */}
-                <div className="flex gap-4 mb-8 flex-wrap">
-                  <Link
-                    href={slide.cta1.href}
-                    className="group relative px-8 py-4 rounded-xl text-[15px] font-bold text-white no-underline overflow-hidden"
-                  >
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-r ${
-                        slide.accentColor === "orange"
-                          ? "from-orange-500 to-orange-600"
-                          : slide.accentColor === "purple"
-                          ? "from-purple-500 to-purple-600"
-                          : "from-blue-500 to-blue-600"
-                      } transition-transform group-hover:scale-110`}
-                    />
-                    <span className="relative flex items-center gap-2">
-                      {slide.cta1.text}
-                      <motion.span
-                        animate={{ x: [0, 5, 0] }}
-                        transition={{ duration: 1.5, repeat: Infinity }}
-                      >
-                        →
-                      </motion.span>
-                    </span>
-                  </Link>
-                  <Link
-                    href={slide.cta2.href}
-                    className="px-8 py-4 rounded-xl text-[15px] font-bold text-white no-underline border-2 border-white/30 backdrop-blur-sm hover:border-white/60 hover:bg-white/10 transition-all"
-                  >
-                    {slide.cta2.text}
-                  </Link>
-                </div>
 
                 {/* Progress Indicators */}
                 <div className="flex gap-3">
@@ -400,32 +359,7 @@ export function CinematicHeroSection() {
                   ))}
                 </div>
 
-                {/* Pillars Section */}
-                {pillars.length > 0 && (
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 1, duration: 0.8 }}
-                    className="mt-10"
-                  >
-                    <div className="text-white/60 text-[11px] uppercase tracking-[0.2em] font-semibold mb-3 flex items-center gap-3">
-                      <span className="w-6 h-[1px] bg-white/30"></span> Core Leadership
-                    </div>
-                    <div className="flex flex-wrap gap-3">
-                      {pillars.map((pillar, idx) => (
-                        <div key={idx} className="group relative flex items-center gap-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-full py-1.5 px-2 pr-5 hover:bg-white/10 transition-colors cursor-pointer">
-                          <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white/20 group-hover:border-white/50 transition-colors shrink-0">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={pillar.data.imageUrl} alt={pillar.role} className="w-full h-full object-cover" />
-                          </div>
-                          <div>
-                            <p className="text-white/90 text-[12px] font-bold leading-tight">{pillar.role}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
+
               </div>
             </motion.div>
           </AnimatePresence>

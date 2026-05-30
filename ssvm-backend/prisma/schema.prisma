@@ -233,6 +233,7 @@ model Fee {
   id          String    @id @default(cuid())
   studentId   String
   amount      Float
+  fineAmount  Float     @default(0)
   type        String
   status      FeeStatus @default(PENDING)
   dueDate     DateTime
@@ -244,6 +245,7 @@ model Fee {
   updatedAt   DateTime  @updatedAt
 
   student     Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  transactions PaymentTransaction[]
 
   @@index([studentId, session])
   @@index([status])
@@ -385,4 +387,24 @@ model Testimonial {
   updatedAt   DateTime @updatedAt
 
   @@map("testimonials")
+}
+
+// ─── PAYMENTS ───
+
+model PaymentTransaction {
+  id                String   @id @default(cuid())
+  feeId             String
+  razorpayOrderId   String   @unique
+  razorpayPaymentId String?  @unique
+  razorpaySignature String?
+  amountPaid        Float
+  status            String   @default("CREATED") // CREATED, SUCCESS, FAILED
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  fee               Fee      @relation(fields: [feeId], references: [id], onDelete: Cascade)
+
+  @@index([feeId])
+  @@index([razorpayOrderId])
+  @@map("payment_transactions")
 }

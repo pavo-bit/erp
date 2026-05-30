@@ -14,13 +14,13 @@ const contactInfo = [
   {
     icon: "📞",
     title: "Call Us",
-    lines: ["+91-671-XXXXXXX", "+91-9XXXXXXXXX", "Mon-Sat: 8:00 AM - 4:00 PM"],
+    lines: ["(0671) 2548577", "(0671) 3582999", "Mon-Sat: 8:00 AM - 4:00 PM"],
     color: "from-green-500 to-green-600",
   },
   {
     icon: "✉️",
     title: "Email Us",
-    lines: ["info@ssvmcollegesquare.com", "admissions@ssvmcollegesquare.com", "We reply within 24 hours"],
+    lines: ["ssvmcollegesquare1987@gmail.com", "We reply within 24 hours"],
     color: "from-purple-500 to-purple-600",
   },
   {
@@ -45,12 +45,30 @@ export default function ContactPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setSubmitted(true);
-    setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
-    setTimeout(() => setSubmitted(false), 5000);
+    
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setSubmitted(true);
+        setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+        setTimeout(() => setSubmitted(false), 5000);
+      } else {
+        console.error('Failed to send message');
+        alert('Failed to send message. Please try again later.');
+      }
+    } catch (error) {
+      console.error('Error submitting form:', error);
+      alert('An error occurred. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -134,7 +152,7 @@ export default function ContactPage() {
                   </div>
                   <h3 className="text-[#0A1628] text-lg font-bold mb-3">{info.title}</h3>
                   {info.lines.map((line) => (
-                    <p key={line} className="text-gray-500 text-sm leading-relaxed">
+                    <p key={line} className="text-gray-500 text-sm leading-relaxed break-words">
                       {line}
                     </p>
                   ))}
@@ -265,9 +283,20 @@ export default function ContactPage() {
                 </div>
 
                 {/* Map embed */}
-                <div className="rounded-2xl overflow-hidden shadow-xl border border-gray-200 h-[400px] bg-gray-100">
+                <div className="rounded-2xl overflow-hidden shadow-xl border border-gray-200 h-[400px] bg-gray-100 relative group">
+                  <a 
+                    href="https://www.google.com/maps/place/Saraswati+Shishu+Vidya+Mandir+College+Square+Cuttack,+Zunuspatna+College+Square,+Odisha+753003/data=!4m2!3m1!1s0x3a190d7e9d0504f1:0xf106d1e4af6b5c59!18m1!1e1?utm_source=mstt_1&entry=gps&coh=192189&g_ep=CAESBzI2LjIxLjIYACCIJyqfASw5NDI2NzcyNyw5NDI5MjE5NSw5NDI5OTUzMiwxMDA3OTY0OTgsMTAwNzk3NzYxLDEwMDc5NjUzNSwxMDA4MTUwMzYsOTQyODA1NzYsOTQyMDczOTQsOTQyMDc1MDYsOTQyMDg1MDYsOTQyMTg2NTMsOTQyMjk4MzksOTQyNzUxNjgsOTQyNzk2MTksMTAwODE1NjM1LDEwMDc5MjU3MkICSU4%3D&skid=9d0d83f1-9671-4efb-bbbd-4f3e1b61b321&g_st=aw" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="absolute top-4 right-4 z-10"
+                    aria-label="Open in Google Maps"
+                  >
+                    <div className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-lg text-sm font-semibold text-[#0A1628] shadow-lg flex items-center gap-2 hover:bg-white transition-colors opacity-0 group-hover:opacity-100">
+                      <span>📍</span> Open in Google Maps
+                    </div>
+                  </a>
                   <iframe
-                    src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3736.5!2d85.78!3d20.46!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjDCsDI3JzM2LjAiTiA4NcKwNDYnNDguMCJF!5e0!3m2!1sen!2sin!4v1"
+                    src="https://maps.google.com/maps?q=Saraswati+Shishu+Vidya+Mandir+College+Square+Cuttack,+Zunuspatna+College+Square,+Odisha+753003&t=&z=15&ie=UTF8&iwloc=&output=embed"
                     width="100%"
                     height="100%"
                     style={{ border: 0 }}
@@ -275,6 +304,7 @@ export default function ContactPage() {
                     loading="lazy"
                     referrerPolicy="no-referrer-when-downgrade"
                     title="School Location"
+                    className="w-full h-full"
                   />
                 </div>
 
@@ -283,12 +313,12 @@ export default function ContactPage() {
                   <div className="bg-gradient-to-br from-[#0A1628] to-[#1a2942] rounded-xl p-5 text-center">
                     <div className="text-2xl mb-2">📞</div>
                     <div className="text-white text-sm font-bold">Call Now</div>
-                    <div className="text-white/60 text-xs mt-1">+91-671-XXXXXXX</div>
+                    <div className="text-white/60 text-xs mt-1">(0671) 2548577</div>
                   </div>
                   <div className="bg-gradient-to-br from-[#0A1628] to-[#1a2942] rounded-xl p-5 text-center">
                     <div className="text-2xl mb-2">✉️</div>
                     <div className="text-white text-sm font-bold">Email Us</div>
-                    <div className="text-white/60 text-xs mt-1">info@ssvmcollegesquare.com</div>
+                    <div className="text-white/60 text-xs mt-1 break-all">ssvmcollegesquare1987@gmail.com</div>
                   </div>
                 </div>
               </motion.div>
