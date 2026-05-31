@@ -194,7 +194,7 @@ export default function SiteSettingsPage() {
                   type="text"
                   value={establishmentYear}
                   onChange={(e) => setEstablishmentYear(e.target.value)}
-                  placeholder="Default: 1952"
+                  placeholder="Default: 1987"
                   className="w-full px-4 py-2.5 rounded-lg border border-border text-[13px] outline-none focus:border-primary"
                 />
                 <p className="text-[11px] text-text-secondary mt-1">

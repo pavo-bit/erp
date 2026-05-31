@@ -58,7 +58,7 @@ export function WelcomeSection() {
             transition={{ delay: 0.5 }}
             className="text-gray-600 text-lg md:text-xl leading-relaxed mb-6 max-w-[850px] mx-auto"
           >
-            Rooted in Indian values and driven by a passion for excellence, Saraswati Shishu Vidya Mandir, College Square, Cuttack has been a beacon of quality education since 1952. Under the banner of Vidya Bharati, we nurture young minds with a perfect blend of traditional wisdom and modern knowledge.
+            Rooted in Indian values and driven by a passion for excellence, Saraswati Shishu Vidya Mandir, College Square, Cuttack has been a beacon of quality education since 1987. Under the banner of Vidya Bharati, we nurture young minds with a perfect blend of traditional wisdom and modern knowledge.
           </motion.p>
 
           <motion.p

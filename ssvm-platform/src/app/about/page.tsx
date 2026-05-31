@@ -14,7 +14,7 @@ const values = [
 ];
 
 const milestones = [
-  { year: "1952", title: "School Founded", description: "Established under Vidya Bharati with a vision to provide value-based education." },
+  { year: "1987", title: "School Founded", description: "Established under Vidya Bharati with a vision to provide value-based education." },
   { year: "1970", title: "Campus Expansion", description: "New buildings and facilities added to accommodate growing student strength." },
   { year: "1995", title: "Senior Secondary Added", description: "Expanded to include Classes 11-12 with Science, Commerce, and Arts streams." },
   { year: "2010", title: "Digital Transformation", description: "Smart classrooms and computer labs introduced across all departments." },
@@ -35,7 +35,7 @@ export default function AboutPage() {
   const stats = useMemo(() => {
     if (!statsData) {
       return [
-        { icon: "🏛️", value: "1952", label: "Established" },
+        { icon: "🏛️", value: "1987", label: "Established" },
         { icon: "👥", value: "3,200+", label: "Students" },
         { icon: "🎓", value: "120+", label: "Expert Teachers" },
         { icon: "🏆", value: "98%", label: "Board Results" },
@@ -43,7 +43,7 @@ export default function AboutPage() {
       ];
     }
     return [
-      { icon: "🏛️", value: statsData.establishmentYear || "1952", label: "Established" },
+      { icon: "🏛️", value: statsData.establishmentYear || "1987", label: "Established" },
       { icon: "👥", value: statsData.studentCount || "3,200+", label: "Students" },
       { icon: "🎓", value: statsData.teacherCount || "120+", label: "Expert Teachers" },
       { icon: "🏆", value: statsData.boardResults || "98%", label: "Board Results" },
@@ -101,7 +101,7 @@ export default function AboutPage() {
                 transition={{ delay: 0.4 }}
                 className="text-white/70 text-lg md:text-xl max-w-[700px] mx-auto mb-8 leading-relaxed"
               >
-                Rooted in Indian values, driven by excellence. Since 1952, we have been shaping young minds for a brighter tomorrow under the Vidya Bharati network.
+                Rooted in Indian values, driven by excellence. Since 1987, we have been shaping young minds for a brighter tomorrow under the Vidya Bharati network.
               </motion.p>
             </motion.div>
 

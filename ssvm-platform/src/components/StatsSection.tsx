@@ -12,7 +12,7 @@ export function StatsSection() {
 
   const stats = useMemo(() => {
     return [
-      { icon: "🏛️", value: "1952", label: "Years of Excellence", color: "from-blue-500 to-blue-600" },
+      { icon: "🏛️", value: "1987", label: "Years of Excellence", color: "from-blue-500 to-blue-600" },
       { icon: "🎓", value: "5000+", label: "Alumni Network", color: "from-green-500 to-green-600" },
       { icon: "🏆", value: "25+", label: "State Rank Holders", color: "from-purple-500 to-purple-600" },
       { icon: "💻", value: "100%", label: "Digital Administration", color: "from-orange-500 to-orange-600" },

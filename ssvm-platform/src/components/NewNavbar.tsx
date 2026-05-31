@@ -39,29 +39,43 @@ export function NewNavbar() {
           scrolled ? "bg-[#0A1628] shadow-lg" : "bg-[#0A1628]/95 backdrop-blur-sm"
         }`}
       >
-        <div className="max-w-[1600px] mx-auto px-[3%] flex items-center justify-between h-[110px]">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-4 no-underline group flex-shrink-0">
-            <div className="w-16 h-16 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
-              MIS
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-white text-[18px] font-bold tracking-tight whitespace-nowrap">
-                Modern International School
-              </span>
-              <span className="text-orange-400 text-[14px] font-medium tracking-wide whitespace-nowrap">
-                Shaping Young Minds
-              </span>
-            </div>
-          </Link>
+        <div className="w-full mx-auto px-4 lg:px-6 xl:px-8 flex items-center justify-between h-[130px]">
+          {/* Left Logos */}
+          <div className="flex items-center gap-4 flex-shrink-0">
+            {/* Far Left Logo - Samiti */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/samiti-logo.png"
+              alt="Samiti Logo"
+              className="h-[115px] w-auto object-contain"
+            />
+            
+            {/* School Logo & Name */}
+            <Link href="/" className="flex items-center gap-4 no-underline group">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/school-logo.png"
+                alt="School Logo"
+                className="h-[115px] w-auto object-contain"
+              />
+              <div className="flex flex-col leading-tight">
+                <span className="text-white text-[20px] font-bold tracking-tight">
+                  Saraswati Shishu Vidya Mandir
+                </span>
+                <span className="text-orange-400 text-[15px] font-medium tracking-wide mt-1">
+                  College Square • Estd. 1987
+                </span>
+              </div>
+            </Link>
+          </div>
 
           {/* Desktop Nav */}
-          <ul className="hidden lg:flex items-center gap-8 list-none m-0 flex-1 justify-center">
+          <ul className="hidden lg:flex items-center gap-4 xl:gap-8 list-none m-0 flex-1 justify-center">
             {navLinks.map((link) => (
               <li key={link.name}>
                 <Link
                   href={link.href}
-                  className="text-white/90 text-[20px] font-medium no-underline hover:text-orange-400 transition-colors duration-200 whitespace-nowrap"
+                  className="text-white/90 text-[16px] xl:text-[18px] font-medium no-underline hover:text-orange-400 transition-colors duration-200 whitespace-nowrap"
                 >
                   {link.name}
                 </Link>
@@ -69,23 +83,14 @@ export function NewNavbar() {
             ))}
           </ul>
 
-          {/* Desktop CTA */}
-          <div className="hidden lg:flex items-center gap-4 flex-shrink-0 ml-auto">
-            {user ? (
-              <Link
-                href={`/${user.role.toLowerCase()}`}
-                className="px-10 py-3.5 rounded bg-gradient-to-r from-orange-500 to-orange-600 text-white text-[16px] font-bold uppercase tracking-widest hover:from-orange-600 hover:to-orange-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap border border-transparent no-underline"
-              >
-                Dashboard
-              </Link>
-            ) : (
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="px-10 py-3.5 rounded bg-gradient-to-r from-orange-500 to-orange-600 text-white text-[16px] font-bold uppercase tracking-widest hover:from-orange-600 hover:to-orange-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 whitespace-nowrap border border-transparent cursor-pointer"
-              >
-                Login
-              </button>
-            )}
+          {/* Right Logo */}
+          <div className="hidden lg:flex items-center flex-shrink-0 ml-auto">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/vidya-bharati-logo.png"
+              alt="Vidya Bharati"
+              className="h-[115px] w-auto object-contain"
+            />
           </div>
 
           {/* Mobile Hamburger */}
@@ -107,7 +112,7 @@ export function NewNavbar() {
             initial={{ opacity: 0, x: "100%" }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: "100%" }}
-            className="fixed top-[110px] left-0 right-0 bottom-0 bg-[#0A1628] z-[999] px-[5%] pt-8 overflow-y-auto"
+            className="fixed top-[130px] left-0 right-0 bottom-0 bg-[#0A1628] z-[999] px-[5%] pt-8 overflow-y-auto"
           >
             {navLinks.map((link, i) => (
               <motion.div
@@ -125,25 +130,6 @@ export function NewNavbar() {
                 </Link>
               </motion.div>
             ))}
-            {user ? (
-              <Link
-                href={`/${user.role.toLowerCase()}`}
-                onClick={() => setMobileOpen(false)}
-                className="mt-6 block text-center px-7 py-3.5 rounded bg-gradient-to-r from-orange-500 to-orange-600 text-white text-[16px] font-bold uppercase tracking-widest hover:from-orange-600 hover:to-orange-700 transition-all duration-300 no-underline"
-              >
-                Dashboard
-              </Link>
-            ) : (
-              <button
-                onClick={() => {
-                  setMobileOpen(false);
-                  setIsLoginModalOpen(true);
-                }}
-                className="mt-6 w-full block text-center px-7 py-3.5 rounded bg-gradient-to-r from-orange-500 to-orange-600 text-white text-[16px] font-bold uppercase tracking-widest hover:from-orange-600 hover:to-orange-700 transition-all duration-300 border-none cursor-pointer"
-              >
-                Login
-              </button>
-            )}
           </motion.div>
         ) : null}
       </AnimatePresence>

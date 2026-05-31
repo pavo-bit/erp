@@ -20,7 +20,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Saraswati Shishu Vidya Mandir — College Square, Cuttack",
   description:
-    "Rooted in Indian values, driven by excellence. Saraswati Shishu Vidya Mandir, College Square, Cuttack — Odisha's premier educational institution since 1952. Nursery to Class XII under Vidya Bharati.",
+    "Rooted in Indian values, driven by excellence. Saraswati Shishu Vidya Mandir, College Square, Cuttack — Odisha's premier educational institution since 1987. Nursery to Class XII under Vidya Bharati.",
   keywords: [
     "Saraswati Shishu Vidya Mandir",
     "SSVM Cuttack",
