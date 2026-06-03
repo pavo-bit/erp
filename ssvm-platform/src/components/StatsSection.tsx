@@ -21,15 +21,16 @@ export function StatsSection() {
   }, []);
 
   return (
-    <section className="relative py-0 -mt-16 z-10">
-      <div className="max-w-[1400px] mx-auto px-[5%]">
+    <section className="relative py-0 -mt-8 md:-mt-16 z-10">
+      <div className="max-w-[1400px] mx-auto px-4 md:px-[5%]">
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           animate={isVisible ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="bg-gradient-to-br from-[#0f1f3a] to-[#1a2942] rounded-2xl shadow-2xl border border-white/10 p-8"
+          className="bg-gradient-to-br from-[#0f1f3a] to-[#1a2942] rounded-2xl shadow-2xl border border-white/10 p-4 md:p-8"
         >
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {/* Desktop: Grid layout (unchanged) */}
+          <div className="hidden md:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             {stats.map((stat, index) => (
               <motion.div
                 key={stat.label}
@@ -45,6 +46,27 @@ export function StatsSection() {
                   {stat.value}
                 </div>
                 <div className="text-white/60 text-sm font-medium">{stat.label}</div>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Mobile: Horizontal scroll */}
+          <div className="flex md:hidden gap-3 overflow-x-auto pb-1 snap-x snap-mandatory scrollbar-hide -mx-1 px-1">
+            {stats.map((stat, index) => (
+              <motion.div
+                key={stat.label}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={isVisible ? { opacity: 1, scale: 1 } : {}}
+                transition={{ delay: index * 0.08, duration: 0.5 }}
+                className="text-center flex-shrink-0 snap-start min-w-[110px]"
+              >
+                <div className={`w-11 h-11 mx-auto mb-2 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center text-xl shadow-lg`}>
+                  {stat.icon}
+                </div>
+                <div className="text-white text-lg font-bold mb-0.5">
+                  {stat.value}
+                </div>
+                <div className="text-white/60 text-[11px] font-medium leading-tight">{stat.label}</div>
               </motion.div>
             ))}
           </div>

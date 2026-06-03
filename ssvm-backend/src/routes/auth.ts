@@ -43,6 +43,55 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
   }
 });
 
+// POST /api/auth/alumni/register (public)
+router.post("/alumni/register", async (req: AuthRequest, res: Response) => {
+  try {
+    const { email, password, name, phone, batch, currentRole, company } = req.body;
+
+    if (!email || !password || !name) {
+      res.status(400).json({ success: false, error: "Email, password, and name are required" });
+      return;
+    }
+
+    const emailLower = email.toLowerCase().trim();
+    const existing = await prisma.user.findUnique({ where: { email: emailLower } });
+    if (existing) { res.status(409).json({ success: false, error: "Email already registered" }); return; }
+
+    const hashed = await hashPassword(password);
+    const user = await prisma.user.create({
+      data: {
+        email: emailLower,
+        password: hashed,
+        name,
+        role: "ALUMNI",
+        phone: phone || null,
+        alumni: {
+          create: {
+            batch: batch || "",
+            currentRole: currentRole || null,
+            company: company || null,
+          }
+        }
+      },
+      include: { alumni: true }
+    });
+
+    const token = signToken({ userId: user.id, email: user.email, role: user.role, name: user.name });
+
+    res.cookie("auth_token", token, {
+      httpOnly: true, secure: process.env.NODE_ENV === "production" && process.env.FRONTEND_URL?.startsWith("https"),
+      sameSite: "lax", maxAge: 7 * 24 * 60 * 60 * 1000, path: "/",
+    });
+
+    const { password: _, ...userWithoutPw } = user;
+    logger.info({ userId: user.id, role: user.role }, "New Alumni registered");
+    res.status(201).json({ success: true, data: { token, user: userWithoutPw } });
+  } catch (e) {
+    logger.error({ err: e }, "Alumni register error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 // POST /api/auth/register (admin only)
 router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSchema), async (req: AuthRequest, res: Response) => {
   try {

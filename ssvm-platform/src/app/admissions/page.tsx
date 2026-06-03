@@ -2,7 +2,8 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { NewNavbar, NewFooter } from "@/components";
+import { useState } from "react";
+import { NewNavbar, NewFooter, EnquiryModal } from "@/components";
 
 const admissionSteps = [
   {
@@ -56,9 +57,12 @@ const documents = [
 ];
 
 export default function AdmissionsPage() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   return (
     <>
       <NewNavbar />
+      <EnquiryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
       <main className="min-h-screen bg-[#f8f9fc]">
         {/* Hero Header */}
         <section className="relative pt-[110px] bg-gradient-to-br from-[#0A1628] via-[#1a2942] to-[#0A1628] overflow-hidden">
@@ -115,12 +119,12 @@ export default function AdmissionsPage() {
                 transition={{ delay: 0.5 }}
                 className="flex gap-4 justify-center flex-wrap"
               >
-                <Link
-                  href="/contact"
-                  className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold text-sm uppercase tracking-wider hover:from-orange-600 hover:to-orange-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 no-underline"
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold text-sm uppercase tracking-wider hover:from-orange-600 hover:to-orange-700 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 no-underline cursor-pointer border-none"
                 >
                   Apply Now →
-                </Link>
+                </button>
                 <Link
                   href="/contact"
                   className="px-8 py-3.5 rounded-xl text-white font-bold text-sm uppercase tracking-wider border-2 border-white/30 hover:border-white/60 hover:bg-white/10 transition-all duration-300 no-underline"

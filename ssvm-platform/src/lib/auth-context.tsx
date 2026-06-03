@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
 interface User {
@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
+  const justLoggedIn = useRef(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -80,24 +81,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!initialCheckDone) return;
 
-    const publicPaths = ["/", "/login"];
-    const isPublic = publicPaths.includes(pathname);
+    const publicPaths = ["/", "/login", "/about", "/academics", "/admissions", "/gallery", "/events", "/contact"];
+    const isPublic = publicPaths.includes(pathname) || pathname.startsWith("/receipt");
+
+    // If the user just logged in, don't interfere — let the login page handle the redirect
+    if (justLoggedIn.current) {
+      justLoggedIn.current = false;
+      return;
+    }
 
     // Always allow the login page to show — never redirect away from /login
-    // unless the user is truly authenticated (token validated by API)
     if (pathname === "/login") {
-      if (user) {
-        // User explicitly navigated to login page while authenticated
-        // Force logout to allow re-authentication instead of auto-redirecting
-        logout();
-      }
       // If no user, just show the login page — don't redirect
       return;
     }
 
-    // Redirect to root if not authenticated and trying to access protected route
+    // Redirect to login if not authenticated and trying to access protected route
     if (!user && !isPublic) {
-      router.push("/");
+      router.push("/login");
       return;
     }
 
@@ -125,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       if (data.success) {
+        justLoggedIn.current = true;
         setUser(data.data.user);
         return { success: true, role: data.data.user.role };
       }
@@ -149,3 +151,4 @@ export function useAuth() {
 }
 
 export default AuthContext;
+

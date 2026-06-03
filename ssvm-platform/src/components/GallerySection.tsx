@@ -1,10 +1,10 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { useGallery } from "@/lib/api-hooks";
 
-const tabs = ["All", "Campus", "Facilities", "Events", "Academic", "Sports"];
+const tabs = ["All", "Campus", "Facilities", "Events", "Academic", "Sports", "Sishuvatika", "NCC/Scout/Guide"];
 
 interface GalleryImage {
   id: string;
@@ -16,6 +16,7 @@ interface GalleryImage {
 
 export function GallerySection() {
   const [activeTab, setActiveTab] = useState("All");
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   
   const { data: rawData, isLoading: loading } = useGallery(
     activeTab === "All" ? undefined : activeTab
@@ -90,6 +91,7 @@ export function GallerySection() {
             filteredImages.map((item, index) => (
               <motion.div
                 key={item.id}
+                onClick={() => setSelectedPhotoIndex(index)}
                 initial={{ opacity: 0, scale: 0.9 }}
                 whileInView={{ opacity: 1, scale: 1 }}
                 viewport={{ once: true }}
@@ -118,6 +120,79 @@ export function GallerySection() {
 
 
       </div>
+
+      {/* Lightbox Modal */}
+      <AnimatePresence>
+        {selectedPhotoIndex !== null && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+            {/* Close Button */}
+            <button
+              onClick={() => setSelectedPhotoIndex(null)}
+              className="absolute top-6 right-6 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border-none cursor-pointer z-50"
+              aria-label="Close"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Previous Arrow */}
+            {selectedPhotoIndex > 0 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedPhotoIndex(selectedPhotoIndex - 1);
+                }}
+                className="absolute left-4 md:left-10 top-1/2 -translate-y-1/2 w-14 h-14 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border-none cursor-pointer z-50"
+                aria-label="Previous photo"
+              >
+                <svg className="w-8 h-8 pr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
+
+            {/* Next Arrow */}
+            {selectedPhotoIndex < filteredImages.length - 1 && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedPhotoIndex(selectedPhotoIndex + 1);
+                }}
+                className="absolute right-4 md:right-10 top-1/2 -translate-y-1/2 w-14 h-14 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border-none cursor-pointer z-50"
+                aria-label="Next photo"
+              >
+                <svg className="w-8 h-8 pl-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            )}
+
+            {/* Image Container */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative max-w-6xl max-h-[85vh] w-full flex flex-col items-center justify-center"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={filteredImages[selectedPhotoIndex].imageUrl}
+                alt={filteredImages[selectedPhotoIndex].title}
+                className="max-w-full max-h-[80vh] object-contain rounded-lg shadow-2xl"
+              />
+              <div className="text-center mt-6">
+                <h3 className="text-white text-xl font-bold">{filteredImages[selectedPhotoIndex].title}</h3>
+                {filteredImages[selectedPhotoIndex].description && (
+                  <p className="text-white/70 mt-2">{filteredImages[selectedPhotoIndex].description}</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

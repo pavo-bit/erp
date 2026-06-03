@@ -70,8 +70,13 @@ router.post("/", authenticate, requireRole("ADMIN"), upload.single("image"), asy
       .toFile(compressedPath);
 
     // Remove original uncompressed file
-    fs.unlinkSync(file.path);
-
+    try {
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    } catch (err) {
+      logger.warn({ err, path: file.path }, "Failed to delete temporary uncompressed image");
+    }
     const imageUrl = `/uploads/gallery/${compressedFilename}`;
     const image = await prisma.galleryImage.create({
       data: {

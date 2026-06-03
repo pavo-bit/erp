@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { NewNavbar, NewFooter } from "@/components";
 import { useGallery } from "@/lib/api-hooks";
 
-const tabs = ["All", "Campus", "Facilities", "Events", "Academic", "Sports"];
+const tabs = ["All", "Campus", "Facilities", "Events", "Academic", "Sports", "Sishuvatika", "NCC/Scout/Guide"];
 
 interface GalleryImage {
   id: string;
@@ -17,7 +17,7 @@ interface GalleryImage {
 
 export default function GalleryPage() {
   const [activeTab, setActiveTab] = useState("All");
-  const [selectedImage, setSelectedImage] = useState<GalleryImage | null>(null);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const galleryRef = useRef<HTMLDivElement>(null);
 
   const { data: rawData, isLoading: loading } = useGallery(
@@ -230,7 +230,7 @@ export default function GalleryPage() {
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: Math.min(index * 0.03, 0.5) }}
                       whileHover={{ y: -6, scale: 1.02 }}
-                      onClick={() => setSelectedImage(item)}
+                      onClick={() => setSelectedPhotoIndex(index)}
                       className="aspect-square rounded-2xl overflow-hidden cursor-pointer shadow-md hover:shadow-2xl transition-all group relative"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -267,12 +267,12 @@ export default function GalleryPage() {
 
       {/* Lightbox Modal for full-size image viewing */}
       <AnimatePresence>
-        {selectedImage && (
+        {selectedPhotoIndex !== null && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setSelectedImage(null)}
+            onClick={() => setSelectedPhotoIndex(null)}
             className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[2000] flex items-center justify-center p-4 cursor-pointer"
           >
             <motion.div
@@ -285,44 +285,66 @@ export default function GalleryPage() {
             >
               {/* Close button */}
               <button
-                onClick={() => setSelectedImage(null)}
-                className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer z-10"
+                onClick={() => setSelectedPhotoIndex(null)}
+                className="absolute -top-12 right-0 w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer z-[2010]"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
+
+              {/* Previous Arrow */}
+              {selectedPhotoIndex > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPhotoIndex(selectedPhotoIndex - 1);
+                  }}
+                  className="absolute left-4 md:-left-16 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border-none cursor-pointer z-[2010]"
+                  aria-label="Previous photo"
+                >
+                  <svg className="w-6 h-6 pr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+              )}
+
+              {/* Next Arrow */}
+              {selectedPhotoIndex < filteredImages.length - 1 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPhotoIndex(selectedPhotoIndex + 1);
+                  }}
+                  className="absolute right-4 md:-right-16 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors border-none cursor-pointer z-[2010]"
+                  aria-label="Next photo"
+                >
+                  <svg className="w-6 h-6 pl-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              )}
 
               {/* Image */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={selectedImage.imageUrl}
-                alt={selectedImage.title}
+                src={filteredImages[selectedPhotoIndex].imageUrl}
+                alt={filteredImages[selectedPhotoIndex].title}
                 className="w-full max-h-[75vh] object-contain rounded-2xl"
               />
 
               {/* Image Info */}
               <div className="mt-4 text-center">
                 <h3 className="text-white text-xl font-bold mb-1">
-                  {selectedImage.title}
+                  {filteredImages[selectedPhotoIndex].title}
                 </h3>
-                {selectedImage.description && (
+                {filteredImages[selectedPhotoIndex].description && (
                   <p className="text-white/70 text-sm">
-                    {selectedImage.description}
+                    {filteredImages[selectedPhotoIndex].description}
                   </p>
                 )}
                 <span className="inline-block mt-2 px-4 py-1.5 rounded-full bg-white/10 text-white/80 text-xs font-medium">
-                  {selectedImage.category}
+                  {filteredImages[selectedPhotoIndex].category}
                 </span>
               </div>
             </motion.div>

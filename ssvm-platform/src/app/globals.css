@@ -28,7 +28,13 @@
 /* ─── BASE ─── */
 html {
   scroll-behavior: smooth;
-  font-size: 120%;
+  font-size: 100%;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 120%;
+  }
 }
 
 body {
@@ -122,4 +128,13 @@ body {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+}
+
+/* Hide scrollbar for horizontal scroll sections on mobile */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

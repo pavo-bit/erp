@@ -48,18 +48,18 @@ export function StudentAchievementsSection() {
   }
 
   return (
-    <section className="py-24 relative overflow-hidden bg-[#faf8f5] border-y border-amber-900/10">
+    <section className="py-14 md:py-24 relative overflow-hidden bg-[#faf8f5] border-y border-amber-900/10">
       {/* Subtle traditional pattern overlay */}
       <div className="absolute inset-0 opacity-[0.03] bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGNpcmNsZSBjeD0iMiIgY3k9IjIiIHI9IjIiIGZpbGw9IiM0NTE0MDAiLz48L3N2Zz4=')]" />
       
-      <div className="relative max-w-[1400px] mx-auto px-[5%]">
+      <div className="relative max-w-[1400px] mx-auto px-4 md:px-[5%]">
         {/* Section Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-20"
+          className="text-center mb-10 md:mb-20"
         >
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="h-[1px] w-12 bg-amber-800/30" />
@@ -74,7 +74,7 @@ export function StudentAchievementsSection() {
         </motion.div>
 
         {/* Grid of Achievements */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12 max-w-[1200px] mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-12 max-w-[1200px] mx-auto">
           {achievements.map((achievement: Record<string, unknown>, index: number) => {
             const design = cardDesigns[index % cardDesigns.length];
             
@@ -111,7 +111,7 @@ export function StudentAchievementsSection() {
                 <div className={`absolute bottom-4 left-4 text-xl opacity-30 ${design.accentColor} pointer-events-none`}>✧</div>
 
                 {/* Photo window - Greeting Card Arch style */}
-                <div className={`relative h-[260px] w-[75%] mx-auto mt-8 mb-8 overflow-hidden rounded-t-[100px] rounded-b-xl border-[6px] border-white shadow-lg group-hover:shadow-xl transition-shadow duration-500`}>
+                <div className={`relative h-[180px] md:h-[260px] w-[75%] mx-auto mt-6 md:mt-8 mb-6 md:mb-8 overflow-hidden rounded-t-[80px] md:rounded-t-[100px] rounded-b-xl border-[4px] md:border-[6px] border-white shadow-lg group-hover:shadow-xl transition-shadow duration-500`}>
                   <div className="w-full h-full overflow-hidden relative bg-white">
                     <div className="absolute inset-0 bg-black/5 mix-blend-multiply opacity-0 group-hover:opacity-10 transition-opacity z-10" />
                     {/* eslint-disable-next-line @next/next/no-img-element */}

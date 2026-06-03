@@ -15,3 +15,6 @@ export { LoginModal } from "./LoginModal";
 export { WelcomeSection } from "./WelcomeSection";
 export { LeadershipSection } from "./LeadershipSection";
 export { StudentAchievementsSection } from "./StudentAchievementsSection";
+export { ThoughtSection } from "./ThoughtSection";
+export { FacultySection } from "./FacultySection";
+export { EnquiryModal } from "./EnquiryModal";

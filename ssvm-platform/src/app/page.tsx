@@ -6,6 +6,7 @@ import {
   StatsSection,
   WelcomeSection,
   LeadershipSection,
+  ThoughtSection,
   StudentAchievementsSection,
   NewFooter,
 } from "@/components";
@@ -19,6 +20,7 @@ export default function HomePage() {
         <StatsSection />
         <WelcomeSection />
         <LeadershipSection />
+        <ThoughtSection />
         <StudentAchievementsSection />
       </main>
       <NewFooter />

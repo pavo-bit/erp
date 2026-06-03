@@ -15,6 +15,7 @@ const navLinks = [
   { name: "News & Events", href: "/events" },
   { name: "About Us", href: "/about" },
   { name: "Contact", href: "/contact" },
+  { name: "Alumni", href: "/alumni" },
 ];
 
 export function NewNavbar() {
@@ -39,23 +40,16 @@ export function NewNavbar() {
           scrolled ? "bg-[#0A1628] shadow-lg" : "bg-[#0A1628]/95 backdrop-blur-sm"
         }`}
       >
-        <div className="w-full mx-auto px-4 lg:px-6 xl:px-8 flex items-center justify-between h-[130px]">
+        {/* Desktop Navbar */}
+        <div className="hidden md:flex w-full mx-auto px-4 lg:px-6 xl:px-8 items-center justify-between h-[130px]">
           {/* Left Logos */}
           <div className="flex items-center gap-4 flex-shrink-0">
-            {/* Far Left Logo - Samiti */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/samiti-logo.png"
-              alt="Samiti Logo"
-              className="h-[115px] w-auto object-contain"
-            />
-            
             {/* School Logo & Name */}
             <Link href="/" className="flex items-center gap-4 no-underline group">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="/school-logo.png"
-                alt="School Logo"
+                src="/samiti-logo.png"
+                alt="Sikhya Bikash Samiti Logo"
                 className="h-[115px] w-auto object-contain"
               />
               <div className="flex flex-col leading-tight">
@@ -70,7 +64,7 @@ export function NewNavbar() {
           </div>
 
           {/* Desktop Nav */}
-          <ul className="hidden lg:flex items-center gap-4 xl:gap-8 list-none m-0 flex-1 justify-center">
+          <ul className="hidden lg:flex items-center gap-4 xl:gap-8 list-none m-0 flex-1 justify-start pl-6 xl:pl-12">
             {navLinks.map((link) => (
               <li key={link.name}>
                 <Link
@@ -83,25 +77,63 @@ export function NewNavbar() {
             ))}
           </ul>
 
-          {/* Right Logo */}
-          <div className="hidden lg:flex items-center flex-shrink-0 ml-auto">
+          {/* Right Section: Payment Button + Logo */}
+          <div className="hidden lg:flex items-center gap-4 flex-shrink-0 ml-auto">
+            <a
+              href="http://onlinepay.ssvmcuttack.in/Login"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-green-500 to-green-400 text-white font-semibold text-[14px] xl:text-[16px] shadow-lg hover:shadow-green-500/30 transition-all hover:-translate-y-0.5 no-underline whitespace-nowrap"
+            >
+              💳 Click to Payment
+            </a>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/vidya-bharati-logo.png"
               alt="Vidya Bharati"
-              className="h-[115px] w-auto object-contain"
+              className="h-[115px] w-auto object-contain ml-2"
             />
           </div>
+        </div>
 
-          {/* Mobile Hamburger */}
-          <button
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className="flex lg:hidden flex-col gap-2 p-2 bg-transparent border-none cursor-pointer"
-          >
-            <span className={`w-7 h-0.5 bg-white transition-all ${mobileOpen ? "rotate-45 translate-y-[10px]" : ""}`} />
-            <span className={`w-7 h-0.5 bg-white transition-all ${mobileOpen ? "opacity-0" : ""}`} />
-            <span className={`w-7 h-0.5 bg-white transition-all ${mobileOpen ? "-rotate-45 -translate-y-[10px]" : ""}`} />
-          </button>
+        {/* Mobile Navbar */}
+        <div className="flex md:hidden w-full px-3 items-center justify-between h-[64px]">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2.5 no-underline flex-shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/samiti-logo.png"
+              alt="Sikhya Bikash Samiti Logo"
+              className="h-[44px] w-auto object-contain"
+            />
+            <div className="flex flex-col leading-tight">
+              <span className="text-white text-[13px] font-bold tracking-tight">
+                SSVM
+              </span>
+              <span className="text-orange-400 text-[10px] font-medium">
+                College Square
+              </span>
+            </div>
+          </Link>
+
+          {/* Right side: Vidya Bharati mini + Hamburger */}
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/vidya-bharati-logo.png"
+              alt="Vidya Bharati"
+              className="h-[40px] w-auto object-contain"
+            />
+            <button
+              onClick={() => setMobileOpen(!mobileOpen)}
+              className="flex flex-col gap-[5px] p-2 bg-transparent border-none cursor-pointer"
+              aria-label="Toggle menu"
+            >
+              <span className={`w-6 h-[2px] bg-white transition-all duration-300 ${mobileOpen ? "rotate-45 translate-y-[7px]" : ""}`} />
+              <span className={`w-6 h-[2px] bg-white transition-all duration-300 ${mobileOpen ? "opacity-0" : ""}`} />
+              <span className={`w-6 h-[2px] bg-white transition-all duration-300 ${mobileOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
+            </button>
+          </div>
         </div>
       </motion.nav>
 
@@ -112,7 +144,8 @@ export function NewNavbar() {
             initial={{ opacity: 0, x: "100%" }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: "100%" }}
-            className="fixed top-[130px] left-0 right-0 bottom-0 bg-[#0A1628] z-[999] px-[5%] pt-8 overflow-y-auto"
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed top-[64px] md:top-[130px] left-0 right-0 bottom-0 bg-[#0A1628] z-[999] px-6 pt-6 overflow-y-auto"
           >
             {navLinks.map((link, i) => (
               <motion.div
@@ -124,12 +157,30 @@ export function NewNavbar() {
                 <Link
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className="block text-white text-xl font-medium no-underline py-4 border-b border-white/10 hover:text-orange-400"
+                  className="block text-white text-lg font-medium no-underline py-3.5 border-b border-white/10 hover:text-orange-400 transition-colors"
                 >
                   {link.name}
                 </Link>
               </motion.div>
             ))}
+
+            {/* Mobile Payment Button */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: navLinks.length * 0.05 + 0.1 }}
+              className="mt-6"
+            >
+              <a
+                href="http://onlinepay.ssvmcuttack.in/Login"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileOpen(false)}
+                className="block w-full text-center py-3.5 rounded-xl bg-gradient-to-r from-green-500 to-green-400 text-white font-semibold text-base no-underline shadow-lg"
+              >
+                💳 Click to Payment
+              </a>
+            </motion.div>
           </motion.div>
         ) : null}
       </AnimatePresence>
