@@ -1,0 +1,39 @@
+# ═══════════════════════════════════════════════════════════════
+# SSVM Frontend — .dockerignore
+# Exclude files that should NOT be sent to the Docker build context
+# ═══════════════════════════════════════════════════════════════
+
+# Dependencies (will be freshly installed inside container)
+node_modules
+
+# Build output (will be rebuilt inside container)
+.next
+
+# Environment files (secrets passed via docker-compose environment)
+.env
+.env.local
+.env.development
+.env.production
+
+# Version control
+.git
+.gitignore
+
+# IDE & editor files
+.vscode
+.idea
+*.swp
+*.swo
+
+# Documentation
+README.md
+AGENTS.md
+CLAUDE.md
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db

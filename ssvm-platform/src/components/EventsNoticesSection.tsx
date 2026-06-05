@@ -17,6 +17,7 @@ interface Notice {
   id: number;
   title: string;
   createdAt: string;
+  attachment?: string;
 }
 
 export function EventsNoticesSection() {
@@ -150,13 +151,26 @@ export function EventsNoticesSection() {
                       <h4 className="text-white text-sm font-semibold mb-1 group-hover:text-orange-400 transition-colors">
                         {notice.title}
                       </h4>
-                      <p className="text-white/60 text-xs">
-                        {new Date(notice.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </p>
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className="text-white/60 text-xs">
+                          {new Date(notice.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </p>
+                        {notice.attachment && (
+                          <a 
+                            href={`http://localhost:5000${notice.attachment}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-orange-300 text-[10px] font-semibold transition-colors border border-white/10"
+                          >
+                            <span>📄</span> Download
+                          </a>
+                        )}
+                      </div>
                     </div>
                   </motion.div>
                 ))

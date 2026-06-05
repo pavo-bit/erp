@@ -90,6 +90,40 @@ services:
       retries: 5
       start_period: 60s
 
+  # ─────────────────────────────────────────────────────────────────────
+  # Container 3: ADMIN DASHBOARD
+  # Next.js standalone container for Admin Portal
+  # ─────────────────────────────────────────────────────────────────────
+  admin-dashboard:
+    build:
+      context: ./admin-dashboard
+      dockerfile: Dockerfile
+    container_name: ssvm-admin-dashboard
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+    ports:
+      - "3001:3000"
+    networks:
+      - ssvm-network
+
+  # ─────────────────────────────────────────────────────────────────────
+  # Container 4: ALUMNI DASHBOARD
+  # Next.js standalone container for Alumni Portal
+  # ─────────────────────────────────────────────────────────────────────
+  alumni-dashboard:
+    build:
+      context: ./alumni-dashboard
+      dockerfile: Dockerfile
+    container_name: ssvm-alumni-dashboard
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+    ports:
+      - "3002:3000"
+    networks:
+      - ssvm-network
+
 # ─────────────────────────────────────────────────────────────────────
 # Network Configuration
 # ─────────────────────────────────────────────────────────────────────

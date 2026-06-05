@@ -18,6 +18,7 @@ interface Notice {
   id: number;
   title: string;
   createdAt: string;
+  attachment?: string;
 }
 
 export default function EventsPage() {
@@ -242,13 +243,26 @@ export default function EventsPage() {
                           <h4 className="text-[#0A1628] text-base font-bold mb-2 group-hover:text-orange-600 transition-colors leading-snug">
                             {notice.title}
                           </h4>
-                          <p className="text-gray-400 text-xs font-medium">
-                            {new Date(notice.createdAt).toLocaleDateString("en-US", {
-                              month: "long",
-                              day: "numeric",
-                              year: "numeric",
-                            })}
-                          </p>
+                          <div className="flex flex-col gap-2">
+                            <p className="text-gray-400 text-xs font-medium">
+                              {new Date(notice.createdAt).toLocaleDateString("en-US", {
+                                month: "long",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </p>
+                            {notice.attachment && (
+                              <a 
+                                href={`http://localhost:5000${notice.attachment}`} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-orange-50 text-orange-600 text-xs font-semibold hover:bg-orange-100 transition-colors w-fit border border-orange-100"
+                              >
+                                <span>📄</span> Download Document
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </motion.div>

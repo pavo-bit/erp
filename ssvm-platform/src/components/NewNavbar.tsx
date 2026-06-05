@@ -15,7 +15,7 @@ const navLinks = [
   { name: "News & Events", href: "/events" },
   { name: "About Us", href: "/about" },
   { name: "Contact", href: "/contact" },
-  { name: "Alumni", href: "/alumni" },
+  { name: "Alumni", href: "http://localhost:3002" },
 ];
 
 export function NewNavbar() {
@@ -79,6 +79,7 @@ export function NewNavbar() {
 
           {/* Right Section: Payment Button + Logo */}
           <div className="hidden lg:flex items-center gap-4 flex-shrink-0 ml-auto">
+
             <a
               href="http://onlinepay.ssvmcuttack.in/Login"
               target="_blank"

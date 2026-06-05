@@ -6,7 +6,7 @@ import { PageHeader, StatusBadge } from "@/components/DashboardLayout";
 import { useGallery, apiCall, invalidateAll } from "@/lib/api-hooks";
 
 const categoryColors: Record<string, string> = {
-  Campus: "#FF6B00", Facilities: "#3B82F6", Events: "#8B5CF6", Academic: "#10B981", Sports: "#F59E0B", Pillars: "#EC4899",
+  Campus: "#FF6B00", Facilities: "#3B82F6", Events: "#8B5CF6", Academic: "#10B981", Sports: "#F59E0B", Pillars: "#EC4899", Sishuvatika: "#14B8A6", "NCC/Scout/Guide": "#6366F1"
 };
 
 export default function GalleryPage() {
@@ -85,7 +85,7 @@ export default function GalleryPage() {
       />
 
       <div className="flex gap-2 mb-6 flex-wrap">
-        {["all", "Hero", "Campus", "Facilities", "Events", "Academic", "Sports", "Pillars", "Achievements"].map((f) => (
+        {["all", "Hero", "Campus", "Facilities", "Events", "Academic", "Sports", "Pillars", "Achievements", "Sishuvatika", "NCC/Scout/Guide"].map((f) => (
           <button key={f} onClick={() => setFilter(f)}
             className={`px-4 py-2 rounded-lg text-[12px] font-semibold border cursor-pointer font-[var(--font-heading)] transition-all
               ${filter === f ? "bg-primary text-white border-primary" : "bg-white text-text-secondary border-border hover:border-primary"}`}>
@@ -97,8 +97,8 @@ export default function GalleryPage() {
       {filter === "Pillars" && (
         <div className="mb-8 bg-slate-50 p-6 rounded-2xl border border-border">
           <h3 className="text-[16px] font-bold font-[var(--font-heading)] mb-4 text-text-primary">Core Leadership (Pillars)</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {["Pradhan Acharya", "President", "Secretary"].map((role) => {
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {["Pradhan Acharya", "President", "Secretary", "Vice President", "Joint Secretary", "Treasurer", "Academic Director", "Sports Director", "Cultural Head"].map((role) => {
               const existingImg = images.find((img: Record<string, unknown>) => img.title === role);
               return (
                 <div key={role} className="bg-white rounded-xl border border-border p-5 flex flex-col items-center text-center">
@@ -159,7 +159,7 @@ export default function GalleryPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {images.filter((img: Record<string, unknown>) => filter !== "Pillars" || !["Pradhan Acharya", "President", "Secretary"].includes(img.title as string)).map((img: Record<string, unknown>, i: number) => (
+          {images.filter((img: Record<string, unknown>) => filter !== "Pillars" || !["Pradhan Acharya", "President", "Secretary", "Vice President", "Joint Secretary", "Treasurer", "Academic Director", "Sports Director", "Cultural Head"].includes(img.title as string)).map((img: Record<string, unknown>, i: number) => (
             <motion.div key={img.id as string} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
               className="bg-white rounded-2xl border border-border overflow-hidden group hover:shadow-lg transition-shadow">
               <div className="aspect-[4/3] bg-surface relative overflow-hidden">
@@ -245,7 +245,7 @@ export default function GalleryPage() {
                   <label className="block text-[12px] font-semibold text-text-primary mb-1 font-[var(--font-heading)]">Category</label>
                   <select value={formCategory} onChange={(e) => setFormCategory(e.target.value)} disabled={isLocked}
                     className="w-full px-4 py-2.5 rounded-lg border border-border text-[13px] outline-none focus:border-primary bg-white disabled:bg-gray-100 disabled:text-gray-500">
-                    <option>Hero</option><option>Campus</option><option>Facilities</option><option>Events</option><option>Academic</option><option>Sports</option><option>Pillars</option><option>Achievements</option>
+                    <option>Hero</option><option>Campus</option><option>Facilities</option><option>Events</option><option>Academic</option><option>Sports</option><option>Pillars</option><option>Achievements</option><option>Sishuvatika</option><option>NCC/Scout/Guide</option>
                   </select>
                 </div>
                 {formCategory === "Achievements" && (

@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
+import { NewNavbar } from "@/components/NewNavbar";
 
 export default function AlumniPortal() {
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const router = useRouter();
 
   // Form states
@@ -18,25 +20,53 @@ export default function AlumniPortal() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [batch, setBatch] = useState("");
+  const [classPassed, setClassPassed] = useState("");
   const [currentRole, setCurrentRole] = useState("");
   const [company, setCompany] = useState("");
+  const [location, setLocation] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [photo, setPhoto] = useState<File | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
+    setSuccessMessage("");
 
     try {
       const endpoint = isLogin ? "/api/auth/login" : "/api/auth/alumni/register";
-      const payload = isLogin 
-        ? { email, password }
-        : { email, password, name, phone, batch, currentRole, company };
+      
+      let res;
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      if (isLogin) {
+        res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+      } else {
+        const formData = new FormData();
+        formData.append("email", email);
+        formData.append("password", password);
+        formData.append("name", name);
+        formData.append("phone", phone);
+        formData.append("batch", batch);
+        formData.append("classPassed", classPassed);
+        formData.append("currentRole", currentRole);
+        formData.append("company", company);
+        formData.append("location", location);
+        formData.append("linkedin", linkedin);
+        if (photo) {
+          formData.append("photo", photo);
+        } else {
+          throw new Error("A clear front-facing photo is required for Alumni registration.");
+        }
+
+        res = await fetch(endpoint, {
+          method: "POST",
+          body: formData,
+        });
+      }
 
       const data = await res.json();
 
@@ -44,8 +74,21 @@ export default function AlumniPortal() {
         throw new Error(data.error || "An error occurred");
       }
 
-      // Success!
-      window.location.href = "/";
+      if (!isLogin) {
+        // Registration successful
+        setSuccessMessage(data.message || "Registration successful! Your account is pending admin approval.");
+      } else {
+        // Login successful! Route to the correct dashboard based on role
+        const token = data.data?.token;
+        const role = data.data?.user?.role;
+        
+        if (role === "ADMIN") {
+          router.push("/admin");
+        } else {
+          // Default to alumni dashboard for alumni
+          router.push("/alumni/directory");
+        }
+      }
       
     } catch (err: any) {
       setError(err.message || "Failed to authenticate");
@@ -55,7 +98,9 @@ export default function AlumniPortal() {
   };
 
   return (
-    <div className="min-h-screen pt-32 pb-20 px-4 flex items-center justify-center relative overflow-hidden bg-[#0A1628]">
+    <>
+      <NewNavbar />
+      <div className="min-h-screen pt-32 pb-20 px-4 flex items-center justify-center relative overflow-hidden bg-[#0A1628]">
       {/* Background Elements */}
       <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] rounded-full bg-orange-500/20 blur-[120px]" />
@@ -83,7 +128,7 @@ export default function AlumniPortal() {
               </span>
             </h1>
             <p className="text-white/60 text-lg leading-relaxed max-w-md mx-auto lg:mx-0 mb-8">
-              Reconnect with your roots, network with fellow graduates, and stay updated with your alma mater's ongoing journey of excellence.
+              Reconnect with your roots, network with fellow graduates, and stay updated with your alma mater&apos;s ongoing journey of excellence.
             </p>
 
             <div className="grid grid-cols-2 gap-4 max-w-sm mx-auto lg:mx-0">
@@ -100,7 +145,7 @@ export default function AlumniPortal() {
         </div>
 
         {/* Right Side: Auth Card */}
-        <div className="order-1 lg:order-2">
+        <div className="order-1 lg:order-2 w-full max-w-[500px] mx-auto">
           <motion.div
             initial={{ opacity: 0, x: 30 }}
             animate={{ opacity: 1, x: 0 }}
@@ -138,20 +183,61 @@ export default function AlumniPortal() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="relative z-10">
-              <AnimatePresence mode="wait">
+            {successMessage ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="text-center relative z-10 py-12"
+              >
+                <div className="w-16 h-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl border border-green-500/30 shadow-[0_0_30px_rgba(34,197,94,0.3)]">
+                  ✓
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-3">Registration Received</h3>
+                <p className="text-white/70 text-sm mb-8 leading-relaxed">
+                  {successMessage}
+                </p>
+                <button
+                  onClick={() => { setSuccessMessage(""); setIsLogin(true); }}
+                  className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-semibold transition-colors border border-white/10"
+                >
+                  Back to Sign In
+                </button>
+              </motion.div>
+            ) : (
+              <form onSubmit={handleSubmit} className="relative z-10">
+                <AnimatePresence mode="wait">
                 <motion.div
                   key={isLogin ? "login" : "register"}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.2 }}
-                  className="space-y-4"
+                  className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar"
                 >
                   {!isLogin && (
                     <div className="space-y-4">
+                      
+                      {/* Photo Upload */}
                       <div>
-                        <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Full Name</label>
+                        <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">
+                          Photo <span className="text-orange-400">*</span>
+                          <span className="block text-[10px] text-white/40 normal-case mt-0.5">Clear original front direction faced photo</span>
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          required
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setPhoto(e.target.files[0]);
+                            }
+                          }}
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-2.5 text-white/70 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-orange-500/20 file:text-orange-400 hover:file:bg-orange-500/30 cursor-pointer"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Full Name <span className="text-orange-400">*</span></label>
                         <input
                           type="text"
                           required
@@ -161,9 +247,10 @@ export default function AlumniPortal() {
                           placeholder="John Doe"
                         />
                       </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Batch (Year)</label>
+                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Batch Year <span className="text-orange-400">*</span></label>
                           <input
                             type="text"
                             required
@@ -174,19 +261,21 @@ export default function AlumniPortal() {
                           />
                         </div>
                         <div>
-                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Phone</label>
+                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Class Passed <span className="text-orange-400">*</span></label>
                           <input
-                            type="tel"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
+                            type="text"
+                            required
+                            value={classPassed}
+                            onChange={(e) => setClassPassed(e.target.value)}
                             className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-orange-500 transition-all"
-                            placeholder="+91..."
+                            placeholder="10th / 12th"
                           />
                         </div>
                       </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Current Role</label>
+                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Current Profession <span className="text-white/40 text-[10px] normal-case">(Optional)</span></label>
                           <input
                             type="text"
                             value={currentRole}
@@ -196,7 +285,7 @@ export default function AlumniPortal() {
                           />
                         </div>
                         <div>
-                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Company</label>
+                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Company <span className="text-white/40 text-[10px] normal-case">(Optional)</span></label>
                           <input
                             type="text"
                             value={company}
@@ -206,11 +295,47 @@ export default function AlumniPortal() {
                           />
                         </div>
                       </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Location <span className="text-orange-400">*</span></label>
+                          <input
+                            type="text"
+                            required
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-orange-500 transition-all"
+                            placeholder="City, Country"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Phone Number <span className="text-orange-400">*</span></label>
+                          <input
+                            type="tel"
+                            required
+                            value={phone}
+                            onChange={(e) => setPhone(e.target.value)}
+                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-orange-500 transition-all"
+                            placeholder="+91..."
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">LinkedIn Profile <span className="text-white/40 text-[10px] normal-case">(Optional)</span></label>
+                        <input
+                          type="url"
+                          value={linkedin}
+                          onChange={(e) => setLinkedin(e.target.value)}
+                          className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 focus:outline-none focus:border-orange-500 transition-all"
+                          placeholder="https://linkedin.com/in/..."
+                        />
+                      </div>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Email Address</label>
+                    <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Email Address <span className="text-orange-400">*</span></label>
                     <input
                       type="email"
                       required
@@ -222,7 +347,7 @@ export default function AlumniPortal() {
                   </div>
 
                   <div>
-                    <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Password</label>
+                    <label className="block text-white/70 text-xs font-semibold mb-1.5 uppercase tracking-wider">Password <span className="text-orange-400">*</span></label>
                     <input
                       type="password"
                       required
@@ -236,23 +361,42 @@ export default function AlumniPortal() {
                     )}
                   </div>
                 </motion.div>
-              </AnimatePresence>
+                </AnimatePresence>
 
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full mt-8 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-orange-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
-              >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                ) : (
-                  <span>{isLogin ? "Sign In to Portal" : "Join Alumni Network"}</span>
-                )}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full mt-8 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white font-bold py-4 rounded-xl shadow-lg hover:shadow-orange-500/30 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+                >
+                  {isLoading ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <span>{isLogin ? "Sign In to Portal" : "Join Alumni Network"}</span>
+                  )}
+                </button>
+              </form>
+            )}
           </motion.div>
         </div>
       </div>
-    </div>
+      
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255, 107, 0, 0.5);
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 107, 0, 0.8);
+        }
+      `}} />
+      </div>
+    </>
   );
 }

@@ -109,7 +109,7 @@ export default function GalleryPage() {
           </div>
 
           {/* Bottom curve */}
-          <div className="absolute bottom-0 left-0 right-0">
+          <div className="absolute bottom-0 left-0 right-0 translate-y-[1px]">
             <svg
               viewBox="0 0 1440 60"
               fill="none"
