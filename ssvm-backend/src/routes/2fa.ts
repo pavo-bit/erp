@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { authenticator } from "otplib";
+const { authenticator } = require("otplib");
 import * as QRCode from "qrcode";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";

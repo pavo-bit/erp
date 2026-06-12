@@ -165,7 +165,7 @@ router.post("/fee-reminder", authenticate, requireAdmin(), async (req: AuthReque
 // GET /api/notifications/templates - List all templates
 router.get("/templates", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const schoolId = req.user!.schoolId;
+    const schoolId = req.user!.schoolId as string;
     const templates = await prisma.notificationTemplate.findMany({
       where: { schoolId },
       orderBy: { createdAt: "desc" },
@@ -187,7 +187,7 @@ router.post("/templates", authenticate, requireAdmin(), async (req: AuthRequest,
 
     const template = await prisma.notificationTemplate.create({
       data: {
-        schoolId: req.user!.schoolId,
+        schoolId: req.user!.schoolId as string,
         name,
         type,
         content,
@@ -208,7 +208,7 @@ router.put("/templates/:id", authenticate, requireAdmin(), async (req: AuthReque
     const { name, type, content, isActive } = req.body;
     
     const template = await prisma.notificationTemplate.update({
-      where: { id: req.params.id, schoolId: req.user!.schoolId },
+      where: { id: req.params.id as string, schoolId: req.user!.schoolId as string },
       data: { name, type, content, isActive },
     });
 
@@ -223,7 +223,7 @@ router.put("/templates/:id", authenticate, requireAdmin(), async (req: AuthReque
 router.delete("/templates/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     await prisma.notificationTemplate.delete({
-      where: { id: req.params.id, schoolId: req.user!.schoolId },
+      where: { id: req.params.id as string, schoolId: req.user!.schoolId as string },
     });
     res.json({ success: true, message: "Template deleted" });
   } catch (e) {

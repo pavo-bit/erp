@@ -85,7 +85,7 @@ router.post("/books", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADM
 // Update Book
 router.put("/books/:id", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), validate(bookSchema), async (req: AuthRequest, res: Response) => {
   try {
-    const bookId = req.params.id;
+    const bookId = req.params.id as string;
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const bookData = req.body;
 
@@ -116,7 +116,7 @@ router.put("/books/:id", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "
 // Delete Book
 router.delete("/books/:id", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const bookId = req.params.id;
+    const bookId = req.params.id as string;
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
 
     const existing = await prisma.book.findUnique({ where: { id: bookId } });
@@ -185,7 +185,7 @@ router.post("/issues", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "AD
 // Return Book
 router.post("/issues/:id/return", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const issueId = req.params.id;
+    const issueId = req.params.id as string;
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { fineAmount } = req.body;
 

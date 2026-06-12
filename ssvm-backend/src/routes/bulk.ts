@@ -158,6 +158,8 @@ router.post("/upload", authenticate, requireAdmin(), async (req: AuthRequest, re
     }
 
     if (isValidationPhase) {
+      const validCount = report.filter(r => r.status === "SUCCESS").length;
+      const errorCount = report.filter(r => r.status === "ERROR").length;
       return sendSuccess(res, { report, total: data.length, validCount, errorCount });
     }
 
@@ -232,7 +234,7 @@ router.get("/jobs", authenticate, requireAdmin(), async (req: AuthRequest, res: 
 router.get("/jobs/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const job = await prisma.bulkJob.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id as string }
     });
 
     if (!job) return sendError(res, 404, "Job not found");

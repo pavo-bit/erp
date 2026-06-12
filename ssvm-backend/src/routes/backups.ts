@@ -57,7 +57,7 @@ router.post("/trigger", async (req: Request, res: Response) => {
 router.get("/:id/download", async (req: Request, res: Response) => {
   try {
     const backup = await prisma.systemBackup.findUnique({
-      where: { id: req.params.id },
+      where: { id: req.params.id as string },
     });
 
     if (!backup || !backup.fileUrl) {

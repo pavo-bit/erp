@@ -1,8 +1,8 @@
-import { Router } from "express";
+import { Router, Response } from "express";
 import { z } from "zod";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import prisma from "../lib/prisma";
-import { authenticate, requireRole } from "../middleware/auth";
+import { authenticate, requireRole, AuthRequest } from "../middleware/auth";
 
 const router = Router();
 
@@ -36,10 +36,9 @@ async function logAudit(schoolId: string, userId: string, action: string, entity
         userId,
         action,
         entity,
-        entityId,
-        details,
+        entityId: String(entityId),
+        details: { ...(details || {}), userAgent: req.headers["user-agent"] },
         ipAddress: req.ip,
-        userAgent: req.headers["user-agent"],
       },
     });
   } catch (error) {
@@ -53,7 +52,7 @@ function generateTempPassword() {
 }
 
 // GET /api/users - List all users
-router.get("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req, res) => {
+router.get("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const { role, status, search } = req.query;
     
@@ -94,7 +93,7 @@ router.get("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (re
 });
 
 // POST /api/users - Create new user
-router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req, res) => {
+router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const data = createUserSchema.parse(req.body);
 
@@ -130,7 +129,7 @@ router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (r
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: error.errors });
+      return res.status(400).json({ success: false, error: (error as z.ZodError).errors });
     }
     console.error(error);
     res.status(500).json({ success: false, error: "Failed to create user" });
@@ -138,7 +137,7 @@ router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (r
 });
 
 // PUT /api/users/:id - Edit user
-router.put("/:id", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req, res) => {
+router.put("/:id", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const data = updateUserSchema.parse(req.body);
     const userId = req.params.id;
@@ -167,7 +166,7 @@ router.put("/:id", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async 
 });
 
 // PUT /api/users/:id/status - Disable/Enable User
-router.put("/:id/status", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req, res) => {
+router.put("/:id/status", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const { isActive } = req.body;
     if (typeof isActive !== "boolean") return res.status(400).json({ success: false, error: "isActive must be a boolean" });
@@ -188,7 +187,7 @@ router.put("/:id/status", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"),
 });
 
 // PUT /api/users/:id/reset-password - Reset password to temp
-router.put("/:id/reset-password", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req, res) => {
+router.put("/:id/reset-password", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const tempPassword = generateTempPassword();
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
