@@ -38,11 +38,15 @@ router.put("/site-content", authenticate, requireRole("ADMIN"), async (req: Auth
   try {
     const { updates } = req.body;
     if (!updates?.length) { res.status(400).json({ success: false, error: "Updates array required" }); return; }
-    const results = await prisma.$transaction(
-      updates.map((u: { section: string; key: string; value: string; type?: string }) =>
-        prisma.siteContent.upsert({ where: { section_key: { section: u.section, key: u.key } }, create: { section: u.section, key: u.key, value: u.value, type: u.type || "text" }, update: { value: u.value } })
-      )
-    );
+    const results = [];
+    for (const u of updates) {
+      const existing = await prisma.siteContent.findFirst({ where: { section: u.section || u.page, key: u.key } });
+      if (existing) {
+        results.push(await prisma.siteContent.update({ where: { id: existing.id }, data: { value: u.value } }));
+      } else {
+        results.push(await prisma.siteContent.create({ data: { section: u.section || u.page, key: u.key, value: u.value, type: u.type || "text" } }));
+      }
+    }
     res.json({ success: true, data: results });
   } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
 });
@@ -51,11 +55,11 @@ router.put("/site-content", authenticate, requireRole("ADMIN"), async (req: Auth
 router.get("/analytics", authenticate, requireRole("ADMIN"), async (_req: AuthRequest, res: Response) => {
   try {
     const [totalStudents, totalParents, totalAlumni, totalFaculty, activeNotices, upcomingEvents, feesPaid, feesPending, recentAdmissions] = await Promise.all([
-      prisma.student.count(), prisma.parent.count(), prisma.alumni.count(),
-      prisma.faculty.count({ where: { isActive: true } }), prisma.notice.count({ where: { status: "PUBLISHED" } }),
+      prisma.student.count(), prisma.guardian.count(), prisma.alumni.count(),
+      prisma.teacher.count({ where: { isActive: true } }), prisma.notice.count({ where: { status: "PUBLISHED" } }),
       prisma.event.count({ where: { status: "UPCOMING" } }),
-      prisma.fee.aggregate({ where: { status: "PAID" }, _sum: { amount: true } }),
-      prisma.fee.aggregate({ where: { status: { in: ["PENDING", "OVERDUE"] } }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: "PAID" }, _sum: { amount: true } }),
+      prisma.invoice.aggregate({ where: { status: { in: ["PENDING", "OVERDUE"] } }, _sum: { amount: true } }),
       prisma.student.count({ where: { createdAt: { gte: new Date(new Date().getFullYear(), 0, 1) } } }),
     ]);
 
@@ -70,7 +74,7 @@ router.get("/analytics", authenticate, requireRole("ADMIN"), async (_req: AuthRe
       const d = new Date(); d.setMonth(d.getMonth() - i);
       const start = new Date(d.getFullYear(), d.getMonth(), 1);
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 1);
-      const sum = await prisma.fee.aggregate({ where: { status: "PAID", paidDate: { gte: start, lt: end } }, _sum: { amount: true } });
+      const sum = await prisma.invoice.aggregate({ where: { status: "PAID", paidDate: { gte: start, lt: end } }, _sum: { amount: true } });
       monthlyFees.push({ month: start.toLocaleDateString("en-IN", { month: "short", year: "2-digit" }), amount: sum._sum.amount || 0 });
     }
 

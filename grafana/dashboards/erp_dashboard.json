@@ -1,0 +1,71 @@
+{
+  "title": "ERP Executive Overview",
+  "uid": "erp-overview",
+  "refresh": "1m",
+  "schemaVersion": 36,
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total Students",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+      "datasource": "PostgreSQL",
+      "targets": [
+        {
+          "rawSql": "SELECT count(id) FROM \"Student\"",
+          "refId": "A",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Total Teachers",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 },
+      "datasource": "PostgreSQL",
+      "targets": [
+        {
+          "rawSql": "SELECT count(id) FROM \"Teacher\"",
+          "refId": "A",
+          "format": "table"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Admissions Over Time",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": "PostgreSQL",
+      "targets": [
+        {
+          "rawSql": "SELECT \"createdAt\" AS time, count(id) AS metric FROM \"Admission\" GROUP BY \"createdAt\" ORDER BY \"createdAt\"",
+          "refId": "A",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "type": "barchart",
+      "title": "Fees by Status",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 8 },
+      "datasource": "PostgreSQL",
+      "targets": [
+        {
+          "rawSql": "SELECT status, count(id) FROM \"Fee\" GROUP BY status",
+          "refId": "A",
+          "format": "table"
+        }
+      ]
+    }
+  ]
+}

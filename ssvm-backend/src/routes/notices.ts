@@ -15,7 +15,7 @@ router.get("/", optionalAuth, async (req: AuthRequest, res: Response) => {
     if (req.user?.role !== "ADMIN") where.status = "PUBLISHED";
     else if (status) where.status = status;
     if (category) where.category = category;
-    if (search) where.title = { contains: search, mode: "insensitive" };
+    if (search) where.title = { contains: search };
 
     const [data, total] = await Promise.all([
       prisma.notice.findMany({ where, include: { author: { select: { name: true } } }, orderBy: { createdAt: "desc" }, skip, take }),

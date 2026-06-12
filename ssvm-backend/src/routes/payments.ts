@@ -23,7 +23,7 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
       return;
     }
 
-    const fee = await prisma.fee.findUnique({
+    const fee = await prisma.invoice.findUnique({
       where: { id: feeId },
       include: { student: true }
     });
@@ -54,8 +54,8 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
     // Save transaction to DB
     const transaction = await prisma.paymentTransaction.create({
       data: {
-        feeId: fee.id,
-        razorpayOrderId: order.id,
+        invoiceId: fee.id,
+        transactionId: order.id,
         amountPaid: totalAmount,
         status: "CREATED",
       },
@@ -93,7 +93,7 @@ router.post("/verify", authenticate, async (req: AuthRequest, res: Response) => 
       const transaction = await prisma.paymentTransaction.update({
         where: { id: transactionId },
         data: {
-          razorpayPaymentId: razorpay_payment_id,
+          transactionId: razorpay_payment_id,
           razorpaySignature: razorpay_signature,
           status: "SUCCESS",
         },
@@ -101,8 +101,8 @@ router.post("/verify", authenticate, async (req: AuthRequest, res: Response) => 
 
       // Update Fee status
       const receiptNo = `REC-${Date.now()}`;
-      await prisma.fee.update({
-        where: { id: transaction.feeId },
+      await prisma.invoice.update({
+        where: { id: transaction.invoiceId },
         data: {
           status: "PAID",
           paidDate: new Date(),
@@ -129,7 +129,7 @@ router.post("/verify", authenticate, async (req: AuthRequest, res: Response) => 
 router.post("/trigger-late-fines", async (req: AuthRequest, res: Response) => {
   try {
     // 1. Find all PENDING fees where dueDate < now
-    const overdueFees = await prisma.fee.findMany({
+    const overdueFees = await prisma.invoice.findMany({
       where: {
         status: "PENDING",
         dueDate: { lt: new Date() },
@@ -142,7 +142,7 @@ router.post("/trigger-late-fines", async (req: AuthRequest, res: Response) => {
       // Logic for late fine: e.g., flat 50 Rs fine if past due date, or a daily accumulating fine.
       // We will set a flat 50 Rs fine if fineAmount is currently 0.
       if (fee.fineAmount === 0) {
-        await prisma.fee.update({
+        await prisma.invoice.update({
           where: { id: fee.id },
           data: {
             fineAmount: 50,

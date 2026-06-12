@@ -1,25 +1,10 @@
 # ═══════════════════════════════════════════════════════════════════════
-# SSVM College Square — Docker Compose Configuration
-# 2-Container Architecture: Application + Database
-# ═══════════════════════════════════════════════════════════════════════
-#
-#   Container 1: APPLICATION — Frontend (Next.js) + Backend (Express.js)
-#   Container 2: DATABASE    — PostgreSQL 16
-#
-#   Clean separation: Application logic in one container, data in another
-#
-#   Usage:
-#     docker compose up -d --build        # Build and start
-#     docker compose logs -f              # View logs
-#     docker compose down                 # Stop (keeps data)
-#     docker compose down -v              # Stop and remove data
-#
+# SSVM College Square — Microservices Architecture
 # ═══════════════════════════════════════════════════════════════════════
 
 services:
   # ─────────────────────────────────────────────────────────────────────
-  # Container 1: DATABASE (PostgreSQL 16)
-  # Dedicated database container with persistent storage
+  # 1. DATABASE
   # ─────────────────────────────────────────────────────────────────────
   database:
     image: postgres:16-alpine
@@ -33,7 +18,6 @@ services:
     ports:
       - "${DATABASE_PORT:-5432}:5432"
     volumes:
-      # Persistent database storage
       - ssvm_database:/var/lib/postgresql/data
     networks:
       - ssvm-network
@@ -45,41 +29,55 @@ services:
       start_period: 10s
 
   # ─────────────────────────────────────────────────────────────────────
-  # Container 2: APPLICATION (Frontend + Backend)
-  # Next.js frontend and Express.js backend running together
+  # 1.5 REDIS (Caching, Rate Limiting, Job Queue)
   # ─────────────────────────────────────────────────────────────────────
-  application:
+  redis:
+    image: redis:7-alpine
+    container_name: ssvm-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ssvm_redis:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    networks:
+      - ssvm-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 2. BACKEND API
+  # ─────────────────────────────────────────────────────────────────────
+  backend:
     build:
-      context: .
+      context: ./ssvm-backend
       dockerfile: Dockerfile
-    container_name: ssvm-application
+    container_name: ssvm-backend
     restart: unless-stopped
     environment:
-      # Node environment
       NODE_ENV: production
-      
-      # Database connection (connects to database container)
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-ssvm_platform}
-      
-      # Backend configuration
       PORT: 5000
       JWT_SECRET: ${JWT_SECRET:-ssvm-college-square-jwt-secret-2025-change-in-production}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      UPLOAD_DIR: /app/backend/uploads
-      
-      # Frontend configuration
-      NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-5000}
-      FRONTEND_URL: http://localhost:${FRONTEND_PORT:-3000}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET:-}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET:-}
+      ACCESS_TOKEN_EXPIRES_IN: ${ACCESS_TOKEN_EXPIRES_IN:-15m}
+      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-30d}
+      REDIS_URL: redis://redis:6379
+      UPLOAD_DIR: /app/uploads
+      SENTRY_DSN: ${SENTRY_DSN:-}
     ports:
-      # Frontend port
-      - "${FRONTEND_PORT:-3000}:3000"
-      # Backend API port
       - "${BACKEND_PORT:-5000}:5000"
     volumes:
-      # Persistent file uploads (gallery images, etc.)
-      - ssvm_uploads:/app/backend/uploads
+      - ssvm_uploads:/app/uploads
     depends_on:
       database:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - ssvm-network
@@ -88,60 +86,163 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 30s
 
   # ─────────────────────────────────────────────────────────────────────
-  # Container 3: ADMIN DASHBOARD
-  # Next.js standalone container for Admin Portal
+  # 3. ERP ADMIN DASHBOARD
   # ─────────────────────────────────────────────────────────────────────
-  admin-dashboard:
+  erp-admin:
     build:
-      context: ./admin-dashboard
+      context: ./erp-admin
       dockerfile: Dockerfile
-    container_name: ssvm-admin-dashboard
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-erp-admin
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NODE_ENV: production
+      PORT: 3000
+      BACKEND_URL: http://backend:5000
     ports:
-      - "3001:3000"
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_started
     networks:
       - ssvm-network
 
   # ─────────────────────────────────────────────────────────────────────
-  # Container 4: ALUMNI DASHBOARD
-  # Next.js standalone container for Alumni Portal
+  # 4. SUPER ADMIN DASHBOARD
   # ─────────────────────────────────────────────────────────────────────
-  alumni-dashboard:
+  super-admin:
     build:
-      context: ./alumni-dashboard
+      context: ./super-admin
       dockerfile: Dockerfile
-    container_name: ssvm-alumni-dashboard
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-super-admin
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NODE_ENV: production
+      PORT: 3001
+      BACKEND_URL: http://backend:5000
     ports:
-      - "3002:3000"
+      - "3001:3001"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - ssvm-network
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 5. TEACHER PORTAL
+  # ─────────────────────────────────────────────────────────────────────
+  teacher-portal:
+    build:
+      context: ./teacher-portal
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-teacher-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "3002:3002"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - ssvm-network
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 6. PARENT PORTAL
+  # ─────────────────────────────────────────────────────────────────────
+  parent-portal:
+    build:
+      context: ./parent-portal
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-parent-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "3006:3006"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - ssvm-network
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 7. PAYMENT PORTAL
+  # ─────────────────────────────────────────────────────────────────────
+  payment-portal:
+    build:
+      context: ./payment-portal
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-payment-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "3007:3007"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - ssvm-network
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 8. GRAFANA ANALYTICS
+  # ─────────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana-enterprise:latest
+    container_name: ssvm-grafana
+    restart: unless-stopped
+    ports:
+      - "3004:3000"
+    environment:
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-ssvm_platform}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ssvm_grafana:/var/lib/grafana
+    depends_on:
+      database:
+        condition: service_healthy
     networks:
       - ssvm-network
 
 # ─────────────────────────────────────────────────────────────────────
-# Network Configuration
+# Network & Volumes
 # ─────────────────────────────────────────────────────────────────────
 networks:
   ssvm-network:
     driver: bridge
-    name: ssvm-network
 
-# ─────────────────────────────────────────────────────────────────────
-# Persistent Volumes
-# ─────────────────────────────────────────────────────────────────────
 volumes:
-  # Database data (PostgreSQL)
   ssvm_database:
-    name: ssvm_database
     driver: local
-  
-  # Uploaded files (gallery images, documents, etc.)
   ssvm_uploads:
-    name: ssvm_uploads
+    driver: local
+  ssvm_grafana:
+    driver: local
+  ssvm_redis:
     driver: local

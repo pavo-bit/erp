@@ -33,10 +33,8 @@ if errorlevel 1 (
     echo You have two options:
     echo   1. Install PostgreSQL from: https://www.postgresql.org/download/
     echo   2. Use SQLite instead (simpler, no installation needed)
-    echo.
-    choice /C 12 /M "Choose option"
-    if errorlevel 2 goto USE_SQLITE
-    if errorlevel 1 goto NEED_POSTGRES
+    echo 📝 Automatically falling back to SQLite since PostgreSQL is not installed...
+    goto USE_SQLITE
 )
 
 :NEED_POSTGRES
@@ -137,28 +135,32 @@ if errorlevel 1 (
 echo ✅ Backend setup complete
 cd ..
 
-:SETUP_FRONTEND
+
+
+:SETUP_ERP
 echo.
 echo ════════════════════════════════════════════════════════════
-echo   📦 Setting up Frontend...
+echo   📦 Setting up ERP Admin...
 echo ════════════════════════════════════════════════════════════
 echo.
 
-cd ssvm-platform
+cd erp-admin
 
 REM Install dependencies if needed
 if not exist node_modules (
-    echo Installing frontend dependencies...
+    echo Installing ERP Admin dependencies...
     call npm install
     if errorlevel 1 (
-        echo ❌ Failed to install frontend dependencies
+        echo ❌ Failed to install ERP Admin dependencies
         pause
         exit /b 1
     )
 )
 
-echo ✅ Frontend setup complete
+echo ✅ ERP Admin setup complete
 cd ..
+
+
 
 :START_SERVICES
 echo.
@@ -174,9 +176,11 @@ start "SSVM Backend" cmd /k "cd ssvm-backend && npm run dev"
 REM Wait a bit for backend to start
 timeout /t 5 /nobreak >nul
 
-REM Start frontend in new window
-echo Starting frontend on http://localhost:3000...
-start "SSVM Frontend" cmd /k "cd ssvm-platform && npm run dev"
+
+
+REM Start erp admin in new window
+echo Starting ERP admin on http://localhost:3005...
+start "SSVM ERP Admin" cmd /k "cd erp-admin && npm run dev"
 
 echo.
 echo ════════════════════════════════════════════════════════════
@@ -184,22 +188,21 @@ echo   ✅ SSVM College Square is now running!
 echo ════════════════════════════════════════════════════════════
 echo.
 echo 📱 Access the application:
-echo    Frontend:  http://localhost:3000
+echo    ERP Admin: http://localhost:3005
 echo    Backend:   http://localhost:5000/api
 echo    Health:    http://localhost:5000/api/health
 echo.
 echo 🔑 Login credentials:
-echo    Admin:     admin@ssvm-cuttack.org   / admin123
-echo    Student:   student@ssvm-cuttack.org / student123
-echo    Parent:    parent@ssvm-cuttack.org  / parent123
+echo    ERP Admin: erpadmin@ssvm-cuttack.org / erpadmin123
+echo    Teacher:   teacher@ssvm-cuttack.org  / teacher123
 echo    Alumni:    alumni@ssvm-cuttack.org  / alumni123
 echo.
 echo 🛑 To stop services:
-echo    Close the backend and frontend terminal windows
+echo    Close all terminal windows (Backend, ERP)
 echo.
 echo 📝 Two new terminal windows have opened:
 echo    - SSVM Backend (port 5000)
-echo    - SSVM Frontend (port 3000)
+echo    - SSVM ERP Admin (port 3005)
 echo.
 echo ════════════════════════════════════════════════════════════
 echo.

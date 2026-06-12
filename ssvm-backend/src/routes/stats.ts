@@ -1,6 +1,8 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
+import { authenticate } from "../middleware/auth";
+import { ActivityType } from "@prisma/client";
 
 const router = Router();
 
@@ -25,19 +27,19 @@ router.get("/public", async (_req, res: Response) => {
     let boardResults = statsMap.board_results || null;
     if (!boardResults) {
       const currentSession = "2025-26";
-      const totalResults = await prisma.result.count({
-        where: { session: currentSession },
+      const totalResults = await prisma.studentMark.count({
+        where: {},
       });
 
       if (totalResults > 0) {
         // Count students who passed (obtained >= 33% of total marks)
-        const results = await prisma.result.findMany({
-          where: { session: currentSession },
-          select: { obtained: true, totalMarks: true },
+        const results = await prisma.studentMark.findMany({
+          where: {},
+          select: { marksObtained: true },
         });
 
         const passedCount = results.filter(
-          (r) => r.obtained >= r.totalMarks * 0.33
+          (r: any) => r.marksObtained >= r * 0.33
         ).length;
 
         boardResults = Math.round((passedCount / totalResults) * 100).toString();
@@ -50,7 +52,7 @@ router.get("/public", async (_req, res: Response) => {
     const studentCount = statsMap.student_count || (await prisma.student.count()).toString();
 
     // Get teacher count
-    const teacherCount = statsMap.teacher_count || (await prisma.faculty.count({ where: { isActive: true } })).toString();
+    const teacherCount = statsMap.teacher_count || (await prisma.teacher.count({ where: { isActive: true } })).toString();
 
     // Get awards count (from SiteContent or default)
     const awardsCount = statsMap.awards_count || "250";
@@ -89,7 +91,7 @@ router.get("/detailed", async (_req, res: Response) => {
       totalGalleryImages,
     ] = await Promise.all([
       prisma.student.count(),
-      prisma.faculty.count({ where: { isActive: true } }),
+      prisma.teacher.count({ where: { isActive: true } }),
       prisma.alumni.count(),
       prisma.notice.count({ where: { status: "PUBLISHED" } }),
       prisma.event.count({ where: { status: { in: ["UPCOMING", "COMPLETED"] } } }),
@@ -98,15 +100,15 @@ router.get("/detailed", async (_req, res: Response) => {
 
     // Calculate board results
     const currentSession = "2025-26";
-    const results = await prisma.result.findMany({
-      where: { session: currentSession },
-      select: { obtained: true, totalMarks: true },
+    const results = await prisma.studentMark.findMany({
+      where: {},
+      select: { marksObtained: true },
     });
 
     let boardPassPercentage = 98; // Default
     if (results.length > 0) {
       const passedCount = results.filter(
-        (r) => r.obtained >= r.totalMarks * 0.33
+        (r: any) => r.marksObtained >= r * 0.33
       ).length;
       boardPassPercentage = Math.round((passedCount / results.length) * 100);
     }
@@ -115,7 +117,7 @@ router.get("/detailed", async (_req, res: Response) => {
     let averageScore = 0;
     if (results.length > 0) {
       const totalPercentage = results.reduce(
-        (sum, r) => sum + (r.obtained / r.totalMarks) * 100,
+        (sum: any, r: any) => sum + (r.marksObtained / r) * 100,
         0
       );
       averageScore = Math.round(totalPercentage / results.length);
@@ -149,6 +151,43 @@ router.get("/detailed", async (_req, res: Response) => {
   } catch (e) {
     logger.error({ err: e }, "Detailed stats error");
     res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/stats/activity-feed - Paginated and filtered activity feed
+router.get("/activity-feed", authenticate, async (req, res) => {
+  try {
+    const { page = "1", limit = "10", type } = req.query;
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+
+    let whereClause: any = { schoolId: (req as any).user.schoolId };
+    if (type) {
+      whereClause.type = type as ActivityType;
+    }
+
+    const activities = await prisma.activityLog.findMany({
+      where: whereClause,
+      orderBy: { createdAt: "desc" },
+      skip: (pageNum - 1) * limitNum,
+      take: limitNum,
+    });
+
+    const total = await prisma.activityLog.count({ where: whereClause });
+
+    res.json({
+      success: true,
+      data: activities,
+      pagination: {
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum),
+      },
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Activity feed fetch error");
+    res.status(500).json({ success: false, error: "Failed to fetch activity feed" });
   }
 });
 

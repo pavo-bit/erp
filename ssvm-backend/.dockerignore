@@ -1,41 +1,83 @@
-# ═══════════════════════════════════════════════════════════════
-# SSVM Backend — .dockerignore
-# Exclude files that should NOT be sent to the Docker build context
-# ═══════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════
+# Docker Ignore — Root Level
+# Exclude unnecessary files from Docker build context
+# ═══════════════════════════════════════════════════════════════════════
 
-# Dependencies (freshly installed inside container)
-node_modules
+# Node modules (will be installed in container)
+**/node_modules
+**/.next
+**/dist
+**/build
 
-# Build output (rebuilt inside container)
-dist
+# Environment files (use docker-compose environment instead)
+**/.env
+**/.env.local
+**/.env.*.local
 
-# Environment files (secrets passed via docker-compose environment)
-.env
-.env.local
-.env.development
-.env.production
-
-# Uploaded files (mapped via Docker volume)
-uploads/*
-!uploads/.gitkeep
-
-# Version control
+# Git
 .git
 .gitignore
-
-# IDE & editor files
-.vscode
-.idea
-*.swp
-*.swo
+**/.git
+**/.gitignore
 
 # Documentation
-README.md
+*.md
+!README.md
 
-# Debug logs
-npm-debug.log*
-yarn-debug.log*
+# IDE
+.vscode
+.idea
+**/.vscode
+**/.idea
 
 # OS files
 .DS_Store
 Thumbs.db
+**/.DS_Store
+**/Thumbs.db
+
+# Logs
+**/logs
+**/*.log
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# Database files (SQLite - not used in Docker)
+**/dev.db
+**/dev.db-journal
+**/*.db
+**/*.db-journal
+
+# Uploads (will be in volume)
+**/uploads
+
+# Test files
+**/__tests__
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Coverage
+**/coverage
+
+# Temporary files
+**/tmp
+**/temp
+**/.cache
+
+# Build artifacts
+**/.next/cache
+**/tsconfig.tsbuildinfo
+
+# Scripts (not needed in container)
+*.bat
+*.sh
+!docker-entrypoint.sh
+!entrypoint.sh
+
+# Docker files (don't copy into container)
+Dockerfile*
+docker-compose*.yml
+.dockerignore

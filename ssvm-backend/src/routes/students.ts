@@ -1,24 +1,43 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
-import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, hashPassword } from "../middleware/auth";
 
 const router = Router();
 
 // GET /api/students
-router.get("/", authenticate, requireRole("ADMIN", "PARENT"), async (req: AuthRequest, res: Response) => {
+router.get("/", authenticate, requireRole("ADMIN", "PARENT", "ERP_ADMIN", "SUPER_ADMIN", "TEACHER"), async (req: AuthRequest, res: Response) => {
   try {
-    const { page = "1", limit = "20", class: cls, search } = req.query as Record<string, string | undefined>;
+    const { page = "1", limit = "20", classId, sectionId, search } = req.query as Record<string, string | undefined>;
     const skip = (Math.max(1, +page) - 1) * Math.min(100, +limit);
     const take = Math.min(100, +limit);
-    const where: Record<string, unknown> = {};
-    if (cls) where.class = cls;
-    if (search) where.OR = [{ user: { name: { contains: search, mode: "insensitive" } } }, { rollNo: { contains: search, mode: "insensitive" } }];
-    if (req.user!.role === "PARENT") {
-      const parent = await prisma.parent.findUnique({ where: { userId: req.user!.id } });
-      if (parent) where.parentId = parent.id;
+    const where: any = {};
+    if (req.user!.role !== "SUPER_ADMIN") where.schoolId = req.user!.schoolId;
+    if (req.user!.branchId) where.branchId = req.user!.branchId;
+    
+    if (classId) {
+      // Find sections for this class
+      const sections = await prisma.section.findMany({ where: { classId } });
+      where.sectionId = { in: sections.map(s => s.id) };
     }
+    if (sectionId) where.sectionId = sectionId;
+    if (search) where.OR = [
+      { name: { contains: search, mode: "insensitive" } }, 
+      { rollNo: { contains: search, mode: "insensitive" } }
+    ];
+    
+    if (req.user!.role === "PARENT") {
+      const guardian = await prisma.guardian.findFirst({ where: { userId: req.user!.id } });
+      if (guardian) where.guardianId = guardian.id;
+    }
+
     const [data, total] = await Promise.all([
-      prisma.student.findMany({ where, include: { user: { select: { id: true, name: true, email: true, phone: true, avatar: true, isActive: true } } }, orderBy: { class: "asc" }, skip, take }),
+      prisma.student.findMany({ 
+        where, 
+        include: { guardian: { include: { user: { select: { name: true, phone: true } } } }, sectionRef: { include: { class: true } } }, 
+        orderBy: { rollNo: "asc" }, 
+        skip, 
+        take 
+      }),
       prisma.student.count({ where }),
     ]);
     res.json({ success: true, data, pagination: { page: +page, limit: take, total, totalPages: Math.ceil(total / take) } });
@@ -30,7 +49,10 @@ router.get("/:id", authenticate, async (req, res: Response) => {
   try {
     const student = await prisma.student.findUnique({
       where: { id: req.params.id as string },
-      include: { user: { select: { id: true, name: true, email: true, phone: true, avatar: true } }, attendance: { orderBy: { date: "desc" }, take: 30 }, results: { orderBy: { createdAt: "desc" } }, fees: { orderBy: { dueDate: "desc" } }, submissions: { include: { assignment: true } } },
+      include: { 
+        guardian: { include: { user: { select: { id: true, name: true, email: true, phone: true } } } },
+        sectionRef: { include: { class: true } }
+      },
     });
     if (!student) { res.status(404).json({ success: false, error: "Not found" }); return; }
     res.json({ success: true, data: student });
@@ -38,16 +60,33 @@ router.get("/:id", authenticate, async (req, res: Response) => {
 });
 
 // PUT /api/students/:id
-router.put("/:id", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/:id", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
     const b = req.body;
+    let dataToUpdate: any = { 
+      ...(b.sectionId && { sectionId: b.sectionId }), 
+      ...(b.rollNo && { rollNo: b.rollNo }), 
+      ...(b.guardianId !== undefined && { guardianId: b.guardianId }),
+      ...(b.admissionNo && { admissionNo: b.admissionNo })
+    };
+
+    if (b.password) {
+      dataToUpdate.password = await hashPassword(b.password);
+    }
+
     const student = await prisma.student.update({
       where: { id: req.params.id as string },
-      data: { ...(b.class && { class: b.class }), ...(b.section && { section: b.section }), ...(b.rollNo && { rollNo: b.rollNo }), ...(b.session && { session: b.session }), ...(b.parentId !== undefined && { parentId: b.parentId }) },
-      include: { user: { select: { id: true, name: true, email: true } } },
+      data: dataToUpdate,
+      include: { guardian: { include: { user: { select: { id: true, name: true, email: true } } } } },
     });
     res.json({ success: true, data: student });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
+  } catch (e: any) { 
+    if (e.code === 'P2002') {
+      res.status(400).json({ success: false, error: "Admission number already exists" });
+      return;
+    }
+    console.error(e); res.status(500).json({ success: false, error: "Server error" }); 
+  }
 });
 
 export default router;

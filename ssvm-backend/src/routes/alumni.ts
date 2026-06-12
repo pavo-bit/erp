@@ -11,7 +11,7 @@ router.get("/", async (req, res: Response) => {
     const where: Record<string, unknown> = {};
     if (featured === "true") where.isFeatured = true;
     if (batch) where.batch = batch;
-    if (search) where.user = { name: { contains: search, mode: "insensitive" } };
+    if (search) where.user = { name: { contains: search } };
     const alumni = await prisma.alumni.findMany({ where, include: { user: { select: { id: true, name: true, email: true, avatar: true } }, contributions: { orderBy: { date: "desc" }, take: 5 } }, orderBy: { batch: "desc" } });
     res.json({ success: true, data: alumni });
   } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
