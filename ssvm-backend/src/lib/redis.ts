@@ -147,6 +147,33 @@ export async function invalidateSchoolStats(schoolId: string): Promise<void> {
 }
 
 /**
+ * Add an access token JTI (or signature) to the blocklist on logout.
+ * Uses the token's remaining TTL for expiration.
+ */
+export async function blocklistAccessToken(jtiOrSig: string, ttlSeconds: number = 900): Promise<void> {
+  if (!isRedisAvailable()) return;
+  try {
+    await redisClient!.set(`blocklist:${jtiOrSig}`, "1", "EX", ttlSeconds);
+  } catch (err) {
+    logger.warn({ err, jtiOrSig }, "Redis blocklist set error");
+  }
+}
+
+/**
+ * Check if an access token JTI (or signature) is blocklisted.
+ */
+export async function isTokenBlocklisted(jtiOrSig: string): Promise<boolean> {
+  if (!isRedisAvailable()) return false;
+  try {
+    const isBlocked = await redisClient!.exists(`blocklist:${jtiOrSig}`);
+    return isBlocked === 1;
+  } catch (err) {
+    logger.warn({ err, jtiOrSig }, "Redis blocklist check error");
+    return false; // Fail open
+  }
+}
+
+/**
  * Graceful shutdown — disconnect Redis.
  */
 export async function disconnectRedis(): Promise<void> {

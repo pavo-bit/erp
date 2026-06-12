@@ -31,6 +31,7 @@ export const emailQueue = env.REDIS_URL ? new Queue("emailQueue", defaultQueueOp
 export const smsQueue = env.REDIS_URL ? new Queue("smsQueue", defaultQueueOptions) : null;
 export const reportQueue = env.REDIS_URL ? new Queue("reportQueue", defaultQueueOptions) : null;
 export const notificationQueue = env.REDIS_URL ? new Queue("notificationQueue", defaultQueueOptions) : null;
+export const importQueue = env.REDIS_URL ? new Queue("importQueue", defaultQueueOptions) : null;
 
 if (env.REDIS_URL) {
   logger.info("BullMQ Queues initialized");
@@ -67,13 +68,22 @@ export async function enqueueReportGeneration(data: { type: string; schoolId: st
   }
 }
 
+export async function enqueueImport(data: { jobId: string; fileKey: string; schoolId: string; type: string }): Promise<void> {
+  if (importQueue) {
+    await importQueue.add("processImport", data);
+  } else {
+    logger.warn({ data }, "Import queue disabled");
+  }
+}
+
 // System graceful shutdown
 export async function closeQueues(): Promise<void> {
   await Promise.all([
     emailQueue?.close(),
     smsQueue?.close(),
     reportQueue?.close(),
-    notificationQueue?.close()
+    notificationQueue?.close(),
+    importQueue?.close()
   ]);
   logger.info("BullMQ Queues closed");
 }

@@ -111,6 +111,15 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   }
 
   try {
+    const { hashToken } = await import("../lib/tokens");
+    const { isTokenBlocklisted } = await import("../lib/redis");
+    const tokenHash = hashToken(token);
+
+    if (await isTokenBlocklisted(tokenHash)) {
+      res.status(401).json({ success: false, error: "Token has been revoked" });
+      return;
+    }
+
     const userId = "userId" in payload ? payload.userId : (payload as AccessTokenPayload).userId;
     const user = await prisma.user.findUnique({
       where: { id: userId },

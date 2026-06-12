@@ -2,6 +2,7 @@ import { Worker, Job } from "bullmq";
 import { getEnv } from "../config/env";
 import logger from "../lib/logger";
 import prisma from "../lib/prisma";
+import { startImportWorker } from "./importWorker";
 
 const env = getEnv();
 
@@ -86,6 +87,8 @@ export function startWorkers() {
     logger.error({ jobId: job?.id, err: err.message }, "Report job failed");
   });
 
+  const importWorker = startImportWorker();
+
   logger.info("BullMQ Workers started");
 
   // Graceful shutdown handling
@@ -94,7 +97,8 @@ export function startWorkers() {
     await Promise.all([
       emailWorker.close(),
       smsWorker.close(),
-      reportWorker.close()
+      reportWorker.close(),
+      importWorker?.close(),
     ]);
   });
 }

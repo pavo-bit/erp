@@ -1,7 +1,12 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAdmin, hashPassword } from "../middleware/auth";
+import { enqueueImport } from "../jobs/queue";
+import { storageService } from "../services/storage.service";
+import { v4 as uuidv4 } from "uuid";
+import Papa from "papaparse";
+import { sendSuccess, sendError } from "../lib/response";
 
 const router = Router();
 
@@ -153,15 +158,94 @@ router.post("/upload", authenticate, requireAdmin(), async (req: AuthRequest, re
     }
 
     if (isValidationPhase) {
-      res.json({ success: true, data: { report } });
-      return;
+      return sendSuccess(res, { report, total: data.length, validCount, errorCount });
     }
 
-    logger.info({ type, insertedCount, schoolId }, "Bulk CSV Upload successful");
-    res.json({ success: true, data: { message: `Successfully inserted ${insertedCount} records` } });
-  } catch (e) {
+    // ─── ASYNCHRONOUS IMPORT PHASE (BullMQ) ───
+    
+    // Convert JSON array back to CSV for storage
+    const csvContent = Papa.unparse(data);
+    const fileBuffer = Buffer.from(csvContent, "utf-8");
+
+    // Upload to secure storage
+    const fileKey = await storageService.uploadFile(fileBuffer, "text/csv", `import-${uuidv4()}.csv`, "imports/pending");
+
+    // Map frontend type to backend type
+    const jobTypeMap: Record<string, string> = {
+      "students": "STUDENT_IMPORT",
+      "teachers": "TEACHER_IMPORT",
+      "invoices": "INVOICE_IMPORT",
+      "admissions": "ADMISSION_IMPORT"
+    };
+
+    const importType = jobTypeMap[type] || "UNKNOWN_IMPORT";
+
+    // Create DB tracking record
+    const bulkJob = await prisma.bulkJob.create({
+      data: {
+        schoolId,
+        type: importType,
+        status: "QUEUED",
+        totalRows: data.length,
+      }
+    });
+
+    // Enqueue to BullMQ
+    await enqueueImport({
+      jobId: bulkJob.id,
+      fileKey,
+      schoolId,
+      type: importType
+    });
+
+    return sendSuccess(res, { 
+      message: "Import job queued successfully",
+      jobId: bulkJob.id 
+    });
+  } catch (e: any) {
     logger.error({ err: e }, "Bulk upload error");
     res.status(500).json({ success: false, error: "Server error during bulk upload" });
+  }
+});
+
+// GET /api/v1/bulk/jobs
+// List import jobs for dashboard
+router.get("/jobs", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
+    if (!schoolId) return sendError(res, 400, "School ID required");
+
+    const jobs = await prisma.bulkJob.findMany({
+      where: { schoolId },
+      orderBy: { createdAt: "desc" },
+      take: 20
+    });
+
+    return sendSuccess(res, jobs);
+  } catch (e: any) {
+    return sendError(res, 500, "Failed to fetch bulk jobs");
+  }
+});
+
+// GET /api/v1/bulk/jobs/:id
+// Poll for specific job status
+router.get("/jobs/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const job = await prisma.bulkJob.findUnique({
+      where: { id: req.params.id }
+    });
+
+    if (!job) return sendError(res, 404, "Job not found");
+
+    // If there's an error file, generate a signed URL
+    let errorFileUrl = null;
+    if (job.errorFile) {
+      errorFileUrl = await storageService.generateSignedUrl(job.errorFile, 3600);
+    }
+
+    return sendSuccess(res, { ...job, errorFileUrl });
+  } catch (e: any) {
+    return sendError(res, 500, "Failed to fetch job status");
   }
 });
 

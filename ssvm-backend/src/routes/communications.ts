@@ -3,6 +3,8 @@ import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
 import handlebars from "handlebars";
 import logger from "../lib/logger";
+import { communicationService } from "../services/communication.service";
+import { sendSuccess, sendError } from "../lib/response";
 
 const router = Router();
 
@@ -104,47 +106,29 @@ async function dispatchMessage(schoolId: string, channel: string, type: string, 
 // SENDING ENDPOINTS
 // ==========================================
 
-// SEND an ad-hoc message using a template
-router.post("/send", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+// SEND an ad-hoc message using a unified template
+router.post("/send", authenticate, requireRole("ADMIN", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const { templateName, channel, payload, recipientId, recipientNum } = req.body;
+    const { templateName, type, variables, recipient } = req.body;
     const schoolId = req.user!.schoolId!;
 
-    if (!templateName || !channel || !recipientNum) {
-      res.status(400).json({ success: false, error: "Required fields missing" });
-      return;
+    if (!templateName || !type || !recipient) {
+      return sendError(res, 400, "Required fields missing (templateName, type, recipient)");
     }
 
-    // 1. Get Template
-    const template = await prisma.communicationTemplate.findUnique({
-      where: { schoolId_name_channel: { schoolId, name: templateName, channel } }
+    // Use unified communication service
+    await communicationService.send({
+      type,
+      templateName,
+      schoolId,
+      recipient,
+      variables: variables || {}
     });
 
-    if (!template) {
-      res.status(404).json({ success: false, error: "Template not found" });
-      return;
-    }
-
-    if (!template.isActive) {
-      res.status(400).json({ success: false, error: "Template is inactive" });
-      return;
-    }
-
-    // 2. Compile Content
-    const hbTemplate = handlebars.compile(template.content);
-    const compiledContent = hbTemplate(payload || {});
-
-    // 3. Dispatch
-    const result = await dispatchMessage(schoolId, channel, templateName, recipientId || null, recipientNum, compiledContent);
-
-    if (result.success) {
-      res.json({ success: true, message: "Message dispatched", logId: result.logId });
-    } else {
-      res.status(500).json({ success: false, error: "Failed to dispatch message", details: result.error });
-    }
-  } catch (e) {
-    logger.error({ err: e }, "Failed to send message");
-    res.status(500).json({ success: false, error: "Server error" });
+    return sendSuccess(res, { message: "Message dispatched to communication queue successfully" });
+  } catch (e: any) {
+    logger.error({ err: e }, "Failed to send message via communication service");
+    return sendError(res, 500, e.message || "Failed to dispatch message");
   }
 });
 

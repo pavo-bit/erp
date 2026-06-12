@@ -13,6 +13,7 @@ initSentry();
 
 import logger from "./lib/logger";
 import { notFoundHandler, globalErrorHandler } from "./middleware/errorHandler";
+import { deprecated } from "./middleware/versioning";
 import { addResponseHeaders } from "./lib/response";
 import { globalLimiter, authLimiter, refreshLimiter } from "./middleware/rateLimiter";
 import { startTokenCleanupScheduler, stopTokenCleanupScheduler } from "./jobs/cleanupTokens";
@@ -52,11 +53,14 @@ import userRoutes from "./routes/users";
 import sseRoutes from "./routes/sse";
 import libraryRoutes from "./routes/library";
 import twoFaRoutes from "./routes/2fa";
+import storageRoutes from "./routes/storage";
+import backupRoutes from "./routes/backups";
 
 // ─── Validate environment on startup ───
 const env = getEnv();
 
-const app = express();
+// ─── Initialize Express App ───
+export const app = express();
 
 // ═══════════════════════════════════════════
 // Security Middleware
@@ -100,8 +104,8 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 function mountRoute(routePath: string, router: express.Router, ...middleware: express.RequestHandler[]): void {
   // Primary versioned path
   app.use(`/api/v1${routePath}`, ...middleware, router);
-  // Backward-compat unversioned path
-  app.use(`/api${routePath}`, ...middleware, router);
+  // Backward-compat unversioned path with deprecation header
+  app.use(`/api${routePath}`, deprecated, ...middleware, router);
 }
 
 // ═══════════════════════════════════════════
@@ -110,11 +114,11 @@ function mountRoute(routePath: string, router: express.Router, ...middleware: ex
 
 // Auth (with stricter rate limits)
 app.use("/api/v1/auth", authLimiter, authRoutes);
-app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/auth", deprecated, authLimiter, authRoutes);
 
 // Apply refresh limiter to the refresh endpoint specifically
 app.use("/api/v1/auth/refresh", refreshLimiter);
-app.use("/api/auth/refresh", refreshLimiter);
+app.use("/api/auth/refresh", deprecated, refreshLimiter);
 
 // All other routes (versioned + unversioned)
 mountRoute("/schools", schoolRoutes);
@@ -146,14 +150,16 @@ mountRoute("/bulk", bulkRouter);
 mountRoute("/activity", activityRouter);
 mountRoute("/library", libraryRoutes);
 mountRoute("/2fa", twoFaRoutes);
+mountRoute("/storage", storageRoutes);
+mountRoute("/backups", backupRoutes);
 
 // CMS routes (mounted at /api root level)
 app.use("/api/v1", cmsRoutes);
-app.use("/api", cmsRoutes);
+app.use("/api", deprecated, cmsRoutes);
 
 // SSE Push Notifications
 app.use("/api/v1/sse", sseRoutes);
-app.use("/api/sse", sseRoutes);
+app.use("/api/sse", deprecated, sseRoutes);
 
 // ═══════════════════════════════════════════
 // Health Check

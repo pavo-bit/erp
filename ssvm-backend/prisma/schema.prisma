@@ -196,6 +196,8 @@ model School {
   notificationTemplates     NotificationTemplate[]
   books                     Book[]
   bookIssues                BookIssue[]
+  bulkJobs                  BulkJob[]
+  templates                 Template[]
 
   @@map("schools")
 }
@@ -1525,3 +1527,58 @@ model BookIssue {
   @@index([userId])
   @@map("book_issues")
 }
+
+// ═══════════════════════════════════════════
+// PHASE 11A: BACKUPS, BULK JOBS & UNIFIED COMM
+// ═══════════════════════════════════════════
+
+model SystemBackup {
+  id        String   @id @default(cuid())
+  type      String   // "DATABASE" or "STORAGE"
+  status    String   // "IN_PROGRESS", "COMPLETED", "FAILED"
+  sizeBytes Int?
+  fileUrl   String?
+  errorMsg  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("system_backups")
+}
+
+model BulkJob {
+  id          String   @id @default(cuid())
+  schoolId    String
+  type        String   // "STUDENT_IMPORT", "TEACHER_IMPORT"
+  status      String   // "QUEUED", "PROCESSING", "COMPLETED", "FAILED"
+  progress    Int      @default(0)
+  totalRows   Int      @default(0)
+  successRows Int      @default(0)
+  failedRows  Int      @default(0)
+  errorFile   String?  // CSV of failed rows
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status])
+  @@map("bulk_jobs")
+}
+
+model Template {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  channel   String   // "SMS", "EMAIL", "WHATSAPP", "NOTICE"
+  subject   String?
+  content   String   // Handlebars content
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, name, channel])
+  @@map("unified_templates")
+}
+

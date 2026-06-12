@@ -13,6 +13,14 @@ export function success<T>(res: Response, data: T, statusCode = 200): void {
   res.status(statusCode).json({ success: true, data });
 }
 
+export function sendSuccess<T>(res: Response, data: T): void {
+  success(res, data);
+}
+
+export function sendError(res: Response, statusCode: number, error: string): void {
+  res.status(statusCode).json({ success: false, error });
+}
+
 /**
  * 200 OK — Success with pagination metadata.
  */

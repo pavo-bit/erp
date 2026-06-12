@@ -287,6 +287,8 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
 router.post("/logout", async (req: AuthRequest, res: Response) => {
   try {
     const refreshTokenCookie = req.cookies?.refresh_token;
+    const accessTokenCookie = req.cookies?.access_token;
+    const legacyTokenCookie = req.cookies?.auth_token;
 
     // Revoke the refresh token in DB
     if (refreshTokenCookie) {
@@ -296,6 +298,11 @@ router.post("/logout", async (req: AuthRequest, res: Response) => {
         data: { revokedAt: new Date() },
       });
     }
+
+    // Blocklist current access tokens
+    const { blocklistAccessToken } = await import("../lib/redis");
+    if (accessTokenCookie) await blocklistAccessToken(hashToken(accessTokenCookie));
+    if (legacyTokenCookie) await blocklistAccessToken(hashToken(legacyTokenCookie));
 
     // Clear ALL auth cookies
     res.clearCookie("access_token", { path: "/" });
@@ -369,6 +376,31 @@ router.delete("/sessions/:id", authenticate, async (req: AuthRequest, res: Respo
     res.json({ success: true, data: { message: "Session revoked" } });
   } catch (e) {
     logger.error({ err: e }, "Revoke session error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// ═══════════════════════════════════════════
+// POST /api/auth/revoke-session — ERP Admin Forced Logout
+// ═══════════════════════════════════════════
+
+router.post("/revoke-session", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) {
+      res.status(400).json({ success: false, error: "User ID is required" });
+      return;
+    }
+
+    await prisma.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    logger.info({ adminId: req.user!.id, targetUserId: userId }, "Admin force-revoked user sessions");
+    res.json({ success: true, data: { message: "All sessions revoked for user" } });
+  } catch (e) {
+    logger.error({ err: e }, "Force revoke session error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });
