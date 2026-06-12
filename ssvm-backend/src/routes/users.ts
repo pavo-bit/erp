@@ -129,7 +129,7 @@ router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (r
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: (error as z.ZodError).errors });
+      return res.status(400).json({ success: false, error: (error as any).errors });
     }
     console.error(error);
     res.status(500).json({ success: false, error: "Failed to create user" });
