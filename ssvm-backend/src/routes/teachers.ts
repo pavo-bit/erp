@@ -61,7 +61,7 @@ router.post("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Res
     const hashed = await hashPassword(password || "teacher123");
     const user = await prisma.user.create({
       data: {
-        email, password: hashed, name, role: "TEACHER", phone: phone || null, schoolId,
+        email, passwordHash: hashed, name, role: "TEACHER", phone: phone || null, schoolId,
         teacher: {
           create: {
             schoolId, departmentId: department || null, designation, qualification, experience,
@@ -73,8 +73,8 @@ router.post("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Res
       include: { teacher: true },
     });
 
-    const { password: _, ...safe } = user;
-    logger.info({ userId: user.id, teacherId: user.teacher?.id }, "Teacher created");
+    const { passwordHash: _, ...safe } = user;
+    logger.info({ userId: user.id, teacherId: (user as any).teacher?.id }, "Teacher created");
     res.status(201).json({ success: true, data: safe });
   } catch (e) {
     logger.error({ err: e }, "Create teacher error");

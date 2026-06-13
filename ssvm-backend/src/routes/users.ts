@@ -110,7 +110,7 @@ router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (r
     const user = await prisma.user.create({
       data: {
         ...data,
-        password: hashedPassword,
+        passwordHash: hashedPassword,
         schoolId: req.user.schoolId,
       },
       select: { id: true, email: true, name: true, role: true }
@@ -194,7 +194,7 @@ router.put("/:id/reset-password", authenticate, requireRole("SUPER_ADMIN", "ERP_
 
     const user = await prisma.user.update({
       where: { id: req.params.id, schoolId: req.user.schoolId },
-      data: { password: hashedPassword },
+      data: { passwordHash: hashedPassword },
       select: { id: true, email: true }
     });
 

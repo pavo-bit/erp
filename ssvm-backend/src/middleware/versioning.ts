@@ -5,10 +5,12 @@ import { Request, Response, NextFunction } from "express";
  * Attaches the X-API-Deprecated header and optionally a Link to the new version.
  */
 export const deprecated = (req: Request, res: Response, next: NextFunction) => {
-  res.setHeader("X-API-Deprecated", "true");
+  res.setHeader("Deprecation", "true");
   
-  // Construct the new URL by injecting /v1
-  // e.g. /api/students -> /api/v1/students
+  const sunsetDate = new Date();
+  sunsetDate.setMonth(sunsetDate.getMonth() + 6);
+  res.setHeader("Sunset", sunsetDate.toUTCString());
+
   const originalUrl = req.originalUrl;
   if (originalUrl.startsWith("/api/") && !originalUrl.startsWith("/api/v1/")) {
     const newUrl = originalUrl.replace("/api/", "/api/v1/");

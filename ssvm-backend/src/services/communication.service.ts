@@ -1,106 +1,102 @@
-import Handlebars from "handlebars";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { enqueueEmail, enqueueSMS } from "../jobs/queue";
+import handlebars from "handlebars";
+import { sendSSEToUser } from "../lib/sse";
+import { enqueueNotification } from "../jobs/queue";
 
-class CommunicationService {
+export class CommunicationService {
   /**
-   * Compile a template with variables
+   * Resolve template and send a message across the specified channel
    */
-  compileTemplate(templateStr: string, variables: Record<string, any>): string {
+  static async sendFromTemplate(
+    schoolId: string, 
+    templateName: string, 
+    channel: "SMS" | "EMAIL" | "WHATSAPP" | "NOTICE", 
+    recipient: { userId?: string, phone?: string, email?: string }, 
+    data: Record<string, any>
+  ): Promise<boolean> {
     try {
-      const template = Handlebars.compile(templateStr);
-      return template(variables);
-    } catch (err) {
-      logger.error({ err, templateStr }, "Failed to compile Handlebars template");
-      throw new Error("Template compilation failed");
-    }
-  }
+      // 1. Find unified Template
+      const template = await prisma.template.findUnique({
+        where: { schoolId_name_channel: { schoolId, name: templateName, channel } }
+      });
 
-  /**
-   * Fetch a unified template from the database
-   */
-  async getTemplate(name: string, type: string, schoolId: string) {
-    const template = await prisma.template.findFirst({
-      where: { name, channel: type, schoolId },
-    });
-
-    if (!template) {
-      throw new Error(`Template not found: ${name} for channel: ${type}`);
-    }
-
-    return template;
-  }
-
-  /**
-   * Send a communication (Email/SMS/WhatsApp) using a unified template
-   */
-  async send({
-    type,
-    templateName,
-    schoolId,
-    recipient,
-    variables,
-  }: {
-    type: "EMAIL" | "SMS" | "WHATSAPP";
-    templateName: string;
-    schoolId: string;
-    recipient: { email?: string; phone?: string; name?: string };
-    variables: Record<string, any>;
-  }): Promise<void> {
-    const template = await this.getTemplate(templateName, type, schoolId);
-
-    // Merge standard variables
-    const finalVariables = {
-      ...variables,
-      recipientName: recipient.name || "User",
-      currentYear: new Date().getFullYear(),
-    };
-
-    const compiledSubject = template.subject ? this.compileTemplate(template.subject, finalVariables) : "";
-    const compiledBody = this.compileTemplate(template.content, finalVariables);
-
-    try {
-      if (type === "EMAIL") {
-        if (!recipient.email) throw new Error("Email required for EMAIL type");
-        await enqueueEmail({
-          to: recipient.email,
-          subject: compiledSubject || "Notification",
-          body: compiledBody,
-        });
-      } else if (type === "SMS") {
-        if (!recipient.phone) throw new Error("Phone required for SMS type");
-        await enqueueSMS({
-          phone: recipient.phone,
-          message: compiledBody,
-        });
-      } else if (type === "WHATSAPP") {
-        if (!recipient.phone) throw new Error("Phone required for WHATSAPP type");
-        // WhatsApp integration (placeholder)
-        logger.info({ phone: recipient.phone }, "WhatsApp message queued");
+      if (!template || !template.isActive) {
+        logger.warn({ schoolId, templateName, channel }, "Template not found or inactive");
+        return false;
       }
 
-      // Log communication history asynchronously
-      prisma.activityLog.create({
+      // 2. Compile Handlebars
+      const compiledContent = handlebars.compile(template.content)(data);
+      const compiledSubject = template.subject ? handlebars.compile(template.subject)(data) : undefined;
+
+      // 3. Log to CommunicationLog for audit
+      const commLog = await prisma.communicationLog.create({
         data: {
           schoolId,
-          type: "NOTICE",
-          title: `Communication Sent: ${templateName}`,
-          description: `Sent via ${type} to ${recipient.email || recipient.phone}`,
-          metadata: {
-            recipient,
-            templateName,
-            type,
-            compiledSubject,
-          }
+          recipientId: recipient.userId,
+          recipientNum: recipient.email || recipient.phone,
+          channel,
+          type: templateName,
+          content: compiledContent,
+          status: "QUEUED"
         }
-      }).catch(err => logger.warn({ err }, "Failed to log communication activity"));
+      });
 
-    } catch (error: any) {
-      logger.error({ err: error, type, recipient }, "Failed to send communication");
-      throw error;
+      // 4. Queue Notification for Delivery
+      await enqueueNotification({
+        logId: commLog.id,
+        channel,
+        to: recipient.email || recipient.phone || "",
+        content: compiledContent,
+        subject: compiledSubject
+      });
+
+      return true;
+    } catch (e) {
+      logger.error({ err: e, templateName }, "Failed to send communication from template");
+      return false;
+    }
+  }
+
+  /**
+   * Phase 2: Safe Migration Script (Executes softly without dropping old tables)
+   */
+  static async migrateLegacyTemplates(): Promise<void> {
+    logger.info("Starting background migration of legacy templates to unified Template model...");
+    
+    try {
+      const legacyTemplates = await prisma.messageTemplate.findMany();
+      let migratedCount = 0;
+
+      for (const tmpl of legacyTemplates) {
+        await prisma.template.upsert({
+          where: {
+            schoolId_name_channel: {
+              schoolId: tmpl.schoolId || "SYSTEM",
+              name: tmpl.name,
+              channel: tmpl.channel,
+            }
+          },
+          update: {
+            content: tmpl.bodyTemplate,
+            subject: tmpl.subject,
+            isActive: true,
+          },
+          create: {
+            schoolId: tmpl.schoolId || "SYSTEM",
+            name: tmpl.name,
+            channel: tmpl.channel,
+            subject: tmpl.subject,
+            content: tmpl.bodyTemplate,
+            isActive: true,
+          }
+        });
+        migratedCount++;
+      }
+      logger.info({ migratedCount }, "Legacy templates successfully migrated to unified schema");
+    } catch (error) {
+      logger.error({ err: error }, "Template migration failed");
     }
   }
 }
-
-export const communicationService = new CommunicationService();

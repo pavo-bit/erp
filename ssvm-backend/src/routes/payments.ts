@@ -160,4 +160,94 @@ router.post("/trigger-late-fines", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// POST /api/payments/webhook
+router.post("/webhook", async (req: import("express").Request, res: Response) => {
+  try {
+    const signature = req.headers["x-razorpay-signature"];
+    const webhookBody = req.body;
+    
+    // 1. Validate Signature using HMAC SHA256
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || "placeholder_secret";
+    const payloadString = JSON.stringify(webhookBody);
+    const expectedSignature = crypto
+      .createHmac("sha256", secret)
+      .update(payloadString)
+      .digest("hex");
+
+    if (expectedSignature !== signature) {
+      const { logSecurityEvent } = await import("../lib/audit");
+      await logSecurityEvent({
+        userId: "SYSTEM",
+        eventType: "WEBHOOK_TAMPERING",
+        severity: "CRITICAL",
+        ipAddress: typeof req.ip === "string" ? req.ip : undefined,
+        metadata: { signature, expectedSignature }
+      });
+      res.status(400).json({ success: false, error: "Invalid signature" });
+      return;
+    }
+
+    // 2. Webhook Replay Protection (5-minute window)
+    const createdAt = webhookBody.created_at; 
+    if (createdAt) {
+      const now = Math.floor(Date.now() / 1000);
+      if (now - createdAt > 300) {
+        res.status(400).json({ success: false, error: "Webhook replay detected" });
+        return;
+      }
+    }
+
+    // 3. Payment Idempotency and Processing
+    if (webhookBody.event === "payment.captured" || webhookBody.event === "order.paid") {
+      const paymentEntity = webhookBody.payload?.payment?.entity;
+      if (!paymentEntity) {
+        res.status(200).json({ success: true, message: "Ignored" });
+        return;
+      }
+
+      const gatewayPaymentId = paymentEntity.id;
+      const orderId = paymentEntity.order_id;
+
+      // Idempotency check: Already processed?
+      const existingTx = await prisma.paymentTransaction.findUnique({
+        where: { gatewayPaymentId }
+      });
+
+      if (existingTx) {
+         res.status(200).json({ success: true, message: "Already processed" });
+         return;
+      }
+
+      // Mark Paid
+      const transaction = await prisma.paymentTransaction.findUnique({
+        where: { transactionId: orderId }
+      });
+
+      if (transaction && transaction.status !== "SUCCESS") {
+        await prisma.paymentTransaction.update({
+          where: { id: transaction.id },
+          data: {
+            gatewayPaymentId,
+            status: "SUCCESS"
+          }
+        });
+
+        await prisma.invoice.update({
+          where: { id: transaction.invoiceId },
+          data: {
+            status: "PAID",
+            paidDate: new Date(),
+            receiptNo: `REC-${Date.now()}`
+          }
+        });
+      }
+    }
+
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Razorpay Webhook Error:", error);
+    res.status(500).json({ success: false });
+  }
+});
+
 export default router;

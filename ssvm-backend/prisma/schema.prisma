@@ -135,14 +135,22 @@ enum SalaryStatus {
   HOLD
 }
 
+enum SchoolStatus {
+  TRIAL
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+  ARCHIVED
+}
+
 // ═══════════════════════════════════════════
 // SCHOOL & TENANT MANAGEMENT
 // ═══════════════════════════════════════════
 
 model School {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   name           String
-  code           String   @unique
+  code           String       @unique
   address        String?
   city           String?
   state          String?
@@ -151,10 +159,11 @@ model School {
   logo           String?
   website        String?
   boardType      String?
-  isActive       Boolean  @default(true)
-  onboardingDone Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  status         SchoolStatus @default(TRIAL)
+  isActive       Boolean      @default(true)
+  onboardingDone Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   branches                  Branch[]
   subscription              Subscription?
@@ -199,6 +208,32 @@ model School {
   bulkJobs                  BulkJob[]
   templates                 Template[]
 
+  deletedAt   DateTime?
+  deletedById String?
+
+  schoolFeatures       SchoolFeature[]
+  schoolSettings       SchoolSettings?
+  brandSettings        BrandSettings?
+  webhookEndpoints     WebhookEndpoint[]
+  supportTickets       SupportTicket[]
+  certificateTemplates CertificateTemplate[]
+  messageThreads       MessageThread[]
+  admissionEnquiries   AdmissionEnquiry[]
+  visitorLogs          VisitorLog[]
+  storageObjects       StorageObject[]
+  assetCategories      AssetCategory[]
+  vendors              Vendor[]
+  assets               Asset[]
+  purchaseOrders       PurchaseOrder[]
+  systemLogs           SystemLog[]
+  contracts            Contract[]
+  usageMetrics         UsageMetric[]
+  customDomainRecord   CustomDomain?
+  consentRecords       ConsentRecord[]
+  settingsHistory      SchoolSettingsHistory[]
+  archive              SchoolArchive?
+  legalHolds           LegalHold[]
+
   @@map("schools")
 }
 
@@ -222,6 +257,9 @@ model Branch {
   admissions   Admission[]
   salaries     Salary[]
   scholarships Scholarship[]
+
+  deletedAt   DateTime?
+  deletedById String?
 
   @@map("branches")
 }
@@ -306,17 +344,17 @@ model RolePermission {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String
-  name      String
-  role      Role
-  phone     String?
-  avatar    String?
-  schoolId  String?
-  branchId   String?
-  employeeId String?
-  department String?
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String
+  name                 String
+  role                 Role
+  phone                String?
+  avatar               String?
+  schoolId             String?
+  branchId             String?
+  employeeId           String?
+  department           String?
   isActive             Boolean   @default(true)
   lastLogin            DateTime?
   twoFactorSecret      String?
@@ -328,11 +366,32 @@ model User {
   teacher              Teacher?
   alumni               Alumni?
   guardian             Guardian?
-  notices              Notice[]      @relation("NoticeAuthor")
-  events               Event[]       @relation("EventCreator")
-  auditLogs            AuditLog[]    @relation("AuditUser")
-  approvedScholarships Scholarship[] @relation("ScholarshipApprover")
+  notices              Notice[]       @relation("NoticeAuthor")
+  events               Event[]        @relation("EventCreator")
+  auditLogs            AuditLog[]     @relation("AuditUser")
+  approvedScholarships Scholarship[]  @relation("ScholarshipApprover")
   refreshTokens        RefreshToken[]
+  deletedAt            DateTime?
+  deletedById          String?
+
+  sessions                UserSession[]
+  supportTickets          SupportTicket[]
+  supportMessages         SupportMessage[]
+  issuedCertificates      IssuedCertificate[]
+  messageParticipants     MessageParticipant[]
+  messages                Message[]
+  webhookEndpoints        WebhookEndpoint[]
+  storageObjects          StorageObject[]
+  assetAssignments        AssetAssignment[]        @relation("AssetAssignee")
+  assetsAssignedByMe      AssetAssignment[]        @relation("AssetAssigner")
+  assetTransfers          AssetTransfer[]
+  purchaseOrders          PurchaseOrder[]
+  systemLogs              SystemLog[]
+  notificationPreferences NotificationPreference[]
+  settingsHistoryChanges  SchoolSettingsHistory[]
+  archivesCreated         SchoolArchive[]
+  legalHoldsPlaced        LegalHold[]              @relation("LegalHoldPlacer")
+  legalHoldsReleased      LegalHold[]              @relation("LegalHoldReleaser")
 
   @@index([role])
   @@index([schoolId])
@@ -503,6 +562,8 @@ model Teacher {
   teacherSubjects           TeacherSubject[]
   assignments               Assignment[]
   teacherSubjectAssignments TeacherSubjectAssignment[]
+  deletedAt                 DateTime?
+  deletedById               String?
 
   @@index([schoolId])
   @@map("teachers")
@@ -526,8 +587,9 @@ model Guardian {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  user     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  students Student[]
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  students       Student[]
+  consentRecords ConsentRecord[]
 
   @@map("guardians")
 }
@@ -551,16 +613,19 @@ model Student {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  school       School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  branch       Branch?                @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  sectionRef   Section?               @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  guardian     Guardian?              @relation(fields: [guardianId], references: [id])
-  attendance   Attendance[]
-  marks        StudentMark[]
-  invoices     Invoice[]
-  submissions  AssignmentSubmission[]
-  timelines    StudentTimeline[]
-  scholarships Scholarship[]
+  school             School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  branch             Branch?                @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  sectionRef         Section?               @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  guardian           Guardian?              @relation(fields: [guardianId], references: [id])
+  attendance         Attendance[]
+  marks              StudentMark[]
+  invoices           Invoice[]
+  submissions        AssignmentSubmission[]
+  timelines          StudentTimeline[]
+  scholarships       Scholarship[]
+  deletedAt          DateTime?
+  deletedById        String?
+  issuedCertificates IssuedCertificate[]
 
   @@index([schoolId])
   @@index([sectionId])
@@ -944,6 +1009,8 @@ model Invoice {
   school       School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   branch       Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
   transactions PaymentTransaction[]
+  deletedAt    DateTime?
+  deletedById  String?
 
   @@index([studentId])
   @@index([schoolId])
@@ -1069,10 +1136,12 @@ model Admission {
   appliedAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  school   School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  logs     AdmissionLog[]
-  branchId String?
-  branch   Branch?        @relation(fields: [branchId], references: [id])
+  school      School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  logs        AdmissionLog[]
+  branchId    String?
+  branch      Branch?        @relation(fields: [branchId], references: [id])
+  deletedAt   DateTime?
+  deletedById String?
 
   @@index([schoolId, status])
   @@index([appliedAt])
@@ -1254,9 +1323,13 @@ model PaymentTransaction {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  invoice  Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  branchId String?
-  schoolId String?
+  invoice     Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  branchId    String?
+  schoolId    String?
+  deletedAt   DateTime?
+  deletedById String?
+
+  gatewayPaymentId String? @unique
 
   @@index([invoiceId])
   @@index([transactionId])
@@ -1301,7 +1374,9 @@ model DocumentRepository {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school     School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  scanStatus String  @default("PENDING")
+  scanResult String?
 
   @@index([schoolId, category])
   @@map("document_repository")
@@ -1486,21 +1561,21 @@ model NotificationTemplate {
 // ═══════════════════════════════════════════
 
 model Book {
-  id            String      @id @default(cuid())
+  id            String   @id @default(cuid())
   schoolId      String
   title         String
   author        String
   isbn          String?
   publisher     String?
-  category      String      @default("General")
-  totalCopies   Int         @default(1)
-  available     Int         @default(1)
+  category      String   @default("General")
+  totalCopies   Int      @default(1)
+  available     Int      @default(1)
   shelfLocation String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  
-  school        School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  issues        BookIssue[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  school School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  issues BookIssue[]
 
   @@index([schoolId, category])
   @@index([title])
@@ -1511,7 +1586,7 @@ model BookIssue {
   id         String    @id @default(cuid())
   bookId     String
   schoolId   String
-  userId     String    // Polymorphic: can be Student or Teacher ID
+  userId     String // Polymorphic: can be Student or Teacher ID
   userType   String    @default("STUDENT")
   issueDate  DateTime  @default(now())
   dueDate    DateTime
@@ -1520,9 +1595,9 @@ model BookIssue {
   fineAmount Float     @default(0)
   createdAt  DateTime  @default(now())
 
-  book       Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  school     School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  
+  book   Book   @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
   @@index([schoolId, status])
   @@index([userId])
   @@map("book_issues")
@@ -1534,8 +1609,8 @@ model BookIssue {
 
 model SystemBackup {
   id        String   @id @default(cuid())
-  type      String   // "DATABASE" or "STORAGE"
-  status    String   // "IN_PROGRESS", "COMPLETED", "FAILED"
+  type      String // "DATABASE" or "STORAGE"
+  status    String // "IN_PROGRESS", "COMPLETED", "FAILED"
   sizeBytes Int?
   fileUrl   String?
   errorMsg  String?
@@ -1549,17 +1624,17 @@ model SystemBackup {
 model BulkJob {
   id          String   @id @default(cuid())
   schoolId    String
-  type        String   // "STUDENT_IMPORT", "TEACHER_IMPORT"
-  status      String   // "QUEUED", "PROCESSING", "COMPLETED", "FAILED"
+  type        String // "STUDENT_IMPORT", "TEACHER_IMPORT"
+  status      String // "QUEUED", "PROCESSING", "COMPLETED", "FAILED"
   progress    Int      @default(0)
   totalRows   Int      @default(0)
   successRows Int      @default(0)
   failedRows  Int      @default(0)
-  errorFile   String?  // CSV of failed rows
+  errorFile   String? // CSV of failed rows
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, status])
   @@map("bulk_jobs")
@@ -1569,16 +1644,705 @@ model Template {
   id        String   @id @default(cuid())
   schoolId  String
   name      String
-  channel   String   // "SMS", "EMAIL", "WHATSAPP", "NOTICE"
+  channel   String // "SMS", "EMAIL", "WHATSAPP", "NOTICE"
   subject   String?
-  content   String   // Handlebars content
+  content   String // Handlebars content
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, name, channel])
   @@map("unified_templates")
 }
 
+model UserSession {
+  id                String   @id @default(cuid())
+  userId            String
+  sessionId         String   @unique
+  refreshFamily     String?
+  deviceName        String?
+  deviceFingerprint String?
+  browser           String?
+  os                String?
+  ipAddress         String?
+  country           String?
+  city              String?
+  lastSeen          DateTime @default(now())
+  isActive          Boolean  @default(true)
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([sessionId])
+  @@map("user_sessions")
+}
+
+model AdmissionEnquiry {
+  id               String   @id @default(cuid())
+  schoolId         String
+  studentName      String
+  parentName       String
+  phone            String
+  email            String?
+  applyingForClass String?
+  source           String? // Walk-in, Website, Referral
+  status           String   @default("OPEN") // OPEN, CONTACTED, CLOSED, CONVERTED
+  remarks          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status])
+  @@map("admission_enquiries")
+}
+
+model VisitorLog {
+  id           String    @id @default(cuid())
+  schoolId     String
+  visitorName  String
+  phone        String
+  purpose      String
+  personToMeet String?
+  checkIn      DateTime  @default(now())
+  checkOut     DateTime?
+  remarks      String?
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("visitor_logs")
+}
+
+model WebhookEndpoint {
+  id         String   @id @default(cuid())
+  schoolId   String? // Optional: If null, it's a global webhook
+  url        String
+  secret     String
+  events     String[] // Array of event names
+  enabled    Boolean  @default(true)
+  retryCount Int      @default(3)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  school School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id])
+  userId String?
+
+  @@index([schoolId, enabled])
+  @@map("webhook_endpoints")
+}
+
+model ScheduledJob {
+  id        String    @id @default(cuid())
+  name      String
+  status    String    @default("ACTIVE") // ACTIVE, PAUSED
+  lastRunAt DateTime?
+  nextRunAt DateTime?
+  failures  Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("scheduled_jobs")
+}
+
+model SupportTicket {
+  id        String   @id @default(cuid())
+  schoolId  String
+  userId    String // User who created the ticket
+  subject   String
+  status    String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  priority  String   @default("NORMAL") // LOW, NORMAL, HIGH, URGENT
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    SupportMessage[]
+  deletedAt   DateTime?
+  deletedById String?
+
+  @@index([schoolId, status])
+  @@map("support_tickets")
+}
+
+model SupportMessage {
+  id           String   @id @default(cuid())
+  ticketId     String
+  senderId     String
+  content      String
+  isSuperAdmin Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("support_messages")
+}
+
+model CertificateTemplate {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String // e.g., Bonafide, Transfer
+  contentHtml String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  issued IssuedCertificate[]
+
+  @@index([schoolId])
+  @@map("certificate_templates")
+}
+
+model IssuedCertificate {
+  id               String   @id @default(cuid())
+  templateId       String
+  studentId        String
+  issuedById       String
+  qrHash           String   @unique
+  status           String   @default("VALID") // VALID, REVOKED
+  revocationReason String?
+  issuedAt         DateTime @default(now())
+
+  template CertificateTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  student  Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  issuedBy User                @relation(fields: [issuedById], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+  @@index([studentId])
+  @@map("issued_certificates")
+}
+
+model MessageThread {
+  id        String   @id @default(cuid())
+  schoolId  String
+  subject   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school       School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  messages     Message[]
+  participants MessageParticipant[]
+
+  @@index([schoolId])
+  @@map("message_threads")
+}
+
+model MessageParticipant {
+  id              String    @id @default(cuid())
+  threadId        String
+  userId          String
+  participantRole String?
+  joinedAt        DateTime  @default(now())
+  lastReadAt      DateTime?
+
+  thread MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([threadId, userId])
+  @@map("message_participants")
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  threadId  String
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+
+  thread      MessageThread        @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender      User                 @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  attachments MessageAttachment[]
+  reads       MessageReadReceipt[]
+
+  @@index([threadId])
+  @@map("messages")
+}
+
+model MessageAttachment {
+  id        String   @id @default(cuid())
+  messageId String
+  fileUrl   String
+  fileName  String
+  fileSize  Int
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("message_attachments")
+}
+
+model MessageReadReceipt {
+  id            String   @id @default(cuid())
+  messageId     String
+  participantId String
+  readAt        DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, participantId])
+  @@map("message_read_receipts")
+}
+
+model FeatureFlag {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+  description       String?
+  category          String   @default("GENERAL")
+  defaultEnabled    Boolean  @default(false)
+  rolloutPercentage Int?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  schoolFeatures SchoolFeature[]
+
+  @@map("feature_flags")
+}
+
+model SchoolFeature {
+  id        String   @id @default(cuid())
+  schoolId  String
+  featureId String
+  isEnabled Boolean  @default(true)
+  enabledAt DateTime @default(now())
+  enabledBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school  School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  feature FeatureFlag @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, featureId])
+  @@map("school_features")
+}
+
+model SchoolSettings {
+  id                 String   @id @default(cuid())
+  schoolId           String   @unique
+  timezone           String   @default("Asia/Kolkata")
+  dateFormat         String   @default("DD/MM/YYYY")
+  currency           String   @default("INR")
+  academicYear       String?
+  language           String   @default("en")
+  academicYearFormat String?
+  attendanceMethod   String   @default("DAILY")
+  gradingSystem      String   @default("PERCENTAGE")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("school_settings")
+}
+
+model BrandSettings {
+  id             String   @id @default(cuid())
+  schoolId       String   @unique
+  primaryColor   String?
+  secondaryColor String?
+  accentColor    String?
+  logoUrl        String?
+  faviconUrl     String?
+  customDomain   String?  @unique
+  loginBannerUrl String?
+  websiteUrl     String?
+  emailFooter    String?
+  emailDomain    String?
+  senderName     String?
+  replyTo        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("brand_settings")
+}
+
+model SchoolRegistrationRequest {
+  id            String   @id @default(cuid())
+  schoolName    String
+  email         String   @unique
+  principalName String?
+  phone         String?
+  address       String?
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("school_registration_requests")
+}
+
+// ═══════════════════════════════════════════
+// PHASE 14B: STORAGE & ASSET MANAGEMENT
+// ═══════════════════════════════════════════
+
+model StorageObject {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  bucket     String
+  size       Int
+  mimeType   String
+  uploadedBy String
+  schoolId   String
+  scanStatus String   @default("PENDING")
+  checksum   String?
+  createdAt  DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [uploadedBy], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([uploadedBy])
+  @@map("storage_objects")
+}
+
+model AssetCategory {
+  id          String   @id @default(cuid())
+  schoolId    String
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  school School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  assets Asset[]
+
+  @@map("asset_categories")
+}
+
+model Vendor {
+  id           String   @id @default(cuid())
+  schoolId     String
+  name         String
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+  address      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  school         School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  assets         Asset[]
+  purchaseOrders PurchaseOrder[]
+  deletedAt      DateTime?
+  deletedById    String?
+
+  @@map("vendors")
+}
+
+model Asset {
+  id           String    @id @default(cuid())
+  schoolId     String
+  categoryId   String
+  vendorId     String?
+  name         String
+  description  String?
+  serialNumber String?
+  status       String    @default("AVAILABLE") // AVAILABLE, ASSIGNED, MAINTENANCE, RETIRED
+  purchaseDate DateTime?
+  warrantyEnd  DateTime?
+  cost         Float?
+  location     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  school         School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  category       AssetCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  vendor         Vendor?             @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  assignments    AssetAssignment[]
+  maintenance    MaintenanceRecord[]
+  transfers      AssetTransfer[]
+  depreciations  AssetDepreciation[]
+  purchaseItem   PurchaseOrderItem?  @relation(fields: [purchaseItemId], references: [id])
+  purchaseItemId String?
+  deletedAt      DateTime?
+  deletedById    String?
+
+  @@map("assets")
+}
+
+model AssetAssignment {
+  id         String    @id @default(cuid())
+  assetId    String
+  userId     String // The person it's assigned to
+  assignedBy String // The person who assigned it
+  assignedAt DateTime  @default(now())
+  returnedAt DateTime?
+  notes      String?
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user  User  @relation("AssetAssignee", fields: [userId], references: [id], onDelete: Cascade)
+  admin User  @relation("AssetAssigner", fields: [assignedBy], references: [id], onDelete: Cascade)
+
+  @@map("asset_assignments")
+}
+
+model AssetTransfer {
+  id            String   @id @default(cuid())
+  assetId       String
+  fromLocation  String?
+  toLocation    String?
+  fromBranchId  String?
+  toBranchId    String?
+  transferredBy String
+  transferredAt DateTime @default(now())
+  reason        String?
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [transferredBy], references: [id], onDelete: Cascade)
+
+  @@map("asset_transfers")
+}
+
+model AssetDepreciation {
+  id           String   @id @default(cuid())
+  assetId      String
+  date         DateTime
+  valueBefore  Float
+  depreciation Float
+  valueAfter   Float
+  method       String   @default("STRAIGHT_LINE")
+  createdAt    DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@map("asset_depreciations")
+}
+
+model MaintenanceRecord {
+  id          String    @id @default(cuid())
+  assetId     String
+  type        String    @default("REPAIR") // REPAIR, ROUTINE, UPGRADE
+  description String
+  cost        Float?
+  startDate   DateTime
+  endDate     DateTime?
+  status      String    @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  performedBy String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@map("maintenance_records")
+}
+
+model PurchaseOrder {
+  id           String    @id @default(cuid())
+  schoolId     String
+  vendorId     String
+  poNumber     String    @unique
+  status       String    @default("DRAFT") // DRAFT, PENDING_APPROVAL, APPROVED, REJECTED, FULFILLED
+  totalAmount  Float     @default(0)
+  expectedDate DateTime?
+  createdBy    String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  school School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  vendor Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  user   User                @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  items  PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id          String @id @default(cuid())
+  poId        String
+  description String
+  quantity    Int
+  unitPrice   Float
+  totalPrice  Float
+  status      String @default("PENDING") // PENDING, RECEIVED
+
+  po    PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  asset Asset[]
+
+  @@map("purchase_order_items")
+}
+
+// ═══════════════════════════════════════════
+// PHASE 14C: OPERATIONAL RELIABILITY
+// ═══════════════════════════════════════════
+
+model FailedJob {
+  id         String   @id @default(cuid())
+  queueName  String
+  jobId      String?
+  payload    String // JSON stringified payload
+  error      String
+  stackTrace String?
+  failedAt   DateTime @default(now())
+  status     String   @default("FAILED") // FAILED, RETRIED, RESOLVED
+
+  @@map("failed_jobs")
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  level     String // INFO, WARN, ERROR, FATAL
+  module    String // e.g., "QUEUE", "BACKUP", "DB", "AUTH"
+  message   String
+  metadata  String? // JSON string
+  schoolId  String?
+  userId    String?
+  createdAt DateTime @default(now())
+
+  school School? @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([level])
+  @@index([module])
+  @@map("system_logs")
+}
+
+// ═══════════════════════════════════════════
+// PHASE 14D: SAAS MONETIZATION & LIFECYCLE
+// ═══════════════════════════════════════════
+
+model Contract {
+  id           String    @id @default(cuid())
+  schoolId     String
+  startDate    DateTime
+  endDate      DateTime
+  billingCycle String    @default("MONTHLY") // MONTHLY, YEARLY
+  amount       Float
+  currency     String    @default("INR")
+  status       String    @default("ACTIVE") // ACTIVE, EXPIRED, TERMINATED
+  autoRenew    Boolean   @default(true)
+  signedAt     DateTime?
+  documentUrl  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("contracts")
+}
+
+model UsageMetric {
+  id              String    @id @default(cuid())
+  schoolId        String
+  month           DateTime // First day of the month
+  students        Int       @default(0)
+  smsUsed         Int       @default(0)
+  emailUsed       Int       @default(0)
+  whatsappUsed    Int       @default(0)
+  apiCalls        Int       @default(0)
+  activeUsers     Int       @default(0)
+  documentsStored Int       @default(0)
+  storageBytes    BigInt    @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  deletedById     String?
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, month])
+  @@map("usage_metrics")
+}
+
+model CustomDomain {
+  id         String    @id @default(cuid())
+  schoolId   String    @unique
+  domain     String    @unique
+  status     String    @default("PENDING") // PENDING, ACTIVE, FAILED
+  sslStatus  String    @default("PENDING") // PENDING, ISSUED, FAILED
+  verifiedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("custom_domains")
+}
+
+// ═══════════════════════════════════════════
+// PHASE 14F: ADVANCED ENTERPRISE
+// ═══════════════════════════════════════════
+
+model ConsentRecord {
+  id         String   @id @default(cuid())
+  guardianId String
+  schoolId   String
+  type       String // SMS, EMAIL, WHATSAPP, MARKETING
+  accepted   Boolean
+  acceptedAt DateTime @default(now())
+  ipAddress  String?
+
+  school   School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  guardian Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("consent_records")
+}
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // FEE_REMINDER, ATTENDANCE, EXAM, MARKETING
+  enabled   Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@map("notification_preferences")
+}
+
+model SchoolSettingsHistory {
+  id           String   @id @default(cuid())
+  schoolId     String
+  changedBy    String
+  previousData String // JSON string
+  newData      String // JSON string
+  changedAt    DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [changedBy], references: [id], onDelete: Cascade)
+
+  @@map("school_settings_history")
+}
+
+model SchoolArchive {
+  id         String   @id @default(cuid())
+  schoolId   String   @unique
+  status     String   @default("IN_PROGRESS") // IN_PROGRESS, COMPLETED, RESTORED
+  archiveUrl String?
+  archivedBy String
+  archivedAt DateTime @default(now())
+
+  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [archivedBy], references: [id], onDelete: Cascade)
+
+  @@map("school_archives")
+}
+
+model LegalHold {
+  id         String    @id @default(cuid())
+  schoolId   String
+  reason     String
+  placedBy   String
+  placedAt   DateTime  @default(now())
+  releasedAt DateTime?
+  releasedBy String?
+  status     String    @default("ACTIVE") // ACTIVE, RELEASED
+
+  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user     User   @relation("LegalHoldPlacer", fields: [placedBy], references: [id], onDelete: Cascade)
+  releaser User?  @relation("LegalHoldReleaser", fields: [releasedBy], references: [id], onDelete: SetNull)
+
+  @@map("legal_holds")
+}

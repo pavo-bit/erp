@@ -6,12 +6,25 @@ export async function apiCall(endpoint: string, method = "GET", body?: any) {
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`http://localhost:3001${endpoint}`, {
+  const targetUrl = endpoint.startsWith("/api/v1") ? endpoint : endpoint.replace("/api", "/api/v1");
+  let response = await fetch(`http://localhost:3001${targetUrl}`, {
     method,
     headers,
     body: isFormData ? body : body ? JSON.stringify(body) : undefined,
-    credentials: "include", // Essential for sharing the auth_token cookie with backend
+    credentials: "include",
   });
+
+  if (response.status === 401) {
+    const refreshRes = await fetch(`http://localhost:3001/api/v1/auth/refresh`, { method: "POST", credentials: "include" });
+    if (refreshRes.ok) {
+      response = await fetch(`http://localhost:3001${targetUrl}`, {
+        method,
+        headers,
+        body: isFormData ? body : body ? JSON.stringify(body) : undefined,
+        credentials: "include",
+      });
+    }
+  }
 
   if (!response.ok) {
     let errorMsg = "API Error";

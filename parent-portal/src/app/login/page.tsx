@@ -11,13 +11,35 @@ export default function Login() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [otp, setOtp] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    
     try {
-      const res = await apiCall("/api/auth/login", "POST", { email, password });
+      if (requires2FA) {
+        const res = await apiCall("/api/v1/auth/verify-2fa", "POST", { tempToken, otp });
+        if (res.success && res.data.user.role === "PARENT") {
+          login(res.data.token, res.data.user);
+        } else {
+          throw new Error("Invalid OTP or unauthorized access.");
+        }
+        return;
+      }
+
+      const res = await apiCall("/api/v1/auth/login", "POST", { email, password });
+      
+      if (res.requires2FA) {
+        setRequires2FA(true);
+        setTempToken(res.tempToken || "");
+        return;
+      }
+
       if (res.success && res.data.user.role === "PARENT") {
         login(res.data.token, res.data.user);
       } else {
@@ -62,29 +84,50 @@ export default function Login() {
               )}
               
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">Email or Phone</label>
-                  <input
-                    type="text"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
-                    placeholder="Enter your registered email"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">Password</label>
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full px-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
-                    placeholder="Enter your password"
-                  />
-                </div>
+                {!requires2FA ? (
+                  <>
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">Email or Phone</label>
+                      <input
+                        type="text"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full px-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
+                        placeholder="Enter your registered email"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 ml-1">Password</label>
+                      <input
+                        type="password"
+                        required
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full px-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-slate-900 dark:text-white placeholder:text-slate-400"
+                        placeholder="Enter your password"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl mb-4 text-center">
+                      <p className="text-blue-800 text-[13px] font-semibold">Two-Factor Authentication</p>
+                      <p className="text-blue-600 text-[12px] mt-1">Please enter the 6-digit OTP sent to your registered device.</p>
+                    </div>
+                    <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5 ml-1 text-center">Authentication Code</label>
+                    <input
+                      type="text"
+                      required
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      className="w-full px-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all text-slate-900 dark:text-white text-center text-2xl tracking-[0.5em] font-bold placeholder:text-slate-400 placeholder:tracking-normal placeholder:font-normal placeholder:text-sm"
+                      placeholder="Enter OTP"
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="pt-2">
@@ -96,7 +139,7 @@ export default function Login() {
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    "Secure Login"
+                    requires2FA ? "Verify Code" : "Secure Login"
                   )}
                 </button>
               </div>

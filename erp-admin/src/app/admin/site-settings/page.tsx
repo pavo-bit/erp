@@ -20,7 +20,7 @@ export default function SiteSettingsPage() {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const data = await fetch("/api/site-content?section=homepage_stats", { credentials: "include" });
+        const data = await fetch("/api/v1/site-content?section=homepage_stats", { credentials: "include" });
         const result = await data.json();
         if (result.success && result.data?.homepage_stats) {
           const stats = result.data.homepage_stats;
@@ -61,8 +61,8 @@ export default function SiteSettingsPage() {
         updates.push({ section: "homepage_stats", key: "establishment_year", value: establishmentYear, type: "text" });
       }
 
-      await apiCall("/api/site-content", "PUT", { updates });
-      invalidateAll("/api/stats");
+      await apiCall("/api/v1/site-content", "PUT", { updates });
+      invalidateAll("/api/v1/stats");
       setMessage("✅ Settings saved successfully!");
       
       setTimeout(() => setMessage(""), 3000);

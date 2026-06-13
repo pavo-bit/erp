@@ -111,11 +111,18 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
   }
 
   try {
-    const { hashToken } = await import("../lib/tokens");
     const { isTokenBlocklisted } = await import("../lib/redis");
-    const tokenHash = hashToken(token);
+    
+    // Use jti if available (new tokens), fallback to full token hash for legacy
+    let blocklistKey: string;
+    if ("jti" in payload && payload.jti) {
+      blocklistKey = payload.jti as string;
+    } else {
+      const { hashToken } = await import("../lib/tokens");
+      blocklistKey = hashToken(token);
+    }
 
-    if (await isTokenBlocklisted(tokenHash)) {
+    if (await isTokenBlocklisted(blocklistKey)) {
       res.status(401).json({ success: false, error: "Token has been revoked" });
       return;
     }
@@ -239,4 +246,39 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
   }
 
   next();
+}
+
+// ═══════════════════════════════════════════
+// IP Allowlisting
+// ═══════════════════════════════════════════
+
+export function requireAllowedIp() {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const clientIp = req.ip || req.headers["x-forwarded-for"]?.toString() || "";
+    const allowedIps = (process.env.SUPER_ADMIN_ALLOWED_IPS || "").split(",").map(ip => ip.trim()).filter(Boolean);
+    
+    if (allowedIps.length === 0) {
+      next(); // Fail open if not configured
+      return;
+    }
+
+    if (allowedIps.includes(clientIp)) {
+      next();
+      return;
+    }
+
+    const authReq = req as AuthRequest;
+    if (authReq.user) {
+      const { logSecurityEvent } = await import("../lib/audit");
+      await logSecurityEvent({
+        userId: authReq.user.id,
+        eventType: "UNAUTHORIZED_IP_ACCESS",
+        severity: "HIGH",
+        ipAddress: clientIp,
+        metadata: { path: req.originalUrl }
+      });
+    }
+
+    res.status(403).json({ success: false, error: "Access denied from this IP address" });
+  };
 }

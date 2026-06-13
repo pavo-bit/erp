@@ -3,23 +3,42 @@
 import useSWR from "swr";
 
 const fetcher = async (url: string) => {
-  const res = await fetch(url, { credentials: "include" });
+  let res = await fetch(url, { credentials: "include" });
+  
+  if (res.status === 401) {
+    const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+    if (refreshRes.ok) res = await fetch(url, { credentials: "include" });
+  }
+
   if (!res.ok) throw new Error("Request failed");
   const data = await res.json();
   return data.data ?? data;
 };
 
 export async function apiCall(url: string, method: "POST" | "PUT" | "DELETE" = "POST", body?: unknown) {
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     method, credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
+
+  if (res.status === 401) {
+    const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+    if (refreshRes.ok) {
+      res = await fetch(url, {
+        method, credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    }
+  }
   const data = await res.json();
   if (!data.success) throw new Error(data.error || "Request failed");
   return data.data ?? null;
 }
 
-export function useSchools() { return useSWR("/api/schools", fetcher); }
-export function useSuperAdminStats() { return useSWR("/api/stats/super-admin", fetcher); }
-export function useFinanceStats() { return useSWR("/api/stats/finance", fetcher); }
+export function useSchools() { return useSWR("/api/v1/schools", fetcher); }
+export function useSuperAdminStats() { return useSWR("/api/v1/stats/super-admin", fetcher); }
+export function useFinanceStats() { return useSWR("/api/v1/stats/finance", fetcher); }
+export function useSubscriptions() { return useSWR("/api/v1/subscriptions/plans", fetcher); }
+export function useAuditLogs() { return useSWR("/api/v1/audit/logs", fetcher); }

@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireRole, requireSuperAdmin } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireSuperAdmin, requireAllowedIp } from "../middleware/auth";
 
 const router = Router();
 
@@ -53,7 +53,7 @@ router.get("/stats", authenticate, requireSuperAdmin(), async (_req: AuthRequest
 });
 
 // POST /api/subscriptions/plans
-router.post("/plans", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/plans", authenticate, requireSuperAdmin(), requireAllowedIp(), async (req: AuthRequest, res: Response) => {
   try {
     const { name, description, fixedPrice, billingCycle, features } = req.body;
     const plan = await prisma.subscriptionPlanConfig.create({
@@ -67,7 +67,7 @@ router.post("/plans", authenticate, requireSuperAdmin(), async (req: AuthRequest
 });
 
 // PUT /api/subscriptions/plans/:id
-router.put("/plans/:id", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+router.put("/plans/:id", authenticate, requireSuperAdmin(), requireAllowedIp(), async (req: AuthRequest, res: Response) => {
   try {
     const { name, description, fixedPrice, billingCycle, features, isActive } = req.body;
     const plan = await prisma.subscriptionPlanConfig.update({
@@ -82,7 +82,7 @@ router.put("/plans/:id", authenticate, requireSuperAdmin(), async (req: AuthRequ
 });
 
 // DELETE /api/subscriptions/plans/:id
-router.delete("/plans/:id", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+router.delete("/plans/:id", authenticate, requireSuperAdmin(), requireAllowedIp(), async (req: AuthRequest, res: Response) => {
   try {
     await prisma.subscriptionPlanConfig.update({
       where: { id: req.params.id as string },
@@ -100,7 +100,7 @@ router.delete("/plans/:id", authenticate, requireSuperAdmin(), async (req: AuthR
 // ==========================================
 
 // POST /api/subscriptions/assign
-router.post("/assign", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/assign", authenticate, requireSuperAdmin(), requireAllowedIp(), async (req: AuthRequest, res: Response) => {
   try {
     const { schoolId, planId, amount, startDate, endDate } = req.body;
     
@@ -126,7 +126,7 @@ router.post("/assign", authenticate, requireSuperAdmin(), async (req: AuthReques
 });
 
 // PUT /api/subscriptions/:id/renew
-router.put("/:id/renew", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+router.put("/:id/renew", authenticate, requireSuperAdmin(), requireAllowedIp(), async (req: AuthRequest, res: Response) => {
   try {
     const { endDate } = req.body;
     const sub = await prisma.subscription.update({
@@ -141,7 +141,7 @@ router.put("/:id/renew", authenticate, requireSuperAdmin(), async (req: AuthRequ
 });
 
 // PUT /api/subscriptions/:id/suspend
-router.put("/:id/suspend", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+router.put("/:id/suspend", authenticate, requireSuperAdmin(), requireAllowedIp(), async (req: AuthRequest, res: Response) => {
   try {
     const sub = await prisma.subscription.update({
       where: { id: req.params.id as string },

@@ -212,6 +212,20 @@ router.post("/issues/:id/return", authenticate, requireRole("LIBRARIAN", "SUPER_
         data: { available: { increment: 1 } },
       });
 
+      if (fineAmount && fineAmount > 0 && issue.userType === "STUDENT") {
+        await tx.invoice.create({
+          data: {
+            schoolId,
+            studentId: issue.userId,
+            amount: fineAmount,
+            type: "MISCELLANEOUS",
+            status: "PENDING",
+            dueDate: new Date(),
+            description: `Library Fine for Book Issue ID: ${issue.id}`,
+          }
+        });
+      }
+
       return updated;
     });
 
@@ -242,6 +256,28 @@ router.get("/issues", authenticate, async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: issues });
   } catch (e) {
     logger.error({ err: e }, "List issues error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// List Overdue Issues
+router.get("/overdue", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.role === "SUPER_ADMIN" ? req.query.schoolId as string : req.user!.schoolId;
+
+    const overdueIssues = await prisma.bookIssue.findMany({
+      where: {
+        schoolId: schoolId || undefined,
+        status: { in: ["ISSUED", "OVERDUE"] },
+        dueDate: { lt: new Date() }
+      },
+      include: { book: true },
+      orderBy: { dueDate: "asc" },
+    });
+
+    res.json({ success: true, data: overdueIssues });
+  } catch (e) {
+    logger.error({ err: e }, "List overdue issues error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });

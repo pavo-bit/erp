@@ -4,7 +4,16 @@ import useSWR, { mutate as globalMutate } from "swr";
 
 // Fetcher with credentials for cookie-based auth
 const fetcher = async (url: string) => {
-  const res = await fetch(url, { credentials: "include" });
+  let res = await fetch(url, { credentials: "include" });
+  
+  // Refresh token rotation on 401
+  if (res.status === 401) {
+    const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+    if (refreshRes.ok) {
+      res = await fetch(url, { credentials: "include" });
+    }
+  }
+
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: "Request failed" }));
     throw new Error(error.error || "Request failed");
@@ -24,6 +33,14 @@ export async function apiCall(url: string, method: "GET" | "POST" | "PUT" | "DEL
   let res: Response;
   try {
     res = await fetch(url, opts);
+    
+    // Refresh token rotation on 401
+    if (res.status === 401) {
+      const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+      if (refreshRes.ok) {
+        res = await fetch(url, opts);
+      }
+    }
   } catch {
     throw new Error("Network error — check your connection and try again");
   }
@@ -51,28 +68,38 @@ export function invalidateAll(prefix: string) {
 }
 
 // ─── Hooks ───
-export function useNotices(params?: string) { return useSWR(`/api/notices${params ? `?${params}` : ""}`, fetcher); }
-export function useEvents(params?: string) { return useSWR(`/api/events${params ? `?${params}` : ""}`, fetcher); }
-export function useStudents(params?: string) { return useSWR(`/api/students${params ? `?${params}` : ""}`, fetcher); }
-export function useTeachers(params?: string) { return useSWR(`/api/teachers${params ? `?${params}` : ""}`, fetcher); }
-export function useInvoices(params?: string) { return useSWR(`/api/invoices${params ? `?${params}` : ""}`, fetcher); }
-export function useResults(params?: string) { return useSWR(`/api/results${params ? `?${params}` : ""}`, fetcher); }
-export function useAttendance(params?: string) { return useSWR(`/api/attendance${params ? `?${params}` : ""}`, fetcher); }
-export function useTeacherAttendance(params?: string) { return useSWR(`/api/attendance/teachers${params ? `?${params}` : ""}`, fetcher); }
-export function useAssignments(params?: string) { return useSWR(`/api/assignments${params ? `?${params}` : ""}`, fetcher); }
-export function useGallery(category?: string) { return useSWR(`/api/gallery${category ? `?category=${category}` : ""}`, fetcher); }
-export function useFaculty() { return useSWR("/api/faculty", fetcher); }
-export function useAlumni(params?: string) { return useSWR(`/api/alumni${params ? `?${params}` : ""}`, fetcher); }
-export function useContributions(alumniId?: string) { return useSWR(`/api/alumni/contributions${alumniId ? `?alumniId=${alumniId}` : ""}`, fetcher); }
-export function useTestimonials() { return useSWR("/api/testimonials", fetcher); }
-export function useSiteContent(section?: string) { return useSWR(`/api/site-content${section ? `?section=${section}` : ""}`, fetcher); }
-export function useExams(params?: string) { return useSWR(`/api/exams${params ? `?${params}` : ""}`, fetcher); }
-export function useAdmissions(params?: string) { return useSWR(`/api/admissions${params ? `?${params}` : ""}`, fetcher); }
-export function useSalaries(params?: string) { return useSWR(`/api/hr/salaries${params ? `?${params}` : ""}`, fetcher); }
-export function useLeaves(params?: string) { return useSWR(`/api/hr/leaves${params ? `?${params}` : ""}`, fetcher); }
-export function useTimetable(params?: string) { return useSWR(`/api/timetable${params ? `?${params}` : ""}`, fetcher); }
-export function useNotifications(params?: string) { return useSWR(`/api/notifications${params ? `?${params}` : ""}`, fetcher); }
-export function useAnalytics() { return useSWR("/api/stats/overview", fetcher); }
-export function useFinanceStats() { return useSWR("/api/stats/finance", fetcher); }
-export function usePublicStats() { return useSWR("/api/stats/public", fetcher); }
-export function useSearch(query: string) { return useSWR(query.length >= 2 ? `/api/search?q=${query}` : null, fetcher); }
+export function useNotices(params?: string) { return useSWR(`/api/v1/notices${params ? `?${params}` : ""}`, fetcher); }
+export function useEvents(params?: string) { return useSWR(`/api/v1/events${params ? `?${params}` : ""}`, fetcher); }
+export function useStudents(params?: string) { return useSWR(`/api/v1/students${params ? `?${params}` : ""}`, fetcher); }
+export function useTeachers(params?: string) { return useSWR(`/api/v1/teachers${params ? `?${params}` : ""}`, fetcher); }
+export function useInvoices(params?: string) { return useSWR(`/api/v1/invoices${params ? `?${params}` : ""}`, fetcher); }
+export function useResults(params?: string) { return useSWR(`/api/v1/results${params ? `?${params}` : ""}`, fetcher); }
+export function useAttendance(params?: string) { return useSWR(`/api/v1/attendance${params ? `?${params}` : ""}`, fetcher); }
+export function useTeacherAttendance(params?: string) { return useSWR(`/api/v1/attendance/teachers${params ? `?${params}` : ""}`, fetcher); }
+export function useAssignments(params?: string) { return useSWR(`/api/v1/assignments${params ? `?${params}` : ""}`, fetcher); }
+export function useGallery(category?: string) { return useSWR(`/api/v1/gallery${category ? `?category=${category}` : ""}`, fetcher); }
+export function useFaculty() { return useSWR("/api/v1/faculty", fetcher); }
+export function useAlumni(params?: string) { return useSWR(`/api/v1/alumni${params ? `?${params}` : ""}`, fetcher); }
+export function useContributions(alumniId?: string) { return useSWR(`/api/v1/alumni/contributions${alumniId ? `?alumniId=${alumniId}` : ""}`, fetcher); }
+export function useTestimonials() { return useSWR("/api/v1/testimonials", fetcher); }
+export function useSiteContent(section?: string) { return useSWR(`/api/v1/site-content${section ? `?section=${section}` : ""}`, fetcher); }
+export function useExams(params?: string) { return useSWR(`/api/v1/exams${params ? `?${params}` : ""}`, fetcher); }
+export function useAdmissions(params?: string) { return useSWR(`/api/v1/admissions${params ? `?${params}` : ""}`, fetcher); }
+export function useSalaries(params?: string) { return useSWR(`/api/v1/hr/salaries${params ? `?${params}` : ""}`, fetcher); }
+export function useLeaves(params?: string) { return useSWR(`/api/v1/hr/leaves${params ? `?${params}` : ""}`, fetcher); }
+export function useTimetable(params?: string) { return useSWR(`/api/v1/timetable${params ? `?${params}` : ""}`, fetcher); }
+export function useNotifications(params?: string) { return useSWR(`/api/v1/notifications${params ? `?${params}` : ""}`, fetcher); }
+export function useAnalytics() { return useSWR("/api/v1/stats/overview", fetcher); }
+export function useFinanceStats() { return useSWR("/api/v1/stats/finance", fetcher); }
+export function usePublicStats() { return useSWR("/api/v1/stats/public", fetcher); }
+export function useSearch(query: string) { return useSWR(query.length >= 2 ? `/api/v1/search?q=${query}` : null, fetcher); }
+
+// Phase 11/12 specific
+export function useAssets(params?: string) { return useSWR(`/api/v1/assets${params ? `?${params}` : ""}`, fetcher); }
+export function useAssetCategories() { return useSWR(`/api/v1/assets/categories`, fetcher); }
+export function useVendors() { return useSWR(`/api/v1/assets/vendors`, fetcher); }
+export function useEnquiries(params?: string) { return useSWR(`/api/v1/reception/enquiries${params ? `?${params}` : ""}`, fetcher); }
+export function useVisitors(params?: string) { return useSWR(`/api/v1/reception/visitors${params ? `?${params}` : ""}`, fetcher); }
+export function useLibraryBooks(params?: string) { return useSWR(`/api/v1/library/books${params ? `?${params}` : ""}`, fetcher); }
+export function useLibraryTransactions(params?: string) { return useSWR(`/api/v1/library/transactions${params ? `?${params}` : ""}`, fetcher); }
+

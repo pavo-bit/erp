@@ -1,22 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #3B82F6;
-  --color-primary-dark: #2563EB;
-  --color-accent: #8B5CF6;
+  --color-primary: #a855f7;       /* Neon Purple */
+  --color-primary-dark: #7e22ce;  /* Deep Purple */
+  --color-accent: #ec4899;        /* Electric Pink */
+  --color-accent-light: #f472b6;  /* Light Pink */
+  
   --color-success: #10B981;
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
+  --color-info: #06B6D4;          /* Cyan */
 
-  --color-bg-dark: #0B1120;
-  --color-bg-card: #111827;
-  --color-bg-card-hover: #1F2937;
-  --color-bg-sidebar: #0F172A;
-  --color-border-dark: #1E293B;
+  --color-bg-dark: #050505;       /* Obsidian Black */
+  --color-bg-card: #0D0B14;       /* Void Purple */
+  --color-bg-card-hover: #161224; /* Elevated Purple */
+  --color-bg-sidebar: #08060B;    /* Abyss */
+  
+  --color-border-dark: #2a1f4c;   /* Soft Purple Border */
+  --color-border-glow: rgba(168, 85, 247, 0.3); /* Purple Glow */
 
-  --color-text-primary: #F1F5F9;
-  --color-text-secondary: #94A3B8;
-  --color-text-muted: #64748B;
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #C4B5FD; /* Lavender Text */
+  --color-text-muted: #8B5CF6;     /* Darker Lavender */
 
   --font-heading: "Outfit", "Inter", sans-serif;
   --font-body: "Inter", sans-serif;

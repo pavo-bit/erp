@@ -32,6 +32,7 @@ export const smsQueue = env.REDIS_URL ? new Queue("smsQueue", defaultQueueOption
 export const reportQueue = env.REDIS_URL ? new Queue("reportQueue", defaultQueueOptions) : null;
 export const notificationQueue = env.REDIS_URL ? new Queue("notificationQueue", defaultQueueOptions) : null;
 export const importQueue = env.REDIS_URL ? new Queue("importQueue", defaultQueueOptions) : null;
+export const webhookQueue = env.REDIS_URL ? new Queue("webhookQueue", defaultQueueOptions) : null;
 
 if (env.REDIS_URL) {
   logger.info("BullMQ Queues initialized");
@@ -60,6 +61,14 @@ export async function enqueueSMS(data: { phone: string; message: string }): Prom
   }
 }
 
+export async function enqueueNotification(data: { logId: string; channel: string; to: string; content: string; subject?: string }): Promise<void> {
+  if (notificationQueue) {
+    await notificationQueue.add("sendNotification", data);
+  } else {
+    logger.warn({ data }, "Notification queue disabled");
+  }
+}
+
 export async function enqueueReportGeneration(data: { type: string; schoolId: string; params: unknown }): Promise<void> {
   if (reportQueue) {
     await reportQueue.add("generateReport", data);
@@ -83,7 +92,8 @@ export async function closeQueues(): Promise<void> {
     smsQueue?.close(),
     reportQueue?.close(),
     notificationQueue?.close(),
-    importQueue?.close()
+    importQueue?.close(),
+    webhookQueue?.close()
   ]);
   logger.info("BullMQ Queues closed");
 }

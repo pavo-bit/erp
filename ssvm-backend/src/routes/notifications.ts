@@ -3,7 +3,7 @@ import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAdmin } from "../middleware/auth";
 import { sendSSEToSchool } from "../lib/sse";
-import { enqueueEmail, enqueueSMS } from "../jobs/queue";
+import { enqueueNotification } from "../jobs/queue";
 
 const router = Router();
 
@@ -31,16 +31,31 @@ router.post("/send", authenticate, requireAdmin(), async (req: AuthRequest, res:
       },
     });
 
+    // Create communication log
+    const commLog = await prisma.communicationLog.create({
+      data: {
+        schoolId,
+        recipientNum: recipientEmail || recipientPhone || "SYSTEM",
+        channel: type,
+        type: "MANUAL_NOTIFICATION",
+        content: message,
+        status: "QUEUED"
+      }
+    });
+
     // Dispatch to background queue
     if (type === "EMAIL" && recipientEmail) {
-      await enqueueEmail({ to: recipientEmail, subject, body: message });
+      await enqueueNotification({ logId: commLog.id, channel: "EMAIL", to: recipientEmail, subject, content: message });
     } else if (type === "SMS" && recipientPhone) {
-      await enqueueSMS({ phone: recipientPhone, message });
+      await enqueueNotification({ logId: commLog.id, channel: "SMS", to: recipientPhone, content: message });
     } else {
-       // Just marking as sent for SYSTEM notifications
        await prisma.notification.update({
          where: { id: notification.id },
          data: { status: "SENT", sentAt: new Date() },
+       });
+       await prisma.communicationLog.update({
+         where: { id: commLog.id },
+         data: { status: "SENT" }
        });
     }
 
@@ -80,10 +95,21 @@ router.post("/bulk", authenticate, requireAdmin(), async (req: AuthRequest, res:
     });
 
     for (const r of recipients) {
+      const commLog = await prisma.communicationLog.create({
+        data: {
+          schoolId,
+          recipientNum: r.email || r.phone || "SYSTEM",
+          channel: type,
+          type: "BULK_NOTIFICATION",
+          content: message,
+          status: "QUEUED"
+        }
+      });
+
       if (type === "EMAIL" && r.email) {
-        await enqueueEmail({ to: r.email, subject, body: message });
+        await enqueueNotification({ logId: commLog.id, channel: "EMAIL", to: r.email, subject, content: message });
       } else if (type === "SMS" && r.phone) {
-        await enqueueSMS({ phone: r.phone, message });
+        await enqueueNotification({ logId: commLog.id, channel: "SMS", to: r.phone, content: message });
       }
     }
 
@@ -146,7 +172,18 @@ router.post("/fee-reminder", authenticate, requireAdmin(), async (req: AuthReque
           },
         });
         
-        await enqueueSMS({ phone: fee.student.guardian.primaryPhone, message });
+        const commLog = await prisma.communicationLog.create({
+          data: {
+            schoolId: schoolId!,
+            recipientNum: fee.student.guardian.primaryPhone,
+            channel: "SMS",
+            type: "FEE_REMINDER",
+            content: message,
+            status: "QUEUED"
+          }
+        });
+        
+        await enqueueNotification({ logId: commLog.id, channel: "SMS", to: fee.student.guardian.primaryPhone, content: message });
         sentCount++;
       }
     }

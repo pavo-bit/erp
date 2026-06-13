@@ -26,15 +26,15 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     // For ILIKE trigram
     const likeQuery = `%${query}%`;
 
-    // Concurrent search queries across 11 major entities
+    // Concurrent search queries across 13 major entities
     // Using Prisma's fullTextSearch feature if enabled, or trigram via contains
     // Since we created pg_trgm indexes, contains mode insensitive will use them!
-    const [students, teachers, guardians, invoices, assignments, admissions, events, notices, attendance, results, alumni] = await Promise.all([
+    const [students, teachers, guardians, invoices, assignments, admissions, events, notices, attendance, results, alumni, documents, commLogs] = await Promise.all([
       prisma.student.findMany({
         where: {
           ...whereSchool,
           OR: [
-            { name: { contains: query, mode: "insensitive" } }, // Uses pg_trgm index
+            { name: { contains: query, mode: "insensitive" } },
             { rollNo: { contains: query, mode: "insensitive" } },
           ]
         },
@@ -46,7 +46,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
           ...whereSchool,
           user: {
             OR: [
-              { name: { contains: query, mode: "insensitive" } }, // FTS
+              { name: { contains: query, mode: "insensitive" } },
               { email: { contains: query, mode: "insensitive" } },
             ]
           }
@@ -149,6 +149,29 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         },
         take: 5,
         select: { id: true, batch: true, currentRole: true, user: { select: { name: true } } }
+      }),
+      prisma.documentRepository.findMany({
+        where: {
+          ...whereSchool,
+          OR: [
+            { name: { contains: query, mode: "insensitive" } },
+            { category: { contains: query, mode: "insensitive" } }
+          ]
+        },
+        take: 5,
+        select: { id: true, name: true, category: true, createdAt: true }
+      }),
+      prisma.communicationLog.findMany({
+        where: {
+          ...whereSchool,
+          OR: [
+            { content: { contains: query, mode: "insensitive" } },
+            { type: { contains: query, mode: "insensitive" } },
+            { recipientNum: { contains: query, mode: "insensitive" } }
+          ]
+        },
+        take: 5,
+        select: { id: true, channel: true, type: true, content: true, status: true, sentAt: true }
       })
     ]);
 
@@ -223,6 +246,21 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
           name: a.user?.name,
           graduationYear: a.batch,
           profession: a.currentRole
+        })),
+        documents: documents.map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          category: d.category,
+          uploadedBy: d.uploadedBy?.name,
+          date: d.createdAt
+        })),
+        communicationLogs: commLogs.map((c: any) => ({
+          id: c.id,
+          channel: c.channel,
+          type: c.type,
+          preview: c.content.substring(0, 50) + (c.content.length > 50 ? "..." : ""),
+          status: c.status,
+          date: c.sentAt
         }))
       }
     });

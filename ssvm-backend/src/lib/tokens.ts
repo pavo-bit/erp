@@ -14,6 +14,8 @@ export interface AccessTokenPayload {
   name: string;
   schoolId?: string | null;
   branchId?: string | null;
+  jti: string;
+  sid: string;
   type: "access";
 }
 
@@ -32,19 +34,25 @@ export interface PendingTwoFactorPayload {
 // Access Token (Short-lived: 15 minutes)
 // ═══════════════════════════════════════════
 
-export function generateAccessToken(payload: Omit<AccessTokenPayload, "type">): string {
+export function generateAccessToken(payload: Omit<AccessTokenPayload, "type" | "jti">): { token: string; jti: string } {
   const env = getEnv();
-  return jwt.sign(
-    { ...payload, type: "access" } as AccessTokenPayload,
+  const jti = crypto.randomUUID();
+  const token = jwt.sign(
+    { ...payload, jti, type: "access" } as AccessTokenPayload,
     env.ACCESS_TOKEN_SECRET!,
-    { expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"] }
+    { expiresIn: "15m" } // Enforced Access Token Policy (15 Minutes)
   );
+  return { token, jti };
 }
 
 export function verifyAccessToken(token: string): AccessTokenPayload | null {
   try {
     const env = getEnv();
-    const payload = jwt.verify(token, env.ACCESS_TOKEN_SECRET!) as AccessTokenPayload;
+    const isRS256 = !!env.JWT_PUBLIC_KEY;
+    const secretOrPublicKey = isRS256 ? env.JWT_PUBLIC_KEY! : env.ACCESS_TOKEN_SECRET!;
+    const algorithms: jwt.Algorithm[] = isRS256 ? ["RS256"] : ["HS256"];
+
+    const payload = jwt.verify(token, secretOrPublicKey, { algorithms }) as AccessTokenPayload;
     if (payload.type !== "access") return null;
     return payload;
   } catch {
@@ -59,7 +67,11 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
 export function isTokenExpiredError(token: string): boolean {
   try {
     const env = getEnv();
-    jwt.verify(token, env.ACCESS_TOKEN_SECRET!);
+    const isRS256 = !!env.JWT_PUBLIC_KEY;
+    const secretOrPublicKey = isRS256 ? env.JWT_PUBLIC_KEY! : env.ACCESS_TOKEN_SECRET!;
+    const algorithms: jwt.Algorithm[] = isRS256 ? ["RS256"] : ["HS256"];
+
+    jwt.verify(token, secretOrPublicKey, { algorithms });
     return false;
   } catch (err) {
     return err instanceof jwt.TokenExpiredError;
@@ -76,7 +88,7 @@ export function generateRefreshToken(userId: string): { token: string; jti: stri
   const token = jwt.sign(
     { userId, type: "refresh", jti } as RefreshTokenPayload,
     env.REFRESH_TOKEN_SECRET!,
-    { expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"] }
+    { expiresIn: "7d" } // Enforced Refresh Token Policy (7 Days)
   );
   return { token, jti };
 }
@@ -84,7 +96,11 @@ export function generateRefreshToken(userId: string): { token: string; jti: stri
 export function verifyRefreshToken(token: string): RefreshTokenPayload | null {
   try {
     const env = getEnv();
-    const payload = jwt.verify(token, env.REFRESH_TOKEN_SECRET!) as RefreshTokenPayload;
+    const isRS256 = !!env.JWT_PUBLIC_KEY;
+    const secretOrPublicKey = isRS256 ? env.JWT_PUBLIC_KEY! : env.REFRESH_TOKEN_SECRET!;
+    const algorithms: jwt.Algorithm[] = isRS256 ? ["RS256"] : ["HS256"];
+
+    const payload = jwt.verify(token, secretOrPublicKey, { algorithms }) as RefreshTokenPayload;
     if (payload.type !== "refresh") return null;
     return payload;
   } catch {
@@ -108,7 +124,11 @@ export function generate2FAPendingToken(userId: string): string {
 export function verify2FAPendingToken(token: string): PendingTwoFactorPayload | null {
   try {
     const env = getEnv();
-    const payload = jwt.verify(token, env.ACCESS_TOKEN_SECRET!) as PendingTwoFactorPayload;
+    const isRS256 = !!env.JWT_PUBLIC_KEY;
+    const secretOrPublicKey = isRS256 ? env.JWT_PUBLIC_KEY! : env.ACCESS_TOKEN_SECRET!;
+    const algorithms: jwt.Algorithm[] = isRS256 ? ["RS256"] : ["HS256"];
+
+    const payload = jwt.verify(token, secretOrPublicKey, { algorithms }) as PendingTwoFactorPayload;
     if (payload.type !== "2fa_pending") return null;
     return payload;
   } catch {

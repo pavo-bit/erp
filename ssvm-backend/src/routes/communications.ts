@@ -3,7 +3,7 @@ import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
 import handlebars from "handlebars";
 import logger from "../lib/logger";
-import { communicationService } from "../services/communication.service";
+import { CommunicationService } from "../services/communication.service";
 import { sendSuccess, sendError } from "../lib/response";
 
 const router = Router();
@@ -15,7 +15,7 @@ const router = Router();
 // GET all templates
 router.get("/templates", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const templates = await prisma.communicationTemplate.findMany({
+    const templates = await prisma.template.findMany({
       where: { schoolId: req.user!.schoolId! },
       orderBy: { name: "asc" }
     });
@@ -37,7 +37,7 @@ router.post("/templates", authenticate, requireRole("ADMIN"), async (req: AuthRe
       return;
     }
 
-    const template = await prisma.communicationTemplate.upsert({
+    const template = await prisma.template.upsert({
       where: { schoolId_name_channel: { schoolId, name, channel } },
       update: { subject, content, isActive: isActive ?? true },
       create: { schoolId, name, channel, subject, content, isActive: isActive ?? true }
@@ -109,7 +109,7 @@ async function dispatchMessage(schoolId: string, channel: string, type: string, 
 // SEND an ad-hoc message using a unified template
 router.post("/send", authenticate, requireRole("ADMIN", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const { templateName, type, variables, recipient } = req.body;
+    const { templateName, type, variables, recipient, channel } = req.body;
     const schoolId = req.user!.schoolId!;
 
     if (!templateName || !type || !recipient) {
@@ -117,13 +117,13 @@ router.post("/send", authenticate, requireRole("ADMIN", "SUPER_ADMIN", "ERP_ADMI
     }
 
     // Use unified communication service
-    await communicationService.send({
-      type,
-      templateName,
+    await CommunicationService.sendFromTemplate(
       schoolId,
-      recipient,
-      variables: variables || {}
-    });
+      templateName,
+      channel || "NOTICE",
+      { userId: recipient },
+      variables || {}
+    );
 
     return sendSuccess(res, { message: "Message dispatched to communication queue successfully" });
   } catch (e: any) {

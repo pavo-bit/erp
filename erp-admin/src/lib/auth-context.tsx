@@ -18,7 +18,8 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string; token?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: string; token?: string; requires2FA?: boolean; tempToken?: string }>;
+  verify2FA: (tempToken: string, otp: string) => Promise<{ success: boolean; error?: string; role?: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -27,6 +28,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   login: async () => ({ success: false }),
+  verify2FA: async () => ({ success: false }),
   logout: async () => {},
   refreshUser: async () => {},
 });
@@ -43,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-      const res = await fetch("/api/auth/me", {
+      const res = await fetch("/api/v1/auth/me", {
         credentials: "include",
         signal: controller.signal,
       });
@@ -70,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" });
     } catch { /* ignore */ }
     setUser(null);
     router.push("/");
@@ -123,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/v1/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -131,6 +133,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = await res.json();
+
+      if (data.requires2FA) {
+        return { success: true, requires2FA: true, tempToken: data.tempToken };
+      }
 
       if (data.success) {
         setUser(data.data.user);
@@ -143,10 +149,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const verify2FA = async (tempToken: string, otp: string) => {
+    try {
+      const res = await fetch("/api/v1/auth/verify-2fa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ tempToken, otp }),
+      });
 
+      const data = await res.json();
+
+      if (data.success) {
+        setUser(data.data.user);
+        return { success: true, role: data.data.user.role };
+      }
+
+      return { success: false, error: data.error || "Invalid OTP" };
+    } catch {
+      return { success: false, error: "Network error during 2FA" };
+    }
+  };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, login, verify2FA, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

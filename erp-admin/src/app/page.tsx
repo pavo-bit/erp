@@ -16,6 +16,11 @@ function LoginContent() {
   const [isExchanging, setIsExchanging] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [otp, setOtp] = useState("");
+  const { verify2FA } = useAuth();
 
   // Auto-authenticate if token is passed via URL (from main website SSO)
   useEffect(() => {
@@ -24,7 +29,7 @@ function LoginContent() {
       setIsExchanging(true);
       (async () => {
         try {
-          const res = await fetch("/api/auth/token-exchange", {
+          const res = await fetch("/api/v1/auth/token-exchange", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -58,6 +63,13 @@ function LoginContent() {
 
     const result = await login(email, password);
 
+    if (result.requires2FA) {
+      setRequires2FA(true);
+      setTempToken(result.tempToken || "");
+      setIsLoading(false);
+      return;
+    }
+
     if (!result.success) {
       setError(result.error || "Invalid credentials or unauthorized.");
       setIsLoading(false);
@@ -73,6 +85,27 @@ function LoginContent() {
           router.push(`/${targetRole}`);
         }, 1500);
       }
+    }
+  };
+
+  const handle2FA = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    const result = await verify2FA(tempToken, otp);
+
+    if (!result.success) {
+      setError(result.error || "Invalid OTP.");
+      setIsLoading(false);
+    } else {
+      setSuccess(true);
+      setTimeout(() => {
+        const targetRole = result.role?.toLowerCase() === "super_admin" || result.role?.toLowerCase() === "erp_admin" 
+          ? "admin" 
+          : result.role?.toLowerCase();
+        router.push(`/${targetRole}`);
+      }, 1500);
     }
   };
 
@@ -166,43 +199,64 @@ function LoginContent() {
                 </motion.div>
               )}
 
-              <form onSubmit={handleLogin} className="flex flex-col" autoComplete="off">
-                <div className="mb-4.5">
-                  <label className="block font-[var(--font-heading)] text-[12px] font-semibold text-gray-900 mb-1.5 tracking-[0.03em]">Email Address</label>
-                  <input
-                    type="text"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your email"
-                    required
-                    autoComplete="new-password"
-                    name="email_secure_field"
-                    className="w-full p-[12px_16px] border-[1.5px] border-gray-200 rounded-xl text-[14px] text-gray-900 bg-white outline-none focus:border-orange-500 focus:ring-[3px] focus:ring-orange-500/10 transition-all font-[var(--font-body)] mb-4"
-                  />
-                </div>
-                
-                <div className="mb-4.5">
-                  <label className="block font-[var(--font-heading)] text-[12px] font-semibold text-gray-900 mb-1.5 tracking-[0.03em]">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
-                    required
-                    autoComplete="new-password"
-                    name="password_secure_field"
-                    className="w-full p-[12px_16px] border-[1.5px] border-gray-200 rounded-xl text-[14px] text-gray-900 bg-white outline-none focus:border-orange-500 focus:ring-[3px] focus:ring-orange-500/10 transition-all font-[var(--font-body)] mb-5"
-                  />
-                </div>
+              <form onSubmit={requires2FA ? handle2FA : handleLogin} className="flex flex-col" autoComplete="off">
+                {!requires2FA ? (
+                  <>
+                    <div className="mb-4.5">
+                      <label className="block font-[var(--font-heading)] text-[12px] font-semibold text-gray-900 mb-1.5 tracking-[0.03em]">Email Address</label>
+                      <input
+                        type="text"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="Enter your email"
+                        required
+                        autoComplete="new-password"
+                        name="email_secure_field"
+                        className="w-full p-[12px_16px] border-[1.5px] border-gray-200 rounded-xl text-[14px] text-gray-900 bg-white outline-none focus:border-orange-500 focus:ring-[3px] focus:ring-orange-500/10 transition-all font-[var(--font-body)] mb-4"
+                      />
+                    </div>
+                    
+                    <div className="mb-4.5">
+                      <label className="block font-[var(--font-heading)] text-[12px] font-semibold text-gray-900 mb-1.5 tracking-[0.03em]">Password</label>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Enter your password"
+                        required
+                        autoComplete="new-password"
+                        name="password_secure_field"
+                        className="w-full p-[12px_16px] border-[1.5px] border-gray-200 rounded-xl text-[14px] text-gray-900 bg-white outline-none focus:border-orange-500 focus:ring-[3px] focus:ring-orange-500/10 transition-all font-[var(--font-body)] mb-5"
+                      />
+                    </div>
 
-                <div className="flex items-center justify-between mb-6">
-                  <label className="flex items-center gap-2 text-[13px] text-gray-500 cursor-pointer">
-                    <input type="checkbox" className="w-4 h-4 accent-orange-500" /> Remember me
-                  </label>
-                  <button type="button" className="font-[var(--font-heading)] text-[13px] text-orange-500 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer">
-                    Forgot password?
-                  </button>
-                </div>
+                    <div className="flex items-center justify-between mb-6">
+                      <label className="flex items-center gap-2 text-[13px] text-gray-500 cursor-pointer">
+                        <input type="checkbox" className="w-4 h-4 accent-orange-500" /> Remember me
+                      </label>
+                      <button type="button" className="font-[var(--font-heading)] text-[13px] text-orange-500 font-semibold hover:underline bg-transparent border-none p-0 cursor-pointer">
+                        Forgot password?
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mb-6">
+                    <div className="bg-orange-50 border border-orange-200 p-4 rounded-xl mb-6">
+                      <p className="text-orange-800 text-[13px] font-medium mb-1">Two-Factor Authentication</p>
+                      <p className="text-orange-600 text-[12px]">Please enter the 6-digit OTP sent to your registered device/email to continue.</p>
+                    </div>
+                    <label className="block font-[var(--font-heading)] text-[12px] font-semibold text-gray-900 mb-1.5 tracking-[0.03em]">Authentication Code</label>
+                    <input
+                      type="text"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      placeholder="Enter 6-digit code"
+                      required
+                      maxLength={6}
+                      className="w-full p-[12px_16px] border-[1.5px] border-gray-200 rounded-xl text-[20px] tracking-[0.5em] text-center text-gray-900 bg-white outline-none focus:border-orange-500 focus:ring-[3px] focus:ring-orange-500/10 transition-all font-[var(--font-heading)] font-bold mb-4"
+                    />
+                  </div>
+                )}
 
                 <button
                   type="submit"
@@ -212,7 +266,7 @@ function LoginContent() {
                   {isLoading ? (
                     <div className="w-5 h-5 border-[2.5px] border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    "Secure Login →"
+                    requires2FA ? "Verify Code →" : "Secure Login →"
                   )}
                 </button>
               </form>

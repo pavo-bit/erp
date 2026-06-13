@@ -2,29 +2,39 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/auth-context";
 
 export default function LoginPage() {
+  const { login, verify2FA } = useAuth();
   const [email, setEmail] = useState("superadmin@ssvm-erp.com");
   const [password, setPassword] = useState("superadmin123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [otp, setOtp] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      if (data.data.user.role !== "SUPER_ADMIN") throw new Error("Access denied — Super Admin only");
-      window.location.href = "/dashboard";
-    } catch (err) {
-      setError((err as Error).message);
+    
+    if (requires2FA) {
+      const result = await verify2FA(tempToken, otp);
+      if (!result.success) {
+        setError(result.error || "Invalid OTP");
+        setLoading(false);
+      }
+      return;
+    }
+
+    const result = await login(email, password);
+    if (result.requires2FA) {
+      setRequires2FA(true);
+      setTempToken(result.tempToken || "");
+    } else if (!result.success) {
+      setError(result.error || "Login failed");
     }
     setLoading(false);
   };
@@ -62,20 +72,35 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div>
-              <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                className="w-full px-4 py-3 rounded-xl text-[13px] text-white outline-none transition-all"
-                style={{ background: "rgba(30, 41, 59, 0.8)", border: "1px solid rgba(59,130,246,0.2)" }}
-                onFocus={e => e.target.style.borderColor = "#3B82F6"} onBlur={e => e.target.style.borderColor = "rgba(59,130,246,0.2)"} />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-                className="w-full px-4 py-3 rounded-xl text-[13px] text-white outline-none transition-all"
-                style={{ background: "rgba(30, 41, 59, 0.8)", border: "1px solid rgba(59,130,246,0.2)" }}
-                onFocus={e => e.target.style.borderColor = "#3B82F6"} onBlur={e => e.target.style.borderColor = "rgba(59,130,246,0.2)"} />
-            </div>
+            {!requires2FA ? (
+              <>
+                <div>
+                  <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Email</label>
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                    className="w-full px-4 py-3 rounded-xl text-[13px] text-white outline-none transition-all"
+                    style={{ background: "rgba(30, 41, 59, 0.8)", border: "1px solid rgba(59,130,246,0.2)" }}
+                    onFocus={e => e.target.style.borderColor = "#3B82F6"} onBlur={e => e.target.style.borderColor = "rgba(59,130,246,0.2)"} />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Password</label>
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                    className="w-full px-4 py-3 rounded-xl text-[13px] text-white outline-none transition-all"
+                    style={{ background: "rgba(30, 41, 59, 0.8)", border: "1px solid rgba(59,130,246,0.2)" }}
+                    onFocus={e => e.target.style.borderColor = "#3B82F6"} onBlur={e => e.target.style.borderColor = "rgba(59,130,246,0.2)"} />
+                </div>
+              </>
+            ) : (
+              <div>
+                <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-xl mb-4">
+                  <p className="text-blue-400 text-[12px] font-medium text-center">Two-Factor Authentication Required</p>
+                </div>
+                <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block text-center">Enter 6-Digit OTP</label>
+                <input type="text" value={otp} onChange={e => setOtp(e.target.value)} required maxLength={6}
+                  className="w-full px-4 py-3 rounded-xl text-[24px] tracking-[0.5em] font-bold text-center text-white outline-none transition-all"
+                  style={{ background: "rgba(30, 41, 59, 0.8)", border: "1px solid rgba(59,130,246,0.2)" }}
+                  onFocus={e => e.target.style.borderColor = "#3B82F6"} onBlur={e => e.target.style.borderColor = "rgba(59,130,246,0.2)"} />
+              </div>
+            )}
 
             {error && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -87,7 +112,7 @@ export default function LoginPage() {
             <motion.button type="submit" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               className="w-full py-3.5 rounded-xl text-[14px] font-bold text-white border-none cursor-pointer transition-all mt-2 disabled:opacity-50"
               style={{ background: "linear-gradient(135deg, #3B82F6, #8B5CF6)", boxShadow: "0 4px 16px rgba(59,130,246,0.3)" }}>
-              {loading ? "Authenticating..." : "Access Control Panel"}
+              {loading ? "Authenticating..." : (requires2FA ? "Verify OTP" : "Access Control Panel")}
             </motion.button>
           </form>
 

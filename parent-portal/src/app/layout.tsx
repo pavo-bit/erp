@@ -11,6 +11,8 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Parent Portal | SSVM College Square",
   description: "Secure parent portal for student tracking, fees, and results.",
+  manifest: "/manifest.json",
+  themeColor: "#10B981",
 };
 
 export default function RootLayout({

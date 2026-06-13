@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireSuperAdmin } from "../middleware/auth";
+import { AuthRequest, authenticate, requireSuperAdmin, requireAllowedIp } from "../middleware/auth";
 
 const router = Router();
 
@@ -43,7 +43,7 @@ router.get("/:id", authenticate, requireSuperAdmin(), async (req: AuthRequest, r
 });
 
 // POST /api/schools — Create new school
-router.post("/", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireSuperAdmin(), requireAllowedIp(), async (req: AuthRequest, res: Response) => {
   try {
     const { name, code, address, city, state, phone, email, website } = req.body;
     if (!name || !code) {
@@ -142,7 +142,7 @@ router.put("/:id", authenticate, requireSuperAdmin(), async (req: AuthRequest, r
 });
 
 // DELETE /api/schools/:id — Deactivate school
-router.delete("/:id", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+router.delete("/:id", authenticate, requireSuperAdmin(), requireAllowedIp(), async (req: AuthRequest, res: Response) => {
   try {
     await prisma.school.update({
       where: { id: req.params.id as string },

@@ -15,6 +15,7 @@ import {
   getRefreshTokenCookieOptions,
 } from "../lib/tokens";
 import { getEnv } from "../config/env";
+import crypto from "crypto";
 
 const router = Router();
 
@@ -25,19 +26,12 @@ const router = Router();
 export async function issueTokenPair(
   res: Response,
   user: { id: string; email: string; role: string; name: string; schoolId?: string | null; branchId?: string | null },
-  req: { ip?: string; headers: Record<string, unknown> }
+  req: { ip?: string; headers: Record<string, unknown> },
+  options?: { family?: string; replacedBy?: string }
 ): Promise<void> {
-  // Generate access token (15m)
-  const accessToken = generateAccessToken({
-    userId: user.id,
-    email: user.email,
-    role: user.role,
-    name: user.name,
-    schoolId: user.schoolId,
-    branchId: user.branchId,
-  });
+  // We will generate the access token later after session is resolved
 
-  // Generate refresh token (30d)
+  // Generate refresh token (7d)
   const { token: refreshToken, jti } = generateRefreshToken(user.id);
   const tokenHash = hashToken(refreshToken);
 
@@ -54,16 +48,75 @@ export async function issueTokenPair(
     else if (unit === "d") expiryMs = val * 86400 * 1000;
   }
 
+  const ipAddress = typeof req.ip === "string" ? req.ip : undefined;
+  const userAgent = typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"].slice(0, 500) : undefined;
+  const deviceFingerprint = typeof req.headers["x-device-fingerprint"] === "string" 
+      ? req.headers["x-device-fingerprint"] 
+      : crypto.createHash('sha256').update(`${ipAddress || ''}-${userAgent || ''}`).digest('hex');
+  const family = options?.family || crypto.randomUUID();
+
   // Store refresh token hash in DB
   await prisma.refreshToken.create({
     data: {
       token: tokenHash,
       userId: user.id,
       expiresAt: new Date(Date.now() + expiryMs),
-      ipAddress: typeof req.ip === "string" ? req.ip : undefined,
-      userAgent: typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"].slice(0, 500) : undefined,
+      ipAddress,
+      userAgent,
     },
   });
+
+  // Track session and Concurrency Limits
+  const absoluteExpiryMs = 90 * 24 * 60 * 60 * 1000; // 90 days
+  let sessionId = crypto.randomUUID() as string;
+
+  const existingSession = await prisma.userSession.findFirst({
+    where: { userId: user.id, deviceFingerprint }
+  });
+  
+  if (existingSession) {
+    sessionId = existingSession.sessionId;
+    await prisma.userSession.update({
+      where: { id: existingSession.id },
+      data: { lastSeen: new Date(), ipAddress, isActive: true, refreshFamily: family, expiresAt: new Date(Date.now() + absoluteExpiryMs) }
+    });
+  } else {
+    await prisma.userSession.create({
+      data: { userId: user.id, sessionId, refreshFamily: family, deviceFingerprint, ipAddress, lastSeen: new Date(), isActive: true, expiresAt: new Date(Date.now() + absoluteExpiryMs) }
+    });
+  }
+
+  // Enforce Session Concurrency Limits
+  let maxSessions = 3; // Default
+  if (user.role === "STUDENT") maxSessions = 3;
+  else if (user.role === "PARENT" || user.role === "GUARDIAN") maxSessions = 5;
+  else if (user.role === "TEACHER") maxSessions = 5;
+  else if (["ADMIN", "ERP_ADMIN", "SUPER_ADMIN", "WEBSITE_ADMIN"].includes(user.role)) maxSessions = 10;
+
+  const activeSessions = await prisma.userSession.findMany({
+    where: { userId: user.id, isActive: true },
+    orderBy: { lastSeen: 'asc' }
+  });
+
+  if (activeSessions.length > maxSessions) {
+    const sessionsToRevoke = activeSessions.slice(0, activeSessions.length - maxSessions);
+    await prisma.userSession.updateMany({
+      where: { id: { in: sessionsToRevoke.map(s => s.id) } },
+      data: { isActive: false }
+    });
+  }
+
+  // Generate access token (15m)
+  const { token: accessToken, jti: accessJti } = generateAccessToken({
+    userId: user.id,
+    email: user.email,
+    role: user.role,
+    name: user.name,
+    schoolId: user.schoolId,
+    branchId: user.branchId,
+    sid: sessionId,
+  });
+
 
   // Set cookies
   res.cookie("access_token", accessToken, getAccessTokenCookieOptions());
@@ -96,7 +149,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
     if (!user) { res.status(401).json({ success: false, error: "Invalid credentials" }); return; }
     if (!user.isActive) { res.status(403).json({ success: false, error: "Account deactivated" }); return; }
 
-    const valid = await verifyPassword(password, user.password);
+    const valid = await verifyPassword(password, (user as any).passwordHash);
     if (!valid) {
       logger.warn({ email }, "Failed login attempt");
       res.status(401).json({ success: false, error: "Invalid credentials" });
@@ -109,7 +162,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
       data: { lastLogin: new Date() },
     });
 
-    const { password: _, ...userWithoutPw } = user;
+    const { passwordHash: _, ...userWithoutPw } = user as any;
 
     if (user.twoFactorEnabled) {
       // Issue a short-lived pending token just for 2FA validation
@@ -161,41 +214,14 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Issue tokens for student (treated as a pseudo-user)
-    const accessToken = generateAccessToken({
-      userId: student.id,
+    // Issue tokens using standard process
+    await issueTokenPair(res, {
+      id: student.id,
       email: student.admissionNo || "",
       role: "STUDENT",
       name: student.name,
       schoolId: student.schoolId,
-    });
-
-    const { token: refreshToken } = generateRefreshToken(student.id);
-    const tokenHash = hashToken(refreshToken);
-
-    await prisma.refreshToken.create({
-      data: {
-        token: tokenHash,
-        userId: student.id, // Using studentId as userId for students
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        ipAddress: typeof req.ip === "string" ? req.ip : undefined,
-        userAgent: typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"].slice(0, 500) : undefined,
-      },
-    });
-
-    res.cookie("access_token", accessToken, getAccessTokenCookieOptions());
-    res.cookie("refresh_token", refreshToken, getRefreshTokenCookieOptions());
-
-    // Legacy cookie
-    const legacyToken = signToken({ userId: student.id, email: student.admissionNo || "", role: "STUDENT", name: student.name });
-    const env = getEnv();
-    res.cookie("auth_token", legacyToken, {
-      httpOnly: true,
-      secure: env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false),
-      sameSite: "lax" as const,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/",
-    });
+    }, req);
 
     const { password: _, ...studentWithoutPw } = student;
     logger.info({ studentId: student.id }, "Student logged in via Payment Portal");
@@ -234,19 +260,33 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
     });
 
     if (!storedToken) {
-      // Token reuse detected — potential theft. Revoke ALL tokens for this user.
-      logger.warn({ userId: payload.userId }, "Refresh token reuse detected — revoking all tokens");
-      await prisma.refreshToken.updateMany({
-        where: { userId: payload.userId, revokedAt: null },
-        data: { revokedAt: new Date() },
-      });
-      res.status(401).json({ success: false, error: "Invalid refresh token — please log in again" });
+      res.status(401).json({ success: false, error: "Invalid refresh token" });
       return;
     }
 
-    // Check if revoked
+    // Reuse Attack Detection
     if (storedToken.revokedAt) {
-      res.status(401).json({ success: false, error: "Refresh token has been revoked" });
+      logger.warn({ userId: payload.userId }, "Refresh token reuse detected — revoking all user tokens");
+      await prisma.refreshToken.updateMany({
+        where: { userId: storedToken.userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      // Also log SystemLog (not securityAuditLog)
+      const { logSecurityEvent } = await import("../lib/audit");
+      await logSecurityEvent({
+        userId: storedToken.userId,
+        eventType: "REFRESH_TOKEN_REUSE",
+        severity: "CRITICAL",
+        ipAddress: typeof req.ip === "string" ? req.ip : undefined,
+        metadata: { tokenHash }
+      });
+      // Invalidate the sessions for this family/user
+      await prisma.userSession.updateMany({
+        where: { userId: storedToken.userId },
+        data: { isActive: false }
+      });
+
+      res.status(401).json({ success: false, error: "Invalid refresh token — please log in again" });
       return;
     }
 
@@ -257,22 +297,23 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
     }
 
     // Check user is still active
-    if (!storedToken.user || !storedToken.user.isActive) {
+    if (!storedToken.user || !(storedToken.user as any).isActive) {
       res.status(401).json({ success: false, error: "Account deactivated" });
       return;
     }
 
     // ─── Token Rotation ───
     // 1. Revoke old refresh token
+    const newFamilyTag = `rotated_${crypto.randomUUID()}`;
     await prisma.refreshToken.update({
       where: { id: storedToken.id },
       data: { revokedAt: new Date() },
     });
 
     // 2. Issue new token pair
-    await issueTokenPair(res, storedToken.user, req);
+    await issueTokenPair(res, storedToken.user as any, req);
 
-    logger.info({ userId: storedToken.user.id }, "Token refreshed");
+    logger.info({ userId: storedToken.userId }, "Token refreshed");
     res.json({ success: true, data: { message: "Token refreshed" } });
   } catch (e) {
     logger.error({ err: e }, "Token refresh error");
@@ -299,10 +340,30 @@ router.post("/logout", async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Blocklist current access tokens
+    // Blocklist current access tokens and retrieve Session ID
     const { blocklistAccessToken } = await import("../lib/redis");
-    if (accessTokenCookie) await blocklistAccessToken(hashToken(accessTokenCookie));
+    let sid: string | null = null;
+
+    if (accessTokenCookie) {
+      const { verifyAccessToken } = await import("../lib/tokens");
+      const payload = verifyAccessToken(accessTokenCookie);
+      if (payload && "jti" in payload) {
+        await blocklistAccessToken(payload.jti as string);
+        if ("sid" in payload) sid = payload.sid as string;
+      } else {
+        await blocklistAccessToken(hashToken(accessTokenCookie));
+      }
+    }
+
     if (legacyTokenCookie) await blocklistAccessToken(hashToken(legacyTokenCookie));
+
+    // Deactivate UserSession
+    if (sid) {
+      await prisma.userSession.updateMany({
+        where: { sessionId: sid },
+        data: { isActive: false }
+      });
+    }
 
     // Clear ALL auth cookies
     res.clearCookie("access_token", { path: "/" });
@@ -329,6 +390,11 @@ router.post("/logout/all", authenticate, async (req: AuthRequest, res: Response)
     const result = await prisma.refreshToken.updateMany({
       where: { userId: req.user!.id, revokedAt: null },
       data: { revokedAt: new Date() },
+    });
+
+    await prisma.userSession.updateMany({
+      where: { userId: req.user!.id, isActive: true },
+      data: { isActive: false }
     });
 
     res.clearCookie("access_token", { path: "/" });
@@ -426,7 +492,7 @@ router.post("/alumni/register", async (req: AuthRequest, res: Response) => {
     const user = await prisma.user.create({
       data: {
         email: emailLower,
-        password: hashed,
+        passwordHash: hashed,
         name,
         role: "ALUMNI",
         phone: phone || null,
@@ -444,7 +510,7 @@ router.post("/alumni/register", async (req: AuthRequest, res: Response) => {
     // Issue token pair
     await issueTokenPair(res, user, req);
 
-    const { password: _, ...userWithoutPw } = user;
+    const { passwordHash: _, ...userWithoutPw } = user as any;
     logger.info({ userId: user.id, role: user.role }, "New Alumni registered");
     res.status(201).json({ success: true, data: { user: userWithoutPw } });
   } catch (e) {
@@ -489,14 +555,14 @@ router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSc
 
     const user = await prisma.user.create({
       data: {
-        email, password: hashed, name, role, phone: phone || null,
+        email, passwordHash: hashed, name, role, phone: phone || null,
         schoolId: req.user!.schoolId || undefined,
         ...(role === "PARENT" && req.user!.schoolId ? { guardian: { create: { schoolId: req.user!.schoolId!, primaryName: profileData.primaryName || name, primaryPhone: profileData.primaryPhone || phone || "0000000000" } } } : {}),
         ...(role === "ALUMNI" ? { alumni: { create: { batch: profileData.batch || "", currentRole: profileData.currentRole || null, company: profileData.company || null, achievement: profileData.achievement || null } } } : {}),
       },
       include: { alumni: true },
     });
-    const { password: _, ...safe } = user;
+    const { passwordHash: _, ...safe } = user as any;
     logger.info({ userId: user.id, role: user.role, createdBy: req.user!.id }, "User registered");
     res.status(201).json({ success: true, data: safe });
   } catch (e) {

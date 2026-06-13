@@ -4,10 +4,11 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import helmet from "helmet";
 import path from "path";
+import * as Sentry from "@sentry/node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
 import { getEnv } from "./config/env";
 import { initSentry } from "./lib/sentry";
-import * as Sentry from "@sentry/node";
 
 initSentry();
 
@@ -19,6 +20,7 @@ import { globalLimiter, authLimiter, refreshLimiter } from "./middleware/rateLim
 import { startTokenCleanupScheduler, stopTokenCleanupScheduler } from "./jobs/cleanupTokens";
 import { startWorkers } from "./jobs/worker";
 import { closeQueues } from "./jobs/queue";
+import { BackupService } from "./services/backup.service";
 
 // Route imports
 import authRoutes from "./routes/auth";
@@ -55,9 +57,34 @@ import libraryRoutes from "./routes/library";
 import twoFaRoutes from "./routes/2fa";
 import storageRoutes from "./routes/storage";
 import backupRoutes from "./routes/backups";
+import assetsRoutes from "./routes/assets";
+import receptionRoutes from "./routes/reception";
+import healthRoutes from "./routes/health";
+import saasRoutes from "./routes/saas";
+import bullBoardRoutes from "./routes/admin/bull-board";
+import backupsRoutes from "./routes/admin/backups";
+import auditRoutes from "./routes/admin/audit";
+import sessionsRoutes from "./routes/sessions";
+import webhooksRoutes from "./routes/webhooks";
+import securityRoutes from "./routes/security";
+import messagesRoutes from "./routes/messages";
+import certificatesRoutes from "./routes/certificates";
+import guardiansRoutes from "./routes/guardians";
+import saasSettingsRoutes from "./routes/admin/saasSettings";
+import { metricsMiddleware, getMetrics } from "./middleware/metrics";
 
 // ─── Validate environment on startup ───
 const env = getEnv();
+
+// ─── Initialize Sentry ───
+Sentry.init({
+  dsn: env.SENTRY_DSN || "",
+  integrations: [
+    nodeProfilingIntegration(),
+  ],
+  tracesSampleRate: 1.0,
+  profilesSampleRate: 1.0,
+});
 
 // ─── Initialize Express App ───
 export const app = express();
@@ -76,6 +103,11 @@ app.use(globalLimiter);
 // ═══════════════════════════════════════════
 // Standard Middleware
 // ═══════════════════════════════════════════
+
+// The request handler must be the first middleware on the app
+Sentry.setupExpressErrorHandler(app);
+
+app.use(metricsMiddleware);
 
 app.use(cors({
   origin: env.FRONTEND_URL,
@@ -151,7 +183,15 @@ mountRoute("/activity", activityRouter);
 mountRoute("/library", libraryRoutes);
 mountRoute("/2fa", twoFaRoutes);
 mountRoute("/storage", storageRoutes);
-mountRoute("/backups", backupRoutes);
+mountRoute("/assets", assetsRoutes);
+mountRoute("/reception", receptionRoutes);
+mountRoute("/messages", messagesRoutes);
+mountRoute("/certificates", certificatesRoutes);
+mountRoute("/guardians", guardiansRoutes);
+mountRoute("/saas", saasRoutes);
+mountRoute("/webhooks", webhooksRoutes);
+mountRoute("/security", securityRoutes);
+mountRoute("/sessions", sessionsRoutes);
 
 // CMS routes (mounted at /api root level)
 app.use("/api/v1", cmsRoutes);
@@ -165,24 +205,18 @@ app.use("/api/sse", deprecated, sseRoutes);
 // Health Check
 // ═══════════════════════════════════════════
 
-app.get("/api/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || "3.0.0",
-    apiVersion: "v1",
-    env: env.NODE_ENV,
-  });
-});
-app.get("/api/v1/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || "3.0.0",
-    apiVersion: "v1",
-    env: env.NODE_ENV,
-  });
-});
+app.use("/api/health", healthRoutes);
+app.use("/api/v1/health", healthRoutes);
+
+// Prometheus Metrics Endpoint
+app.get("/metrics", getMetrics);
+
+// Admin Routes
+mountRoute("/admin/queues", bullBoardRoutes);
+mountRoute("/admin/backups", backupsRoutes);
+mountRoute("/admin/audit", auditRoutes);
+mountRoute("/admin/saas-settings", saasSettingsRoutes);
+mountRoute("/backups", backupRoutes);
 
 // ═══════════════════════════════════════════
 // Error Handling
@@ -209,6 +243,15 @@ const server = app.listen(parseInt(env.PORT, 10), "0.0.0.0", () => {
   if (env.NODE_ENV !== "test") {
     startTokenCleanupScheduler();
     startWorkers();
+    
+    // Daily Database Backup Scheduler (Runs every 24 hours)
+    const DAILY_MS = 24 * 60 * 60 * 1000;
+    setInterval(() => {
+      logger.info("[Scheduler] Triggering daily database backup");
+      BackupService.createDatabaseBackup(true).catch(err => {
+        logger.error(`[Scheduler] Daily backup failed: ${err.message}`);
+      });
+    }, DAILY_MS);
   }
 });
 

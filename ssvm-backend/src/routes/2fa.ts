@@ -146,6 +146,22 @@ router.post("/validate", validate(validateLoginSchema), async (req: Request, res
       res.status(400).json({ success: false, error: "2FA is not enabled for this user" }); return;
     }
 
+    // 2FA Rate Limiter (5 attempts / 5 mins)
+    const { increment2FAAttempts } = await import("../lib/redis");
+    const attempts = await increment2FAAttempts(user.id);
+    if (attempts > 5) {
+      const { logSecurityEvent } = await import("../lib/audit");
+      await logSecurityEvent({
+        userId: user.id,
+        eventType: "FAILED_2FA_LIMIT",
+        severity: "HIGH",
+        ipAddress: typeof req.ip === "string" ? req.ip : undefined,
+        metadata: { attempts }
+      });
+      res.status(429).json({ success: false, error: "Too many failed attempts. Try again in 5 minutes." });
+      return;
+    }
+
     let isValid = false;
 
     // Check TOTP token
@@ -171,13 +187,21 @@ router.post("/validate", validate(validateLoginSchema), async (req: Request, res
     }
 
     if (!isValid) {
+      const { logSecurityEvent } = await import("../lib/audit");
+      await logSecurityEvent({
+        userId: user.id,
+        eventType: "FAILED_2FA",
+        severity: "HIGH",
+        ipAddress: typeof req.ip === "string" ? req.ip : undefined,
+        metadata: { attempts }
+      });
       res.status(401).json({ success: false, error: "Invalid authenticator token or backup code" }); return;
     }
 
     // Issue access + refresh token pair
     await issueTokenPair(res, user, req);
 
-    const { password: _, twoFactorSecret, twoFactorBackupCodes, ...userWithoutPw } = user;
+    const { passwordHash: _, twoFactorSecret, twoFactorBackupCodes, ...userWithoutPw } = user as any;
     logger.info({ userId: user.id, role: user.role }, "User logged in with 2FA");
     res.json({ success: true, data: { user: userWithoutPw } });
   } catch (e) {

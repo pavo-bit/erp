@@ -12,6 +12,8 @@ const envSchema = z.object({
   JWT_EXPIRES_IN: z.string().default("7d"),
   ACCESS_TOKEN_SECRET: z.string().min(32).optional(), // Falls back to JWT_SECRET
   REFRESH_TOKEN_SECRET: z.string().min(32).optional(), // Falls back to JWT_SECRET + "_refresh"
+  JWT_PUBLIC_KEY: z.string().optional(),
+  JWT_PRIVATE_KEY: z.string().optional(),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default("15m"),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default("30d"),
 
@@ -28,6 +30,12 @@ const envSchema = z.object({
 
   // ─── 2FA (Phase 5) ───
   TWO_FACTOR_ENCRYPTION_KEY: z.string().optional(),
+
+  // ─── AWS S3 (Phase 14B) ───
+  AWS_REGION: z.string().optional(),
+  AWS_ACCESS_KEY_ID: z.string().optional(),
+  AWS_SECRET_ACCESS_KEY: z.string().optional(),
+  AWS_S3_BUCKET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

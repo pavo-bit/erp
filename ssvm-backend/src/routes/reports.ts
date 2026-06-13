@@ -4,11 +4,18 @@ import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
 import puppeteer from "puppeteer";
 import handlebars from "handlebars";
 import { Parser } from "json2csv";
+import { Queue } from "bullmq";
+import { getEnv } from "../config/env";
+import logger from "../lib/logger";
 
 const router = Router();
+const env = getEnv();
+
+// Export the PDF Queue so it can be reused or inspected
+export const pdfQueue = env.REDIS_URL ? new Queue("PDF_QUEUE", { connection: { url: env.REDIS_URL } }) : null;
 
 // Define default HTML templates for Receipts and Report Cards
-const defaultReceiptTemplate = `
+export const defaultReceiptTemplate = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -81,7 +88,7 @@ const defaultReceiptTemplate = `
 </html>
 `;
 
-const defaultReportCardTemplate = `
+export const defaultReportCardTemplate = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -174,7 +181,7 @@ const defaultReportCardTemplate = `
 /**
  * Generate a PDF from a given template and data
  */
-async function generatePDF(templateString: string, data: any): Promise<Buffer> {
+export async function generatePDF(templateString: string, data: any): Promise<Buffer> {
   const template = handlebars.compile(templateString);
   const html = template(data);
 
@@ -199,14 +206,23 @@ async function generatePDF(templateString: string, data: any): Promise<Buffer> {
 // ROUTES
 // ---------------------------------------------------------
 
-// GENERATE RECEIPT PDF
+// GENERATE RECEIPT PDF (ASYNC QUEUE)
 router.post("/generate/receipt", authenticate, requireRole("ADMIN", "PARENT"), async (req: AuthRequest, res: Response) => {
   try {
     const { invoiceId } = req.body;
     
-    // In a real scenario, fetch invoice details from DB
-    // const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId }, include: { student: true }});
-    // Fallback mock data for demonstration
+    if (pdfQueue) {
+      const job = await pdfQueue.add("generate-receipt", {
+        type: "receipt",
+        invoiceId,
+        userId: req.user!.id,
+        schoolId: req.user!.schoolId,
+      });
+      res.json({ success: true, data: { jobId: job.id, message: "PDF generation queued. You will be notified via SSE." } });
+      return;
+    }
+
+    // Fallback if no Redis (synchronous)
     const data = {
       schoolName: "SSVM College Square",
       schoolLogo: "", // Optional base64
@@ -225,22 +241,33 @@ router.post("/generate/receipt", authenticate, requireRole("ADMIN", "PARENT"), a
     };
 
     const pdfBuffer = await generatePDF(defaultReceiptTemplate, data);
-
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="Receipt-${data.receiptNo}.pdf"`);
     res.send(pdfBuffer);
   } catch (e) {
-    console.error("PDF Generation Error:", e);
-    res.status(500).json({ success: false, error: "Failed to generate PDF" });
+    logger.error({ err: e }, "PDF Generation Error");
+    res.status(500).json({ success: false, error: "Failed to queue PDF generation" });
   }
 });
 
-// GENERATE REPORT CARD PDF
+// GENERATE REPORT CARD PDF (ASYNC QUEUE)
 router.post("/generate/report-card", authenticate, requireRole("ADMIN", "TEACHER", "PARENT"), async (req: AuthRequest, res: Response) => {
   try {
     const { studentId, examId } = req.body;
-    
-    // In a real scenario, fetch exam marks from DB
+
+    if (pdfQueue) {
+      const job = await pdfQueue.add("generate-report-card", {
+        type: "report-card",
+        studentId,
+        examId,
+        userId: req.user!.id,
+        schoolId: req.user!.schoolId,
+      });
+      res.json({ success: true, data: { jobId: job.id, message: "PDF generation queued. You will be notified via SSE." } });
+      return;
+    }
+
+    // Fallback if no Redis (synchronous)
     const data = {
       schoolName: "SSVM College Square",
       schoolAddress: "123 Education Hub, Knowledge City",
@@ -265,13 +292,12 @@ router.post("/generate/report-card", authenticate, requireRole("ADMIN", "TEACHER
     };
 
     const pdfBuffer = await generatePDF(defaultReportCardTemplate, data);
-
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="ReportCard-${data.studentName.replace(/\s+/g, '_')}.pdf"`);
     res.send(pdfBuffer);
   } catch (e) {
-    console.error("PDF Generation Error:", e);
-    res.status(500).json({ success: false, error: "Failed to generate PDF" });
+    logger.error({ err: e }, "PDF Generation Error");
+    res.status(500).json({ success: false, error: "Failed to queue PDF generation" });
   }
 });
 

@@ -151,11 +151,15 @@ export async function invalidateSchoolStats(schoolId: string): Promise<void> {
  * Uses the token's remaining TTL for expiration.
  */
 export async function blocklistAccessToken(jtiOrSig: string, ttlSeconds: number = 900): Promise<void> {
-  if (!isRedisAvailable()) return;
+  if (!isRedisAvailable()) {
+    logger.error("Redis unavailable — failing closed on blocklist set");
+    throw new Error("Security Service Unavailable");
+  }
   try {
     await redisClient!.set(`blocklist:${jtiOrSig}`, "1", "EX", ttlSeconds);
   } catch (err) {
-    logger.warn({ err, jtiOrSig }, "Redis blocklist set error");
+    logger.error({ err, jtiOrSig }, "Redis blocklist set error — failing closed");
+    throw new Error("Security Service Unavailable");
   }
 }
 
@@ -163,13 +167,17 @@ export async function blocklistAccessToken(jtiOrSig: string, ttlSeconds: number 
  * Check if an access token JTI (or signature) is blocklisted.
  */
 export async function isTokenBlocklisted(jtiOrSig: string): Promise<boolean> {
-  if (!isRedisAvailable()) return false;
+  if (!isRedisAvailable()) {
+    logger.error("Redis unavailable — failing closed on token check");
+    if (process.env.NODE_ENV === "test") return false;
+    return true; // Fail closed (block access)
+  }
   try {
     const isBlocked = await redisClient!.exists(`blocklist:${jtiOrSig}`);
     return isBlocked === 1;
   } catch (err) {
-    logger.warn({ err, jtiOrSig }, "Redis blocklist check error");
-    return false; // Fail open
+    logger.error({ err, jtiOrSig }, "Redis blocklist check error — failing closed");
+    return true; // Fail closed
   }
 }
 
@@ -180,5 +188,27 @@ export async function disconnectRedis(): Promise<void> {
   if (redisClient) {
     await redisClient.quit();
     logger.info("Redis disconnected");
+  }
+}
+
+/**
+ * Increment 2FA attempts for a user (5 min window).
+ * Returns the number of attempts in the current window.
+ */
+export async function increment2FAAttempts(userId: string): Promise<number> {
+  if (!isRedisAvailable()) {
+    logger.error("Redis unavailable during 2FA — failing closed");
+    throw new Error("Security Service Unavailable"); // Fail closed
+  }
+  try {
+    const key = `2fa_attempts:${userId}`;
+    const attempts = await redisClient!.incr(key);
+    if (attempts === 1) {
+      await redisClient!.expire(key, 300); // 5 minutes
+    }
+    return attempts;
+  } catch (err) {
+    logger.error({ err }, "Redis 2fa limit error — failing closed");
+    throw new Error("Security Service Unavailable");
   }
 }

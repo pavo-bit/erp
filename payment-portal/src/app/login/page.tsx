@@ -12,13 +12,35 @@ export default function StudentLogin() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
+  
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [otp, setOtp] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    
     try {
-      const res = await apiCall("/api/auth/student/login", "POST", { admissionNo, password });
+      if (requires2FA) {
+        const res = await apiCall("/api/v1/auth/verify-2fa", "POST", { tempToken, otp });
+        if (res.success && res.data.user.role === "STUDENT") {
+          login(res.data.token, res.data.user);
+        } else {
+          throw new Error("Invalid OTP or unauthorized access.");
+        }
+        return;
+      }
+
+      const res = await apiCall("/api/v1/auth/student/login", "POST", { admissionNo, password });
+      
+      if (res.requires2FA) {
+        setRequires2FA(true);
+        setTempToken(res.tempToken || "");
+        return;
+      }
+
       if (res.success && res.data.user.role === "STUDENT") {
         login(res.data.token, res.data.user);
       } else {
@@ -88,35 +110,56 @@ export default function StudentLogin() {
               )}
               
               <div className="space-y-4">
-                <div className="relative">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">Admission Number</label>
-                  <div className="relative flex items-center">
-                    <GraduationCap className="absolute left-4 w-5 h-5 text-slate-400" />
+                {!requires2FA ? (
+                  <>
+                    <div className="relative">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">Admission Number</label>
+                      <div className="relative flex items-center">
+                        <GraduationCap className="absolute left-4 w-5 h-5 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          value={admissionNo}
+                          onChange={(e) => setAdmissionNo(e.target.value)}
+                          className="w-full pl-12 pr-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-normal"
+                          placeholder="e.g. ADM2023001"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="relative">
+                      <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">Password</label>
+                      <div className="relative flex items-center">
+                        <Lock className="absolute left-4 w-5 h-5 text-slate-400" />
+                        <input
+                          type="password"
+                          required
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          className="w-full pl-12 pr-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-normal"
+                          placeholder="Enter school-issued password"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <div className="bg-teal-50 border border-teal-200 p-4 rounded-xl mb-4 text-center">
+                      <p className="text-teal-800 text-[13px] font-semibold">Two-Factor Authentication</p>
+                      <p className="text-teal-600 text-[12px] mt-1">Please enter the 6-digit OTP sent to your registered device.</p>
+                    </div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider text-center">Authentication Code</label>
                     <input
                       type="text"
                       required
-                      value={admissionNo}
-                      onChange={(e) => setAdmissionNo(e.target.value)}
-                      className="w-full pl-12 pr-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-normal"
-                      placeholder="e.g. ADM2023001"
+                      maxLength={6}
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      className="w-full px-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all text-slate-900 dark:text-white text-center text-2xl tracking-[0.5em] font-bold placeholder:text-slate-400 placeholder:tracking-normal placeholder:font-normal placeholder:text-sm"
+                      placeholder="Enter OTP"
                     />
                   </div>
-                </div>
-                
-                <div className="relative">
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 uppercase tracking-wider">Password</label>
-                  <div className="relative flex items-center">
-                    <Lock className="absolute left-4 w-5 h-5 text-slate-400" />
-                    <input
-                      type="password"
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-12 pr-5 py-3.5 bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-teal-500/50 focus:border-teal-500 transition-all font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 placeholder:font-normal"
-                      placeholder="Enter school-issued password"
-                    />
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="pt-4">
@@ -128,7 +171,7 @@ export default function StudentLogin() {
                   {loading ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    "Verify & Continue"
+                    requires2FA ? "Verify Code" : "Verify & Continue"
                   )}
                 </button>
               </div>

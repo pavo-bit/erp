@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import logger from "./logger";
+import Redis from "ioredis";
 
 // ═══════════════════════════════════════════
-// SSE Connection Manager (Phase 3.1)
+// SSE Connection Manager (Phase 11B)
 // ═══════════════════════════════════════════
 // Handles real-time push notifications for active clients
+// Uses Redis Pub/Sub for multi-container scaling
 
 interface SSEClient {
   id: string; // usually userId
@@ -13,8 +15,71 @@ interface SSEClient {
   schoolId?: string | null;
 }
 
-// In-memory list of active connections
+// In-memory list of active connections on THIS container
 const activeClients: Set<SSEClient> = new Set();
+
+// Redis Pub/Sub instances
+let pubClient: Redis | null = null;
+let subClient: Redis | null = null;
+const REDIS_CHANNEL = "sse_events";
+
+// Initialize Redis Pub/Sub
+const redisUrl = process.env.REDIS_URL;
+if (redisUrl) {
+  pubClient = new Redis(redisUrl, { lazyConnect: true });
+  subClient = new Redis(redisUrl, { lazyConnect: true });
+
+  pubClient.on("error", (err) => logger.warn({ err: err.message }, "SSE Redis Publisher error"));
+  subClient.on("error", (err) => logger.warn({ err: err.message }, "SSE Redis Subscriber error"));
+
+  Promise.all([pubClient.connect(), subClient.connect()]).then(() => {
+    logger.info("SSE Redis Pub/Sub connected");
+    subClient!.subscribe(REDIS_CHANNEL, (err, count) => {
+      if (err) {
+        logger.error({ err: err.message }, "Failed to subscribe to SSE channel");
+      } else {
+        logger.info(`Subscribed to ${count} SSE channels`);
+      }
+    });
+  }).catch(err => {
+    logger.warn({ err: err.message }, "Failed to connect SSE Redis Pub/Sub");
+  });
+
+  // Listen for messages from other containers
+  subClient.on("message", (channel, message) => {
+    if (channel === REDIS_CHANNEL) {
+      try {
+        const payload = JSON.parse(message);
+        const { event, data, target } = payload;
+        
+        // Broadcast locally to connected clients that match target criteria
+        let count = 0;
+        const ssePayload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+
+        for (const client of activeClients) {
+          let match = false;
+          if (target.type === "BROADCAST") match = true;
+          else if (target.type === "USER" && client.id === target.userId) match = true;
+          else if (target.type === "SCHOOL" && (client.schoolId === target.schoolId || client.role === "SUPER_ADMIN")) match = true;
+          else if (target.type === "ADMINS" && client.role === "SUPER_ADMIN") match = true;
+
+          if (match) {
+            client.res.write(ssePayload);
+            count++;
+          }
+        }
+        
+        if (count > 0) {
+          logger.debug({ event, localSentCount: count }, "Routed Redis Pub/Sub message to local SSE clients");
+        }
+      } catch (err) {
+        logger.error({ err }, "Error parsing SSE Pub/Sub message");
+      }
+    }
+  });
+} else {
+  logger.info("REDIS_URL not set — SSE will run in single-node mode");
+}
 
 /**
  * Handle new SSE connections from clients
@@ -63,43 +128,55 @@ export function sseHandler(req: Request, res: Response): void {
 }
 
 /**
- * Broadcast an event to all connected clients that match the predicate.
+ * Internal helper to publish event to Redis (or fallback to local broadcast)
  */
-export function broadcastSSE(
-  event: string,
-  data: unknown,
-  predicate?: (client: SSEClient) => boolean
-): void {
-  const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  let count = 0;
+function publishSSE(event: string, data: unknown, target: any) {
+  if (pubClient) {
+    const payload = JSON.stringify({ event, data, target });
+    pubClient.publish(REDIS_CHANNEL, payload).catch(err => {
+      logger.error({ err: err.message }, "Failed to publish SSE to Redis");
+    });
+  } else {
+    // Fallback to local memory if Redis is not configured
+    const ssePayload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+    for (const client of activeClients) {
+      let match = false;
+      if (target.type === "BROADCAST") match = true;
+      else if (target.type === "USER" && client.id === target.userId) match = true;
+      else if (target.type === "SCHOOL" && (client.schoolId === target.schoolId || client.role === "SUPER_ADMIN")) match = true;
+      else if (target.type === "ADMINS" && client.role === "SUPER_ADMIN") match = true;
 
-  for (const client of activeClients) {
-    if (!predicate || predicate(client)) {
-      client.res.write(payload);
-      count++;
+      if (match) {
+        client.res.write(ssePayload);
+      }
     }
   }
+}
 
-  logger.debug({ event, sentCount: count }, "Broadcasted SSE event");
+/**
+ * Broadcast an event to all connected clients platform-wide.
+ */
+export function broadcastSSE(event: string, data: unknown): void {
+  publishSSE(event, data, { type: "BROADCAST" });
 }
 
 /**
  * Send an event to a specific user.
  */
 export function sendSSEToUser(userId: string, event: string, data: unknown): void {
-  broadcastSSE(event, data, (client) => client.id === userId);
+  publishSSE(event, data, { type: "USER", userId });
 }
 
 /**
  * Send an event to all users of a specific school.
  */
 export function sendSSEToSchool(schoolId: string, event: string, data: unknown): void {
-  broadcastSSE(event, data, (client) => client.schoolId === schoolId || client.role === "SUPER_ADMIN");
+  publishSSE(event, data, { type: "SCHOOL", schoolId });
 }
 
 /**
  * Send an event to all admins across the platform.
  */
 export function sendSSEToPlatformAdmins(event: string, data: unknown): void {
-  broadcastSSE(event, data, (client) => client.role === "SUPER_ADMIN");
+  publishSSE(event, data, { type: "ADMINS" });
 }

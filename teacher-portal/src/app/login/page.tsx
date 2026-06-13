@@ -3,28 +3,39 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 
+import { useAuth } from "@/lib/auth-context";
+
 export default function TeacherLoginPage() {
+  const { login, verify2FA } = useAuth();
   const [email, setEmail] = useState("teacher@ssvm-cuttack.org");
   const [password, setPassword] = useState("teacher123");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [tempToken, setTempToken] = useState("");
+  const [otp, setOtp] = useState("");
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
-    try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.error);
-      if (data.data.user.role !== "TEACHER") throw new Error("Access denied — Teacher Portal only");
-      window.location.href = "/portal";
-    } catch (err) {
-      setError((err as Error).message);
+    
+    if (requires2FA) {
+      const result = await verify2FA(tempToken, otp);
+      if (!result.success) {
+        setError(result.error || "Invalid OTP");
+        setLoading(false);
+      }
+      return;
+    }
+
+    const result = await login(email, password);
+    if (result?.requires2FA) {
+      setRequires2FA(true);
+      setTempToken(result.tempToken || "");
+    } else if (result && !result.success) {
+      setError(result.error || "Login failed");
     }
     setLoading(false);
   };
@@ -49,16 +60,30 @@ export default function TeacherLoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div>
-              <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
-                className="w-full px-4 py-3 rounded-xl border border-border text-[13px] text-text-primary outline-none focus:border-primary transition-colors bg-surface" />
-            </div>
-            <div>
-              <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Password</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
-                className="w-full px-4 py-3 rounded-xl border border-border text-[13px] text-text-primary outline-none focus:border-primary transition-colors bg-surface" />
-            </div>
+            {!requires2FA ? (
+              <>
+                <div>
+                  <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Email</label>
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+                    className="w-full px-4 py-3 rounded-xl border border-border text-[13px] text-text-primary outline-none focus:border-primary transition-colors bg-surface" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block">Password</label>
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+                    className="w-full px-4 py-3 rounded-xl border border-border text-[13px] text-text-primary outline-none focus:border-primary transition-colors bg-surface" />
+                </div>
+              </>
+            ) : (
+              <div>
+                <div className="bg-blue-50 border border-blue-200 p-3 rounded-xl mb-4 text-center">
+                  <p className="text-blue-800 text-[12px] font-medium">Two-Factor Authentication</p>
+                  <p className="text-blue-600 text-[11px] mt-1">Enter the 6-digit code to continue.</p>
+                </div>
+                <label className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider mb-1.5 block text-center">Authentication Code</label>
+                <input type="text" value={otp} onChange={e => setOtp(e.target.value)} required maxLength={6}
+                  className="w-full px-4 py-3 rounded-xl border border-border text-[24px] tracking-[0.5em] font-bold text-center text-text-primary outline-none focus:border-primary transition-colors bg-surface" />
+              </div>
+            )}
 
             {error && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
@@ -70,7 +95,7 @@ export default function TeacherLoginPage() {
             <motion.button type="submit" disabled={loading} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               className="w-full py-3.5 rounded-xl text-[14px] font-bold text-white border-none cursor-pointer transition-all mt-2 disabled:opacity-50"
               style={{ background: "linear-gradient(135deg, #0D9488, #06B6D4)", boxShadow: "0 4px 16px rgba(13,148,136,0.25)" }}>
-              {loading ? "Signing in..." : "Sign In to Portal"}
+              {loading ? "Signing in..." : (requires2FA ? "Verify OTP" : "Sign In to Portal")}
             </motion.button>
           </form>
 

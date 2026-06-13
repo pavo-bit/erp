@@ -4,31 +4,11 @@ import { authenticate, requireRole } from "../middleware/auth";
 import { storageService } from "../services/storage.service";
 import { sendSuccess, sendError } from "../lib/response";
 import logger from "../lib/logger";
+import prisma from "../lib/prisma";
 
 const router = Router();
 
-// Configure multer for memory storage (we will buffer to S3)
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
-  fileFilter: (req, file, cb) => {
-    const allowedMimeTypes = [
-      "image/jpeg",
-      "image/png",
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "text/csv",
-    ];
-    if (allowedMimeTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Invalid file type. Only JPEG, PNG, PDF, DOC, and CSV are allowed."));
-    }
-  },
-});
+import { multerUpload, secureUploadMiddleware } from "../middleware/upload";
 
 /**
  * Upload a document securely to S3/R2.
@@ -38,15 +18,13 @@ router.post(
   "/upload",
   authenticate,
   requireRole("SUPER_ADMIN", "ERP_ADMIN", "HR", "TEACHER"),
-  upload.single("file"),
+  multerUpload.single("file"),
+  secureUploadMiddleware,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.file) {
         return sendError(res, 400, "No file uploaded");
       }
-
-      // Explicit virus scan hook placeholder
-      // await virusScanService.scan(req.file.buffer);
 
       const { category = "docs" } = req.body;
 
@@ -57,12 +35,39 @@ router.post(
         category
       );
 
+      let docId = undefined;
+      const { Queue } = await import("bullmq");
+      const scanQueue = new Queue("SCAN_QUEUE", { connection: { url: process.env.REDIS_URL || "redis://localhost:6379" } });
+
+      const authReq = req as any; // Need user and schoolId
+      if (authReq.user && authReq.user.schoolId) {
+        const doc = await prisma.documentRepository.create({
+          data: {
+            schoolId: authReq.user.schoolId,
+            category,
+            name: req.file.originalname,
+            fileUrl: fileKey, // Storing key as URL for now, accessed via signed-url
+            fileType: req.file.mimetype,
+            sizeBytes: req.file.size,
+            uploadedById: authReq.user.id,
+            scanStatus: "PENDING"
+          }
+        });
+        docId = doc.id;
+        
+        await scanQueue.add("scan", {
+          documentId: doc.id,
+          fileUrl: fileKey
+        });
+      }
+
       return sendSuccess(res, {
+        documentId: docId,
         key: fileKey,
         originalName: req.file.originalname,
         size: req.file.size,
         mimetype: req.file.mimetype,
-        message: "File uploaded securely"
+        message: "File uploaded securely and queued for scanning"
       });
     } catch (error: any) {
       logger.error(error, "Upload failed");
@@ -83,8 +88,21 @@ router.get("/signed-url", authenticate, async (req: Request, res: Response, next
       return sendError(res, 400, "File key is required");
     }
 
-    // In a real implementation, you would query the DocumentRepository here
-    // to check if `req.user` has access to `key` before issuing a signed URL.
+    // Check if req.user has access, and if the file is QUARANTINED
+    const authReq = req as any;
+    if (authReq.user && authReq.user.schoolId) {
+      const doc = await prisma.documentRepository.findFirst({
+        where: { fileUrl: key as string }
+      });
+      if (doc) {
+        if (doc.schoolId !== authReq.user.schoolId && authReq.user.role !== "SUPER_ADMIN") {
+          return sendError(res, 403, "Access denied to this document");
+        }
+        if (doc.scanStatus === "QUARANTINED") {
+          return sendError(res, 403, "Access denied: Document is quarantined due to security threats");
+        }
+      }
+    }
 
     const url = await storageService.generateSignedUrl(key as string, 3600); // 1 hour expiry
     return sendSuccess(res, { url, message: "Signed URL generated successfully" });

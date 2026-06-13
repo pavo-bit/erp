@@ -126,8 +126,15 @@ export default function TeacherDashboard() {
           {/* Welcome */}
           <div className="mb-8">
             <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-              className="text-[24px] font-bold text-text-primary font-[var(--font-heading)]">
-              Welcome, {user?.name?.split(" ")[0]} 👋
+              className="text-[24px] font-bold text-text-primary font-[var(--font-heading)] flex items-center justify-between">
+              <span>Welcome, {user?.name?.split(" ")[0]} 👋</span>
+              <div className="flex items-center gap-2 text-sm font-medium text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                Live Activity Feed Active
+              </div>
             </motion.h1>
             <p className="text-[14px] text-text-secondary mt-1">
               {teacher?.department || "Department"} • {teacher?.designation || "Teacher"}
@@ -198,6 +205,14 @@ export default function TeacherDashboard() {
                 <span className="text-[12px] font-semibold text-text-secondary bg-surface px-3 py-1 rounded-full">{slot.class}</span>
               </div>
             ))}
+          </div>
+
+          {/* Activity Feed Preview */}
+          <h2 className="text-[18px] font-bold text-text-primary mt-8 mb-4 font-[var(--font-heading)]">Live Updates</h2>
+          <div className="bg-white rounded-2xl border border-border p-5">
+            <div className="text-sm text-text-secondary">
+              Listening to <code className="bg-surface px-1.5 py-0.5 rounded text-primary">/api/v1/activity/stream</code> via Server-Sent Events...
+            </div>
           </div>
         </div>
       </main>

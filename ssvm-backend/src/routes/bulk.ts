@@ -103,7 +103,7 @@ router.post("/upload", authenticate, requireAdmin(), async (req: AuthRequest, re
           await prisma.user.create({
             data: {
               email: String(row.Email),
-              password: "hashedpassword_csv_default",
+              passwordHash: "hashedpassword_csv_default",
               name: String(row.Name),
               role: "TEACHER",
               schoolId,
