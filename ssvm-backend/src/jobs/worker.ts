@@ -2,10 +2,11 @@ import { Worker, Job } from "bullmq";
 import { getEnv } from "../config/env";
 import logger from "../lib/logger";
 import prisma from "../lib/prisma";
-import { startImportWorker } from "./importWorker";
+import { startImportWorker } from "./bulkImportWorker";
 import { startWebhookWorker } from "./webhookWorker";
 import { startNotificationWorker } from "./notificationWorker";
 import { startScanWorker } from "./scanWorker";
+import { startExportWorker } from "./exportWorker";
 import { generatePDF, defaultReceiptTemplate, defaultReportCardTemplate } from "../routes/reports";
 import { storageService } from "../services/storage.service";
 import { sendSSEToUser } from "../lib/sse";
@@ -25,6 +26,7 @@ export function startWorkers() {
   startWebhookWorker();
   startNotificationWorker();
   startScanWorker();
+  startExportWorker();
 
   // ═══════════════════════════════════════════
   // Email Worker
@@ -170,6 +172,7 @@ export function startWorkers() {
   const importWorker = startImportWorker();
   const webhookWorker = startWebhookWorker();
   const notificationWorker = startNotificationWorker();
+  const exportWorker = startExportWorker();
 
   logger.info("BullMQ Workers started");
 
@@ -183,6 +186,7 @@ export function startWorkers() {
       importWorker?.close(),
       webhookWorker?.close(),
       notificationWorker?.close(),
+      exportWorker?.close()
     ]);
   });
 }

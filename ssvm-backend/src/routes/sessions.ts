@@ -53,7 +53,7 @@ router.delete("/:sessionId", async (req: Request, res: Response): Promise<void> 
       userId,
       eventType: "SESSION_REVOKED",
       severity: "MEDIUM",
-      ipAddress: req.ip,
+      ipAddress: (req.ip as string) || "Unknown",
       metadata: { revokedSessionId: sessionId }
     });
 
@@ -89,7 +89,7 @@ router.post("/logout-all", async (req: Request, res: Response): Promise<void> =>
       userId,
       eventType: "ALL_SESSIONS_REVOKED",
       severity: "HIGH",
-      ipAddress: req.ip
+      ipAddress: (req.ip as string) || "Unknown"
     });
 
     res.json({ success: true, message: "All other sessions have been revoked" });

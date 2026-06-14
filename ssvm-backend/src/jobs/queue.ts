@@ -33,6 +33,8 @@ export const reportQueue = env.REDIS_URL ? new Queue("reportQueue", defaultQueue
 export const notificationQueue = env.REDIS_URL ? new Queue("notificationQueue", defaultQueueOptions) : null;
 export const importQueue = env.REDIS_URL ? new Queue("importQueue", defaultQueueOptions) : null;
 export const webhookQueue = env.REDIS_URL ? new Queue("webhookQueue", defaultQueueOptions) : null;
+export const scanQueue = env.REDIS_URL ? new Queue("scanQueue", defaultQueueOptions) : null;
+export const exportQueue = env.REDIS_URL ? new Queue("exportQueue", defaultQueueOptions) : null;
 
 if (env.REDIS_URL) {
   logger.info("BullMQ Queues initialized");
@@ -93,7 +95,9 @@ export async function closeQueues(): Promise<void> {
     reportQueue?.close(),
     notificationQueue?.close(),
     importQueue?.close(),
-    webhookQueue?.close()
+    webhookQueue?.close(),
+    scanQueue?.close(),
+    exportQueue?.close()
   ]);
   logger.info("BullMQ Queues closed");
 }

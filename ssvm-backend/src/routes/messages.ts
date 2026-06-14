@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import { authenticate, AuthRequest } from "../middleware/auth";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
+import { sendSSEToUser } from "../lib/sse";
 
 const router = Router();
 
@@ -197,6 +198,16 @@ router.post("/:threadId", async (req: AuthRequest, res: Response) => {
         to: (p as any).user?.id || p.userId,
         subject: "New Message",
         content: `You have a new message from ${req.user!.name}`
+      });
+
+      // Emit real-time Server-Sent Event for instantaneous delivery
+      sendSSEToUser(p.userId, "NEW_MESSAGE", {
+        threadId,
+        messageId: message.id,
+        senderId: userId,
+        senderName: req.user!.name,
+        content: message.content,
+        createdAt: message.createdAt
       });
     }
 

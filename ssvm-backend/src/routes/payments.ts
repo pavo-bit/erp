@@ -1,9 +1,11 @@
 import { Router, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import prisma from "../lib/prisma";
+import { PrismaClient, Prisma } from "@prisma/client";
+const prisma = new PrismaClient();
 import { AuthRequest, authenticate } from "../middleware/auth";
 import { getEnv } from "../config/env";
+import { LedgerService } from "../services/ledger.service";
 
 const router = Router();
 const env = getEnv();
@@ -101,6 +103,8 @@ router.post("/verify", authenticate, async (req: AuthRequest, res: Response) => 
 
       // Update Fee status
       const receiptNo = `REC-${Date.now()}`;
+      const feeRecord = await prisma.invoice.findUnique({ where: { id: transaction.invoiceId } });
+
       await prisma.invoice.update({
         where: { id: transaction.invoiceId },
         data: {
@@ -109,6 +113,34 @@ router.post("/verify", authenticate, async (req: AuthRequest, res: Response) => 
           receiptNo,
         },
       });
+
+      // --- ENTERPRISE LEDGER INTERCEPTION ---
+      if (feeRecord) {
+        const bankAcc = await prisma.ledgerAccount.findUnique({ where: { schoolId_code: { schoolId: feeRecord.schoolId, code: '1010-BANK' } } });
+        const revAcc = await prisma.ledgerAccount.findUnique({ where: { schoolId_code: { schoolId: feeRecord.schoolId, code: '4000-TUIT' } } });
+        
+        if (bankAcc && revAcc) {
+          try {
+            await LedgerService.postTransaction({
+              schoolId: feeRecord.schoolId,
+              referenceType: "PAYMENT",
+              referenceId: transaction.id,
+              sourceModule: "FEES",
+              description: `Payment verified for Invoice ${feeRecord.id}`,
+              postingDate: new Date(),
+              createdBy: req.user?.id || "SYSTEM",
+              entries: [
+                { accountId: bankAcc.id, debitAmount: transaction.amountPaid, creditAmount: 0 },
+                { accountId: revAcc.id, debitAmount: 0, creditAmount: transaction.amountPaid }
+              ]
+            });
+            console.log(`[Ledger] Successfully posted Payment ${transaction.id} to Immutable Ledger`);
+          } catch (ledgerError) {
+            console.error(`[Ledger Error] Failed to post payment to ledger:`, ledgerError);
+          }
+        }
+      }
+      // --------------------------------------
 
       res.json({ success: true, message: "Payment verified successfully", receiptNo });
     } else {
@@ -207,39 +239,73 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
 
       const gatewayPaymentId = paymentEntity.id;
       const orderId = paymentEntity.order_id;
+      const idempotencyKey = (req.headers["x-razorpay-event-id"] as string) || crypto.createHash("sha256").update(payloadString).digest("hex");
 
-      // Idempotency check: Already processed?
-      const existingTx = await prisma.paymentTransaction.findUnique({
-        where: { gatewayPaymentId }
-      });
+      try {
+        const result = await prisma.$transaction(async (tx) => {
+          // Idempotency check with Serializable isolation
+          const existingByEvent = await tx.paymentTransaction.findFirst({
+            where: { idempotencyKey }
+          });
 
-      if (existingTx) {
-         res.status(200).json({ success: true, message: "Already processed" });
-         return;
-      }
-
-      // Mark Paid
-      const transaction = await prisma.paymentTransaction.findUnique({
-        where: { transactionId: orderId }
-      });
-
-      if (transaction && transaction.status !== "SUCCESS") {
-        await prisma.paymentTransaction.update({
-          where: { id: transaction.id },
-          data: {
-            gatewayPaymentId,
-            status: "SUCCESS"
+          if (existingByEvent) {
+            return { alreadyProcessed: true };
           }
+
+          const existingByGateway = await tx.paymentTransaction.findUnique({
+            where: { gatewayPaymentId }
+          });
+
+          if (existingByGateway) {
+            return { alreadyProcessed: true };
+          }
+
+          const transaction = await tx.paymentTransaction.findUnique({
+            where: { transactionId: orderId }
+          });
+
+          if (!transaction) {
+            throw new Error("Transaction not found for orderId: " + orderId);
+          }
+
+          if (transaction.status === "SUCCESS") {
+            return { alreadyProcessed: true };
+          }
+
+          // Mark Paid and lock with idempotencyKey
+          await tx.paymentTransaction.update({
+            where: { id: transaction.id },
+            data: {
+              gatewayPaymentId,
+              status: "SUCCESS",
+              idempotencyKey
+            }
+          });
+
+          await tx.invoice.update({
+            where: { id: transaction.invoiceId },
+            data: {
+              status: "PAID",
+              paidDate: new Date(),
+              receiptNo: `REC-${Date.now()}`
+            }
+          });
+
+          return { alreadyProcessed: false };
+        }, {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable
         });
 
-        await prisma.invoice.update({
-          where: { id: transaction.invoiceId },
-          data: {
-            status: "PAID",
-            paidDate: new Date(),
-            receiptNo: `REC-${Date.now()}`
-          }
-        });
+        if (result.alreadyProcessed) {
+          res.status(200).json({ success: true, message: "Already processed" });
+          return;
+        }
+
+      } catch (txError) {
+        console.error("Transaction Error in Webhook:", txError);
+        // If it's a serialization failure, we return 500 to let Razorpay retry
+        res.status(500).json({ success: false, error: "Concurrency error, retry later" });
+        return;
       }
     }
 

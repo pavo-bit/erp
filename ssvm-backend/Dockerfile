@@ -14,8 +14,8 @@ RUN npx tsc || true
 FROM node:20-alpine
 WORKDIR /app
 
-RUN apk add --no-cache bash
-RUN npm install -g tsx prisma
+RUN apk add --no-cache bash curl redis
+RUN npm install -g tsx prisma pm2
 
 COPY --from=builder /app/package*.json ./
 RUN npm install --omit=dev --prefer-offline --no-audit
@@ -23,11 +23,15 @@ RUN npm install --omit=dev --prefer-offline --no-audit
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/dist ./dist
+COPY ecosystem.config.js ./
 
 COPY entrypoint.sh ./
-# convert CRLF to LF in case of Windows
 RUN apk add --no-cache dos2unix && dos2unix entrypoint.sh && chmod +x entrypoint.sh
+
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:5000/api/health || exit 1
 
 EXPOSE 5000
 
-CMD ["./entrypoint.sh"]
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["npx", "pm2-runtime", "ecosystem.config.js", "--env", "production"]

@@ -2,14 +2,16 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole, hashPassword } from "../middleware/auth";
 
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
+
 const router = Router();
 
 // GET /api/students
 router.get("/", authenticate, requireRole("ADMIN", "PARENT", "ERP_ADMIN", "SUPER_ADMIN", "TEACHER"), async (req: AuthRequest, res: Response) => {
   try {
-    const { page = "1", limit = "20", classId, sectionId, search } = req.query as Record<string, string | undefined>;
-    const skip = (Math.max(1, +page) - 1) * Math.min(100, +limit);
-    const take = Math.min(100, +limit);
+    const { classId, sectionId, search } = req.query as Record<string, string | undefined>;
+    const paginationParams = parsePaginationParams(req.query, ['name', 'rollNo', 'admissionNo', 'createdAt']);
+
     const where: any = {};
     if (req.user!.role !== "SUPER_ADMIN") where.schoolId = req.user!.schoolId;
     if (req.user!.branchId) where.branchId = req.user!.branchId;
@@ -30,17 +32,14 @@ router.get("/", authenticate, requireRole("ADMIN", "PARENT", "ERP_ADMIN", "SUPER
       if (guardian) where.guardianId = guardian.id;
     }
 
-    const [data, total] = await Promise.all([
-      prisma.student.findMany({ 
-        where, 
-        include: { guardian: { include: { user: { select: { name: true, phone: true } } } }, sectionRef: { include: { class: true } } }, 
-        orderBy: { rollNo: "asc" }, 
-        skip, 
-        take 
-      }),
-      prisma.student.count({ where }),
-    ]);
-    res.json({ success: true, data, pagination: { page: +page, limit: take, total, totalPages: Math.ceil(total / take) } });
+    const result = await paginatedQuery(
+      prisma.student,
+      where,
+      { guardian: { include: { user: { select: { name: true, phone: true } } } }, sectionRef: { include: { class: true } } },
+      paginationParams
+    );
+
+    res.json(result);
   } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
 });
 

@@ -15,6 +15,7 @@ const sidebarItems = [
   { icon: "📋", label: "Exams", href: "/portal/exams" },
   { icon: "🏖️", label: "Leave", href: "/portal/leaves" },
   { icon: "💰", label: "Salary", href: "/portal/salary" },
+  { icon: "⚖️", label: "Discipline", href: "/portal/discipline" },
   { icon: "👤", label: "My Profile", href: "/portal/profile" },
 ];
 
@@ -167,6 +168,7 @@ export default function TeacherDashboard() {
               { icon: "🏖️", label: "Apply Leave", href: "/portal/leaves", color: "#EF4444" },
               { icon: "💰", label: "View Salary", href: "/portal/salary", color: "#10B981" },
               { icon: "📋", label: "Exam Results", href: "/portal/exams", color: "#EC4899" },
+              { icon: "⚖️", label: "Discipline", href: "/portal/discipline", color: "#F43F5E" },
               { icon: "👤", label: "My Profile", href: "/portal/profile", color: "#6366F1" },
             ].map((action, i) => (
               <motion.div key={action.label} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>

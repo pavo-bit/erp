@@ -34,7 +34,7 @@ async function main() {
     update: {},
     create: {
       email: superadminEmail,
-      password: await hash("superadmin123", 10),
+      passwordHash: await hash("superadmin123", 10),
       name: "Platform Admin",
       role: "SUPER_ADMIN",
       schoolId: school.id,
@@ -50,7 +50,7 @@ async function main() {
     update: {},
     create: {
       email: adminEmail,
-      password: await hash("admin123", 10),
+      passwordHash: await hash("admin123", 10),
       name: "School Admin",
       role: "ERP_ADMIN",
       schoolId: school.id,

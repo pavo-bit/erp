@@ -1,0 +1,48 @@
+name: Manual Database Migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Environment'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  migrate-database:
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Prisma
+        working-directory: ./ssvm-backend
+        run: npm ci
+
+      - name: Deploy Prisma Migrations
+        working-directory: ./ssvm-backend
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Notify Slack (Success)
+        if: success()
+        run: |
+          echo "Migration to ${{ github.event.inputs.environment }} was successful."
+          # curl -X POST -H 'Content-type: application/json' --data '{"text":"✅ Database migrated successfully on ${{ github.event.inputs.environment }}"}' ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Notify Slack (Failure)
+        if: failure()
+        run: |
+          echo "Migration to ${{ github.event.inputs.environment }} failed!"
+          # curl -X POST -H 'Content-type: application/json' --data '{"text":"❌ Database migration FAILED on ${{ github.event.inputs.environment }}!"}' ${{ secrets.SLACK_WEBHOOK_URL }}

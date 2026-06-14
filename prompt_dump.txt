@@ -1,0 +1,274 @@
+<USER_REQUEST>
+# SSVM Platform — Phase-by-Phase Upgrade Implementation Prompt
+
+> **How to use this document:** Copy each Phase block as a standalone prompt into your AI coding assistant (Claude Code, Cursor, Copilot Chat, etc.). Each phase is self-contained, builds on the previous one, and ends with a verification checklist. Complete all checklist items before moving to the next phase.
+>
+> **Stack context to prepend to every prompt:**
+> Node.js / Express / Prisma / PostgreSQL / Next.js 16 / TypeScript / Docker Compose / JWT (HS256) / Zod / SWR / Razorpay / Pino logger
+
+---
+
+## PHASE 1 — Critical Security Hardening
+**Estimated effort:** 2–3 days  
+**Risk if skipped:** Token theft = 7-day full access. Multi-tenant data leak possible.
+
+---
+
+### Prompt 1.1 — Refresh Token System + Secure Logout
+
+```
+You are working on a production school ERP called SSVM.
+Stack: Express + TypeScript + Prisma + PostgreSQL + JWT (currently HS256, 7-day expiry).
+
+CURRENT PROBLEM:
+- JWT expires in 7 days with no rotation.
+- POST /api/auth/logout only clears the httpOnly cookie client-side.
+- There is no server-side token revocation. A stolen token is valid for up to 7 days.
+
+TASK: Implement a secure refresh token system with server-side revocation.
+
+STEP 1 — Prisma schema changes:
+Add the following model to schema.prisma:
+  model RefreshToken {
+    id          String   @id @default(cuid())
+    token       String   @unique
+    userId      String
+    user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+    expiresAt   DateTime
+    revokedAt   DateTime?
+    createdAt   DateTime @default(now())
+    ipAddress   String?
+    userAgent   String?
+    @@index([userId])
+    @@index([token])
+    @@map("refresh_tokens")
+  }
+Also add: refreshTokens RefreshToken[] to the User model.
+
+STEP 2 — Environment variables:
+Add to env.ts validation:
+  ACCESS_TOKEN_SECRET    (separate from JWT_SECRET)
+  REFRESH_TOKEN_SECRET
+  ACCESS_TOKEN_EXPIRES_IN   = "15m"
+  REFRESH
+<truncated 45214 bytes>
+schema: $ref: '#/components/schemas/LoginInput'
+     *     responses:
+     *       200:
+     *         description: Login successful
+     *       401:
+     *         description: Invalid credentials
+     *       429:
+     *         description: Rate limit exceeded
+     */
+
+  Do the same for: /students (GET), /invoices (POST), /payments/verify (POST), /bulk/upload (POST)
+
+STEP 4 — Swagger UI endpoint (only in non-production):
+  In src/index.ts:
+    if (process.env.NODE_ENV !== 'production') {
+      app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openapiDocument))
+    }
+  In production: serve the raw JSON spec at GET /api/v1/openapi.json (useful for Postman import).
+
+STEP 5 — Postman collection export:
+  Add npm script: "generate:postman" that uses openapi-to-postman to convert the spec.
+  Output to: docs/SSVM.postman_collection.json
+
+Write full implementation. The goal is a self-updating API reference that never drifts from the actual code.
+```
+
+---
+
+## Implementation Checklist (Per Phase)
+
+| Phase | Checklist Item | Done? |
+|-------|---------------|-------|
+| **1 — Security** | Refresh tokens working, old tokens revocable | ☐ |
+| | Logout clears DB record | ☐ |
+| | OTP locks after 5 failed attempts | ☐ |
+| | Per-school rate limits active | ☐ |
+| | RS256 JWT verified by portals using public key only | ☐ |
+| **2 — Performance** | `EXPLAIN ANALYZE` on top 10 queries shows index usage | ☐ |
+| | Dashboard stats served from Redis cache | ☐ |
+| | Bulk import returns 202 + jobId immediately | ☐ |
+| | BullMQ dashboard accessible at /admin/queues | ☐ |
+| **3 — Architecture** | Tenant Prisma middleware rejects cross-school queries | ☐ |
+| | Single messaging route replaces 2 old routes | ☐ |
+| | All endpoints return correct HTTP status codes | ☐ |
+| | `/api/v1/` prefix works alongside `/
+<truncated 2068 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.<USER_REQUEST>
+# SSVM Platform — Phase-by-Phase AI Prompts to Reach 10/10
+
+> **How to use this document**  
+> Each phase below contains one or more ready-to-paste prompts. Feed them to Claude (or any AI coding assistant) in order. Each prompt is self-contained, includes full context, and tells the AI exactly what files to touch, what to produce, and what the acceptance criteria are.  
+> Stack: Node.js / Express / Prisma / PostgreSQL / Next.js / Redis / BullMQ / TypeScript
+
+---
+
+## PHASE 1 — Security & Auth Hardening
+**Goal:** Eliminate all critical security vulnerabilities. Estimated time: 1–2 weeks.  
+**Target score uplift:** 7.4 → 8.2
+
+---
+
+### Prompt 1.1 — Migrate JWT from HS256 to RS256
+
+```
+You are a senior backend security engineer working on the SSVM school ERP platform.
+
+CONTEXT:
+- Stack: Node.js + Express + TypeScript + Prisma + PostgreSQL
+- Auth file: src/middleware/auth.ts
+- JWT currently uses HS256 (symmetric, single secret shared across 8 Next.js services)
+- Environment variables: ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET in env.ts
+- The platform has 8 frontend services that all verify JWTs
+
+TASK:
+Migrate the JWT signing from HS256 to RS256 (asymmetric) so only the backend can sign tokens, and frontends only need the public key to verify.
+
+STEP-BY-STEP INSTRUCTIONS:
+
+1. Generate RSA key pair script
+   - Create scripts/generate-keys.ts
+   - Use Node's built-in `crypto.generateKeyPairSync('rsa', { modulusLength: 4096 })`
+   - Output: private key as PEM → ACCESS_TOKEN_PRIVATE_KEY env var
+   - Output: public key as PEM → ACCESS_TOKEN_PUBLIC_KEY env var
+   - Do the same for refresh tokens: REFRESH_TOKEN_PRIVATE_KEY / REFRESH_TOKEN_PUBLIC_KEY
+
+2. Update src/config/env.ts
+   - Remove: ACCESS_TOKEN_SECRET, REFRESH_TOKEN_SECRET
+   - Add: ACCESS_TOKEN_PRIVATE_KEY, ACCESS_TOKEN_PUBLIC_KEY, REFRESH_TOKEN_PRIVATE_KEY, REFRESH_TOKEN_PUBLIC_KEY
+   - Validate all four are present at startup; throw descriptive error if missing
+
+3. Update src/middleware/auth.ts
+<truncated 45215 bytes>
+nt library from the SSVM multi-portal frontend.
+
+CONTEXT:
+- 6 Next.js portals (erp-admin :3000, super-admin :3001, teacher-portal :3002, parent-portal :3006, payment-portal :3007, saas-frontend :3008)
+- Each portal has its own copy of common components (buttons, tables, badges, modals)
+- Goal: create packages/ui/ shared package using npm workspaces
+
+TASK:
+
+1. Set up npm workspaces in root package.json:
+   {
+     "workspaces": ["packages/*", "erp-admin", "super-admin", "teacher-portal", "parent-portal", "payment-portal", "saas-frontend", "ssvm-backend"]
+   }
+
+2. Create packages/ui/ with its own package.json:
+   {
+     "name": "@ssvm/ui",
+     "version": "1.0.0",
+     "main": "./dist/index.js",
+     "types": "./dist/index.d.ts",
+     "peerDependencies": { "react": "^19", "next": "^16" }
+   }
+
+3. Extract and build these components in packages/ui/src/components/:
+
+   Badge.tsx — status badges with color variants
+   Props: { variant: 'success' | 'warning' | 'danger' | 'info' | 'neutral', size?: 'sm' | 'md', children }
+
+   StatusBadge.tsx — maps domain statuses to colors
+   Props: { status: InvoiceStatus | AttendanceStatus | AdmissionStatus | LeaveStatus | ... }
+   Automatically picks color: PAID→green, OVERDUE→red, PENDING→amber, etc.
+
+   DataTable.tsx — sortable, paginated table
+   Props: { columns: Column[], data: T[], pagination?: PaginationMeta, onPageChange?, isLoading? }
+   Includes: skeleton loading state, empty state, sort indicators
+
+   SkeletonLoader.tsx — content placeholders
+   Variants: SkeletonTable, SkeletonCard, SkeletonStats, SkeletonList
+
+   Modal.tsx — accessible dialog
+   Props: { isOpen, onClose, title, children, size?: 'sm' | 'md' | 'lg' | 'xl' }
+   Uses: HTML <dialog> element with proper focus trap and ESC key handling
+
+   ConfirmDialog.tsx — destructive action confirmation
+   P
+<truncated 23146 bytes>
+
+NOTE: The output was truncated because it was too long. Use a more targeted query or a smaller range to get the information you need.It looks like our messages crossed paths! I actually just finished structurally updating your OpenAPI document with all the new Phase 15 routes right before you sent this. The document now correctly lists all the new endpoints (SaaS Settings, Security Operations, Data Export, Preferences, and BullMQ) sequentially at the end of the Backend API Reference section.
+
+I've also received the comprehensive new "Phase-by-Phase AI Prompts" roadmap you just pasted, which aims to take the platform from a 7.4 to a 10/10 through Security, API Consistency, Testing, Performance, and Frontend Excellence.
+
+Would you like me to begin executing **Prompt 1.1 — Migrate JWT from HS256 to RS256** right away, or did you want me to do anything else with the OpenAPI document first?Created At: 2026-06-13T16:10:58Z
+Completed At: 2026-06-13T16:11:04Z
+
+				The command failed with exit code: 1
+				Output:
+				grep : The term 'grep' is not recognized as the name of a cmdlet, function, script file, or operable program. Check 
+the spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:1
++ grep -A 500 "Phase-by-Phase AI Prompts to Reach 10/10" C:\Users\Mayur ...
++ ~~~~
+    + CategoryInfo          : ObjectNotFound: (grep:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
+
+Created At: 2026-06-13T16:11:14Z
+Completed At: 2026-06-13T16:11:22Z
+
+				The command failed with exit code: 1
+				Output:
+				At line:1 char:241
++ ...  Select-Object -First 1 | % { .Line.Substring(0, [math]::Min(.Line.Le ...
++                                                                  ~
+Missing ')' in method call.
+At line:1 char:241
++ ... ct -First 1 | % { .Line.Substring(0, [math]::Min(.Line.Length, 10000) ...
++                                                      ~~~~~~~~~~~~
+Unexpected token '.Line.Length' in expression or statement.
+At line:1 char:241
++ ...  Select-Object -First 1 | % { .Line.Substring(0, [math]::Min(.Line.Le ...
++                                                                  ~
+Missing closing ')' in expression.
+At line:1 char:208
++ ... ring -Pattern 'Phase-by-Phase' | Select-Object -First 1 | % { .Line.S ...
++                                                                 ~
+Missing closing '}' in statement block or type definition.
+At line:1 char:260
++ ... -First 1 | % { .Line.Substring(0, [math]::Min(.Line.Length, 10000)) }
++                                                                      ~
+Unexpected token ')' in expression or statement.
+At line:1 char:261
++ ... -First 1 | % { .Line.Substring(0, [math]::Min(.Line.Length, 10000)) }
++                                                                       ~
+Unexpected token ')' in expression or statement.
+At line:1 char:263
++ ... -First 1 | % { .Line.Substring(0, [math]::Min(.Line.Length, 10000)) }
++                                                                         ~
+Unexpected token '}' in expression or statement.
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingEndParenthesisInMethodCall
+ 
+
+Created At: 2026-06-13T16:12:17Z
+Completed At: 2026-06-13T16:12:24Z
+
+				The command failed with exit code: 1
+				Output:
+				Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; [print(json.loads(line)['content'][:20000]) for line in open(r'C:\Users\Mayur\.gemini\antigravity-ide\brain\ac266e33-262a-479e-9d13-39ac68b3d8f7\.system_generated\logs\transcript.jsonl', encoding='utf-8') if 'Phase-by-Phase' in line]
+                  ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2610' in position 3327: character maps to <undefined>
+
+Created At: 2026-06-13T16:12:35Z
+Completed At: 2026-06-13T16:12:40Z
+
+				The command failed with exit code: 1
+				Output:
+				Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+    import json; f = open('prompt_dump.txt', 'w', encoding='utf-8'); [f.write(json.loads(line)['content']) for line in open(r'C:\Users\Mayur\.gemini\antigravity-ide\brain\ac266e33-262a-479e-9d13-39ac68b3d8f7\.system_generated\logs\transcript.jsonl', encoding='utf-8') if 'Phase-by-Phase' in line]; f.close()
+                                                                              ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+KeyError: 'content'
+

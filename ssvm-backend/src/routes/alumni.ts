@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
 
@@ -8,12 +9,19 @@ const router = Router();
 router.get("/", async (req, res: Response) => {
   try {
     const { featured, batch, search } = req.query as Record<string, string | undefined>;
+    const paginationParams = parsePaginationParams(req.query, ['batch', 'createdAt']);
     const where: Record<string, unknown> = {};
     if (featured === "true") where.isFeatured = true;
     if (batch) where.batch = batch;
     if (search) where.user = { name: { contains: search } };
-    const alumni = await prisma.alumni.findMany({ where, include: { user: { select: { id: true, name: true, email: true, avatar: true } }, contributions: { orderBy: { date: "desc" }, take: 5 } }, orderBy: { batch: "desc" } });
-    res.json({ success: true, data: alumni });
+    
+    const result = await paginatedQuery(
+      prisma.alumni,
+      where,
+      { user: { select: { id: true, name: true, email: true, avatar: true } }, contributions: { orderBy: { date: "desc" }, take: 5 } },
+      paginationParams
+    );
+    res.json(result);
   } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
 });
 

@@ -51,8 +51,10 @@ export function startImportWorker() {
       });
 
       try {
+        await job.updateProgress(5);
         // Fetch CSV string from storage
         const csvString = await fetchFileFromStorage(fileKey);
+        await job.updateProgress(10);
 
         // Parse CSV
         const { data, errors } = Papa.parse(csvString, {
@@ -97,7 +99,8 @@ export function startImportWorker() {
 
           // Update progress every 10 rows
           if (i % 10 === 0 || i === data.length - 1) {
-            const progress = Math.round(((i + 1) / totalRows) * 100);
+            const progress = Math.round(((i + 1) / totalRows) * 80) + 10; // Reserve 0-10 for setup, 90-100 for finishing
+            await job.updateProgress(progress);
             await prisma.bulkJob.update({
               where: { id: jobId },
               data: { progress },
@@ -118,6 +121,7 @@ export function startImportWorker() {
         }
 
         // Complete job
+        await job.updateProgress(100);
         await prisma.bulkJob.update({
           where: { id: jobId },
           data: {

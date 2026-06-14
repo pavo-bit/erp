@@ -52,6 +52,53 @@ router.post("/", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ADMI
   }
 });
 
+// POST /api/v1/assets/:id/transfer - Transfer asset (Multilocation tracking)
+const transferSchema = z.object({
+  toLocation: z.string().optional(),
+  toBranchId: z.string().optional(),
+  reason: z.string().optional()
+});
+
+router.post("/:id/transfer", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), validate(transferSchema), async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { toLocation, toBranchId, reason } = req.body;
+    const schoolId = req.user!.schoolId!;
+
+    const asset = await prisma.asset.findFirst({ where: { id: id as string, schoolId } });
+    if (!asset) {
+      return res.status(404).json({ success: false, error: "Asset not found" });
+    }
+
+    const transfer = await prisma.$transaction(async (tx) => {
+      // 1. Create transfer record
+      const record = await tx.assetTransfer.create({
+        data: {
+          assetId: id as string,
+          fromLocation: asset.location,
+          toLocation,
+          toBranchId,
+          transferredBy: req.user!.id,
+          reason
+        }
+      });
+
+      // 2. Update asset location
+      await tx.asset.update({
+        where: { id: id as string },
+        data: { location: toLocation || asset.location }
+      });
+
+      return record;
+    });
+
+    res.status(201).json({ success: true, data: transfer });
+  } catch (e) {
+    logger.error({ err: e }, "Transfer asset error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 // GET /api/v1/assets/categories - List categories
 router.get("/categories", authenticate, async (req: AuthRequest, res: Response) => {
   try {

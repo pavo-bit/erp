@@ -56,6 +56,61 @@ router.get('/system-logs', requireRole(Role.SUPER_ADMIN), async (req: AuthReques
 });
 
 /**
+ * GET /api/v1/saas/security/failed-logins
+ * Fetch recently failed login attempts
+ */
+router.get('/failed-logins', requireRole(Role.SUPER_ADMIN), async (req: AuthRequest, res: Response) => {
+  try {
+    const logs = await prisma.auditLog.findMany({
+      where: {
+        action: 'FAILED_LOGIN',
+        createdAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // last 24 hours
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json({ success: true, data: logs });
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to fetch failed logins');
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/v1/saas/security/quarantine/:documentId
+ * Manually quarantine a suspicious document
+ */
+router.post('/quarantine/:documentId', requireRole(Role.SUPER_ADMIN, Role.ERP_ADMIN), async (req: AuthRequest, res: Response) => {
+  try {
+    const { documentId } = req.params;
+    
+    // Using storageObject since that's what scanWorker uses
+    const doc = await prisma.storageObject.update({
+      where: { id: documentId as string },
+      data: {
+        scanStatus: 'QUARANTINED'
+      }
+    });
+
+    await prisma.systemLog.create({
+      data: {
+        level: 'WARN',
+        module: 'SECURITY',
+        message: 'DOCUMENT_QUARANTINED',
+        metadata: JSON.stringify({ documentId: documentId as string }),
+        userId: req.user!.id
+      }
+    });
+
+    res.json({ success: true, data: doc });
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to quarantine document');
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
  * POST /api/v1/saas/impersonate/:schoolId
  * Impersonate a tenant (school) as a SUPER_ADMIN.
  * This generates a new session token that is scoped to the target school.
@@ -65,7 +120,7 @@ router.post('/impersonate/:schoolId', requireRole(Role.SUPER_ADMIN), async (req:
     const { schoolId } = req.params;
     
     // 1. Verify school exists
-    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    const school = await prisma.school.findUnique({ where: { id: schoolId as string } });
     if (!school) {
       res.status(404).json({ success: false, error: 'School not found' });
       return;
@@ -77,8 +132,8 @@ router.post('/impersonate/:schoolId', requireRole(Role.SUPER_ADMIN), async (req:
         userId: req.user!.id,
         action: 'IMPERSONATE_TENANT',
         entity: 'SCHOOL',
-        entityId: schoolId,
-        ipAddress: req.ip as string,
+        entityId: schoolId as string,
+        ipAddress: (req.ip as string) || "Unknown",
         device: req.headers['user-agent'],
         details: JSON.stringify({ reason: req.body.reason || 'Support Request' })
       }

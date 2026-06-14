@@ -8,14 +8,17 @@ const envSchema = z.object({
   UPLOAD_DIR: z.string().default("./uploads"),
 
   // ─── Auth & Tokens ───
-  JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
-  JWT_EXPIRES_IN: z.string().default("7d"),
-  ACCESS_TOKEN_SECRET: z.string().min(32).optional(), // Falls back to JWT_SECRET
-  REFRESH_TOKEN_SECRET: z.string().min(32).optional(), // Falls back to JWT_SECRET + "_refresh"
-  JWT_PUBLIC_KEY: z.string().optional(),
-  JWT_PRIVATE_KEY: z.string().optional(),
+  ACCESS_TOKEN_PRIVATE_KEY: z.string().min(1, "ACCESS_TOKEN_PRIVATE_KEY is required"),
+  ACCESS_TOKEN_PUBLIC_KEY: z.string().min(1, "ACCESS_TOKEN_PUBLIC_KEY is required"),
+  REFRESH_TOKEN_PRIVATE_KEY: z.string().min(1, "REFRESH_TOKEN_PRIVATE_KEY is required"),
+  REFRESH_TOKEN_PUBLIC_KEY: z.string().min(1, "REFRESH_TOKEN_PUBLIC_KEY is required"),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default("15m"),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default("30d"),
+
+  // ─── DPDP Compliance (Phase 1) ───
+  FIELD_ENCRYPTION_KEY: z.string()
+    .length(64, "FIELD_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)")
+    .regex(/^[0-9a-fA-F]+$/, "FIELD_ENCRYPTION_KEY must be a valid hex string"),
 
   // ─── Redis (Phase 2+) ───
   REDIS_URL: z.string().optional(),
@@ -52,12 +55,15 @@ export function getEnv(): Env {
     }
     _env = parsed.data;
 
-    // Derive fallback secrets
-    if (!_env.ACCESS_TOKEN_SECRET) {
-      _env.ACCESS_TOKEN_SECRET = _env.JWT_SECRET;
-    }
-    if (!_env.REFRESH_TOKEN_SECRET) {
-      _env.REFRESH_TOKEN_SECRET = _env.JWT_SECRET + "_refresh_secret_v1";
+    // Validate RSA Keys Format
+    const keys = ["ACCESS_TOKEN_PRIVATE_KEY", "ACCESS_TOKEN_PUBLIC_KEY", "REFRESH_TOKEN_PRIVATE_KEY", "REFRESH_TOKEN_PUBLIC_KEY"] as const;
+    for (const key of keys) {
+      // Fix multiline if passed via docker/env inline
+      _env[key] = _env[key].replace(/\\n/g, "\n");
+      if (!_env[key].includes("BEGIN")) {
+        console.error(`❌ Invalid RSA key format for ${key}`);
+        process.exit(1);
+      }
     }
   }
   return _env;

@@ -32,7 +32,7 @@ export function startScanWorker() {
 
       await prisma.storageObject.update({
         where: { id: documentId },
-        data: { scanStartedAt: new Date() as any }
+        data: { scanStatus: "IN_PROGRESS" }
       });
 
       const scanResult = await simulateVirusScan(fileUrl);
@@ -40,10 +40,7 @@ export function startScanWorker() {
       await prisma.storageObject.update({
         where: { id: documentId },
         data: {
-          scanStatus: scanResult,
-          scanCompletedAt: new Date() as any,
-          scanEngine: "Simulated_ClamAV",
-          scanResult: scanResult === "CLEAN" ? "No threats detected" : "Simulated Malware Detected"
+          scanStatus: scanResult
         }
       });
 

@@ -13,9 +13,34 @@ export class CommunicationService {
     templateName: string, 
     channel: "SMS" | "EMAIL" | "WHATSAPP" | "NOTICE", 
     recipient: { userId?: string, phone?: string, email?: string }, 
-    data: Record<string, any>
+    data: Record<string, any>,
+    notificationType: string = "TRANSACTIONAL" // e.g., FEE_REMINDER, ATTENDANCE, MARKETING
   ): Promise<boolean> {
     try {
+      // 0. Verify Consent & Preferences if a userId is provided and it's not strictly transactional
+      if (recipient.userId && notificationType !== "TRANSACTIONAL") {
+        const preference = await prisma.notificationPreference.findUnique({
+          where: { userId_type: { userId: recipient.userId, type: notificationType } }
+        });
+        
+        // If explicitly disabled by user, skip sending
+        if (preference && preference.enabled === false) {
+          logger.info({ userId: recipient.userId, type: notificationType }, "Message skipped due to user preference");
+          return false;
+        }
+
+        // For marketing, also check explicit ConsentRecord
+        if (notificationType === "MARKETING") {
+          const consent = await prisma.consentRecord.findFirst({
+            where: { schoolId, type: channel, accepted: true, guardian: { primaryEmail: recipient.email } }
+          });
+          
+          if (!consent) {
+            logger.info({ email: recipient.email, channel }, "Marketing message skipped due to missing explicit consent");
+            return false;
+          }
+        }
+      }
       // 1. Find unified Template
       const template = await prisma.template.findUnique({
         where: { schoolId_name_channel: { schoolId, name: templateName, channel } }

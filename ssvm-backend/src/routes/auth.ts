@@ -16,6 +16,8 @@ import {
 } from "../lib/tokens";
 import { getEnv } from "../config/env";
 import crypto from "crypto";
+import { injectCsrfToken } from "../middleware/csrf";
+import { logAuthEvent } from "../lib/authEventLogger";
 
 const router = Router();
 
@@ -146,12 +148,21 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
       include: { guardian: { include: { students: true } }, alumni: true },
     });
 
-    if (!user) { res.status(401).json({ success: false, error: "Invalid credentials" }); return; }
-    if (!user.isActive) { res.status(403).json({ success: false, error: "Account deactivated" }); return; }
+    if (!user) { 
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", req, success: false, failReason: "user_not_found", metadata: { email } });
+      res.status(401).json({ success: false, error: "Invalid credentials" }); 
+      return; 
+    }
+    if (!user.isActive) { 
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: user.id, schoolId: user.schoolId || undefined, req, success: false, failReason: "account_disabled", metadata: { email } });
+      res.status(403).json({ success: false, error: "Account deactivated" }); 
+      return; 
+    }
 
     const valid = await verifyPassword(password, (user as any).passwordHash);
     if (!valid) {
       logger.warn({ email }, "Failed login attempt");
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: user.id, schoolId: user.schoolId || undefined, req, success: false, failReason: "invalid_credentials", metadata: { email } });
       res.status(401).json({ success: false, error: "Invalid credentials" });
       return;
     }
@@ -177,6 +188,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
     // Issue access + refresh token pair
     await issueTokenPair(res, user, req);
 
+    await logAuthEvent(prisma, { eventType: "LOGIN_SUCCESS", userId: user.id, schoolId: user.schoolId || undefined, req, success: true });
     logger.info({ userId: user.id, role: user.role }, "User logged in");
     res.json({ success: true, data: { user: userWithoutPw } });
   } catch (e) {
@@ -203,13 +215,26 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
       include: { school: true },
     });
 
-    if (!student) { res.status(401).json({ success: false, error: "Invalid admission number" }); return; }
-    if (!student.isActive) { res.status(403).json({ success: false, error: "Student account deactivated" }); return; }
-    if (!student.password) { res.status(401).json({ success: false, error: "Password not set for this student" }); return; }
+    if (!student) { 
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", req, success: false, failReason: "user_not_found", metadata: { admissionNo } });
+      res.status(401).json({ success: false, error: "Invalid admission number" }); 
+      return; 
+    }
+    if (!student.isActive) { 
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "account_disabled", metadata: { admissionNo } });
+      res.status(403).json({ success: false, error: "Student account deactivated" }); 
+      return; 
+    }
+    if (!student.password) { 
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "invalid_credentials", metadata: { admissionNo } });
+      res.status(401).json({ success: false, error: "Password not set for this student" }); 
+      return; 
+    }
 
     const valid = await verifyPassword(password, student.password);
     if (!valid) {
       logger.warn({ admissionNo }, "Failed student login attempt");
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "invalid_credentials", metadata: { admissionNo } });
       res.status(401).json({ success: false, error: "Invalid credentials" });
       return;
     }
@@ -225,6 +250,7 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
 
     const { password: _, ...studentWithoutPw } = student;
     logger.info({ studentId: student.id }, "Student logged in via Payment Portal");
+    await logAuthEvent(prisma, { eventType: "LOGIN_SUCCESS", userId: student.id, schoolId: student.schoolId, req, success: true });
     res.json({ success: true, data: { user: { ...studentWithoutPw, role: "STUDENT" } } });
   } catch (e) {
     logger.error({ err: e }, "Student login error");
@@ -248,6 +274,7 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
     // Verify JWT structure
     const payload = verifyRefreshToken(refreshTokenCookie);
     if (!payload) {
+      await logAuthEvent(prisma, { eventType: "TOKEN_REFRESH_FAILURE", req, success: false, failReason: "invalid_jwt" });
       res.status(401).json({ success: false, error: "Invalid refresh token" });
       return;
     }
@@ -260,6 +287,7 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
     });
 
     if (!storedToken) {
+      await logAuthEvent(prisma, { eventType: "TOKEN_REFRESH_FAILURE", req, success: false, failReason: "token_not_found_in_db" });
       res.status(401).json({ success: false, error: "Invalid refresh token" });
       return;
     }
@@ -285,6 +313,7 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
         where: { userId: storedToken.userId },
         data: { isActive: false }
       });
+      await logAuthEvent(prisma, { eventType: "SUSPICIOUS_REUSE", userId: storedToken.userId, req, success: false, failReason: "family_reuse_detected" });
 
       res.status(401).json({ success: false, error: "Invalid refresh token — please log in again" });
       return;
@@ -292,12 +321,14 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
 
     // Check if expired
     if (storedToken.expiresAt < new Date()) {
+      await logAuthEvent(prisma, { eventType: "TOKEN_REFRESH_FAILURE", userId: storedToken.userId, req, success: false, failReason: "token_expired" });
       res.status(401).json({ success: false, error: "Refresh token expired — please log in again" });
       return;
     }
 
     // Check user is still active
     if (!storedToken.user || !(storedToken.user as any).isActive) {
+      await logAuthEvent(prisma, { eventType: "TOKEN_REFRESH_FAILURE", userId: storedToken.userId, req, success: false, failReason: "account_disabled" });
       res.status(401).json({ success: false, error: "Account deactivated" });
       return;
     }
@@ -314,6 +345,7 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
     await issueTokenPair(res, storedToken.user as any, req);
 
     logger.info({ userId: storedToken.userId }, "Token refreshed");
+    await logAuthEvent(prisma, { eventType: "TOKEN_REFRESH", userId: storedToken.userId, req, success: true });
     res.json({ success: true, data: { message: "Token refreshed" } });
   } catch (e) {
     logger.error({ err: e }, "Token refresh error");
@@ -369,6 +401,19 @@ router.post("/logout", async (req: AuthRequest, res: Response) => {
     res.clearCookie("access_token", { path: "/" });
     res.clearCookie("refresh_token", { path: "/api/auth" });
     res.clearCookie("auth_token", { path: "/" }); // legacy
+
+    if (accessTokenCookie) {
+      // Decode user context from token if possible for the log
+      const { verifyAccessToken } = await import("../lib/tokens");
+      const payload = verifyAccessToken(accessTokenCookie);
+      if (payload && typeof payload === 'object' && 'userId' in payload) {
+        await logAuthEvent(prisma, { eventType: "LOGOUT", userId: payload.userId as string, req, success: true });
+      } else {
+        await logAuthEvent(prisma, { eventType: "LOGOUT", req, success: true });
+      }
+    } else {
+      await logAuthEvent(prisma, { eventType: "LOGOUT", req, success: true });
+    }
 
     res.json({ success: true, data: { message: "Logged out successfully" } });
   } catch (e) {
@@ -575,7 +620,7 @@ router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSc
 // GET /api/auth/me
 // ═══════════════════════════════════════════
 
-router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
+router.get("/me", authenticate, injectCsrfToken, async (req: AuthRequest, res: Response) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
@@ -590,6 +635,54 @@ router.get("/me", authenticate, async (req: AuthRequest, res: Response) => {
     res.json({ success: true, data: user });
   } catch (e) {
     logger.error({ err: e }, "Me error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// ═══════════════════════════════════════════
+// GET /api/auth/events — Audit Log
+// ═══════════════════════════════════════════
+
+router.get("/events", authenticate, requireRole("SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId, schoolId, eventType, from, to, page = "1", limit = "50" } = req.query;
+
+    const where: any = {};
+    if (userId) where.userId = String(userId);
+    if (schoolId) where.schoolId = String(schoolId);
+    if (eventType) where.eventType = String(eventType);
+    
+    if (from || to) {
+      where.createdAt = {};
+      if (from) where.createdAt.gte = new Date(String(from));
+      if (to) where.createdAt.lte = new Date(String(to));
+    }
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const take = Number(limit);
+
+    const [events, total] = await Promise.all([
+      prisma.auth_events.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take,
+      }),
+      prisma.auth_events.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: events,
+      pagination: {
+        page: Number(page),
+        limit: take,
+        total,
+        totalPages: Math.ceil(total / take),
+      },
+    });
+  } catch (e) {
+    logger.error({ err: e }, "Fetch auth events error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });

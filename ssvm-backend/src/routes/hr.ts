@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAdmin, requireTeacherOrAdmin } from "../middleware/auth";
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
 
@@ -14,17 +15,19 @@ router.get("/salaries", authenticate, requireAdmin(), async (req: AuthRequest, r
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
     const { month, year } = req.query;
+    const paginationParams = parsePaginationParams(req.query, ['year', 'month', 'netPay']);
 
     const where: Record<string, unknown> = { schoolId };
     if (month) where.month = parseInt(month as string);
     if (year) where.year = parseInt(year as string);
 
-    const salaries = await prisma.salary.findMany({
+    const result = await paginatedQuery(
+      prisma.salary,
       where,
-      include: { teacher: { include: { user: { select: { name: true, email: true } } } } },
-      orderBy: [{ year: "desc" }, { month: "desc" }],
-    });
-    res.json({ success: true, data: salaries });
+      { teacher: { include: { user: { select: { name: true, email: true } } } } },
+      paginationParams
+    );
+    res.json(result);
   } catch (e) {
     logger.error({ err: e }, "List salaries error");
     res.status(500).json({ success: false, error: "Server error" });
@@ -114,14 +117,16 @@ router.get("/leaves", authenticate, requireTeacherOrAdmin(), async (req: AuthReq
     }
 
     const { status } = req.query;
-    
+    const paginationParams = parsePaginationParams(req.query, ['createdAt', 'startDate']);
+    if (status) where.status = status;
 
-    const leaves = await prisma.leaveRequest.findMany({
+    const result = await paginatedQuery(
+      prisma.leaveRequest,
       where,
-      include: { requester: { include: { user: { select: { name: true } } } } },
-      orderBy: { createdAt: "desc" },
-    });
-    res.json({ success: true, data: leaves });
+      { requester: { include: { user: { select: { name: true } } } } },
+      paginationParams
+    );
+    res.json(result);
   } catch (e) {
     logger.error({ err: e }, "List leaves error");
     res.status(500).json({ success: false, error: "Server error" });

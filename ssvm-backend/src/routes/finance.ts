@@ -114,4 +114,107 @@ router.post("/generate-monthly-fees", authenticate, requireRole("ADMIN", "ERP_AD
   }
 });
 
+// GET /api/finance/ledger/trial-balance
+router.get("/ledger/trial-balance", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
+
+    const accounts = await prisma.ledgerAccount.findMany({
+      where: { schoolId },
+      include: { LedgerEntry: { select: { debitAmount: true, creditAmount: true } } }
+    });
+
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    const trialBalance = accounts.map(acc => {
+      const db = acc.LedgerEntry.reduce((sum: number, e: any) => sum + Number(e.debitAmount), 0);
+      const cr = acc.LedgerEntry.reduce((sum: number, e: any) => sum + Number(e.creditAmount), 0);
+      
+      const balance = Math.abs(db - cr);
+      const balanceType = db >= cr ? "DEBIT" : "CREDIT";
+
+      if (balanceType === "DEBIT") totalDebit += balance;
+      else totalCredit += balance;
+
+      return {
+        code: acc.code,
+        name: acc.name,
+        type: acc.type,
+        category: acc.category,
+        debit: db >= cr ? balance : 0,
+        credit: cr > db ? balance : 0
+      };
+    }).filter(a => a.debit > 0 || a.credit > 0);
+
+    res.json({
+      success: true,
+      data: {
+        accounts: trialBalance,
+        totalDebit,
+        totalCredit,
+        isBalanced: Math.abs(totalDebit - totalCredit) < 0.001
+      }
+    });
+  } catch(e) {
+    logger.error({ err: e }, "Trial balance error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/finance/ledger/profit-loss
+router.get("/ledger/profit-loss", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId;
+    if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
+
+    const accounts = await prisma.ledgerAccount.findMany({
+      where: { schoolId, category: { in: ['REVENUE', 'EXPENSE'] } },
+      include: { LedgerEntry: { select: { debitAmount: true, creditAmount: true } } }
+    });
+
+    let totalRevenue = 0;
+    let totalExpense = 0;
+
+    const pnlStatement = accounts.map(acc => {
+      const totalDebits = acc.LedgerEntry.reduce((sum: number, e: any) => sum + Number(e.debitAmount), 0);
+      const totalCredits = acc.LedgerEntry.reduce((sum: number, e: any) => sum + Number(e.creditAmount), 0);
+      
+      let balance = 0;
+      if (acc.category === 'REVENUE') {
+        balance = totalCredits - totalDebits; // Revenue has credit balance
+        totalRevenue += balance;
+      } else {
+        balance = totalDebits - totalCredits; // Expense has debit balance
+        totalExpense += balance;
+      }
+
+      return {
+        code: acc.code,
+        name: acc.name,
+        category: acc.category,
+        balance
+      };
+    }).filter(a => a.balance !== 0);
+
+    const netIncome = totalRevenue - totalExpense;
+
+    res.json({
+      success: true,
+      data: {
+        revenue: pnlStatement.filter(a => a.category === 'REVENUE'),
+        expenses: pnlStatement.filter(a => a.category === 'EXPENSE'),
+        totalRevenue,
+        totalExpense,
+        netIncome,
+        isProfitable: netIncome >= 0
+      }
+    });
+  } catch(e) {
+    logger.error({ err: e }, "P&L error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 export default router;

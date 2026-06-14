@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireSchoolAccess } from "../middleware/auth";
+import { paginateCursor } from "../lib/paginate";
 
 const router = Router();
 
@@ -16,13 +17,18 @@ router.get("/", authenticate, requireSchoolAccess(), async (req: AuthRequest, re
       return;
     }
 
-    const activities = await prisma.activityLog.findMany({
-      where: { schoolId },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-    });
+    const { cursor } = req.query;
 
-    res.json({ success: true, data: activities });
+    const result = await paginateCursor(
+      prisma.activityLog,
+      { schoolId },
+      cursor,
+      limit,
+      undefined,
+      { createdAt: "desc" }
+    );
+
+    res.json(result);
   } catch (e) {
     logger.error({ err: e }, "Fetch activity error");
     res.status(500).json({ success: false, error: "Server error" });

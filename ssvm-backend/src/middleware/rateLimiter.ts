@@ -1,88 +1,102 @@
 import rateLimit from "express-rate-limit";
-import { AuthRequest } from "./auth";
-import logger from "../lib/logger";
+import RedisStore from "rate-limit-redis";
+import Redis from "ioredis";
+import { getEnv } from "../config/env";
+import { Request, Response } from "express";
 
-// ═══════════════════════════════════════════
-// Rate Limiters (Phase 1.3)
-// ═══════════════════════════════════════════
-// Three tiers: global (IP), per-school (schoolId), and auth-specific (IP+email)
+const env = getEnv();
 
-/**
- * Global rate limiter: 500 req/min per IP.
- * Applies to all routes as the first line of defense.
- */
-export const globalLimiter = rateLimit({
-  windowMs: 60 * 1000, // 1 minute
-  max: 500,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: "Too many requests — please try again later" },
-  keyGenerator: (req) => {
-    return req.ip || req.headers["x-forwarded-for"]?.toString() || "unknown";
-  },
-});
+// Configure Redis Client for Rate Limiting
+const redisClient = env.REDIS_URL ? new Redis(env.REDIS_URL) : undefined;
 
-/**
- * Per-school rate limiter: 300 req/min per schoolId.
- * Prevents a single school from exhausting platform capacity.
- * Must be applied AFTER authenticate middleware.
- */
-export const perSchoolLimiter = rateLimit({
-  windowMs: 60 * 1000,
-  max: 300,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: "School rate limit exceeded — please try again later" },
-  keyGenerator: (req) => {
-    const authReq = req as AuthRequest;
-    return `school:${authReq.user?.schoolId || req.ip || "unknown"}`;
-  },
-  skip: (req) => {
-    // Skip for SUPER_ADMIN (they operate cross-school)
-    const authReq = req as AuthRequest;
-    return authReq.user?.role === "SUPER_ADMIN";
-  },
-});
+if (!redisClient) {
+  console.warn("⚠️ REDIS_URL not provided. Rate limiters will use memory store (not recommended for cluster mode).");
+}
 
-/**
- * Auth rate limiter: 10 req/15min per IP.
- * Applies to login, register, OTP endpoints.
- */
-export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+const defaultHandler = (req: Request, res: Response, next: any, options: any) => {
+  res.setHeader("Retry-After", Math.ceil(options.windowMs / 1000));
+  res.status(options.statusCode).json({
+    success: false,
+    error: "Rate limit exceeded",
+    retryAfter: Math.ceil(options.windowMs / 1000),
+  });
+};
+
+const createLimiter = (options: {
+  windowMs: number;
+  max: number;
+  keyGenerator?: (req: Request) => string;
+  prefix: string;
+}) => {
+  return rateLimit({
+    windowMs: options.windowMs,
+    max: options.max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: defaultHandler,
+    keyGenerator: options.keyGenerator,
+    store: redisClient
+      ? new RedisStore({
+          sendCommand: (...args: string[]) => redisClient.call(args[0], ...args.slice(1)) as any,
+          prefix: `rl:${options.prefix}:`,
+        })
+      : undefined,
+  });
+};
+
+// 1. Auth Limiter: 10 req / 15 min per IP
+export const authLimiter = createLimiter({
+  windowMs: 15 * 60 * 1000,
   max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: "Too many login attempts — please try again after 15 minutes" },
-  keyGenerator: (req) => {
-    // Combine IP + email to prevent distributed attacks on a single account
+  prefix: "auth",
+  keyGenerator: (req: Request) => {
+    // Combine IP + email to prevent distributed attacks
     const email = req.body?.email || req.body?.admissionNo || "";
-    return `auth:${req.ip || "unknown"}:${email}`;
+    return `${req.ip || "unknown"}:${email}`;
   },
 });
 
-/**
- * OTP rate limiter: 5 req/15min per phone number.
- */
-export const otpLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: "Too many OTP requests — please try again later" },
-  keyGenerator: (req) => {
-    return `otp:${req.body?.phone || req.ip || "unknown"}`;
-  },
-});
-
-/**
- * Refresh token rate limiter: 30 req/15min per IP.
- * Generous enough for normal use but prevents abuse.
- */
-export const refreshLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
+// 2. Strict Limiter: 30 req / min per IP+userId
+export const strictLimiter = createLimiter({
+  windowMs: 60 * 1000,
   max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, error: "Too many refresh requests" },
+  prefix: "strict",
+  keyGenerator: (req: Request) => {
+    const userId = (req as any).user?.id || "anonymous";
+    return `${req.ip}-${userId}`;
+  },
+});
+
+// 3. Upload Limiter: 10 req / min per userId
+export const uploadLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+  prefix: "upload",
+  keyGenerator: (req: Request) => {
+    return (req as any).user?.id || req.ip;
+  },
+});
+
+// 4. Bulk Limiter: 3 req / min per userId
+export const bulkLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 3,
+  prefix: "bulk",
+  keyGenerator: (req: Request) => {
+    return (req as any).user?.id || req.ip;
+  },
+});
+
+// 5. Webhook Limiter: 100 req / min per IP
+export const webhookLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 100,
+  prefix: "webhook",
+});
+
+// 6. Default Limiter: 100 req / min per IP
+export const defaultLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 100,
+  prefix: "default",
 });

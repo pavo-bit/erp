@@ -38,7 +38,7 @@ async function logAudit(schoolId: string, userId: string, action: string, entity
         entity,
         entityId: String(entityId),
         details: { ...(details || {}), userAgent: req.headers["user-agent"] },
-        ipAddress: req.ip,
+        ipAddress: (req.ip as string) || "Unknown",
       },
     });
   } catch (error) {

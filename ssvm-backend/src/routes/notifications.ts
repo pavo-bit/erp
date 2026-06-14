@@ -4,6 +4,7 @@ import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAdmin } from "../middleware/auth";
 import { sendSSEToSchool } from "../lib/sse";
 import { enqueueNotification } from "../jobs/queue";
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
 
@@ -43,6 +44,17 @@ router.post("/send", authenticate, requireAdmin(), async (req: AuthRequest, res:
       }
     });
 
+    const delivery = await prisma.notificationDelivery.create({
+      data: {
+        notificationId: notification.id,
+        schoolId,
+        channel: type as any,
+        recipientPhone: recipientPhone || null,
+        recipientEmail: recipientEmail || null,
+        status: "QUEUED"
+      }
+    });
+
     // Dispatch to background queue
     if (type === "EMAIL" && recipientEmail) {
       await enqueueNotification({ logId: commLog.id, channel: "EMAIL", to: recipientEmail, subject, content: message });
@@ -56,6 +68,10 @@ router.post("/send", authenticate, requireAdmin(), async (req: AuthRequest, res:
        await prisma.communicationLog.update({
          where: { id: commLog.id },
          data: { status: "SENT" }
+       });
+       await prisma.notificationDelivery.update({
+         where: { id: delivery.id },
+         data: { status: "SENT", sentAt: new Date() }
        });
     }
 
@@ -127,18 +143,20 @@ router.post("/bulk", authenticate, requireAdmin(), async (req: AuthRequest, res:
 router.get("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
-    const { type, limit } = req.query;
+    const { type } = req.query;
+    const paginationParams = parsePaginationParams(req.query, ['createdAt']);
 
     const where: Record<string, unknown> = {};
     if (schoolId) where.schoolId = schoolId;
     if (type) where.type = type;
 
-    const notifications = await prisma.notification.findMany({
+    const result = await paginatedQuery(
+      prisma.notification,
       where,
-      orderBy: { createdAt: "desc" },
-      take: limit ? parseInt(limit as string) : 50,
-    });
-    res.json({ success: true, data: notifications });
+      undefined,
+      paginationParams
+    );
+    res.json(result);
   } catch (e) {
     logger.error({ err: e }, "List notifications error");
     res.status(500).json({ success: false, error: "Server error" });

@@ -1170,6 +1170,53 @@ Invoice: {{invoiceNumber}}
 
 ---
 
+### 4.30 SaaS Settings & Branding — `/api/v1/saas/settings`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/` | ERP_ADMIN, SUPER_ADMIN | Get tenant settings (themes, branding, SEO config, features) |
+| `PUT` | `/` | ERP_ADMIN, SUPER_ADMIN | Update tenant settings |
+
+---
+
+### 4.31 Security Operations Center — `/api/v1/saas/security`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/audit-logs` | SUPER_ADMIN, ERP_ADMIN | Fetch platform audit logs |
+| `GET` | `/failed-logins` | SUPER_ADMIN, ERP_ADMIN | Fetch failed login attempts from System Logs |
+| `POST` | `/quarantine/:documentId` | SUPER_ADMIN, ERP_ADMIN | Manually quarantine a suspicious document |
+| `POST` | `/impersonate/:schoolId` | SUPER_ADMIN | Impersonate a tenant (generates scoped token) |
+
+---
+
+### 4.32 Data Export Center — `/api/v1/saas/export`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/` | SUPER_ADMIN, ERP_ADMIN | Enqueue an async background data export job via BullMQ. Returns job details. File is uploaded to S3 and user is emailed when complete. |
+
+---
+
+### 4.33 Notification Preferences & Consent — `/api/v1/preferences`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/` | Auth | Get current user's notification preferences |
+| `PUT` | `/` | Auth | Update notification preferences |
+| `GET` | `/consent` | Guardian | Get active communication consent records (DPDP Compliance) |
+| `POST` | `/consent` | Guardian | Toggle consent (opt-in/opt-out) for marketing/promotions |
+
+---
+
+### 4.34 Background Jobs (BullMQ) — `/admin/queues`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/admin/queues` | SUPER_ADMIN | Access the Bull-Board GUI to monitor background queues (Emails, SMS, Exports, Imports) |
+
+---
+
 ## 5. Frontend Application Structure
 
 ### 5.1 ERP Admin Dashboard (`erp-admin` — Port 3000)

@@ -1,6 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { paginateCursor } from "../lib/paginate";
 
 const router = Router();
 
@@ -28,15 +29,18 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
 
     if (date) where.date = new Date(date);
 
-    const data = await prisma.attendance.findMany({
-      where,
-      include: {
-        student: { select: { name: true, rollNo: true } }
-      },
-      orderBy: { date: "desc" }
-    });
+    const { cursor, limit = "50" } = req.query;
 
-    res.json({ success: true, data });
+    const result = await paginateCursor(
+      prisma.attendance,
+      where,
+      cursor,
+      parseInt(limit as string, 10),
+      { student: { select: { name: true, rollNo: true } } },
+      { date: "desc" }
+    );
+
+    res.json(result);
   } catch (e) {
     console.error(e);
     res.status(500).json({ success: false, error: "Server error" });

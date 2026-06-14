@@ -136,11 +136,28 @@ export function globalErrorHandler(
     );
   }
 
-  res.status(statusCode).json({
-    success: false,
-    error: isOperational || process.env.NODE_ENV !== "production"
-      ? message
-      : "An unexpected error occurred",
-    ...(process.env.NODE_ENV === "development" && statusCode >= 500 && { stack: err.stack }),
-  });
+  // Map to RFC 7807 Problem Details format
+  const errorType = err.name === "ZodError" ? "validation-error"
+    : err.name === "JsonWebTokenError" || err.name === "TokenExpiredError" ? "unauthorized"
+    : statusCode === 403 ? "forbidden"
+    : statusCode === 404 ? "not-found"
+    : statusCode === 409 ? "conflict"
+    : "internal-server-error";
+
+  const responseBody: any = {
+    type: `https://ssvm.in/errors/${errorType}`,
+    title: err.name === "ZodError" ? "Validation Error" : message,
+    status: statusCode,
+    detail: err.name === "ZodError" ? "The request payload failed validation" : message,
+    instance: req.originalUrl,
+  };
+
+  if (err.name === "ZodError" && "errors" in err) {
+    responseBody.errors = (err as any).errors.map((e: any) => ({
+      field: e.path.join("."),
+      message: e.message,
+    }));
+  }
+
+  res.status(statusCode).json(responseBody);
 }

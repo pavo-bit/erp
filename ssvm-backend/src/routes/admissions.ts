@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAdmin, hashPassword } from "../middleware/auth";
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
 
@@ -10,15 +11,18 @@ router.get("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Resp
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
     const { status } = req.query;
+    const paginationParams = parsePaginationParams(req.query, ['appliedAt', 'applicantName']);
 
     const where: Record<string, unknown> = { schoolId };
     if (status) where.status = status;
 
-    const admissions = await prisma.admission.findMany({
+    const result = await paginatedQuery(
+      prisma.admission,
       where,
-      orderBy: { appliedAt: "desc" },
-    });
-    res.json({ success: true, data: admissions });
+      undefined,
+      paginationParams
+    );
+    res.json(result);
   } catch (e) {
     logger.error({ err: e }, "List admissions error");
     res.status(500).json({ success: false, error: "Server error" });

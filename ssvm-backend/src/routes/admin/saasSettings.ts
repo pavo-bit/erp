@@ -86,7 +86,7 @@ router.put('/branding', requireRole('SUPER_ADMIN', 'ERP_ADMIN'), async (req: Aut
       userId: req.user!.id,
       eventType: "BRANDING_UPDATED",
       severity: "LOW",
-      ipAddress: req.ip,
+      ipAddress: (req.ip as string) || "Unknown",
       metadata: { schoolId }
     });
 
@@ -130,7 +130,7 @@ router.post('/features/toggle', requireRole('SUPER_ADMIN'), async (req: AuthRequ
       userId: req.user!.id,
       eventType: "FEATURE_TOGGLED",
       severity: "HIGH",
-      ipAddress: req.ip,
+      ipAddress: (req.ip as string) || "Unknown",
       metadata: { featureCode, isEnabled, schoolId }
     });
 

@@ -17,6 +17,10 @@ export default function FeesPage() {
     { id: "INV-26-0810", month: "August 2026", amount: 5500, dueDate: "Aug 15, 2026", status: "paid", paidOn: "Aug 10, 2026", receiptNo: "REC-26-0702", breakdown: [ { name: "Tuition Fee", amount: 3000 }, { name: "Transport Fee", amount: 1000 }, { name: "Lab Fee", amount: 500 }, { name: "Annual Exam Fee", amount: 1000 } ] }
   ];
 
+  const handlePayment = (amount: number, invId: string) => {
+    alert(`Initializing Razorpay Gateway for Invoice ${invId} (₹${amount})...\n\nThis will open the Razorpay SDK checkout overlay in production.`);
+  };
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -82,7 +86,7 @@ export default function FeesPage() {
                         <Download size={16} className="mr-1.5" /> Download Receipt
                       </button>
                     ) : (
-                      <button className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-sm font-medium flex items-center shadow-md shadow-blue-500/20 transition-transform active:scale-95">
+                      <button onClick={() => handlePayment(inv.amount, inv.id)} className="px-5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-sm font-medium flex items-center shadow-md shadow-blue-500/20 transition-transform active:scale-95">
                         <CreditCard size={16} className="mr-2" /> Pay Now
                       </button>
                     )}

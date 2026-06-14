@@ -14,7 +14,8 @@ import {
   LogOut,
   Menu,
   X,
-  UserCircle
+  UserCircle,
+  Shield
 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -27,6 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { name: "Results & Marks", href: "/results", icon: GraduationCap },
     { name: "Fees & Invoices", href: "/fees", icon: Wallet },
     { name: "Assignments", href: "/assignments", icon: BookOpen },
+    { name: "Behavior", href: "/behavior", icon: Shield },
     { name: "Timetable", href: "/timetable", icon: Calendar },
     { name: "Notices", href: "/notices", icon: Bell },
   ];

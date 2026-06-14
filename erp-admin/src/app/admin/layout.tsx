@@ -18,6 +18,7 @@ const adminSidebar: SidebarItem[] = [
   { icon: "📚", label: "Library", href: "/admin/library" },
   { icon: "📦", label: "Assets", href: "/admin/assets" },
   { icon: "🛎️", label: "Reception", href: "/admin/reception" },
+  { icon: "⚖️", label: "Discipline", href: "/admin/discipline" },
 ];
 
 import { GlobalSearch } from "@/components/GlobalSearch";

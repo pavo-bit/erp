@@ -52,13 +52,13 @@ import { getEnv } from "../config/env";
 
 export function signToken(payload: TokenPayload): string {
   const env = getEnv();
-  return jwt.sign(payload, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"] });
+  return jwt.sign(payload, env.ACCESS_TOKEN_PRIVATE_KEY, { algorithm: "RS256", expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as jwt.SignOptions["expiresIn"] });
 }
 
 export function verifyToken(token: string): TokenPayload | null {
   try {
     const env = getEnv();
-    return jwt.verify(token, env.JWT_SECRET) as TokenPayload;
+    return jwt.verify(token, env.ACCESS_TOKEN_PUBLIC_KEY, { algorithms: ["RS256"] }) as TokenPayload;
   } catch {
     return null;
   }
@@ -155,16 +155,38 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 // ═══════════════════════════════════════════
 
 export function requireRole(...roles: string[]) {
-  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+  return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     if (!req.user) {
       res.status(401).json({ success: false, error: "Not authenticated" });
       return;
     }
-    if (!roles.includes(req.user.role)) {
-      res.status(403).json({ success: false, error: "Forbidden — insufficient permissions" });
+    
+    // Direct role match
+    if (roles.includes(req.user.role)) {
+      next();
       return;
     }
-    next();
+
+    // Phase 3: JIT Access Delegation Check
+    try {
+      const activeDelegation = await prisma.userDelegation.findFirst({
+        where: {
+          delegateeId: req.user.id,
+          isActive: true,
+          endDate: { gt: new Date() }, // Just-In-Time Expiration Check
+          role: { in: roles as any[] } // Check if delegated role matches required roles
+        }
+      });
+
+      if (activeDelegation) {
+        next();
+        return;
+      }
+    } catch (err) {
+      logger.error({ err }, "Error checking user delegations");
+    }
+
+    res.status(403).json({ success: false, error: "Forbidden — insufficient permissions" });
   };
 }
 

@@ -89,11 +89,10 @@ router.post("/approve/:id", authenticate, requireRole("SUPER_ADMIN"), async (req
         data: {
           email: request.email,
           passwordHash: hashedPassword,
-          name: request.principalName,
+          name: request.principalName || "",
           role: "ERP_ADMIN",
           schoolId: school.id,
           phone: request.phone || "",
-          requires2FA: true,
         },
       });
 

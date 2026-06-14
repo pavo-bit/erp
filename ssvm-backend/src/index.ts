@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "./lib/tracing"; // MUST be first import
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -9,6 +10,18 @@ import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
 import { getEnv } from "./config/env";
 import { initSentry } from "./lib/sentry";
+import client from "prom-client";
+
+// Initialize Prometheus Metrics
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics({ prefix: 'ssvm_' });
+
+const httpRequestDurationMicroseconds = new client.Histogram({
+  name: 'ssvm_http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'code'],
+  buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10]
+});
 
 initSentry();
 
@@ -16,7 +29,8 @@ import logger from "./lib/logger";
 import { notFoundHandler, globalErrorHandler } from "./middleware/errorHandler";
 import { deprecated } from "./middleware/versioning";
 import { addResponseHeaders } from "./lib/response";
-import { globalLimiter, authLimiter, refreshLimiter } from "./middleware/rateLimiter";
+import { defaultLimiter, authLimiter, strictLimiter, uploadLimiter, bulkLimiter, webhookLimiter } from "./middleware/rateLimiter";
+import { csrfProtection } from "./middleware/csrf";
 import { startTokenCleanupScheduler, stopTokenCleanupScheduler } from "./jobs/cleanupTokens";
 import { startWorkers } from "./jobs/worker";
 import { closeQueues } from "./jobs/queue";
@@ -58,6 +72,10 @@ import twoFaRoutes from "./routes/2fa";
 import storageRoutes from "./routes/storage";
 import backupRoutes from "./routes/backups";
 import assetsRoutes from "./routes/assets";
+import mobileRoutes from "./routes/mobile";
+import transportRoutes from "./routes/admin/transport";
+import governanceRoutes from "./routes/admin/governance";
+import ancillaryRoutes from "./routes/admin/ancillary";
 import receptionRoutes from "./routes/reception";
 import healthRoutes from "./routes/health";
 import saasRoutes from "./routes/saas";
@@ -70,8 +88,21 @@ import securityRoutes from "./routes/security";
 import messagesRoutes from "./routes/messages";
 import certificatesRoutes from "./routes/certificates";
 import guardiansRoutes from "./routes/guardians";
+import preferencesRoutes from "./routes/preferences";
 import saasSettingsRoutes from "./routes/admin/saasSettings";
+import dataExportRoutes from "./routes/admin/dataExport";
+import saasSecurityRoutes from "./routes/admin/security";
+import accessGovernanceRoutes from "./routes/admin/accessGovernance";
+import procurementRoutes from "./routes/admin/procurement";
+import mdmRoutes from "./routes/admin/mdm";
+import v2Router from "./routes/v2";
+import disciplineRoutes from "./routes/discipline";
+import myProcurementRoutes from "./routes/procurement";
+import myInventoryRoutes from "./routes/inventory";
+import crmRoutes from "./routes/crm";
 import { metricsMiddleware, getMetrics } from "./middleware/metrics";
+import swaggerUi from "swagger-ui-express";
+import { generateSpec } from "./openapi/generate";
 
 // ─── Validate environment on startup ───
 const env = getEnv();
@@ -93,12 +124,75 @@ export const app = express();
 // Security Middleware
 // ═══════════════════════════════════════════
 
+// Prometheus Metrics Middleware
+app.use((req, res, next) => {
+  const end = httpRequestDurationMicroseconds.startTimer();
+  res.on('finish', () => {
+    end({ method: req.method, route: req.route ? req.route.path : req.path, code: res.statusCode });
+  });
+  next();
+});
+
+// Expose Metrics Endpoint for Prometheus Scraper
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', client.register.contentType);
+    res.end(await client.register.metrics());
+  } catch (ex) {
+    res.status(500).end(ex);
+  }
+});
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://api.razorpay.com"],
+      frameAncestors: ["'none'"],
+      reportUri: "/api/v1/csp-report",
+    },
+  },
 }));
 
-// Global rate limiter: 500 req/min per IP
-app.use(globalLimiter);
+import { isRedisAvailable } from "./lib/redis";
+import prisma from "./lib/prisma";
+
+// PM2 / Load Balancer Healthcheck (Root Level)
+app.get("/health", async (req, res) => {
+  let dbStatus = "disconnected";
+  let redisStatus = "disconnected";
+
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbStatus = "connected";
+  } catch (e) {}
+
+  if (isRedisAvailable()) {
+    redisStatus = "connected";
+  }
+
+  const isHealthy = dbStatus === "connected" && redisStatus === "connected";
+
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? "ok" : "error",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    pid: process.pid,
+    memory: process.memoryUsage(),
+    db: dbStatus,
+    redis: redisStatus
+  });
+});
+
+// Apply CSRF Protection (state-changing methods are validated, safe ones ignored)
+app.use(csrfProtection);
+
+// Global default rate limiter: 100 req/min per IP
+app.use(defaultLimiter);
 
 // ═══════════════════════════════════════════
 // Standard Middleware
@@ -149,25 +243,25 @@ app.use("/api/v1/auth", authLimiter, authRoutes);
 app.use("/api/auth", deprecated, authLimiter, authRoutes);
 
 // Apply refresh limiter to the refresh endpoint specifically
-app.use("/api/v1/auth/refresh", refreshLimiter);
-app.use("/api/auth/refresh", deprecated, refreshLimiter);
+app.use("/api/v1/auth/refresh", authLimiter);
+app.use("/api/auth/refresh", deprecated, authLimiter);
 
 // All other routes (versioned + unversioned)
 mountRoute("/schools", schoolRoutes);
 mountRoute("/notices", noticeRoutes);
 mountRoute("/events", eventRoutes);
-mountRoute("/students", studentRoutes);
-mountRoute("/teachers", teacherRoutes);
+mountRoute("/students", studentRoutes, strictLimiter);
+mountRoute("/teachers", teacherRoutes, strictLimiter);
 mountRoute("/invoices", invoiceRoutes);
 mountRoute("/finance", financeRoutes);
 mountRoute("/attendance", attendanceRoutes);
-mountRoute("/gallery", galleryRoutes);
+mountRoute("/gallery", galleryRoutes, uploadLimiter);
 mountRoute("/users", userRoutes);
 mountRoute("/alumni", alumniRoutes);
 mountRoute("/stats", statsRoutes);
 mountRoute("/payments", paymentRoutes);
 mountRoute("/timetable", timetableRoutes);
-mountRoute("/exams", examRoutes);
+mountRoute("/exams", examRoutes, strictLimiter);
 mountRoute("/admissions", admissionRoutes);
 mountRoute("/hr", hrRoutes);
 mountRoute("/notifications", notificationRoutes);
@@ -176,9 +270,9 @@ mountRoute("/reports", reportsRoutes);
 mountRoute("/communications", communicationsRoutes);
 mountRoute("/branches", branchesRoutes);
 mountRoute("/subscriptions", subscriptionsRoutes);
-mountRoute("/assignments", assignmentRoutes);
+mountRoute("/assignments", assignmentRoutes, uploadLimiter);
 mountRoute("/search", searchRouter);
-mountRoute("/bulk", bulkRouter);
+mountRoute("/bulk", bulkRouter, bulkLimiter);
 mountRoute("/activity", activityRouter);
 mountRoute("/library", libraryRoutes);
 mountRoute("/2fa", twoFaRoutes);
@@ -186,12 +280,20 @@ mountRoute("/storage", storageRoutes);
 mountRoute("/assets", assetsRoutes);
 mountRoute("/reception", receptionRoutes);
 mountRoute("/messages", messagesRoutes);
+mountRoute("/mobile", mobileRoutes);
+mountRoute("/transport", transportRoutes);
+mountRoute("/governance", governanceRoutes);
+mountRoute("/ancillary", ancillaryRoutes);
 mountRoute("/certificates", certificatesRoutes);
 mountRoute("/guardians", guardiansRoutes);
 mountRoute("/saas", saasRoutes);
-mountRoute("/webhooks", webhooksRoutes);
+mountRoute("/webhooks", webhooksRoutes, webhookLimiter);
 mountRoute("/security", securityRoutes);
 mountRoute("/sessions", sessionsRoutes);
+mountRoute("/discipline", disciplineRoutes);
+mountRoute("/procurement-ops", myProcurementRoutes);
+mountRoute("/inventory", myInventoryRoutes);
+mountRoute("/crm", crmRoutes);
 
 // CMS routes (mounted at /api root level)
 app.use("/api/v1", cmsRoutes);
@@ -208,6 +310,29 @@ app.use("/api/sse", deprecated, sseRoutes);
 app.use("/api/health", healthRoutes);
 app.use("/api/v1/health", healthRoutes);
 
+app.use('/api/v1/certificates', certificatesRoutes);
+app.use('/api/v1/preferences', preferencesRoutes);
+
+// SaaS specific admin routes
+app.use('/api/v1/saas/settings', saasSettingsRoutes);
+app.use('/api/v1/saas/security', saasSecurityRoutes);
+app.use('/api/v1/saas/governance', accessGovernanceRoutes);
+app.use('/api/v1/saas/export', dataExportRoutes);
+app.use('/api/v1/saas/mdm', mdmRoutes);
+
+// ═══════════════════════════════════════════
+// Enterprise V2 API Namespace (Strict Versioning)
+// ═══════════════════════════════════════════
+app.use("/api/v2", v2Router);
+
+// OpenAPI Documentation
+if (process.env.NODE_ENV !== "production") {
+  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(generateSpec()));
+}
+app.get("/api/docs/spec.json", (req, res) => {
+  res.json(generateSpec());
+});
+
 // Prometheus Metrics Endpoint
 app.get("/metrics", getMetrics);
 
@@ -215,6 +340,7 @@ app.get("/metrics", getMetrics);
 mountRoute("/admin/queues", bullBoardRoutes);
 mountRoute("/admin/backups", backupsRoutes);
 mountRoute("/admin/audit", auditRoutes);
+mountRoute("/admin/procurement", procurementRoutes);
 mountRoute("/admin/saas-settings", saasSettingsRoutes);
 mountRoute("/backups", backupRoutes);
 

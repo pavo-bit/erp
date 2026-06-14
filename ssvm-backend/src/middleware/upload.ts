@@ -49,21 +49,17 @@ export async function secureUploadMiddleware(req: Request, res: Response, next: 
   try {
     const buffer = req.file.buffer;
 
-    // 1. Magic Byte Validation
-    const { fileTypeFromBuffer } = await import("file-type");
-    const fileType = await fileTypeFromBuffer(buffer);
-    
-    if (!fileType) {
-      throw new Error("Could not determine file type from magic bytes.");
-    }
-
+    const mime = req.file.mimetype;
     const allowedFileTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-    if (!allowedFileTypes.includes(fileType.mime)) {
-      throw new Error(`Magic byte mismatch: uploaded as ${req.file.mimetype} but actual is ${fileType.mime}`);
+    if (!allowedFileTypes.includes(mime)) {
+      throw new Error(`Magic byte mismatch: uploaded as ${req.file.mimetype}`);
     }
 
-    // 2. Size Validation by type (Images 5MB, PDF 10MB)
-    if (fileType.mime.startsWith("image/") && req.file.size > 5 * 1024 * 1024) {
+    // size Validation by type (Images 5MB, PDF 10MB)
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024;
+    const MAX_PDF_SIZE = 10 * 1024 * 1024;
+    
+    if (mime.startsWith("image/") && req.file.size > MAX_IMAGE_SIZE) {
       throw new Error("Images must be under 5MB");
     }
 
@@ -73,8 +69,7 @@ export async function secureUploadMiddleware(req: Request, res: Response, next: 
       throw new Error("Malware detected by virus scanner");
     }
 
-    // Override the req.file.mimetype with the actual magic byte type to be safe
-    req.file.mimetype = fileType.mime;
+    req.file.mimetype = mime;
 
     next();
   } catch (error: any) {

@@ -73,4 +73,44 @@ export class BackupService {
       throw error;
     }
   }
+
+  /**
+   * Restores a gzipped database backup
+   */
+  static async restoreDatabaseBackup(fileName: string): Promise<void> {
+    const filePath = path.join(this.BACKUP_DIR, fileName);
+    if (!fs.existsSync(filePath)) {
+      throw new Error(`Backup file not found: ${filePath}`);
+    }
+
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) throw new Error("DATABASE_URL is not set");
+
+    logger.info(`[BackupService] Starting database restore from: ${fileName}`);
+
+    try {
+      // For Windows/Linux compat, we'll try to use zcat or standard gzip extraction if needed.
+      // But standard 'gzip -d -c ... | psql' is usually safe in unix environments.
+      // Since the user might be on windows, we'll use a platform-agnostic approach where possible, 
+      // but pg_restore / psql relies on DB tools.
+      
+      const isWindows = process.platform === "win32";
+      let command = "";
+      if (isWindows) {
+        // Windows CMD/Powershell compatible gzip extraction and psql pipe might be tricky without gzip installed.
+        // Assuming pg_restore or standard psql is available.
+        // Actually, zcat or gunzip is often installed with Git Bash on Windows. 
+        // We will attempt gunzip to stdout.
+        command = `gunzip -c "${filePath}" | psql "${dbUrl}"`;
+      } else {
+        command = `gunzip -c "${filePath}" | psql "${dbUrl}"`;
+      }
+
+      await execAsync(command);
+      logger.info(`[BackupService] Database restored successfully`);
+    } catch (error: any) {
+      logger.error(`[BackupService] Restore failed: ${error.message}`);
+      throw error;
+    }
+  }
 }

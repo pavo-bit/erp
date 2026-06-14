@@ -1,9 +1,12 @@
 import { PrismaClient } from "@prisma/client";
+import { encryptionExtension } from "./prismaEncryptionMiddleware";
 
 const basePrisma = new PrismaClient();
 
-// Add soft delete extension
-const prisma = basePrisma.$extends({
+// Add soft delete and encryption extensions
+const prisma = basePrisma
+  .$extends(encryptionExtension)
+  .$extends({
   query: {
     $allModels: {
       async $allOperations({ model, operation, args, query }) {

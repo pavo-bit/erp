@@ -1,15 +1,15 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
 
 // GET all assignments
 router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const { page = "1", limit = "20", classId, subjectId } = req.query as Record<string, string>;
-    const skip = (Math.max(1, +page) - 1) * Math.min(100, +limit);
-    const take = Math.min(100, +limit);
+    const { classId, subjectId } = req.query as Record<string, string>;
+    const paginationParams = parsePaginationParams(req.query, ['dueDate', 'maxMarks', 'createdAt']);
     const schoolId = req.user!.schoolId!;
 
     const where: any = { schoolId };
@@ -24,28 +24,20 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
       }
     }
 
-    const [data, total] = await Promise.all([
-      prisma.assignment.findMany({
-        where,
-        include: {
-          attachments: true,
-          submissions: {
-            where: req.user!.role === "STUDENT" ? { studentId: req.user!.id } : undefined,
-            select: { id: true, studentId: true, status: true, isLate: true, marksObtained: true, grade: true }
-          }
-        },
-        orderBy: { dueDate: "desc" },
-        skip,
-        take
-      }),
-      prisma.assignment.count({ where }),
-    ]);
+    const result = await paginatedQuery(
+      prisma.assignment,
+      where,
+      {
+        attachments: true,
+        submissions: {
+          where: req.user!.role === "STUDENT" ? { studentId: req.user!.id } : undefined,
+          select: { id: true, studentId: true, status: true, isLate: true, marksObtained: true, grade: true }
+        }
+      },
+      paginationParams
+    );
 
-    res.json({
-      success: true,
-      data,
-      pagination: { page: +page, limit: take, total, totalPages: Math.ceil(total / take) }
-    });
+    res.json(result);
   } catch (e) {
     console.error(e);
     res.status(500).json({ success: false, error: "Server error" });

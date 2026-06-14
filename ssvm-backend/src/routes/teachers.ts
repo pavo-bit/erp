@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAdmin, requireTeacherOrAdmin, requireSchoolAccess, hashPassword } from "../middleware/auth";
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
 
@@ -11,15 +12,19 @@ router.get("/", authenticate, requireTeacherOrAdmin(), requireSchoolAccess(), as
     const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
     if (!schoolId) { res.status(400).json({ success: false, error: "School ID required" }); return; }
 
+    const paginationParams = parsePaginationParams(req.query, ['joiningDate', 'experience', 'createdAt']);
+
     const where: any = { schoolId, isActive: true };
     if (req.user!.branchId) where.branchId = req.user!.branchId;
 
-    const teachers = await prisma.teacher.findMany({
+    const result = await paginatedQuery(
+      prisma.teacher,
       where,
-      include: { user: { select: { id: true, name: true, email: true, phone: true, avatar: true, isActive: true } } },
-      orderBy: { createdAt: "desc" },
-    });
-    res.json({ success: true, data: teachers });
+      { user: { select: { id: true, name: true, email: true, phone: true, avatar: true, isActive: true } } },
+      paginationParams
+    );
+
+    res.json(result);
   } catch (e) {
     logger.error({ err: e }, "List teachers error");
     res.status(500).json({ success: false, error: "Server error" });
