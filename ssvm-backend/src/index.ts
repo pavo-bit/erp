@@ -100,6 +100,8 @@ import disciplineRoutes from "./routes/discipline";
 import myProcurementRoutes from "./routes/procurement";
 import myInventoryRoutes from "./routes/inventory";
 import crmRoutes from "./routes/crm";
+import financeGovernanceRoutes from "./routes/finance-governance";
+import governanceWorkflowsRoutes from "./routes/admin/governance-workflows";
 import { metricsMiddleware, getMetrics } from "./middleware/metrics";
 import swaggerUi from "swagger-ui-express";
 import { generateSpec } from "./openapi/generate";
@@ -235,7 +237,23 @@ function mountRoute(routePath: string, router: express.Router, ...middleware: ex
 }
 
 // ═══════════════════════════════════════════
-// API Routes
+// 10. EDGE CACHING STRATEGY (PHASE 7)
+// ═══════════════════════════════════════════
+
+const edgeCacheMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // Only cache GET requests
+  if (req.method === 'GET') {
+    // Determine if it's a static resource vs dynamic API
+    // This allows Cloudflare/CloudFront to cache effectively at edge nodes
+    res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400');
+  }
+  next();
+};
+
+app.use(edgeCacheMiddleware);
+
+// ═══════════════════════════════════════════
+// 11. API ROUTE MOUNTING
 // ═══════════════════════════════════════════
 
 // Auth (with stricter rate limits)
@@ -294,6 +312,7 @@ mountRoute("/discipline", disciplineRoutes);
 mountRoute("/procurement-ops", myProcurementRoutes);
 mountRoute("/inventory", myInventoryRoutes);
 mountRoute("/crm", crmRoutes);
+mountRoute("/finance/governance", financeGovernanceRoutes);
 
 // CMS routes (mounted at /api root level)
 app.use("/api/v1", cmsRoutes);
@@ -342,6 +361,7 @@ mountRoute("/admin/backups", backupsRoutes);
 mountRoute("/admin/audit", auditRoutes);
 mountRoute("/admin/procurement", procurementRoutes);
 mountRoute("/admin/saas-settings", saasSettingsRoutes);
+mountRoute("/admin/governance-workflows", governanceWorkflowsRoutes);
 mountRoute("/backups", backupRoutes);
 
 // ═══════════════════════════════════════════

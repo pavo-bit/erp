@@ -41,3 +41,8 @@ export async function apiCall(url: string, method: "POST" | "PUT" | "DELETE" = "
 export function useTeacherStats() { return useSWR("/api/v1/stats/teacher", fetcher); }
 export function useTeacherClasses() { return useSWR("/api/v1/teacher/classes", fetcher); }
 export function useTeacherLeaves() { return useSWR("/api/v1/teacher/leaves", fetcher); }
+
+// Enterprise Bindings
+export function useAssignments(params?: string) { return useSWR(`/api/v1/assignments${params ? `?${params}` : ""}`, fetcher); }
+export function useClassAttendance(classId: string, date: string) { return useSWR(`/api/v1/attendance/class/${classId}?date=${date}`, fetcher); }
+export function useDisciplinaryRecords(params?: string) { return useSWR(`/api/v1/discipline${params ? `?${params}` : ""}`, fetcher); }

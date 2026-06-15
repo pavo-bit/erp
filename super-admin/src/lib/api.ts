@@ -42,3 +42,5 @@ export function useSuperAdminStats() { return useSWR("/api/v1/stats/super-admin"
 export function useFinanceStats() { return useSWR("/api/v1/stats/finance", fetcher); }
 export function useSubscriptions() { return useSWR("/api/v1/subscriptions/plans", fetcher); }
 export function useAuditLogs() { return useSWR("/api/v1/audit/logs", fetcher); }
+export function useDataRetentionPolicies() { return useSWR("/api/v1/admin/governance-workflows/retention-policies", fetcher); }
+export function useGovernanceWorkflows() { return useSWR("/api/v1/admin/governance-workflows/custom-workflows", fetcher); }

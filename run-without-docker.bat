@@ -28,63 +28,28 @@ echo.
 REM Check if PostgreSQL is installed
 psql --version >nul 2>&1
 if errorlevel 1 (
-    echo ⚠️  PostgreSQL is not installed!
+    echo ⚠️  PostgreSQL is not installed or not in PATH!
     echo.
-    echo You have two options:
-    echo   1. Install PostgreSQL from: https://www.postgresql.org/download/
-    echo   2. Use SQLite instead (simpler, no installation needed)
-    echo 📝 Automatically falling back to SQLite since PostgreSQL is not installed...
-    goto USE_SQLITE
+    echo 🛑 CRITICAL ENTERPRISE ERROR: The SSVM ERP Schema requires advanced PostgreSQL features 
+    echo    ^(Decimal precision, Arrays, db.Date^). SQLite fallback is mathematically impossible 
+    echo    for Double-Entry Ledger and Data Retention Modules.
+    echo.
+    echo Please install PostgreSQL and create the 'ssvm_platform' database:
+    echo   1. Download from: https://www.postgresql.org/download/windows/
+    echo   2. Update ssvm-backend/.env with your postgres:// credentials
+    echo.
+    pause
+    exit /b 1
 )
 
-:NEED_POSTGRES
-echo.
-echo Please install PostgreSQL and create a database:
-echo   1. Download from: https://www.postgresql.org/download/windows/
-echo   2. Install PostgreSQL
-echo   3. Create database: ssvm_platform
-echo   4. Update ssvm-backend/.env with your database credentials
-echo.
-pause
-exit /b 1
-
-:USE_SQLITE
-echo.
-echo 📝 Switching to SQLite (no PostgreSQL needed)...
+echo ✅ PostgreSQL is detected
 echo.
 
-REM Update backend .env to use SQLite
 cd ssvm-backend
-if exist .env.backup del .env.backup
-if exist .env copy .env .env.backup
-(
-echo # ═══════════════════════════════════════════
-echo # SSVM Backend — Environment Variables (SQLite)
-echo # ═══════════════════════════════════════════
-echo.
-echo PORT=5000
-echo.
-echo # SQLite Database (no PostgreSQL needed)
-echo DATABASE_URL="file:./dev.db"
-echo.
-echo # JWT
-echo JWT_SECRET="ssvm-college-square-jwt-secret-2025-change-in-production"
-echo JWT_EXPIRES_IN="7d"
-echo.
-echo # Frontend URL (for CORS)
-echo FRONTEND_URL="http://localhost:3000"
-echo.
-echo # Upload folder
-echo UPLOAD_DIR="./uploads"
-) > .env
-
-REM Update Prisma schema to use SQLite
-if exist prisma\schema.prisma.backup del prisma\schema.prisma.backup
-copy prisma\schema.prisma prisma\schema.prisma.backup
-
-powershell -Command "(Get-Content prisma\schema.prisma) -replace 'provider = \"postgresql\"', 'provider = \"sqlite\"' | Set-Content prisma\schema.prisma"
-
-echo ✅ Configured to use SQLite
+if not exist .env (
+    echo ⚠️  No .env found. Copying .env.example to .env
+    copy .env.example .env
+)
 cd ..
 
 :SETUP_BACKEND

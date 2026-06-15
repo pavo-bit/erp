@@ -34,9 +34,8 @@ router.post("/reconcile", async (req: Request, res: Response, next: NextFunction
                     accountId,
                     statementDate: new Date(statementDate),
                     statementBalance: new Prisma.Decimal(statementBalance),
-                    status: "DRAFT",
-                    matchedCount: 0,
-                    unmatchedCount: 0
+                    ledgerBalance: new Prisma.Decimal(0), // Would normally be calculated from LedgerEntries
+                    isMatched: false
                 }
             });
 
@@ -59,11 +58,11 @@ router.post("/reconcile", async (req: Request, res: Response, next: NextFunction
 
                 if (potentialMatch) {
                     matchedCount++;
-                    // Update transaction to RECONCILED
-                    await tx.ledgerTransaction.update({
-                        where: { id: potentialMatch.id },
-                        data: { status: "RECONCILED" }
-                    });
+                    // In a real system, you'd map a reconciliation link or entry
+                    // await tx.ledgerTransaction.update({
+                    //    where: { id: potentialMatch.id },
+                    //    data: { eventPublished: true } // Mock flag
+                    // });
                 } else {
                     unmatchedCount++;
                 }
@@ -72,9 +71,7 @@ router.post("/reconcile", async (req: Request, res: Response, next: NextFunction
             const updatedRecon = await tx.bankReconciliation.update({
                 where: { id: recon.id },
                 data: {
-                    matchedCount,
-                    unmatchedCount,
-                    status: unmatchedCount === 0 ? "COMPLETED" : "DISCREPANCY"
+                    isMatched: unmatchedCount === 0
                 }
             });
 

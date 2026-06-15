@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model School {
@@ -3757,4 +3758,48 @@ model StockLedger {
   @@index([itemId])
   @@index([locationId])
   @@index([schoolId, timestamp])
+}
+
+// Phase 6: Governance & Workflows
+
+model DataRetentionPolicy {
+  id            String   @id @default(cuid())
+  schoolId      String
+  entityName    String   // e.g., "VisitorLog", "AuditLog"
+  retentionDays Int      // e.g., 90, 2555 (7 years)
+  action        String   // "ARCHIVE", "PURGE"
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([schoolId, entityName])
+  @@index([schoolId])
+}
+
+model CustomWorkflow {
+  id               String   @id @default(cuid())
+  schoolId         String
+  name             String
+  triggerEntity    String   // e.g., "AdmissionEnquiry"
+  triggerCondition String   // JSON logic, e.g., { "status": "APPROVED" }
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  steps            WorkflowStep[]
+
+  @@index([schoolId, triggerEntity])
+}
+
+model WorkflowStep {
+  id            String   @id @default(cuid())
+  workflowId    String
+  orderIndex    Int
+  actionType    String   // "SEND_EMAIL", "CREATE_TASK", "WEBHOOK"
+  actionPayload String   // JSON config for the action
+  createdAt     DateTime @default(now())
+
+  workflow      CustomWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
 }

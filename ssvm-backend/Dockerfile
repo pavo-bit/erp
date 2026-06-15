@@ -1,37 +1,49 @@
-FROM node:20-alpine AS builder
+# Stage 1: Build Environment
+FROM node:18-alpine AS builder
 
 WORKDIR /app
-COPY package*.json ./
-RUN npm install --prefer-offline --no-audit
 
+# Install OpenSSL (required by Prisma on Alpine)
+RUN apk add --no-cache openssl
+
+# Copy package configurations
+COPY package.json package-lock.json ./
 COPY prisma ./prisma/
+
+# Install all dependencies (including devDependencies for tsc)
+RUN npm ci
+
+# Copy application source code
+COPY . .
+
+# Generate Prisma Client and Compile TypeScript
 RUN npx prisma generate
+RUN npm run build
 
-COPY tsconfig.json ./
-COPY src ./src/
-RUN npx tsc || true
+# Stage 2: Production Runtime
+FROM node:18-alpine AS runner
 
-FROM node:20-alpine
 WORKDIR /app
 
-RUN apk add --no-cache bash curl redis
-RUN npm install -g tsx prisma pm2
+# Install OpenSSL for Prisma execution
+RUN apk add --no-cache openssl
 
-COPY --from=builder /app/package*.json ./
-RUN npm install --omit=dev --prefer-offline --no-audit
+# Set Production Environment
+ENV NODE_ENV=production
 
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/prisma ./prisma
+# Copy built assets and production node_modules from builder
 COPY --from=builder /app/dist ./dist
-COPY ecosystem.config.js ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/prisma ./prisma
 
-COPY entrypoint.sh ./
-RUN apk add --no-cache dos2unix && dos2unix entrypoint.sh && chmod +x entrypoint.sh
+# Add a non-root user for security
+RUN addgroup -S ssvmgroup && adduser -S ssvmuser -G ssvmgroup
+RUN chown -R ssvmuser:ssvmgroup /app
+USER ssvmuser
 
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD curl -f http://localhost:5000/api/health || exit 1
+# Expose backend API port
+EXPOSE 4000
 
-EXPOSE 5000
-
-ENTRYPOINT ["./entrypoint.sh"]
-CMD ["npx", "pm2-runtime", "ecosystem.config.js", "--env", "production"]
+# Start command
+CMD ["npm", "start"]

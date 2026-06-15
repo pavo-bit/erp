@@ -1,70 +1,107 @@
-import { PrismaClient } from "@prisma/client";
-import { hash } from "bcryptjs";
+import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Minimal Seeding SSVM ERP database...");
+  console.log("🌱 Commencing SSVM Enterprise DB Seed Protocol...");
 
-  // Since we are iterating on the schema for Phase 2/3, we'll only seed the bare minimum
-  // required to log in and use the Super Admin and ERP Admin portals.
+  // 1. Flush existing mock data (optional based on ENV)
+  // For safety in production, we skip aggressive wiping unless specified
+  
+  // 2. Setup Super Admin
+  const hashedPassword = await bcrypt.hash('admin123', 10);
+  
+  const superAdmin = await prisma.user.upsert({
+    where: { email: 'superadmin@ssvmerp.com' },
+    update: {},
+    create: {
+      email: 'superadmin@ssvmerp.com',
+      passwordHash: hashedPassword,
+      name: 'System SuperAdmin',
+      role: 'SUPER_ADMIN',
+      isActive: true,
+    },
+  });
+  console.log('✅ SuperAdmin provisioned:', superAdmin.email);
 
-  // 1. SCHOOL
+  // 3. Setup Primary Tenant School
   const school = await prisma.school.upsert({
-    where: { code: "SSVM-CS" },
+    where: { code: 'MAIN' },
     update: {},
     create: {
-      name: "SSVM College Square",
-      code: "SSVM-CS",
-      boardType: "CBSE",
-      address: "College Square",
-      city: "Cuttack",
-      state: "Odisha",
-      phone: "+91-671-2345678",
-      email: "info@ssvm-cuttack.org",
-      website: "https://ssvm-cuttack.org",
+      name: 'SSVM International School (Main Campus)',
+      code: 'MAIN',
+      address: '123 Education Boulevard, Metropolis',
+      phone: '+1 800 555 0199',
+      email: 'contact@ssvminternational.edu',
+      status: 'ACTIVE',
     },
   });
-  console.log("✅ School created/found:", school.name);
+  console.log('✅ Primary Tenant School provisioned:', school.name);
 
-  // 2. SUPER ADMIN
-  const superadminEmail = "superadmin@ssvm-erp.com";
-  await prisma.user.upsert({
-    where: { email: superadminEmail },
+  // 4. Setup Academic Session
+  const session = await prisma.academicSession.upsert({
+    where: { schoolId_name: { schoolId: school.id, name: '2026-2027' } },
     update: {},
     create: {
-      email: superadminEmail,
-      passwordHash: await hash("superadmin123", 10),
-      name: "Platform Admin",
-      role: "SUPER_ADMIN",
       schoolId: school.id,
-      isActive: true,
+      name: '2026-2027',
+      startDate: new Date('2026-06-01'),
+      endDate: new Date('2027-05-31'),
+      isCurrent: true,
     },
   });
-  console.log("✅ Super Admin created:", superadminEmail);
+  console.log('✅ Academic Session provisioned:', session.name);
 
-  // 3. ERP ADMIN
-  const adminEmail = "admin@ssvm.edu.in";
-  await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {},
-    create: {
-      email: adminEmail,
-      passwordHash: await hash("admin123", 10),
-      name: "School Admin",
-      role: "ERP_ADMIN",
+  // 5. Setup CRM Pipeline Stages
+  const stage1 = await prisma.pipelineStage.create({
+    data: { schoolId: school.id, name: 'Lead Captured', orderIndex: 1 }
+  });
+  const stage2 = await prisma.pipelineStage.create({
+    data: { schoolId: school.id, name: 'Campus Tour Booked', orderIndex: 2 }
+  });
+  console.log('✅ CRM Pipeline provisioned');
+
+  // 6. Setup Double-Entry Ledger System (Chart of Accounts)
+  const cashAccount = await prisma.ledgerAccount.create({
+    data: {
       schoolId: school.id,
-      isActive: true,
-    },
+      code: '1000',
+      name: 'Main Operating Cash',
+      type: 'CASH',
+      category: 'ASSET'
+    }
   });
-  console.log("✅ ERP Admin created:", adminEmail);
 
-  console.log("✅ Minimal seed complete!\n");
+  const tuitionRevenue = await prisma.ledgerAccount.create({
+    data: {
+      schoolId: school.id,
+      code: '4000',
+      name: 'Tuition Revenue',
+      type: 'REVENUE',
+      category: 'REVENUE'
+    }
+  });
+  console.log('✅ Chart of Accounts provisioned');
+
+  // 7. Data Retention Policy (Governance)
+  await prisma.dataRetentionPolicy.create({
+    data: {
+      schoolId: school.id,
+      entityName: 'VisitorLog',
+      retentionDays: 90,
+      action: 'PURGE'
+    }
+  });
+  console.log('✅ Governance Policies provisioned');
+
+  console.log("🚀 Enterprise Database Seeding complete! Run 'npx prisma studio' to view data.");
 }
 
 main()
   .catch((e) => {
-    console.error("❌ Minimal Seed failed:", e);
+    console.error("❌ Seed Failed: ", e);
     process.exit(1);
   })
   .finally(async () => {

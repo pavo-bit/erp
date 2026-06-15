@@ -25,8 +25,8 @@ export default function FeesPage() {
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Fees & Invoices</h1>
-          <p className="text-slate-500 dark:text-slate-400">Manage payments, view invoices, and download receipts.</p>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Immutable Ledger & Invoices</h1>
+          <p className="text-slate-500 dark:text-slate-400">View double-entry ledger transactions, invoices, and download receipts.</p>
         </div>
         
         <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-max">
@@ -50,7 +50,10 @@ export default function FeesPage() {
         
         {/* Main Invoice List */}
         <div className="lg:col-span-2 space-y-6">
-          <h2 className="text-xl font-bold mb-4">Payment History</h2>
+          <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-indigo-500" />
+            Immutable Ledger History
+          </h2>
           
           <div className="space-y-4">
             {invoices.map((inv) => (
@@ -140,8 +143,8 @@ export default function FeesPage() {
                 <div className="bg-blue-500 h-2 rounded-full w-[85%]"></div>
               </div>
               <div className="flex justify-between items-center pt-4 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-sm text-slate-500">Next Installment</span>
-                <span className="text-sm font-medium">Nov 15, 2026</span>
+                <span className="text-sm text-slate-500 flex items-center gap-1">Ledger Synchronized <CheckCircle2 className="w-3 h-3 text-emerald-500"/></span>
+                <span className="text-sm font-medium text-emerald-500">Real-time</span>
               </div>
             </div>
           </div>

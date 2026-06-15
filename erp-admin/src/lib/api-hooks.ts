@@ -103,3 +103,6 @@ export function useVisitors(params?: string) { return useSWR(`/api/v1/reception/
 export function useLibraryBooks(params?: string) { return useSWR(`/api/v1/library/books${params ? `?${params}` : ""}`, fetcher); }
 export function useLibraryTransactions(params?: string) { return useSWR(`/api/v1/library/transactions${params ? `?${params}` : ""}`, fetcher); }
 
+// Phase 4-7 Enterprise 
+export function useFinancialClosePeriods() { return useSWR("/api/v1/finance/governance/close-periods", fetcher); }
+export function useLedgerAccounts() { return useSWR("/api/v1/finance/governance/accounts", fetcher); }

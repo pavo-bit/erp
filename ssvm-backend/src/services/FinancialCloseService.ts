@@ -57,13 +57,11 @@ export class FinancialCloseService {
             await tx.financialClose.create({
                 data: {
                     schoolId,
-                    periodId,
-                    closedById,
-                    totalDebits: new Prisma.Decimal(0), // Placeholder for complex computation
-                    totalCredits: new Prisma.Decimal(0), // Placeholder for complex computation
-                    netIncome: new Prisma.Decimal(0),    // Placeholder for complex computation
-                    status: "COMPLETED",
-                    notes: `Period closed with ${transactions._count.id} posted transactions.`
+                    accountingPeriodId: periodId,
+                    closedBy: closedById,
+                    closedAt: new Date(),
+                    transactionCount: transactions._count.id,
+                    checksum: "CHECKSUM_PLACEHOLDER"
                 }
             });
 

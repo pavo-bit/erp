@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  ssvm-postgres:
+    image: postgres:15-alpine
+    container_name: ssvm-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ssvm_admin
+      POSTGRES_PASSWORD: ssvm_password_secure
+      POSTGRES_DB: ssvm_erp_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ssvm_admin -d ssvm_erp_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  ssvm-redis:
+    image: redis:7-alpine
+    container_name: ssvm-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    command: redis-server --appendonly yes
+
+  ssvm-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ssvm-backend
+    restart: always
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      # Use internal docker networking
+      - DATABASE_URL=postgresql://ssvm_admin:ssvm_password_secure@ssvm-postgres:5432/ssvm_erp_db?schema=public
+      - REDIS_URL=redis://ssvm-redis:6379
+      - JWT_SECRET=production_secret_key_change_me
+    depends_on:
+      ssvm-postgres:
+        condition: service_healthy
+      ssvm-redis:
+        condition: service_started
+
+volumes:
+  pgdata:
+  redisdata:
