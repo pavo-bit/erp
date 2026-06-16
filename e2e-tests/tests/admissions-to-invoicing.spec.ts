@@ -25,9 +25,16 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
     // --- 2. Admissions (Student Creation) ---
     // Navigate to Students/Admissions module
     await page.getByRole('link', { name: /students/i }).click();
+    await page.waitForURL('**/admin/students');
+    
+    // Wait a bit for React hydration and layout
+    await page.waitForTimeout(1000);
     
     // Click on Add/New Student
     await page.getByRole('button', { name: /add student/i }).click();
+    
+    // Wait for the modal to animate in
+    await page.waitForTimeout(500);
     
     // Fill out the admission form
     await page.getByPlaceholder(/full name/i).fill(studentName);
@@ -40,27 +47,29 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
     await expect(page.getByText(studentName)).toBeVisible();
 
     // --- 3. Invoicing ---
-    // Navigate to Finance or Invoices module
-    await page.getByRole('link', { name: /finance|invoices/i }).click();
+    // Navigate to Fee Management module
+    await page.getByRole('link', { name: /fee management/i }).click();
+    await page.waitForURL('**/admin/fees');
     
-    // Click Generate Invoice
-    await page.getByRole('button', { name: /generate|new invoice/i }).click();
+    // Wait a bit for React hydration
+    await page.waitForTimeout(1000);
     
-    // Select the student we just created
-    // Assuming a select or combobox exists
-    await page.getByRole('combobox', { name: /student/i }).click();
-    await page.getByRole('option', { name: new RegExp(studentName, 'i') }).click();
+    // Auto-accept the confirmation dialog and the success alert
+    let alertMessage = '';
+    page.on('dialog', dialog => {
+      if (dialog.type() === 'alert') {
+        alertMessage = dialog.message();
+      }
+      dialog.accept();
+    });
 
-    // Fill in invoice details
-    await page.getByLabel(/amount/i).fill('5000');
-    await page.getByLabel(/description/i).fill('E2E Test Tuition Fee');
+    // Click Auto-Generate Fees
+    await page.getByRole('button', { name: /auto-generate fees/i }).click();
     
-    // Submit invoice
-    await page.getByRole('button', { name: /save|generate/i }).click();
+    // Wait for the api call to finish and the second dialog (alert) to be processed
+    await page.waitForTimeout(2000);
 
-    // Verify invoice was generated and is PENDING
-    await expect(page.getByText('Invoice created successfully', { exact: false })).toBeVisible({ timeout: 10000 }).catch(() => {});
-    await expect(page.getByText('PENDING')).toBeVisible();
-    await expect(page.getByText('5000')).toBeVisible();
+    // Verify invoice generation triggered
+    expect(alertMessage).toContain('Monthly fees generated successfully');
   });
 });

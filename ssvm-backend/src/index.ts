@@ -207,8 +207,7 @@ app.get("/health", async (req, res) => {
   });
 });
 
-// Apply CSRF Protection (state-changing methods are validated, safe ones ignored)
-app.use(csrfProtection);
+// CSRF moved after cookie-parser
 
 // Global default rate limiter: 100 req/min per IP
 app.use(defaultLimiter);
@@ -229,6 +228,9 @@ app.use(cors({
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Apply CSRF Protection (state-changing methods are validated, safe ones ignored)
+app.use(csrfProtection);
 
 // Add X-Request-ID and X-API-Version to every response
 app.use(addResponseHeaders());
