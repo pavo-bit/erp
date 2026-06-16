@@ -11,8 +11,8 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
     await page.goto('/');
     
     // Fill in credentials. We will use the seeded admin credentials.
-    await page.getByPlaceholder(/email/i).fill('erpadmin@ssvm-cuttack.org');
-    await page.getByPlaceholder(/password/i).fill('erpadmin123');
+    await page.getByPlaceholder(/email/i).fill('superadmin@ssvmerp.com');
+    await page.getByPlaceholder(/password/i).fill('admin123');
     await page.getByRole('button', { name: /secure login/i }).click();
 
     // Verify successful login by waiting for the success message
@@ -27,14 +27,13 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
     await page.getByRole('link', { name: /students/i }).click();
     
     // Click on Add/New Student
-    await page.getByRole('button', { name: /add|new/i }).click();
+    await page.getByRole('button', { name: /add student/i }).click();
     
     // Fill out the admission form
-    await page.getByLabel(/first name/i).fill(studentName);
-    await page.getByLabel(/last name/i).fill('Test');
-    await page.getByLabel(/admission no/i).fill(admissionNo);
+    await page.getByPlaceholder(/full name/i).fill(studentName);
+    await page.getByPlaceholder(/roll no/i).fill(admissionNo);
     // Submit the form
-    await page.getByRole('button', { name: /save|create/i }).click();
+    await page.locator('form').getByRole('button', { name: 'Add Student' }).click();
 
     // Verify student was created
     await expect(page.getByText('Student created successfully', { exact: false })).toBeVisible({ timeout: 10000 }).catch(() => {});
