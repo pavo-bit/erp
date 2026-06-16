@@ -17,7 +17,11 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     if (subjectId) where.subjectId = subjectId;
 
     if (req.user!.role === "STUDENT") {
-      const student = await prisma.student.findUnique({ where: { id: req.user!.id } });
+      const studentIdFromToken = (req.user as any).studentId;
+      if (!studentIdFromToken) {
+        return res.status(400).json({ success: false, error: 'Student ID not found in token' });
+      }
+      const student = await prisma.student.findUnique({ where: { id: studentIdFromToken } });
       if (student && student.sectionId) {
         const section = await prisma.section.findUnique({ where: { id: student.sectionId } });
         if (section) where.classId = section.classId;
@@ -30,7 +34,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
       {
         attachments: true,
         submissions: {
-          where: req.user!.role === "STUDENT" ? { studentId: req.user!.id } : undefined,
+          where: req.user!.role === "STUDENT" ? { studentId: (req.user as any).studentId } : undefined,
           select: { id: true, studentId: true, status: true, isLate: true, marksObtained: true, grade: true }
         }
       },
@@ -92,7 +96,10 @@ router.post("/", authenticate, requireRole("ADMIN", "TEACHER"), async (req: Auth
 router.post("/:id/submit", authenticate, requireRole("STUDENT"), async (req: AuthRequest, res: Response) => {
   try {
     const assignmentId = req.params.id as string;
-    const studentId = req.user!.id as string;
+    const studentId = (req.user as any).studentId;
+    if (!studentId) {
+      return res.status(400).json({ success: false, error: 'Student ID not found in token' });
+    }
     const { attachment } = req.body;
 
     const assignment = await prisma.assignment.findUnique({ where: { id: assignmentId } });
@@ -194,10 +201,13 @@ router.get("/study-materials", authenticate, async (req: AuthRequest, res: Respo
     if (subjectId) where.subjectId = subjectId;
 
     if (req.user!.role === "STUDENT") {
-      const student = await prisma.student.findUnique({ where: { id: req.user!.id } });
-      if (student && student.sectionId) {
-        const section = await prisma.section.findUnique({ where: { id: student.sectionId } });
-        if (section) where.classId = section.classId;
+      const studentIdFromToken = (req.user as any).studentId;
+      if (studentIdFromToken) {
+        const student = await prisma.student.findUnique({ where: { id: studentIdFromToken } });
+        if (student && student.sectionId) {
+          const section = await prisma.section.findUnique({ where: { id: student.sectionId } });
+          if (section) where.classId = section.classId;
+        }
       }
     }
 

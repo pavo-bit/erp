@@ -17,6 +17,15 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     if (req.user!.schoolId) where.schoolId = req.user!.schoolId;
     if (req.user!.branchId) where.branchId = req.user!.branchId;
 
+    // If STUDENT, force studentId filter to their own record
+    if (req.user!.role === "STUDENT") {
+      const studentIdFromToken = (req.user as any).studentId;
+      if (!studentIdFromToken) {
+        return res.status(400).json({ success: false, error: 'Student ID not found in token' });
+      }
+      where.studentId = studentIdFromToken;
+    }
+
     const result = await paginatedQuery(
       prisma.invoice,
       where,

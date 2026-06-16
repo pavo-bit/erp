@@ -34,9 +34,9 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
       res.status(404).json({ success: false, error: "Fee not found" });
       return;
     }
-    
+
     // Optional: Add parent/student authorization check here
-    
+
     const totalAmount = fee.amount + fee.fineAmount;
 
     // Create Razorpay Order
@@ -118,7 +118,7 @@ router.post("/verify", authenticate, async (req: AuthRequest, res: Response) => 
       if (feeRecord) {
         const bankAcc = await prisma.ledgerAccount.findUnique({ where: { schoolId_code: { schoolId: feeRecord.schoolId, code: '1010-BANK' } } });
         const revAcc = await prisma.ledgerAccount.findUnique({ where: { schoolId_code: { schoolId: feeRecord.schoolId, code: '4000-TUIT' } } });
-        
+
         if (bankAcc && revAcc) {
           try {
             await LedgerService.postTransaction({
@@ -197,7 +197,7 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
   try {
     const signature = req.headers["x-razorpay-signature"];
     const webhookBody = req.body;
-    
+
     // 1. Validate Signature using HMAC SHA256
     const secret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || "placeholder_secret";
     const payloadString = JSON.stringify(webhookBody);
@@ -220,7 +220,7 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
     }
 
     // 2. Webhook Replay Protection (5-minute window)
-    const createdAt = webhookBody.created_at; 
+    const createdAt = webhookBody.created_at;
     if (createdAt) {
       const now = Math.floor(Date.now() / 1000);
       if (now - createdAt > 300) {

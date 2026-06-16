@@ -100,3 +100,14 @@ export const defaultLimiter = createLimiter({
   max: 100,
   prefix: "default",
 });
+
+// 7. Per-School Rate Limiter: 300 req / min per school
+export const perSchoolRateLimiter = createLimiter({
+  windowMs: 60 * 1000,
+  max: 300,
+  prefix: "school",
+  keyGenerator: (req: Request) => {
+    const schoolId = (req as any).user?.schoolId || (req as any).ip || "unknown";
+    return `school:${schoolId}`;
+  },
+});

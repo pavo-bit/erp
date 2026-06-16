@@ -89,6 +89,7 @@ import messagesRoutes from "./routes/messages";
 import certificatesRoutes from "./routes/certificates";
 import guardiansRoutes from "./routes/guardians";
 import preferencesRoutes from "./routes/preferences";
+import documentsRoutes from "./routes/documents";
 import saasSettingsRoutes from "./routes/admin/saasSettings";
 import dataExportRoutes from "./routes/admin/dataExport";
 import saasSecurityRoutes from "./routes/admin/security";
@@ -102,6 +103,22 @@ import myInventoryRoutes from "./routes/inventory";
 import crmRoutes from "./routes/crm";
 import financeGovernanceRoutes from "./routes/finance-governance";
 import governanceWorkflowsRoutes from "./routes/admin/governance-workflows";
+
+// Phase C: Procurement & Inventory
+import vendorsRoutes from "./routes/admin/vendors";
+import purchaseOrdersRoutes from "./routes/admin/purchaseOrders";
+import inventoryRoutes from "./routes/admin/inventory";
+
+// Phase D: Accounting & Ledger
+import ledgerAccountsRoutes from "./routes/admin/ledgerAccounts";
+import ledgerTransactionsRoutes from "./routes/admin/ledgerTransactions";
+
+// Phase E: Billing
+import billingRoutes from "./routes/admin/billing";
+
+// Phase F: Payroll
+import payrollRoutes from "./routes/admin/payroll";
+
 import { metricsMiddleware, getMetrics } from "./middleware/metrics";
 import swaggerUi from "swagger-ui-express";
 import { generateSpec } from "./openapi/generate";
@@ -171,7 +188,7 @@ app.get("/health", async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     dbStatus = "connected";
-  } catch (e) {}
+  } catch (e) { }
 
   if (isRedisAvailable()) {
     redisStatus = "connected";
@@ -304,6 +321,7 @@ mountRoute("/governance", governanceRoutes);
 mountRoute("/ancillary", ancillaryRoutes);
 mountRoute("/certificates", certificatesRoutes);
 mountRoute("/guardians", guardiansRoutes);
+mountRoute("/documents", documentsRoutes, uploadLimiter);
 mountRoute("/saas", saasRoutes);
 mountRoute("/webhooks", webhooksRoutes, webhookLimiter);
 mountRoute("/security", securityRoutes);
@@ -362,6 +380,13 @@ mountRoute("/admin/audit", auditRoutes);
 mountRoute("/admin/procurement", procurementRoutes);
 mountRoute("/admin/saas-settings", saasSettingsRoutes);
 mountRoute("/admin/governance-workflows", governanceWorkflowsRoutes);
+mountRoute("/admin/vendors", vendorsRoutes);
+mountRoute("/admin/purchase-orders", purchaseOrdersRoutes);
+mountRoute("/admin/inventory", inventoryRoutes);
+mountRoute("/admin/ledger/accounts", ledgerAccountsRoutes);
+mountRoute("/admin/ledger/transactions", ledgerTransactionsRoutes);
+mountRoute("/admin/billing", billingRoutes);
+mountRoute("/admin/payroll", payrollRoutes);
 mountRoute("/backups", backupRoutes);
 
 // ═══════════════════════════════════════════
@@ -389,7 +414,7 @@ const server = app.listen(parseInt(env.PORT, 10), "0.0.0.0", () => {
   if (env.NODE_ENV !== "test") {
     startTokenCleanupScheduler();
     startWorkers();
-    
+
     // Daily Database Backup Scheduler (Runs every 24 hours)
     const DAILY_MS = 24 * 60 * 60 * 1000;
     setInterval(() => {

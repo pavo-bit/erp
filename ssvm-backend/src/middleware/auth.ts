@@ -112,7 +112,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
   try {
     const { isTokenBlocklisted } = await import("../lib/redis");
-    
+
     // Use jti if available (new tokens), fallback to full token hash for legacy
     let blocklistKey: string;
     if ("jti" in payload && payload.jti) {
@@ -142,6 +142,21 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
+    // Phase 2C: Enforce mustChangePassword
+    const userWithPasswordPolicy = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { mustChangePassword: true }
+    });
+    
+    if (userWithPasswordPolicy?.mustChangePassword && req.path !== '/api/auth/change-password' && !req.path.includes('/logout')) {
+      res.status(403).json({
+        success: false,
+        error: 'PASSWORD_CHANGE_REQUIRED',
+        message: 'You must change your password before continuing.'
+      });
+      return;
+    }
+
     req.user = user;
     next();
   } catch (err) {
@@ -160,7 +175,7 @@ export function requireRole(...roles: string[]) {
       res.status(401).json({ success: false, error: "Not authenticated" });
       return;
     }
-    
+
     // Direct role match
     if (roles.includes(req.user.role)) {
       next();
@@ -278,7 +293,7 @@ export function requireAllowedIp() {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const clientIp = req.ip || req.headers["x-forwarded-for"]?.toString() || "";
     const allowedIps = (process.env.SUPER_ADMIN_ALLOWED_IPS || "").split(",").map(ip => ip.trim()).filter(Boolean);
-    
+
     if (allowedIps.length === 0) {
       next(); // Fail open if not configured
       return;

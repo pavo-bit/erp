@@ -15,7 +15,7 @@ const fetcher = async (url: string) => {
   return data.data ?? data;
 };
 
-export async function apiCall(url: string, method: "POST" | "PUT" | "DELETE" = "POST", body?: unknown) {
+export async function apiCall(url: string, method: "GET" | "POST" | "PUT" | "DELETE" = "POST", body?: unknown) {
   let res = await fetch(url, {
     method, credentials: "include",
     headers: { "Content-Type": "application/json" },

@@ -128,10 +128,105 @@ router.post("/razorpay", async (req, res) => {
       return res.status(400).json({ error: "Invalid signature" });
     }
 
-    const event = req.body.event;
-    console.log(`[Webhook] Received Razorpay event: ${event}`);
+    const event = req.body;
+    console.log(`[Webhook] Received Razorpay event: ${event.event}`);
 
     // Process event (e.g. payment.captured)
+    if (event.event === "payment.captured") {
+      const paymentData = event.payload.payment.entity;
+      const invoiceId = paymentData.notes?.invoiceId;
+      const amountPaid = paymentData.amount / 100; // Razorpay amounts are in paise
+
+      if (!invoiceId) {
+        console.error("Webhook received payment without invoiceId in notes");
+        return res.status(400).json({ error: "Missing invoiceId" });
+      }
+
+      // 1. Fetch Invoice
+      const invoice = await prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: { school: true }
+      });
+
+      if (!invoice) {
+        console.error({ invoiceId }, "Webhook received payment for unknown invoice");
+        return res.status(404).json({ error: "Invoice not found" });
+      }
+
+      // Check if already paid
+      if (invoice.status === "PAID") {
+        return res.status(200).json({ status: "ok", message: "Already processed" });
+      }
+
+      const schoolId = invoice.schoolId;
+
+      // System Accounts mapping (1200: AR, 1000: Cash/Bank)
+      const receivableAccount = await prisma.ledgerAccount.findFirst({
+        where: { schoolId, category: "ASSET", code: "1200" }
+      });
+      const bankAccount = await prisma.ledgerAccount.findFirst({
+        where: { schoolId, category: "ASSET", code: "1000" } 
+      });
+
+      if (!receivableAccount || !bankAccount) {
+        console.error("Missing system ledger accounts for payment processing");
+        return res.status(500).json({ error: "System configuration error" });
+      }
+
+      const { LedgerEngine } = await import("../lib/ledgerEngine");
+
+      // 2. Process Atomically
+      await prisma.$transaction(async (tx: any) => {
+        // Record Payment Transaction
+        await tx.paymentTransaction.create({
+          data: {
+            invoiceId,
+            amountPaid,
+            gateway: "RAZORPAY",
+            transactionId: paymentData.id,
+          }
+        });
+
+        // Update Invoice Status
+        const newRemaining = invoice.remainingAmount - amountPaid;
+        const newStatus = newRemaining <= 0 ? "PAID" : "PARTIAL";
+
+        await tx.invoice.update({
+          where: { id: invoiceId },
+          data: {
+            amountPaid: invoice.amountPaid + amountPaid,
+            remainingAmount: Math.max(0, newRemaining),
+            status: newStatus,
+            paidDate: newStatus === "PAID" ? new Date() : null,
+          }
+        });
+
+        // Post to Double-Entry Ledger: Debit Bank, Credit Accounts Receivable
+        await LedgerEngine.postTransaction({
+          schoolId,
+          referenceType: "PAYMENT",
+          referenceId: paymentData.id,
+          description: `Payment Receipt: Invoice ${invoiceId}`,
+          createdBy: "SYSTEM", // Webhook is automated
+          entries: [
+            {
+              accountId: bankAccount.id,
+              debitAmount: amountPaid,
+              creditAmount: 0,
+              description: "Cash/Bank Inflow",
+            },
+            {
+              accountId: receivableAccount.id,
+              debitAmount: 0,
+              creditAmount: amountPaid,
+              description: "Clear Accounts Receivable",
+            }
+          ]
+        });
+      });
+
+      console.log(`Payment successfully processed and booked to Ledger for invoice ${invoiceId}`);
+    }
     
     res.json({ success: true, message: "Webhook processed securely" });
   } catch (error) {

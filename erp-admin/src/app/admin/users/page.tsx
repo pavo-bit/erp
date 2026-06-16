@@ -30,9 +30,9 @@ export default function UserManagement() {
     e.preventDefault();
     try {
       if (editingUser) {
-        await apiCall(`/api/users/${editingUser.id}`, { method: "PUT", body: JSON.stringify(formData) });
+        await apiCall(`/api/users/${editingUser.id}`, "PUT", formData);
       } else {
-        const res = await apiCall("/api/users", { method: "POST", body: JSON.stringify(formData) });
+        const res = await apiCall("/api/users", "POST", formData);
         if (res.data?.tempPassword) {
           setTempPasswordModal(res.data.tempPassword);
         }
@@ -46,13 +46,13 @@ export default function UserManagement() {
 
   const handleStatusToggle = async (id: string, currentStatus: boolean) => {
     if (!confirm(`Are you sure you want to ${currentStatus ? 'disable' : 'enable'} this user?`)) return;
-    await apiCall(`/api/users/${id}/status`, { method: "PUT", body: JSON.stringify({ isActive: !currentStatus }) });
+    await apiCall(`/api/users/${id}/status`, "PUT", { isActive: !currentStatus });
     fetchUsers();
   };
 
   const handleResetPassword = async (id: string) => {
     if (!confirm("Are you sure you want to reset this user's password?")) return;
-    const res = await apiCall(`/api/users/${id}/reset-password`, { method: "PUT" });
+    const res = await apiCall(`/api/users/${id}/reset-password`, "PUT");
     if (res.data?.tempPassword) {
       setTempPasswordModal(res.data.tempPassword);
     }

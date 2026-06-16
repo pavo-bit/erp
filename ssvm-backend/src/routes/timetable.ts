@@ -6,10 +6,14 @@ import { AuthRequest, authenticate, requireAdmin, requireTeacherOrAdmin, require
 const router = Router();
 
 // GET /api/timetable — Get timetables (by section/day)
-router.get("/", authenticate, requireTeacherOrAdmin(), requireSchoolAccess(), async (req: AuthRequest, res: Response) => {
+router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
     const { sectionId, day } = req.query;
+    
+    let schoolId = req.user!.schoolId;
+    if (req.user!.role === "SUPER_ADMIN") {
+      schoolId = req.query.schoolId as string;
+    }
 
     const where: Record<string, unknown> = { schoolId };
     if (sectionId) where.sectionId = sectionId;

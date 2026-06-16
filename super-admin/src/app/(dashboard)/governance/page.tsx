@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useDataRetentionPolicies, apiCall } from "@/lib/api";
 import { ShieldAlert, Database, Trash2, Archive, Loader2, Plus, ArrowRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+
 
 export default function GovernanceDashboard() {
   const { data: policies, isLoading, mutate } = useDataRetentionPolicies();
@@ -103,9 +103,9 @@ export default function GovernanceDashboard() {
                   </select>
                 </div>
               </div>
-              <Button disabled={isCreating} className="w-full h-12 mt-4 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold">
+              <button disabled={isCreating} className="w-full h-12 mt-4 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold text-white flex items-center justify-center">
                 {isCreating ? <Loader2 className="animate-spin w-5 h-5" /> : "Enforce Policy"}
-              </Button>
+              </button>
             </form>
           </div>
         </div>
@@ -145,9 +145,9 @@ export default function GovernanceDashboard() {
                       </div>
                     </div>
                     <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20">
+                      <button className="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors border-none bg-transparent cursor-pointer">
                         <Trash2 className="w-4 h-4" />
-                      </Button>
+                      </button>
                     </div>
                   </div>
                 ))}

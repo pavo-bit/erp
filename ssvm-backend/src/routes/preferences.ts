@@ -122,4 +122,34 @@ router.post("/consent", async (req: AuthRequest, res: Response): Promise<void> =
   }
 });
 
+/**
+ * GET /api/v1/preferences/consent
+ * Get all consent records for the current guardian (PARENT role only).
+ */
+router.get("/consent", async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const userId = req.user!.id;
+
+    // Only guardians/parents can view consent records
+    const guardian = await prisma.guardian.findUnique({
+      where: { userId },
+    });
+
+    if (!guardian) {
+      res.status(403).json({ success: false, error: "Only guardians can view consent records" });
+      return;
+    }
+
+    const consents = await prisma.consentRecord.findMany({
+      where: { guardianId: guardian.id },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json({ success: true, data: consents });
+  } catch (error: any) {
+    logger.error({ err: error }, "Failed to fetch consent records");
+    res.status(500).json({ success: false, error: "Internal server error" });
+  }
+});
+
 export default router;

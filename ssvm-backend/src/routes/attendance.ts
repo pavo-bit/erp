@@ -13,8 +13,13 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     if (studentId) where.studentId = studentId;
     if (classId) where.sectionId = classId;
 
+    // If STUDENT, force studentId filter to their own record
     if (req.user!.role === "STUDENT") {
-      where.studentId = req.user!.id;
+      const studentIdFromToken = (req.user as any).studentId;
+      if (!studentIdFromToken) {
+        return res.status(400).json({ success: false, error: 'Student ID not found in token' });
+      }
+      where.studentId = studentIdFromToken;
     }
 
     if (req.user!.role === "PARENT") {

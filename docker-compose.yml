@@ -190,6 +190,28 @@ services:
       - ssvm-network
 
   # ─────────────────────────────────────────────────────────────────────
+  # 5.5 STUDENT PORTAL (NEW - PORT 3003)
+  # ─────────────────────────────────────────────────────────────────────
+  student-portal:
+    build:
+      context: ./student-portal
+      dockerfile: Dockerfile
+    container_name: ssvm-student-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://backend:5000
+      NEXT_PUBLIC_RAZORPAY_KEY: ${RAZORPAY_KEY_ID:-}
+    ports:
+      - "3003:3000"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - ssvm-network
+
+  # ─────────────────────────────────────────────────────────────────────
   # 6. PARENT PORTAL
   # ─────────────────────────────────────────────────────────────────────
   parent-portal:

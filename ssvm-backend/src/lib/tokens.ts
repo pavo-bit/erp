@@ -14,6 +14,7 @@ export interface AccessTokenPayload {
   name: string;
   schoolId?: string | null;
   branchId?: string | null;
+  studentId?: string; // For STUDENT role
   jti: string;
   sid: string;
   type: "access";

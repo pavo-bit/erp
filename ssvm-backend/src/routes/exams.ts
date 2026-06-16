@@ -113,10 +113,30 @@ router.post("/:id/marks", authenticate, requireTeacherOrAdmin(), async (req: Aut
 
 
 // GET /api/exams/:examId/report-card/:studentId — Report card data
-router.get("/:examId/report-card/:studentId", authenticate, requireTeacherOrAdmin(), async (req: AuthRequest, res: Response) => {
+router.get("/:examId/report-card/:studentId", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const examId = req.params.examId as string;
     const studentId = req.params.studentId as string;
+
+    // STUDENT can only see their own report card
+    if (req.user!.role === "STUDENT") {
+      const studentIdFromToken = (req.user as any).studentId;
+      if (studentId !== studentIdFromToken) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+    }
+
+    // PARENT can only see their children's report cards
+    if (req.user!.role === "PARENT") {
+      const guardian = await prisma.guardian.findUnique({ 
+        where: { userId: req.user!.id }, 
+        include: { students: { select: { id: true } } } 
+      });
+      const childIds = guardian?.students.map(s => s.id) || [];
+      if (!childIds.includes(studentId)) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+    }
 
     const [student, exam, marks] = await Promise.all([
       prisma.student.findUnique({ where: { id: studentId } }),

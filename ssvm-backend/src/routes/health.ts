@@ -46,10 +46,10 @@ router.get("/", async (_req: Request, res: Response) => {
       health.storage = "unhealthy";
     }
 
-    const isFullyHealthy = 
-      health.database === "healthy" && 
-      health.redis === "healthy" && 
-      health.queue === "healthy" && 
+    const isFullyHealthy =
+      health.database === "healthy" &&
+      health.redis === "healthy" &&
+      health.queue === "healthy" &&
       health.storage === "healthy";
 
     res.status(isFullyHealthy ? 200 : 503).json(health);

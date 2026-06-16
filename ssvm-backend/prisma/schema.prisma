@@ -25,10 +25,10 @@ model School {
   onboardingDone                                                        Boolean                      @default(false)
   createdAt                                                             DateTime                     @default(now())
   updatedAt                                                             DateTime                     @updatedAt
-  tenantState                                                           TenantState                  @default(PROVISIONING)
   deletedAt                                                             DateTime?
   deletedById                                                           String?
   schoolGroupId                                                         String?
+  tenantState                                                           TenantState                  @default(PROVISIONING)
   AccountingPeriod                                                      AccountingPeriod[]
   BankReconciliation                                                    BankReconciliation[]
   Budget                                                                Budget[]
@@ -53,15 +53,17 @@ model School {
   PolicyDefinition                                                      PolicyDefinition[]
   PostingRule                                                           PostingRule[]
   SSOConfiguration                                                      SSOConfiguration?
+  integrations                                                          SchoolIntegration[]
   SequenceCounter                                                       SequenceCounter[]
   StudentFinancialProjection                                            StudentFinancialProjection[]
+  webhookDeliveries                                                     WebhookDelivery[]
   WorkflowDefinition                                                    WorkflowDefinition[]
   sessions                                                              AcademicSession[]
+  accessReviews                                                         AccessReview[]
   activityLogs                                                          ActivityLog[]
   admissionEnquiries                                                    AdmissionEnquiry[]
   admissions                                                            Admission[]
-  integrations                                                          SchoolIntegration[]
-  webhookDeliveries                                                     WebhookDelivery[]
+  archiveJobLogs                                                        ArchiveJobLog[]
   assetCategories                                                       AssetCategory[]
   assets                                                                Asset[]
   assignments                                                           Assignment[]
@@ -79,6 +81,7 @@ model School {
   consentRecords                                                        ConsentRecord[]
   contracts                                                             Contract[]
   customDomainRecord                                                    CustomDomain?
+  dataClassifications                                                   DataClassification[]
   departments                                                           Department[]
   documentRepo                                                          DocumentRepository[]
   documents                                                             Document[]
@@ -86,17 +89,26 @@ model School {
   exams                                                                 Exam[]
   feeCategories                                                         FeeCategory[]
   feeStructures                                                         FeeStructure[]
+  financialPeriods                                                      FinancialPeriod[]
   fineRules                                                             FineRule[]
   galleryImages                                                         GalleryImage[]
+  helpdeskTickets                                                       HelpdeskTicket[]
+  hostelAllocations                                                     HostelAllocation[]
+  hostelRooms                                                           HostelRoom[]
+  incidentReports                                                       IncidentReport[]
   invoices                                                              Invoice[]
   legalHolds                                                            LegalHold[]
   messageTemplates                                                      MessageTemplate[]
   messageThreads                                                        MessageThread[]
   notices                                                               Notice[]
+  notificationDeliveries                                                NotificationDelivery[]
   notificationTemplates                                                 NotificationTemplate[]
   notifications                                                         Notification[]
   onboardingProgress                                                    OnboardingProgress?
+  permissionGroups                                                      PermissionGroup[]
   purchaseOrders                                                        PurchaseOrder[]
+  receptionCallLogs                                                     ReceptionCallLog[]
+  receptionComplaints                                                   ReceptionComplaint[]
   reportTemplates                                                       ReportTemplate[]
   salaries                                                              Salary[]
   scholarships                                                          Scholarship[]
@@ -118,28 +130,16 @@ model School {
   teachers                                                              Teacher[]
   testimonials                                                          Testimonial[]
   timetables                                                            Timetable[]
+  transportAllocations                                                  TransportAllocation[]
+  transportRoutes                                                       TransportRoute[]
+  transportVehicles                                                     TransportVehicle[]
   templates                                                             Template[]
   usageMetrics                                                          UsageMetric[]
+  userConsents                                                          UserConsent[]
+  delegations                                                           UserDelegation[]
   vendors                                                               Vendor[]
   visitorLogs                                                           VisitorLog[]
   webhookEndpoints                                                      WebhookEndpoint[]
-
-  // Phase 3: Governance
-  permissionGroups       PermissionGroup[]
-  delegations            UserDelegation[]
-  accessReviews          AccessReview[]
-  notificationDeliveries NotificationDelivery[]
-  transportVehicles      TransportVehicle[]
-  transportRoutes        TransportRoute[]
-  transportAllocations   TransportAllocation[]
-  dataClassifications    DataClassification[]
-  userConsents           UserConsent[]
-  financialPeriods       FinancialPeriod[]
-  archiveJobLogs         ArchiveJobLog[]
-  hostelRooms            HostelRoom[]
-  hostelAllocations      HostelAllocation[]
-  helpdeskTickets        HelpdeskTicket[]
-  incidentReports        IncidentReport[]
 
   @@map("schools")
 }
@@ -260,20 +260,29 @@ model User {
   updatedAt               DateTime                 @updatedAt
   deletedAt               DateTime?
   deletedById             String?
+  mustChangePassword      Boolean                  @default(false)
+  passwordChangedAt       DateTime?
   FederatedUser           FederatedUser[]
+  accessReviewsGiven      AccessReview[]           @relation("AccessReviewer")
+  accessReviewsTargeted   AccessReview[]           @relation("AccessReviewTarget")
   alumni                  Alumni?
   assetsAssignedByMe      AssetAssignment[]        @relation("AssetAssigner")
   assetAssignments        AssetAssignment[]        @relation("AssetAssignee")
   assetTransfers          AssetTransfer[]
   auditLogs               AuditLog[]               @relation("AuditUser")
   events                  Event[]                  @relation("EventCreator")
+  financialPeriods        FinancialPeriod[]
   guardian                Guardian?
+  assignedTickets         HelpdeskTicket[]         @relation("TicketAssignee")
+  requestedTickets        HelpdeskTicket[]         @relation("TicketRequester")
+  reportedIncidents       IncidentReport[]         @relation("Reporter")
   issuedCertificates      IssuedCertificate[]
   legalHoldsPlaced        LegalHold[]              @relation("LegalHoldPlacer")
   legalHoldsReleased      LegalHold[]              @relation("LegalHoldReleaser")
   messageParticipants     MessageParticipant[]
   messages                Message[]
   notices                 Notice[]                 @relation("NoticeAuthor")
+  notificationDeliveries  NotificationDelivery[]   @relation("NotificationRecipient")
   notificationPreferences NotificationPreference[]
   purchaseOrders          PurchaseOrder[]
   refreshTokens           RefreshToken[]
@@ -281,30 +290,18 @@ model User {
   archivesCreated         SchoolArchive[]
   settingsHistoryChanges  SchoolSettingsHistory[]
   storageObjects          StorageObject[]
+  student                 Student?
   supportMessages         SupportMessage[]
   supportTickets          SupportTicket[]
   systemLogs              SystemLog[]
   teacher                 Teacher?
+  transportVehicles       TransportVehicle[]
+  userConsents            UserConsent[]
+  delegationsReceived     UserDelegation[]         @relation("DelegateeRelation")
+  delegationsGiven        UserDelegation[]         @relation("DelegatorRelation")
+  userDevices             UserDevice[]
   sessions                UserSession[]
   webhookEndpoints        WebhookEndpoint[]
-
-  // Phase 3: Identity Governance
-  delegationsGiven      UserDelegation[] @relation("DelegatorRelation")
-  delegationsReceived   UserDelegation[] @relation("DelegateeRelation")
-  accessReviewsGiven    AccessReview[]   @relation("AccessReviewer")
-  accessReviewsTargeted AccessReview[]   @relation("AccessReviewTarget")
-
-  // Phase 2: Notification Center
-  notificationDeliveries NotificationDelivery[] @relation("NotificationRecipient")
-  userDevices            UserDevice[]
-  transportVehicles      TransportVehicle[]
-
-  // Manual relations to fix HelpdeskTicket duplicates
-  requestedTickets  HelpdeskTicket[]  @relation("TicketRequester")
-  assignedTickets   HelpdeskTicket[]  @relation("TicketAssignee")
-  userConsents      UserConsent[]
-  financialPeriods  FinancialPeriod[]
-  reportedIncidents IncidentReport[]  @relation("Reporter")
 
   @@index([role])
   @@index([schoolId])
@@ -502,9 +499,12 @@ model Student {
   updatedAt                  DateTime                    @updatedAt
   deletedAt                  DateTime?
   deletedById                String?
+  userId                     String?                     @unique
   StudentFinancialProjection StudentFinancialProjection?
   submissions                AssignmentSubmission[]
   attendance                 Attendance[]
+  hostelAllocations          HostelAllocation[]
+  incidentReports            IncidentReport[]
   invoices                   Invoice[]
   issuedCertificates         IssuedCertificate[]
   scholarships               Scholarship[]
@@ -514,9 +514,8 @@ model Student {
   guardian                   Guardian?                   @relation(fields: [guardianId], references: [id])
   school                     School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   sectionRef                 Section?                    @relation(fields: [sectionId], references: [id])
+  user                       User?                       @relation(fields: [userId], references: [id])
   transportAllocations       TransportAllocation[]
-  hostelAllocations          HostelAllocation[]
-  incidentReports            IncidentReport[]
 
   @@index([schoolId])
   @@index([sectionId])
@@ -698,6 +697,7 @@ model Exam {
   isPublished  Boolean       @default(false)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  isArchived   Boolean       @default(false)
   examSubjects ExamSubject[]
   classRef     Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
   school       School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -863,6 +863,9 @@ model Invoice {
   updatedAt               DateTime                 @updatedAt
   deletedAt               DateTime?
   deletedById             String?
+  isVoided                Boolean                  @default(false)
+  voidedAt                DateTime?
+  voidedById              String?
   DeferredRevenueSchedule DeferredRevenueSchedule?
   branch                  Branch?                  @relation(fields: [branchId], references: [id])
   school                  School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -1053,8 +1056,8 @@ model Notification {
   errorMessage   String?
   templateId     String?
   createdAt      DateTime               @default(now())
-  school         School?                @relation(fields: [schoolId], references: [id])
   deliveries     NotificationDelivery[]
+  school         School?                @relation(fields: [schoolId], references: [id])
 
   @@index([schoolId, createdAt])
   @@index([type, status])
@@ -1067,20 +1070,19 @@ model NotificationDelivery {
   notificationId String
   schoolId       String?
   channel        NotificationChannel
-  recipientId    String? // UserId of recipient
+  recipientId    String?
   recipientPhone String?
   recipientEmail String?
-  provider       String? // E.g., Twilio, SendGrid, Firebase
+  provider       String?
   providerMsgId  String?
   status         NotificationStatus  @default(QUEUED)
   sentAt         DateTime?
   errorMessage   String?
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
-
-  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
-  school       School?      @relation(fields: [schoolId], references: [id])
-  recipient    User?        @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  notification   Notification        @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  recipient      User?               @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  school         School?             @relation(fields: [schoolId], references: [id])
 
   @@index([notificationId])
   @@index([schoolId, status])
@@ -1503,74 +1505,66 @@ model UserSession {
 }
 
 model AdmissionEnquiry {
-  id               String   @id @default(cuid())
-  schoolId         String
-  studentName      String
-  parentName       String
-  phone            String
-  email            String?
-  applyingForClass String?
-  source           String?
-  status           String   @default("OPEN")
-  remarks          String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  
-  // Phase 4: CRM Fields
-  pipelineStageId  String?
-  campaignId       String?
+  id                     String             @id @default(cuid())
+  schoolId               String
+  studentName            String
+  parentName             String
+  phone                  String
+  email                  String?
+  applyingForClass       String?
+  source                 String?
+  status                 String             @default("OPEN")
+  remarks                String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+  campaignId             String?
   expectedConversionDate DateTime?
-  
-  school           School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  pipelineStage    PipelineStage? @relation(fields: [pipelineStageId], references: [id])
-  campaign         MarketingCampaign? @relation(fields: [campaignId], references: [id])
-  interactions     LeadInteraction[]
+  pipelineStageId        String?
+  interactions           LeadInteraction[]
+  campaign               MarketingCampaign? @relation(fields: [campaignId], references: [id])
+  pipelineStage          PipelineStage?     @relation(fields: [pipelineStageId], references: [id])
+  school                 School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, status])
   @@index([pipelineStageId])
   @@map("admission_enquiries")
 }
 
-// Phase 4: CRM Models
-
 model PipelineStage {
-  id          String   @id @default(cuid())
-  schoolId    String
-  name        String
-  orderIndex  Int
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-
-  leads       AdmissionEnquiry[]
+  id         String             @id @default(cuid())
+  schoolId   String
+  name       String
+  orderIndex Int
+  isActive   Boolean            @default(true)
+  createdAt  DateTime           @default(now())
+  leads      AdmissionEnquiry[]
 
   @@index([schoolId])
 }
 
 model LeadInteraction {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   leadId      String
-  type        String   // "EMAIL", "CALL", "WHATSAPP", "IN_PERSON"
+  type        String
   notes       String?
-  performedBy String   // Staff ID
-  createdAt   DateTime @default(now())
-
+  performedBy String
+  createdAt   DateTime         @default(now())
   lead        AdmissionEnquiry @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
   @@index([leadId])
 }
 
 model MarketingCampaign {
-  id          String   @id @default(cuid())
-  schoolId    String
-  name        String
-  source      String   // "FACEBOOK", "GOOGLE", "REFERRAL"
-  budget      Float?
-  startDate   DateTime?
-  endDate     DateTime?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-
-  leads       AdmissionEnquiry[]
+  id        String             @id @default(cuid())
+  schoolId  String
+  name      String
+  source    String
+  budget    Float?
+  startDate DateTime?
+  endDate   DateTime?
+  isActive  Boolean            @default(true)
+  createdAt DateTime           @default(now())
+  leads     AdmissionEnquiry[]
 
   @@index([schoolId])
 }
@@ -1589,6 +1583,39 @@ model VisitorLog {
 
   @@index([schoolId])
   @@map("visitor_logs")
+}
+
+model ReceptionComplaint {
+  id          String          @id @default(cuid())
+  schoolId    String
+  name        String
+  phone       String?
+  subject     String
+  description String
+  status      ComplaintStatus @default(OPEN)
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime        @default(now())
+  school      School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("reception_complaints")
+}
+
+model ReceptionCallLog {
+  id           String    @id @default(cuid())
+  schoolId     String
+  callerName   String
+  callerPhone  String
+  purpose      String
+  handledBy    String?
+  followUpDate DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@map("reception_call_logs")
 }
 
 model WebhookEndpoint {
@@ -1743,15 +1770,11 @@ model MessageAttachment {
   @@map("message_attachments")
 }
 
-// ==========================================
-// Phase 3: Mobile Platform Backend
-// ==========================================
-
 model UserDevice {
   id           String   @id @default(cuid())
   userId       String
   deviceToken  String   @unique
-  platform     String // "IOS" | "ANDROID" | "WEB"
+  platform     String
   appVersion   String?
   deviceModel  String?
   lastActiveAt DateTime @default(now())
@@ -1766,7 +1789,7 @@ model UserDevice {
 
 model AppVersion {
   id             String   @id @default(cuid())
-  platform       String   @unique // "IOS" | "ANDROID"
+  platform       String   @unique
   minimumVersion String
   latestVersion  String
   forceUpdate    Boolean  @default(false)
@@ -1777,40 +1800,34 @@ model AppVersion {
   @@map("app_versions")
 }
 
-// ==========================================
-// Phase 3: Transport ERP
-// ==========================================
-
 model TransportVehicle {
-  id                 String   @id @default(cuid())
+  id                 String           @id @default(cuid())
   schoolId           String
-  registrationNumber String   @unique
-  vehicleType        String // e.g., "BUS", "VAN", "MINIBUS"
+  registrationNumber String           @unique
+  vehicleType        String
   capacity           Int
-  status             String   @default("ACTIVE") // "ACTIVE", "MAINTENANCE", "INACTIVE"
+  status             String           @default("ACTIVE")
   driverId           String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  school School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  driver User?            @relation(fields: [driverId], references: [id], onDelete: SetNull)
-  routes TransportRoute[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  routes             TransportRoute[]
+  driver             User?            @relation(fields: [driverId], references: [id])
+  school             School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
   @@map("transport_vehicles")
 }
 
 model TransportRoute {
-  id        String   @id @default(cuid())
+  id        String            @id @default(cuid())
   schoolId  String
   name      String
   vehicleId String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  school  School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  vehicle TransportVehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  stops   TransportStop[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  school    School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  vehicle   TransportVehicle? @relation(fields: [vehicleId], references: [id])
+  stops     TransportStop[]
 
   @@index([schoolId])
   @@index([vehicleId])
@@ -1818,37 +1835,35 @@ model TransportRoute {
 }
 
 model TransportStop {
-  id          String   @id @default(cuid())
+  id          String                @id @default(cuid())
   routeId     String
   name        String
   latitude    Float?
   longitude   Float?
-  pickupTime  String? // HH:mm format
-  dropoffTime String? // HH:mm format
-  fare        Float    @default(0.0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  route       TransportRoute        @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  pickupTime  String?
+  dropoffTime String?
+  fare        Float                 @default(0.0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
   allocations TransportAllocation[]
+  route       TransportRoute        @relation(fields: [routeId], references: [id], onDelete: Cascade)
 
   @@index([routeId])
   @@map("transport_stops")
 }
 
 model TransportAllocation {
-  id         String   @id @default(cuid())
+  id         String        @id @default(cuid())
   schoolId   String
   studentId  String
   stopId     String
-  monthCycle String? // e.g., "JAN_2026"
-  status     String   @default("ACTIVE") // "ACTIVE", "PAUSED", "CANCELLED"
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  school  School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  stop    TransportStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  monthCycle String?
+  status     String        @default("ACTIVE")
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  school     School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  stop       TransportStop @relation(fields: [stopId], references: [id], onDelete: Cascade)
+  student    Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
   @@index([studentId])
@@ -1856,20 +1871,14 @@ model TransportAllocation {
   @@map("transport_allocations")
 }
 
-// ==========================================
-// Phase 4: Compliance, Governance, & Ancillary ERPs
-// ==========================================
-
-// 1. Data Governance
 model DataClassification {
   id          String   @id @default(cuid())
   schoolId    String
   tableName   String
   columnName  String
-  privacyTier String // e.g., "PII", "FINANCIAL", "PUBLIC"
+  privacyTier String
   createdAt   DateTime @default(now())
-
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, tableName, columnName])
   @@map("data_classifications")
@@ -1882,80 +1891,72 @@ model UserConsent {
   policyVersion String
   ipAddress     String?
   acceptedAt    DateTime @default(now())
-
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, policyVersion])
   @@map("user_consents")
 }
 
-// 2. Financial Close
 model FinancialPeriod {
   id         String    @id @default(cuid())
   schoolId   String
-  name       String // e.g., "FY 2025-26", "APR 2026"
+  name       String
   startDate  DateTime
   endDate    DateTime
-  status     String    @default("OPEN") // "OPEN", "CLOSED"
+  status     String    @default("OPEN")
   closedAt   DateTime?
   closedById String?
-
-  school   School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  closedBy User?  @relation(fields: [closedById], references: [id], onDelete: SetNull)
+  closedBy   User?     @relation(fields: [closedById], references: [id])
+  school     School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, status])
   @@map("financial_periods")
 }
 
-// 3. Enterprise Archival
 model ArchiveJobLog {
   id           String    @id @default(cuid())
   schoolId     String
-  jobType      String // "END_OF_YEAR", "GRADUATION_BATCH"
-  status       String    @default("PENDING") // "PENDING", "IN_PROGRESS", "COMPLETED", "FAILED"
+  jobType      String
+  status       String    @default("PENDING")
   glacierVault String?
   byteSize     BigInt?
   checksum     String?
   startedAt    DateTime  @default(now())
   completedAt  DateTime?
-
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
   @@map("archive_job_logs")
 }
 
-// 4. Ancillary ERPs (Hostel & Helpdesk)
 model HostelRoom {
-  id         String   @id @default(cuid())
-  schoolId   String
-  building   String
-  roomNumber String
-  capacity   Int
-  gender     String // "MALE", "FEMALE", "COED"
-  status     String   @default("AVAILABLE") // "AVAILABLE", "MAINTENANCE"
-  createdAt  DateTime @default(now())
-
-  school      School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id          String             @id @default(cuid())
+  schoolId    String
+  building    String
+  roomNumber  String
+  capacity    Int
+  gender      String
+  status      String             @default("AVAILABLE")
+  createdAt   DateTime           @default(now())
   allocations HostelAllocation[]
+  school      School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, building, roomNumber])
   @@map("hostel_rooms")
 }
 
 model HostelAllocation {
-  id        String    @id @default(cuid())
+  id        String     @id @default(cuid())
   schoolId  String
   studentId String
   roomId    String
   startDate DateTime
   endDate   DateTime?
-  status    String    @default("ACTIVE") // "ACTIVE", "VACATED"
-
-  school  School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  room    HostelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  status    String     @default("ACTIVE")
+  room      HostelRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  school    School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student   Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([schoolId])
   @@index([studentId])
@@ -1967,17 +1968,16 @@ model HelpdeskTicket {
   schoolId    String
   title       String
   description String
-  category    String // "IT", "MAINTENANCE", "BILLING"
-  priority    String   @default("MEDIUM") // "LOW", "MEDIUM", "HIGH", "CRITICAL"
-  status      String   @default("OPEN") // "OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"
+  category    String
+  priority    String   @default("MEDIUM")
+  status      String   @default("OPEN")
   requesterId String
   assigneeId  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  school    School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  requester User   @relation("TicketRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  assignee  User?  @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assignee    User?    @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  requester   User     @relation("TicketRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, status])
   @@map("helpdesk_tickets")
@@ -2124,9 +2124,9 @@ model Vendor {
   updatedAt      DateTime        @updatedAt
   deletedAt      DateTime?
   deletedById    String?
+  vendorInvoices VendorInvoice[]
   assets         Asset[]
   purchaseOrders PurchaseOrder[]
-  vendorInvoices VendorInvoice[]
   school         School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@map("vendors")
@@ -2150,6 +2150,8 @@ model Asset {
   purchaseItemId String?
   deletedAt      DateTime?
   deletedById    String?
+  condition      AssetCondition      @default(GOOD)
+  notes          String?
   assignments    AssetAssignment[]
   depreciations  AssetDepreciation[]
   transfers      AssetTransfer[]
@@ -2236,13 +2238,13 @@ model PurchaseOrder {
   createdAt         DateTime            @default(now())
   updatedAt         DateTime            @updatedAt
   purchaseRequestId String?
-  items             PurchaseOrderItem[]
   goodsReceipts     GoodsReceipt[]
   vendorInvoices    VendorInvoice[]
+  items             PurchaseOrderItem[]
   user              User                @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  purchaseRequest   PurchaseRequest?    @relation(fields: [purchaseRequestId], references: [id])
   school            School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   vendor            Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  purchaseRequest   PurchaseRequest?    @relation(fields: [purchaseRequestId], references: [id])
 
   @@map("purchase_orders")
 }
@@ -2795,13 +2797,13 @@ model LedgerTransaction {
   reversalOfId            String?
   hash                    String?
   previousHash            String?
-  idempotencyKey          String?             @unique
   eventPublished          Boolean             @default(false)
   createdBy               String
   approvedBy              String?
   approvedAt              DateTime?
   approvalStatus          ApprovalStatus?
   createdAt               DateTime            @default(now())
+  idempotencyKey          String?             @unique
   FinancialAudit          FinancialAudit[]
   LedgerEntry             LedgerEntry[]
   LedgerEvent             LedgerEvent[]
@@ -3065,6 +3067,398 @@ model auth_events {
   @@index([eventType, createdAt])
   @@index([schoolId, createdAt])
   @@index([userId, createdAt])
+}
+
+model IntegrationApp {
+  id            String              @id @default(cuid())
+  name          String
+  description   String?
+  developer     String?
+  website       String?
+  category      String
+  clientId      String              @unique
+  clientSecret  String
+  scopes        String[]
+  webhookUrl    String?
+  isActive      Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  installations SchoolIntegration[]
+}
+
+model SchoolIntegration {
+  id           String         @id @default(cuid())
+  schoolId     String
+  appId        String
+  status       String         @default("ACTIVE")
+  installedBy  String
+  accessToken  String?
+  refreshToken String?
+  config       Json?
+  installedAt  DateTime       @default(now())
+  app          IntegrationApp @relation(fields: [appId], references: [id], onDelete: Cascade)
+  school       School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, appId])
+}
+
+model WebhookDelivery {
+  id            String    @id @default(cuid())
+  schoolId      String
+  appId         String
+  eventType     String
+  payload       Json
+  responseCode  Int?
+  responseBody  String?
+  status        String
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime?
+  createdAt     DateTime  @default(now())
+  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+}
+
+model PermissionGroup {
+  id          String           @id @default(cuid())
+  schoolId    String?
+  name        String
+  description String?
+  permissions String[]
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  school      School?          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  delegations UserDelegation[]
+
+  @@unique([schoolId, name])
+  @@map("permission_groups")
+}
+
+model UserDelegation {
+  id                String           @id @default(cuid())
+  schoolId          String
+  delegatorId       String
+  delegateeId       String
+  permissionGroupId String?
+  role              Role?
+  reason            String
+  startDate         DateTime         @default(now())
+  endDate           DateTime
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  delegatee         User             @relation("DelegateeRelation", fields: [delegateeId], references: [id], onDelete: Cascade)
+  delegator         User             @relation("DelegatorRelation", fields: [delegatorId], references: [id], onDelete: Cascade)
+  permissionGroup   PermissionGroup? @relation(fields: [permissionGroupId], references: [id])
+  school            School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, delegateeId, isActive])
+  @@map("user_delegations")
+}
+
+model MasterCountry {
+  id        String        @id @default(cuid())
+  code      String        @unique
+  name      String        @unique
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  states    MasterState[]
+
+  @@map("mdm_countries")
+}
+
+model MasterState {
+  id        String        @id @default(cuid())
+  countryId String
+  code      String        @unique
+  name      String
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  cities    MasterCity[]
+  country   MasterCountry @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  @@index([countryId])
+  @@map("mdm_states")
+}
+
+model MasterCity {
+  id        String      @id @default(cuid())
+  stateId   String
+  name      String
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  state     MasterState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+
+  @@index([stateId])
+  @@map("mdm_cities")
+}
+
+model MasterReligion {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("mdm_religions")
+}
+
+model MasterCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("mdm_categories")
+}
+
+model MasterSubject {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("mdm_subjects")
+}
+
+model MasterDepartment {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("mdm_departments")
+}
+
+model AccessReview {
+  id            String             @id @default(cuid())
+  schoolId      String
+  reviewerId    String
+  targetUserId  String
+  status        AccessReviewStatus @default(PENDING)
+  comments      String?
+  reviewDate    DateTime?
+  scheduledDate DateTime
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  reviewer      User               @relation("AccessReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
+  school        School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  targetUser    User               @relation("AccessReviewTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, targetUserId])
+  @@map("access_reviews")
+}
+
+model IncidentReport {
+  id           String   @id @default(cuid())
+  schoolId     String
+  studentId    String
+  reporterId   String
+  type         String
+  severity     String
+  title        String
+  description  String
+  actionTaken  String?
+  status       String   @default("OPEN")
+  incidentDate DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  reporter     User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([studentId])
+  @@map("incident_reports")
+}
+
+model BackupValidation {
+  id         String   @id @default(cuid())
+  fileName   String
+  status     String
+  durationMs Int
+  checksum   String
+  verifiedAt DateTime @default(now())
+
+  @@map("backup_validations")
+}
+
+model PurchaseRequest {
+  id             String                @id @default(cuid())
+  schoolId       String
+  requestNumber  String                @unique
+  requesterId    String
+  departmentId   String?
+  status         PRStatus              @default(DRAFT)
+  justification  String?
+  totalEstAmount Float                 @default(0)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  items          PurchaseRequestItem[]
+  purchaseOrders PurchaseOrder[]
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+}
+
+model PurchaseRequestItem {
+  id                String          @id @default(cuid())
+  purchaseRequestId String
+  itemId            String?
+  description       String
+  quantity          Float
+  estimatedPrice    Float
+  createdAt         DateTime        @default(now())
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+}
+
+model GoodsReceipt {
+  id              String        @id @default(cuid())
+  schoolId        String
+  grNumber        String        @unique
+  purchaseOrderId String
+  receivedDate    DateTime      @default(now())
+  receivedById    String
+  remarks         String?
+  createdAt       DateTime      @default(now())
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+
+  @@index([schoolId])
+  @@index([purchaseOrderId])
+}
+
+model VendorInvoice {
+  id              String         @id @default(cuid())
+  schoolId        String
+  invoiceNumber   String
+  vendorId        String
+  purchaseOrderId String?
+  amount          Float
+  status          String         @default("PENDING")
+  dueDate         DateTime?
+  createdAt       DateTime       @default(now())
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+  vendor          Vendor         @relation(fields: [vendorId], references: [id])
+
+  @@index([schoolId])
+  @@index([vendorId])
+  @@index([schoolId, status])
+}
+
+model InventoryLocation {
+  id          String           @id @default(cuid())
+  schoolId    String
+  name        String
+  description String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  stocks      InventoryStock[]
+
+  @@index([schoolId])
+}
+
+model InventoryItem {
+  id           String           @id @default(cuid())
+  schoolId     String
+  sku          String           @unique
+  name         String
+  categoryId   String?
+  uom          String           @default("NOS")
+  reorderLevel Float            @default(0)
+  isActive     Boolean          @default(true)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  stocks       InventoryStock[]
+
+  @@index([schoolId])
+}
+
+model InventoryStock {
+  id          String            @id @default(cuid())
+  schoolId    String
+  itemId      String
+  locationId  String
+  quantity    Float             @default(0)
+  lastUpdated DateTime          @updatedAt
+  item        InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  location    InventoryLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, locationId])
+  @@index([schoolId])
+}
+
+model StockLedger {
+  id            String                @id @default(cuid())
+  schoolId      String
+  itemId        String
+  locationId    String
+  movementType  InventoryMovementType
+  quantity      Float
+  balanceAfter  Float
+  referenceDoc  String?
+  performedById String
+  timestamp     DateTime              @default(now())
+
+  @@index([schoolId])
+  @@index([itemId])
+  @@index([locationId])
+  @@index([schoolId, timestamp])
+}
+
+model DataRetentionPolicy {
+  id            String   @id @default(cuid())
+  schoolId      String
+  entityName    String
+  retentionDays Int
+  action        String
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([schoolId, entityName])
+  @@index([schoolId])
+}
+
+model CustomWorkflow {
+  id               String         @id @default(cuid())
+  schoolId         String
+  name             String
+  triggerEntity    String
+  triggerCondition String
+  isActive         Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  steps            WorkflowStep[]
+
+  @@index([schoolId, triggerEntity])
+}
+
+model WorkflowStep {
+  id            String         @id @default(cuid())
+  workflowId    String
+  orderIndex    Int
+  actionType    String
+  actionPayload String
+  createdAt     DateTime       @default(now())
+  workflow      CustomWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+}
+
+enum AssetCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  CONDEMNED
 }
 
 enum Role {
@@ -3364,258 +3758,11 @@ enum TenantState {
   DELETED
 }
 
-// ==============================================================================
-// PHASE 8: INTEGRATION MARKETPLACE
-// ==============================================================================
-
-model IntegrationApp {
-  id           String   @id @default(cuid())
-  name         String // "Zoom", "Canvas LMS", "Razorpay"
-  description  String?
-  developer    String? // "SSVM Tech" or "3rd Party"
-  website      String?
-  category     String // "PAYMENT", "LMS", "COMMUNICATION"
-  clientId     String   @unique
-  clientSecret String // Encrypted
-  scopes       String[] // ["read:students", "write:ledger"]
-  webhookUrl   String? // Where events should be pushed to this app
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-
-  installations SchoolIntegration[]
-}
-
-model SchoolIntegration {
-  id           String   @id @default(cuid())
-  schoolId     String
-  appId        String
-  status       String   @default("ACTIVE") // ACTIVE, SUSPENDED
-  installedBy  String // UserId
-  accessToken  String? // OAuth token issued to this app
-  refreshToken String?
-  config       Json? // Custom JSON config (e.g., Razorpay Keys)
-  installedAt  DateTime @default(now())
-
-  school School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  app    IntegrationApp @relation(fields: [appId], references: [id], onDelete: Cascade)
-
-  @@unique([schoolId, appId])
-}
-
-model WebhookDelivery {
-  id            String    @id @default(cuid())
-  schoolId      String
-  appId         String
-  eventType     String // "PAYMENT_POSTED"
-  payload       Json
-  responseCode  Int?
-  responseBody  String?
-  status        String // "SUCCESS", "FAILED", "PENDING"
-  attempts      Int       @default(0)
-  nextAttemptAt DateTime?
-  createdAt     DateTime  @default(now())
-
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-}
-
-// ==============================================================================
-// PHASE 3: IDENTITY & ACCESS GOVERNANCE
-// ==============================================================================
-
-model PermissionGroup {
-  id          String   @id @default(cuid())
-  schoolId    String? // If null, it's a global/SaaS group
-  name        String
-  description String?
-  permissions String[] // Array of permission strings e.g. ["FINANCE_READ", "INVOICE_CREATE"]
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  school      School?          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  delegations UserDelegation[]
-
-  @@unique([schoolId, name])
-  @@map("permission_groups")
-}
-
-model UserDelegation {
-  id                String   @id @default(cuid())
-  schoolId          String
-  delegatorId       String // User giving access
-  delegateeId       String // User receiving access
-  permissionGroupId String?
-  role              Role? // Alternatively delegate a full role
-  reason            String
-  startDate         DateTime @default(now())
-  endDate           DateTime
-  isActive          Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  school          School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  delegator       User             @relation("DelegatorRelation", fields: [delegatorId], references: [id], onDelete: Cascade)
-  delegatee       User             @relation("DelegateeRelation", fields: [delegateeId], references: [id], onDelete: Cascade)
-  permissionGroup PermissionGroup? @relation(fields: [permissionGroupId], references: [id], onDelete: SetNull)
-
-  @@index([schoolId, delegateeId, isActive])
-  @@map("user_delegations")
-}
-
-// ==========================================
-// Phase 3: Master Data Management (MDM)
-// ==========================================
-
-model MasterCountry {
-  id        String        @id @default(cuid())
-  code      String        @unique // e.g. "IN", "US"
-  name      String        @unique
-  isActive  Boolean       @default(true)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  states    MasterState[]
-
-  @@map("mdm_countries")
-}
-
-model MasterState {
-  id        String        @id @default(cuid())
-  countryId String
-  code      String        @unique // e.g. "MH", "NY"
-  name      String
-  isActive  Boolean       @default(true)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-  country   MasterCountry @relation(fields: [countryId], references: [id], onDelete: Cascade)
-  cities    MasterCity[]
-
-  @@index([countryId])
-  @@map("mdm_states")
-}
-
-model MasterCity {
-  id        String      @id @default(cuid())
-  stateId   String
-  name      String
-  isActive  Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  state     MasterState @relation(fields: [stateId], references: [id], onDelete: Cascade)
-
-  @@index([stateId])
-  @@map("mdm_cities")
-}
-
-model MasterReligion {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("mdm_religions")
-}
-
-model MasterCategory {
-  id        String   @id @default(cuid())
-  name      String   @unique // e.g., "General", "OBC", "SC", "ST"
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("mdm_categories")
-}
-
-model MasterSubject {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  name        String   @unique
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("mdm_subjects")
-}
-
-model MasterDepartment {
-  id          String   @id @default(cuid())
-  code        String   @unique
-  name        String   @unique
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@map("mdm_departments")
-}
-
-model AccessReview {
-  id            String             @id @default(cuid())
-  schoolId      String
-  reviewerId    String
-  targetUserId  String
-  status        AccessReviewStatus @default(PENDING)
-  comments      String?
-  reviewDate    DateTime?
-  scheduledDate DateTime
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
-
-  school     School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  reviewer   User   @relation("AccessReviewer", fields: [reviewerId], references: [id], onDelete: Cascade)
-  targetUser User   @relation("AccessReviewTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
-
-  @@index([schoolId, targetUserId])
-  @@map("access_reviews")
-}
-
 enum AccessReviewStatus {
   PENDING
   APPROVED
   REVOKED
 }
-
-// ==========================================
-// Phase 10: Disciplinary & Incident Management
-// ==========================================
-
-model IncidentReport {
-  id           String   @id @default(cuid())
-  schoolId     String
-  studentId    String
-  reporterId   String
-  type         String // "INFRACTION", "MERIT", "ACADEMIC_VIOLATION", "SAFETY"
-  severity     String // "LOW", "MEDIUM", "HIGH", "CRITICAL"
-  title        String
-  description  String   @db.Text
-  actionTaken  String?  @db.Text
-  status       String   @default("OPEN") // "OPEN", "UNDER_INVESTIGATION", "RESOLVED"
-  incidentDate DateTime @default(now())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  school   School  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student  Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  reporter User    @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-
-  @@index([schoolId])
-  @@index([studentId])
-  @@map("incident_reports")
-}
-
-model BackupValidation {
-  id         String   @id @default(cuid())
-  fileName   String
-  status     String // SUCCESS, FAILED
-  durationMs Int
-  checksum   String
-  verifiedAt DateTime @default(now())
-
-  @@map("backup_validations")
-}
-
-// Phase 3: Procurement & Inventory
 
 enum PRStatus {
   DRAFT
@@ -3631,175 +3778,9 @@ enum InventoryMovementType {
   ADJUSTMENT
 }
 
-model PurchaseRequest {
-  id             String   @id @default(cuid())
-  schoolId       String
-  requestNumber  String   @unique
-  requesterId    String
-  departmentId   String?
-  status         PRStatus @default(DRAFT)
-  justification  String?
-  totalEstAmount Float    @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  items          PurchaseRequestItem[]
-  purchaseOrders PurchaseOrder[]
-
-  @@index([schoolId])
-  @@index([schoolId, status])
-}
-
-model PurchaseRequestItem {
-  id                String   @id @default(cuid())
-  purchaseRequestId String
-  itemId            String?
-  description       String
-  quantity          Float
-  estimatedPrice    Float
-  createdAt         DateTime @default(now())
-
-  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
-}
-
-model GoodsReceipt {
-  id              String   @id @default(cuid())
-  schoolId        String
-  grNumber        String   @unique
-  purchaseOrderId String
-  receivedDate    DateTime @default(now())
-  receivedById    String
-  remarks         String?
-  createdAt       DateTime @default(now())
-
-  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
-
-  @@index([schoolId])
-  @@index([purchaseOrderId])
-}
-
-model VendorInvoice {
-  id              String    @id @default(cuid())
-  schoolId        String
-  invoiceNumber   String
-  vendorId        String
-  purchaseOrderId String?
-  amount          Float
-  status          String    @default("PENDING") // PENDING, PAID
-  dueDate         DateTime?
-  createdAt       DateTime  @default(now())
-
-  vendor        Vendor         @relation(fields: [vendorId], references: [id])
-  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
-
-  @@index([schoolId])
-  @@index([vendorId])
-  @@index([schoolId, status])
-}
-
-model InventoryLocation {
-  id          String   @id @default(cuid())
-  schoolId    String
-  name        String
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-
-  stocks InventoryStock[]
-
-  @@index([schoolId])
-}
-
-model InventoryItem {
-  id           String   @id @default(cuid())
-  schoolId     String
-  sku          String   @unique
-  name         String
-  categoryId   String?
-  uom          String   @default("NOS")
-  reorderLevel Float    @default(0)
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  stocks InventoryStock[]
-
-  @@index([schoolId])
-}
-
-model InventoryStock {
-  id          String   @id @default(cuid())
-  schoolId    String
-  itemId      String
-  locationId  String
-  quantity    Float    @default(0)
-  lastUpdated DateTime @updatedAt
-
-  item     InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  location InventoryLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
-
-  @@unique([itemId, locationId])
-  @@index([schoolId])
-}
-
-model StockLedger {
-  id            String                @id @default(cuid())
-  schoolId      String
-  itemId        String
-  locationId    String
-  movementType  InventoryMovementType
-  quantity      Float
-  balanceAfter  Float
-  referenceDoc  String?
-  performedById String
-  timestamp     DateTime              @default(now())
-
-  @@index([schoolId])
-  @@index([itemId])
-  @@index([locationId])
-  @@index([schoolId, timestamp])
-}
-
-// Phase 6: Governance & Workflows
-
-model DataRetentionPolicy {
-  id            String   @id @default(cuid())
-  schoolId      String
-  entityName    String   // e.g., "VisitorLog", "AuditLog"
-  retentionDays Int      // e.g., 90, 2555 (7 years)
-  action        String   // "ARCHIVE", "PURGE"
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@unique([schoolId, entityName])
-  @@index([schoolId])
-}
-
-model CustomWorkflow {
-  id               String   @id @default(cuid())
-  schoolId         String
-  name             String
-  triggerEntity    String   // e.g., "AdmissionEnquiry"
-  triggerCondition String   // JSON logic, e.g., { "status": "APPROVED" }
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  steps            WorkflowStep[]
-
-  @@index([schoolId, triggerEntity])
-}
-
-model WorkflowStep {
-  id            String   @id @default(cuid())
-  workflowId    String
-  orderIndex    Int
-  actionType    String   // "SEND_EMAIL", "CREATE_TASK", "WEBHOOK"
-  actionPayload String   // JSON config for the action
-  createdAt     DateTime @default(now())
-
-  workflow      CustomWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-
-  @@index([workflowId])
+enum ComplaintStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }

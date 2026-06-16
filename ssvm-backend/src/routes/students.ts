@@ -6,6 +6,40 @@ import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
 
+// GET /api/students/me — STUDENT role self-profile
+router.get('/me', authenticate, requireRole('STUDENT'), async (req: AuthRequest, res: Response) => {
+  try {
+    const studentId = (req.user as any).studentId;
+    if (!studentId) {
+      return res.status(400).json({ success: false, error: 'Student ID not found in token' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        sectionRef: {
+          include: {
+            class: {
+              include: { session: true }
+            }
+          }
+        },
+        guardian: true,
+        school: { select: { id: true, name: true, code: true } }
+      }
+    });
+
+    if (!student) {
+      return res.status(404).json({ success: false, error: 'Student record not found' });
+    }
+
+    res.json({ success: true, data: student });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
 // GET /api/students
 router.get("/", authenticate, requireRole("ADMIN", "PARENT", "ERP_ADMIN", "SUPER_ADMIN", "TEACHER"), async (req: AuthRequest, res: Response) => {
   try {

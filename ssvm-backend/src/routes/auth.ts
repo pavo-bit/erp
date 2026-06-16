@@ -246,7 +246,8 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
       role: "STUDENT",
       name: student.name,
       schoolId: student.schoolId,
-    }, req);
+      studentId: student.id, // Add studentId to payload
+    } as any, req);
 
     const { password: _, ...studentWithoutPw } = student;
     logger.info({ studentId: student.id }, "Student logged in via Payment Portal");
@@ -683,6 +684,79 @@ router.get("/events", authenticate, requireRole("SUPER_ADMIN"), async (req: Auth
     });
   } catch (e) {
     logger.error({ err: e }, "Fetch auth events error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// ═══════════════════════════════════════════
+// POST /api/auth/change-password — Force Password Change
+// ═══════════════════════════════════════════
+
+router.post("/change-password", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({ success: false, error: "Current and new passwords are required" });
+      return;
+    }
+
+    // Validate new password strength (min 8 chars, 1 uppercase, 1 number, 1 special)
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      res.status(400).json({ 
+        success: false, 
+        error: "Password must be at least 8 characters with 1 uppercase, 1 number, and 1 special character" 
+      });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!user) {
+      res.status(404).json({ success: false, error: "User not found" });
+      return;
+    }
+
+    const validCurrent = await verifyPassword(currentPassword, user.passwordHash);
+    if (!validCurrent) {
+      res.status(401).json({ success: false, error: "Current password is incorrect" });
+      return;
+    }
+
+    const hashedNew = await hashPassword(newPassword);
+
+    // Update password and clear mustChangePassword flag
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { 
+        passwordHash: hashedNew,
+        mustChangePassword: false,
+        passwordChangedAt: new Date()
+      }
+    });
+
+    // Invalidate current session's JTI in Redis (force re-login)
+    const accessTokenCookie = req.cookies?.access_token;
+    if (accessTokenCookie) {
+      const { verifyAccessToken } = await import("../lib/tokens");
+      const payload = verifyAccessToken(accessTokenCookie);
+      if (payload && "jti" in payload) {
+        const { blocklistAccessToken } = await import("../lib/redis");
+        await blocklistAccessToken(payload.jti as string);
+      }
+    }
+
+    // Clear cookies
+    res.clearCookie("access_token", { path: "/" });
+    res.clearCookie("refresh_token", { path: "/api/auth" });
+    res.clearCookie("auth_token", { path: "/" });
+
+    logger.info({ userId: user.id }, "Password changed successfully");
+    await logAuthEvent(prisma, { eventType: "PASSWORD_CHANGED", userId: user.id, req, success: true });
+
+    res.json({ success: true, data: { message: "Password changed successfully. Please log in again." } });
+  } catch (e) {
+    logger.error({ err: e }, "Change password error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });
