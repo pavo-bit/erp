@@ -118,9 +118,8 @@ import ledgerTransactionsRoutes from "./routes/admin/ledgerTransactions";
 
 // Phase E: Billing
 import billingRoutes from "./routes/admin/billing";
-
-// Phase F: Payroll
 import payrollRoutes from "./routes/admin/payroll";
+import resultsRoutes from "./routes/results";
 
 import { metricsMiddleware, getMetrics } from "./middleware/metrics";
 import swaggerUi from "swagger-ui-express";
@@ -326,6 +325,7 @@ app.use("/api/v1/payments", paymentCreateLimiter, paymentRoutes);
 app.use("/api/v1/crm", crmLimiter, crmRoutes);
 app.use("/api/v1/timetable", timetableRoutes);
 app.use("/api/v1/exams", strictLimiter, examRoutes);
+app.use("/api/v1/results", strictLimiter, resultsRoutes);
 app.use("/api/v1/admissions", admissionRoutes);
 app.use("/api/v1/hr", hrRoutes);
 app.use("/api/v1/notifications", notificationRoutes);

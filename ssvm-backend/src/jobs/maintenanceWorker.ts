@@ -35,6 +35,7 @@ export function startMaintenanceWorker(): Worker | undefined {
       switch (job.name) {
         case "cleanupExpiredIdempotencyRecords":
           await cleanupExpiredIdempotencyRecords();
+          await cleanupOldBackups();
           break;
 
         case "validate-backup":
@@ -120,6 +121,54 @@ async function cleanupExpiredIdempotencyRecords(): Promise<void> {
   }
 
   logger.info({ totalDeleted }, "IdempotencyRecord cleanup completed");
+}
+
+/**
+ * Cleanup old SystemBackup entries and their S3 objects based on retention policy (e.g., older than 30 days).
+ */
+async function cleanupOldBackups(): Promise<void> {
+  const retentionDays = parseInt(env.BACKUP_RETENTION_DAYS || "30", 10);
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+
+  logger.info({ cutoffDate }, "Starting SystemBackup retention cleanup");
+
+  const oldBackups = await prisma.systemBackup.findMany({
+    where: { createdAt: { lt: cutoffDate } }
+  });
+
+  if (oldBackups.length === 0) {
+    logger.info("No old backups to clean up");
+    return;
+  }
+
+  const s3 = new S3Client({
+    region: env.AWS_REGION || "ap-south-1",
+    credentials: {
+      accessKeyId: env.AWS_ACCESS_KEY_ID || "",
+      secretAccessKey: env.AWS_SECRET_ACCESS_KEY || "",
+    },
+  });
+  const S3_BUCKET = env.AWS_S3_BUCKET || "ssvm-backups";
+  let deletedCount = 0;
+
+  for (const backup of oldBackups) {
+    if (backup.fileUrl) {
+      const backupKey = backup.fileUrl.split("/").pop();
+      if (backupKey) {
+        try {
+          const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+          await s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: backupKey }));
+          deletedCount++;
+        } catch (err) {
+          logger.warn({ err, backupKey }, "Failed to delete backup from S3");
+        }
+      }
+    }
+    await prisma.systemBackup.delete({ where: { id: backup.id } });
+  }
+
+  logger.info({ deletedCount }, "SystemBackup retention cleanup completed");
 }
 
 /**

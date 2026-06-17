@@ -20,6 +20,8 @@ import { injectCsrfToken } from "../middleware/csrf";
 import { logAuthEvent } from "../lib/authEventLogger";
 import { alumniRegisterLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
+import { incrementFailedLogins, resetFailedLogins } from "../lib/redis";
+import { enqueueNotification } from "../jobs/queue";
 
 const router = Router();
 
@@ -164,10 +166,30 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
     const valid = await verifyPassword(password, (user as any).passwordHash);
     if (!valid) {
       logger.warn({ email }, "Failed login attempt");
-      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: user.id, schoolId: user.schoolId || undefined, req, success: false, failReason: "invalid_credentials", metadata: { email } });
+      const attempts = await incrementFailedLogins(email);
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: user.id, schoolId: user.schoolId || undefined, req, success: false, failReason: "invalid_credentials", metadata: { email, attempts } });
+      
+      if (attempts >= 5) {
+        // Lockout! Notify ERP_ADMIN
+        const admin = await prisma.user.findFirst({ where: { schoolId: user.schoolId, role: "ERP_ADMIN", isActive: true } });
+        if (admin) {
+          await enqueueNotification({
+            logId: `lockout-${user.id}-${Date.now()}`,
+            channel: "EMAIL",
+            to: admin.email,
+            subject: "SECURITY ALERT: Account Lockout",
+            content: `The account ${email} has been locked out after 5 failed login attempts. IP: ${req.ip}`,
+          });
+        }
+        res.status(429).json({ success: false, error: "Too many failed login attempts. Please try again later." });
+        return;
+      }
+      
       res.status(401).json({ success: false, error: "Invalid credentials" });
       return;
     }
+
+    await resetFailedLogins(email);
 
     // Update lastLogin timestamp
     await prisma.user.update({

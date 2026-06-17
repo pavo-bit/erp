@@ -1,6 +1,7 @@
 # SSVM College Square — Full Platform Documentation
 
-> **Version**: 3.1.0 | **Last Updated**: June 17, 2026  
+> **Note**: This document was last reconciled against source code on June 17, 2026. Any future discrepancy should be resolved in favor of the code, and this note updated.
+> **Version**: 3.2.0 | **Last Updated**: June 17, 2026  
 > **Base URL**: `http://localhost:5000` (Backend API)  
 > **Stack**: Node.js / Express / Prisma / PostgreSQL / Next.js
 
@@ -76,7 +77,7 @@ graph TB
 ```
 ssvm-backend/
 ├── prisma/
-│   ├── schema.prisma          # 62 models, 15 enums, 1424 lines
+│   ├── schema.prisma          # 202 models, 15 enums, ~3800 lines
 │   └── migrations/
 │       └── 20260612100205_add_phase_10a_features/
 ├── src/
@@ -93,7 +94,7 @@ ssvm-backend/
 │   │   └── validate.ts        # Zod schema validation
 │   ├── validators/
 │   │   └── schemas.ts         # Zod validation schemas
-│   └── routes/                # 30 route files
+│   └── routes/                # 55 route files
 │       ├── auth.ts            # Authentication & login
 │       ├── users.ts           # User management (CRUD, role assign, password reset)
 │       ├── schools.ts         # School CRUD + setup
@@ -321,167 +322,219 @@ erDiagram
 | `NotificationStatus` | `QUEUED`, `SENT`, `FAILED` |
 | `SalaryStatus` | `PENDING`, `PAID`, `HOLD` |
 
-### Model Summary (64 Models)
-
-#### Tenant & Subscription (6 Models)
+### Model Summary (202 Models)
 
 | # | Model | Table | Key Fields | Relations |
 |---|---|---|---|---|
-| 1 | `School` | `schools` | id, name, code, boardType, isActive | Central tenant entity |
-| 2 | `Branch` | `branches` | id, schoolId, name, address, isActive | → School |
-| 3 | `Subscription` | `subscriptions` | id, schoolId, planId, amount, status | → School (1:1), SubscriptionPlanConfig |
-| 4 | `SubscriptionPlanConfig` | `subscription_plan_configs` | id, name, fixedPrice, billingCycle, features | → Subscription[] |
-| 5 | `SubscriptionPayment` | `subscription_payments` | id, schoolId, subscriptionId, amountPaid | → Subscription, School |
-| 6 | `SchoolRegistrationRequest` | `SchoolRegistrationRequest` | id, schoolName, principalName, email, status | Lead capturing for new SaaS tenants |
-| 7 | `OnboardingProgress` | `onboarding_progress` | id, schoolId, isProfileComplete, isSubscriptionActive, isDataImported | → School |
-
-#### RBAC & Users (3 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 7 | `Permission` | `permissions` | id, name, description | → RolePermission[] |
-| 8 | `RolePermission` | `role_permissions` | id, role, permissionId | → Permission |
-| 9 | `User` | `users` | id, email, password, name, role, schoolId, branchId, employeeId, department, isActive, lastLogin | → Teacher?, Alumni?, Guardian? |
-| 10 | `OTP` | `otps` | id, phone, code, expiresAt, verified | — |
-
-#### Academic Structure (4 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 11 | `AcademicSession` | `academic_sessions` | id, schoolId, name, startDate, endDate, isCurrent | → School, Class[] |
-| 12 | `Class` | `classes` | id, schoolId, sessionId, name, sortOrder | → School, AcademicSession, Section[] |
-| 13 | `Section` | `sections` | id, classId, name, capacity | → Class, Student[], ClassTeacher[], Timetable[] |
-| 14 | `ClassTeacher` | `class_teachers` | id, sectionId, teacherId, isPrimary | → Section, Teacher |
-
-#### People (7 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 15 | `Department` | `departments` | id, schoolId, name | → School, Teacher[] |
-| 16 | `Teacher` | `teachers` | id, userId, schoolId, branchId, departmentId, employeeId, designation | → User, School, Department, ClassTeacher[] |
-| 17 | `Guardian` | `guardians` | id, userId, schoolId, primaryName, primaryPhone | → User?, Student[] |
-| 18 | `Student` | `students` | id, schoolId, branchId, sectionId, guardianId, rollNo, admissionNo, name | → School, Branch?, Section?, Guardian?, StudentMark[] |
-| 19 | `StudentTimeline` | `student_timeline` | id, studentId, title, type | → Student |
-| 20 | `Alumni` | `alumni` | id, userId, batch, company, isFeatured | → User, Contribution[] |
-| 21 | `Contribution` | `contributions` | id, alumniId, amount, purpose | → Alumni |
-
-#### Attendance & HR (3 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 22 | `Attendance` | `attendance` | id, studentId, schoolId, sectionId, date, status, markedById | → Student, School, Section?, Teacher? |
-| 23 | `TeacherAttendance` | `teacher_attendance` | id, teacherId, date, status | → Teacher |
-| 24 | `LeaveRequest` | `leave_requests` | id, requesterId, leaveType, startDate, endDate, status | → Teacher |
-
-#### Subjects & Timetable (6 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 25 | `Subject` | `subjects` | id, schoolId, name, code | → School, ClassSubject[], ExamSubject[], TeacherSubjectAssignment[] |
-| 26 | `ClassSubject` | `class_subjects` | id, classId, subjectId | → Class, Subject |
-| 27 | `TeacherSubject` | `teacher_subjects` | id, teacherId, subjectId | → Teacher, Subject |
-| 28 | `TeacherSubjectAssignment` | `teacher_subject_assignments` | id, schoolId, teacherId, subjectId, sectionId, academicSessionId | → School, Teacher, Subject, Section, AcademicSession, TimetableSlot[] |
-| 29 | `Timetable` | `timetables` | id, schoolId, sectionId, day | → School, Section, TimetableSlot[] |
-| 30 | `TimetableSlot` | `timetable_slots` | id, timetableId, period, teacherSubjectAssignmentId, startTime, endTime | → Timetable, TeacherSubjectAssignment |
-
-#### Exams & Results (3 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 31 | `Exam` | `exams` | id, schoolId, classId, name, isPublished | → School, Class, ExamSubject[] |
-| 32 | `ExamSubject` | `exam_subjects` | id, examId, subjectId, maxMarks, passMarks, theoryMaxMarks, practicalMaxMarks | → Exam, Subject, StudentMark[] |
-| 33 | `StudentMark` | `student_marks` | id, studentId, examSubjectId, marksObtained, grade, theoryMarksObtained, practicalMarksObtained | → Student, ExamSubject |
-
-#### Notices & Events (2 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 34 | `Notice` | `notices` | id, schoolId, title, content, category, status, authorId | → School, User, Branch? |
-| 35 | `Event` | `events` | id, schoolId, title, date, venue, category, status, creatorId | → School, User, Branch? |
-
-#### Finance & Fees (6 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 36 | `FeeCategory` | `fee_categories` | id, schoolId, name | → School, FeeStructure[] |
-| 37 | `FeeStructure` | `fee_structures` | id, schoolId, categoryId, classId, amount | → School, FeeCategory, Class? |
-| 38 | `FineRule` | `fine_rules` | id, schoolId, graceDays, fineAmount, isPercentage | → School |
-| 39 | `Invoice` | `invoices` | id, studentId, schoolId, amount, amountPaid, remainingAmount, fineAmount, type, status, dueDate | → Student, School, Branch?, PaymentTransaction[] |
-| 40 | `PaymentTransaction` | `payment_transactions` | id, invoiceId, amountPaid, gateway, transactionId, status | → Invoice |
-| 41 | `RazorpayReconciliation` | `razorpay_reconciliation` | id, schoolId, batchId, status, totalRecords, mismatchCount | → School |
-
-#### Assignments (4 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 41 | `Assignment` | `assignments` | id, schoolId, classId, teacherId, subjectId, title, dueDate, maxMarks, rubric, allowLate | → School, Class?, Teacher?, Subject, Attachment[], Submission[] |
-| 42 | `AssignmentAttachment` | `assignment_attachments` | id, assignmentId, fileName, fileUrl, fileType | → Assignment |
-| 43 | `AssignmentSubmission` | `assignment_submissions` | id, assignmentId, studentId, status, marksObtained, teacherFeedback, isLate | → Assignment, Student |
-| 44 | `StudyMaterial` | `study_materials` | id, schoolId, classId, subjectId, title, fileUrl | → School, Class? |
-
-#### Admissions (2 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 45 | `Admission` | `admissions` | id, schoolId, applicantName, applyingForClass, parentName, status | → School, AdmissionLog[], Branch? |
-| 46 | `AdmissionLog` | `admission_logs` | id, admissionId, status, notes, changedById | → Admission |
-
-#### Salary (1 Model)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 47 | `Salary` | `salaries` | id, teacherId, schoolId, month, year, basicPay, allowances, deductions, netPay, status | → Teacher, School, Branch? |
-
-#### Notifications & Templates (3 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 48 | `Notification` | `notifications` | id, schoolId, type, recipientPhone, subject, message, status, templateId | → School |
-| 49 | `MessageTemplate` | `message_templates` | id, schoolId, name, category, channel, bodyTemplate `{{vars}}` | → School |
-| 50 | `NotificationTemplate` | `notification_templates` | id, schoolId, name, type, content, isActive | → School |
-
-#### CMS & Gallery (4 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 51 | `GalleryImage` | `gallery_images` | id, schoolId, title, category, imageUrl, isPublished | → School |
-| 52 | `SiteContent` | `site_content` | id, schoolId, section, key, value, type | → School |
-| 53 | `Testimonial` | `testimonials` | id, schoolId, name, role, content, rating, isPublished | → School |
-| 54 | `Scholarship` | `scholarships` | id, schoolId, studentId, name, amount, approvedBy | → School, Student, User? |
-
-#### Communications (2 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 55 | `CommunicationTemplate` | `communication_templates` | id, schoolId, name, channel, subject, content | → School |
-| 56 | `CommunicationLog` | `communication_logs` | id, schoolId, recipientId, channel, type, content, status | → School |
-
-#### Reports & Documents (2 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 57 | `ReportTemplate` | `report_templates` | id, schoolId, name, type, htmlContent, cssStyles | → School |
-| 58 | `DocumentRepository` | `document_repository` | id, schoolId, studentId, teacherId, category, fileUrl, isVerified | → School |
-
-#### Audit & Activity (3 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 59 | `AuditLog` | `audit_logs` | id, schoolId, userId, action, entity, entityId, details, ipAddress, hash, previousHash | → School, User |
-| 60 | `ActivityLog` | `activity_logs` | id, schoolId, type, title, description, metadata(JSON) | → School |
-| 61 | `Document` | `documents` | id, schoolId, ownerType, ownerId, category, fileUrl | → School |
-| 62 | `OnboardingProgress` | `onboarding_progress` | id, schoolId, profileCompleted, academicSetupCompleted, studentsImported | → School (1:1) |
-| 63 | `IdempotencyRecord` | `idempotency_records` | id, key, response, status, expiresAt | — |
-| 64 | `SystemBackup` | `system_backups` | id, type, status, sizeBytes, fileUrl, checksum | — |
-
-#### Library (2 Models)
-
-| # | Model | Table | Key Fields | Relations |
-|---|---|---|---|---|
-| 65 | `Book` | `books` | id, schoolId, title, author, isbn, category, totalCopies, available | → School |
-| 66 | `BookIssue` | `book_issues` | id, bookId, studentId, teacherId, issueDate, dueDate, returnDate, status, fineAmount | → Book, Student?, Teacher? |
+| 1 | `School` | `schools` | id, name, code, status | → SchoolStatus, TenantState |
+| 2 | `Branch` | `branches` | id, schoolId, name | → School |
+| 3 | `Subscription` | `subscriptions` | id, schoolId, status | → SubscriptionPlanConfig, School |
+| 4 | `SubscriptionPlanConfig` | `subscription_plan_configs` | id, name | - |
+| 5 | `SubscriptionPayment` | `subscription_payments` | id, schoolId | → School, Subscription |
+| 6 | `Permission` | `permissions` | id, name | - |
+| 7 | `RolePermission` | `role_permissions` | id | → Role, Permission |
+| 8 | `User` | `users` | id, email, name, schoolId | → Role |
+| 9 | `RefreshToken` | `refresh_tokens` | id, token | → User |
+| 10 | `OTP` | `otps` | id | - |
+| 11 | `AcademicSession` | `academic_sessions` | id, schoolId, name | → School |
+| 12 | `Class` | `classes` | id, schoolId, name | → School, AcademicSession |
+| 13 | `Section` | `sections` | id, name | → Class |
+| 14 | `ClassTeacher` | `class_teachers` | id | → Section, Teacher |
+| 15 | `Department` | `departments` | id, schoolId, name | → School |
+| 16 | `Teacher` | `teachers` | id, userId, schoolId | → School, User |
+| 17 | `Guardian` | `guardians` | id, userId, schoolId | - |
+| 18 | `Student` | `students` | id, schoolId, admissionNo, name, userId | → School |
+| 19 | `StudentTimeline` | `student_timeline` | id, title, type | → Student |
+| 20 | `Alumni` | `alumni` | id, userId | → User |
+| 21 | `Attendance` | `attendance` | id, schoolId, status | → AttendanceStatus, School, Student |
+| 22 | `TeacherAttendance` | `teacher_attendance` | id, status | → AttendanceStatus, Teacher |
+| 23 | `LeaveRequest` | `leave_requests` | id, status | → LeaveStatus, Teacher |
+| 24 | `Subject` | `subjects` | id, schoolId, name | → School |
+| 25 | `ClassSubject` | `class_subjects` | id | → Class, Subject |
+| 26 | `TeacherSubject` | `teacher_subjects` | id | → Subject, Teacher |
+| 27 | `Timetable` | `timetables` | id, schoolId | → School, Section |
+| 28 | `TimetableSlot` | `timetable_slots` | id | → TeacherSubjectAssignment, Timetable |
+| 29 | `Exam` | `exams` | id, schoolId, name | → Class, School |
+| 30 | `ExamSubject` | `exam_subjects` | id | → Exam, Subject |
+| 31 | `StudentMark` | `student_marks` | id | → ExamSubject, Student |
+| 32 | `Notice` | `notices` | id, schoolId, title, status | → NoticeStatus, User |
+| 33 | `Event` | `events` | id, schoolId, title, status | → EventStatus, User |
+| 34 | `FeeCategory` | `fee_categories` | id, schoolId, name | → School |
+| 35 | `FeeStructure` | `fee_structures` | id, schoolId | → FeeCategory, School |
+| 36 | `FineRule` | `fine_rules` | id, schoolId | → School |
+| 37 | `Invoice` | `invoices` | id, schoolId, type, status | → FeeType, InvoiceStatus, School |
+| 38 | `Assignment` | `assignments` | id, schoolId, title | → School, Subject |
+| 39 | `AssignmentAttachment` | `assignment_attachments` | id | → Assignment |
+| 40 | `AssignmentSubmission` | `assignment_submissions` | id, status | → AssignmentStatus, Assignment, Student |
+| 41 | `StudyMaterial` | `study_materials` | id, schoolId, title | → School |
+| 42 | `Admission` | `admissions` | id, schoolId, status | → AdmissionStatus, School |
+| 43 | `AdmissionLog` | `admission_logs` | id, status | → AdmissionStatus, Admission |
+| 44 | `Salary` | `salaries` | id, schoolId, status | → SalaryStatus, School, Teacher |
+| 45 | `Notification` | `notifications` | id, schoolId, type, status | → NotificationType, NotificationStatus |
+| 46 | `NotificationDelivery` | `notification_deliveries` | id, schoolId, status | → NotificationChannel, NotificationStatus, Notification |
+| 47 | `MessageTemplate` | `message_templates` | id, schoolId, name | → NotificationType |
+| 48 | `GalleryImage` | `gallery_images` | id, schoolId, title | - |
+| 49 | `Contribution` | `contributions` | id | → Alumni |
+| 50 | `SiteContent` | `site_content` | id, schoolId, type | - |
+| 51 | `Testimonial` | `testimonials` | id, schoolId, name | - |
+| 52 | `PaymentTransaction` | `payment_transactions` | id, transactionId, status, schoolId, gatewayPaymentId | → Invoice |
+| 53 | `RazorpayReconciliation` | `razorpay_reconciliations` | id, schoolId, settlementId, status | → ReconciliationStatus, School |
+| 54 | `IdempotencyRecord` | `idempotency_records` | id, key, status | - |
+| 55 | `ReportTemplate` | `report_templates` | id, schoolId, name, type | → School |
+| 56 | `DocumentRepository` | `document_repository` | id, schoolId, name | → School |
+| 57 | `CommunicationTemplate` | `communication_templates` | id, schoolId, name | → School |
+| 58 | `CommunicationLog` | `communication_logs` | id, schoolId, type, status | → School |
+| 59 | `AuditLog` | `audit_logs` | id, schoolId | - |
+| 60 | `TeacherSubjectAssignment` | `teacher_subject_assignments` | id, schoolId | → AcademicSession, School, Section |
+| 61 | `OnboardingProgress` | `onboarding_progress` | id, schoolId | → School |
+| 62 | `Document` | `documents` | id, schoolId, title | → DocumentOwnerType, DocumentCategory, School |
+| 63 | `ActivityLog` | `activity_logs` | id, schoolId, type, title | → ActivityType, School |
+| 64 | `Scholarship` | `scholarships` | id, schoolId, name, status | → ScholarshipStatus, School, Student |
+| 65 | `NotificationTemplate` | `notification_templates` | id, schoolId, name, type | → NotificationType, School |
+| 66 | `Book` | `books` | id, schoolId, title | → School |
+| 67 | `BookIssue` | `book_issues` | id, schoolId, status | → Book, School |
+| 68 | `SystemBackup` | `system_backups` | id, type, status | - |
+| 69 | `BulkJob` | `bulk_jobs` | id, schoolId, type, status | → School |
+| 70 | `Template` | `unified_templates` | id, schoolId, name | → School |
+| 71 | `UserSession` | `user_sessions` | id, sessionId | → User |
+| 72 | `AdmissionEnquiry` | `admission_enquiries` | id, schoolId, status | → School |
+| 73 | `PipelineStage` | `PipelineStage` | id, schoolId, name | - |
+| 74 | `LeadInteraction` | `LeadInteraction` | id, type | → AdmissionEnquiry |
+| 75 | `MarketingCampaign` | `MarketingCampaign` | id, schoolId, name | - |
+| 76 | `VisitorLog` | `visitor_logs` | id, schoolId | → School |
+| 77 | `ReceptionComplaint` | `reception_complaints` | id, schoolId, name, status | → ComplaintStatus, School |
+| 78 | `ReceptionCallLog` | `reception_call_logs` | id, schoolId | → School |
+| 79 | `WebhookEndpoint` | `webhook_endpoints` | id, schoolId | - |
+| 80 | `ScheduledJob` | `scheduled_jobs` | id, name, status | - |
+| 81 | `SupportTicket` | `support_tickets` | id, schoolId, status | → School, User |
+| 82 | `SupportMessage` | `support_messages` | id | → User, SupportTicket |
+| 83 | `CertificateTemplate` | `certificate_templates` | id, schoolId, name | → School |
+| 84 | `IssuedCertificate` | `issued_certificates` | id, qrHash, status | → User, Student, CertificateTemplate |
+| 85 | `MessageThread` | `message_threads` | id, schoolId | → School |
+| 86 | `MessageParticipant` | `message_participants` | id | → MessageThread, User |
+| 87 | `Message` | `messages` | id | → User, MessageThread |
+| 88 | `MessageAttachment` | `message_attachments` | id | → Message |
+| 89 | `UserDevice` | `user_devices` | id, deviceToken | → User |
+| 90 | `AppVersion` | `app_versions` | id, platform | - |
+| 91 | `TransportVehicle` | `transport_vehicles` | id, schoolId, registrationNumber, status | → School |
+| 92 | `TransportRoute` | `transport_routes` | id, schoolId, name | → School |
+| 93 | `TransportStop` | `transport_stops` | id, name | → TransportRoute |
+| 94 | `TransportAllocation` | `transport_allocations` | id, schoolId, status | → School, TransportStop, Student |
+| 95 | `DataClassification` | `data_classifications` | id, schoolId | → School |
+| 96 | `UserConsent` | `user_consents` | id, schoolId | → School, User |
+| 97 | `FinancialPeriod` | `financial_periods` | id, schoolId, name, status | → School |
+| 98 | `ArchiveJobLog` | `archive_job_logs` | id, schoolId, status | → School |
+| 99 | `HostelRoom` | `hostel_rooms` | id, schoolId, status | → School |
+| 100 | `HostelAllocation` | `hostel_allocations` | id, schoolId, status | → HostelRoom, School, Student |
+| 101 | `HelpdeskTicket` | `helpdesk_tickets` | id, schoolId, title, status | → User, School |
+| 102 | `MessageReadReceipt` | `message_read_receipts` | id | → Message |
+| 103 | `FeatureFlag` | `feature_flags` | id, code, name | - |
+| 104 | `SchoolFeature` | `school_features` | id, schoolId | → FeatureFlag, School |
+| 105 | `SchoolSettings` | `school_settings` | id, schoolId | → School |
+| 106 | `BrandSettings` | `brand_settings` | id, schoolId, customDomain | → School |
+| 107 | `SchoolRegistrationRequest` | `school_registration_requests` | id, email, status | - |
+| 108 | `StorageObject` | `storage_objects` | id, key, schoolId | → School, User |
+| 109 | `AssetCategory` | `asset_categories` | id, schoolId, name | → School |
+| 110 | `Vendor` | `vendors` | id, schoolId, name | → School |
+| 111 | `Asset` | `assets` | id, schoolId, name, status | → AssetCondition, AssetCategory, School |
+| 112 | `AssetAssignment` | `asset_assignments` | id | → Asset, User, User |
+| 113 | `AssetTransfer` | `asset_transfers` | id | → Asset, User |
+| 114 | `AssetDepreciation` | `asset_depreciations` | id | → Asset |
+| 115 | `MaintenanceRecord` | `maintenance_records` | id, type, status | → Asset |
+| 116 | `PurchaseOrder` | `purchase_orders` | id, schoolId, poNumber, status | → User, School, Vendor |
+| 117 | `PurchaseOrderItem` | `purchase_order_items` | id, status | → PurchaseOrder |
+| 118 | `FailedJob` | `failed_jobs` | id, status | - |
+| 119 | `SystemLog` | `system_logs` | id, schoolId | - |
+| 120 | `Contract` | `contracts` | id, schoolId, status | → School |
+| 121 | `UsageMetric` | `usage_metrics` | id, schoolId | → BigInt, School |
+| 122 | `CustomDomain` | `custom_domains` | id, schoolId, domain, status | → School |
+| 123 | `ConsentRecord` | `consent_records` | id, schoolId, type | → Guardian, School |
+| 124 | `NotificationPreference` | `notification_preferences` | id, type | → User |
+| 125 | `SchoolSettingsHistory` | `school_settings_history` | id, schoolId | → User, School |
+| 126 | `SchoolArchive` | `school_archives` | id, schoolId, status | → User, School |
+| 127 | `LegalHold` | `legal_holds` | id, schoolId, status | → User, School |
+| 128 | `AccountingPeriod` | `AccountingPeriod` | id, schoolId, name, status | → AccountingPeriodStatus, FiscalYear, School |
+| 129 | `BankReconciliation` | `BankReconciliation` | id, schoolId | → Decimal, Decimal, LedgerAccount |
+| 130 | `Budget` | `Budget` | id, schoolId, name | → School |
+| 131 | `BudgetLine` | `BudgetLine` | id | → Decimal, LedgerAccount, Budget |
+| 132 | `ConsolidationJournal` | `ConsolidationJournal` | id | → SchoolGroup |
+| 133 | `Currency` | `Currency` | code, name | - |
+| 134 | `DailyRevenueProjection` | `DailyRevenueProjection` | id, schoolId | → School |
+| 135 | `DeferredRevenueSchedule` | `DeferredRevenueSchedule` | id, schoolId, invoiceId, status | → Invoice, School |
+| 136 | `DocumentVersion` | `DocumentVersion` | id | → DocumentRepository |
+| 137 | `DomainEvent` | `DomainEvent` | id, schoolId | → SystemDomainEventType |
+| 138 | `FederatedUser` | `FederatedUser` | id | → IdentityProvider, User |
+| 139 | `FinancialApprovalPolicy` | `FinancialApprovalPolicy` | id, schoolId | → Decimal, Decimal, School |
+| 140 | `FinancialAudit` | `FinancialAudit` | id, schoolId | → FinancialEntityType, FinancialAuditAction, School |
+| 141 | `FinancialClose` | `FinancialClose` | id, schoolId | → AccountingPeriod, School |
+| 142 | `FinancialDimension` | `FinancialDimension` | id, schoolId, name | → School |
+| 143 | `FinancialDimensionValue` | `FinancialDimensionValue` | id | → FinancialDimension |
+| 144 | `FinancialReportCache` | `FinancialReportCache` | id, schoolId | → School |
+| 145 | `FiscalYear` | `FiscalYear` | id, schoolId, name, status | → FiscalYearStatus, School |
+| 146 | `IdentityProvider` | `IdentityProvider` | id, name, type | - |
+| 147 | `InterCompanyTransaction` | `InterCompanyTransaction` | id, type, status, ledgerTxIdFrom, ledgerTxIdTo | → School, School |
+| 148 | `JournalTemplate` | `JournalTemplate` | id, schoolId, name | → School |
+| 149 | `JournalTemplateLine` | `JournalTemplateLine` | id | → LedgerAccount, JournalTemplate |
+| 150 | `LedgerAccount` | `LedgerAccount` | id, schoolId, name, type | → LedgerCategory, LedgerAccountType, School |
+| 151 | `LedgerEntry` | `LedgerEntry` | id | → Decimal, Decimal, LedgerAccount |
+| 152 | `LedgerEvent` | `LedgerEvent` | id, schoolId | → LedgerDomainEvent, School |
+| 153 | `LedgerIntegrityReport` | `LedgerIntegrityReport` | id, schoolId | → School |
+| 154 | `LedgerMerkleRoot` | `LedgerMerkleRoot` | id, schoolId | → School |
+| 155 | `LedgerSnapshot` | `LedgerSnapshot` | id, schoolId | → Decimal, LedgerAccount, School |
+| 156 | `LedgerTransaction` | `LedgerTransaction` | id, schoolId, status, idempotencyKey | → LedgerReferenceType, LedgerSource, LedgerStatus |
+| 157 | `MasterDataRegistry` | `MasterDataRegistry` | id, authoritativeId | - |
+| 158 | `MasterRecordAlias` | `MasterRecordAlias` | id | → MasterDataRegistry |
+| 159 | `MasterRecordMerge` | `MasterRecordMerge` | id | → MasterDataRegistry |
+| 160 | `OutboxMessage` | `OutboxMessage` | id, domainEventId, status | → OutboxStatus, DomainEvent |
+| 161 | `PolicyDefinition` | `PolicyDefinition` | id, schoolId, name | → School |
+| 162 | `PolicyEvaluationLog` | `PolicyEvaluationLog` | id | → PolicyVersion |
+| 163 | `PolicyVersion` | `PolicyVersion` | id | → PolicyDefinition |
+| 164 | `PostingRule` | `PostingRule` | id, schoolId | → School |
+| 165 | `PostingRuleLine` | `PostingRuleLine` | id | → LedgerAccount, PostingRule |
+| 166 | `RevenueRecognitionEntry` | `RevenueRecognitionEntry` | id, ledgerTxId | → DeferredRevenueSchedule |
+| 167 | `SSOConfiguration` | `SSOConfiguration` | id, schoolId | → IdentityProvider, School |
+| 168 | `SchoolGroup` | `SchoolGroup` | id, name | - |
+| 169 | `SequenceCounter` | `SequenceCounter` | id, schoolId | → School |
+| 170 | `StudentFinancialProjection` | `StudentFinancialProjection` | id, schoolId, studentId | → School, Student |
+| 171 | `WorkflowDefinition` | `WorkflowDefinition` | id, schoolId, name | → School |
+| 172 | `WorkflowInstance` | `WorkflowInstance` | id, status | → WorkflowStatus, WorkflowDefinition |
+| 173 | `WorkflowNode` | `WorkflowNode` | id, name, type | → WorkflowNodeType, WorkflowDefinition |
+| 174 | `WorkflowTask` | `WorkflowTask` | id, status | → TaskStatus, WorkflowInstance, WorkflowNode |
+| 175 | `WorkflowTransition` | `WorkflowTransition` | id | → WorkflowNode, WorkflowNode |
+| 176 | `auth_events` | `auth_events` | id, schoolId | → AuthEventType |
+| 177 | `IntegrationApp` | `IntegrationApp` | id, name, clientId | - |
+| 178 | `SchoolIntegration` | `SchoolIntegration` | id, schoolId, status | → School |
+| 179 | `WebhookDelivery` | `WebhookDelivery` | id, schoolId, status | → School |
+| 180 | `PermissionGroup` | `permission_groups` | id, schoolId, name | - |
+| 181 | `UserDelegation` | `user_delegations` | id, schoolId | → User, User, School |
+| 182 | `MasterCountry` | `mdm_countries` | id, code, name | - |
+| 183 | `MasterState` | `mdm_states` | id, code, name | → MasterCountry |
+| 184 | `MasterCity` | `mdm_cities` | id, name | → MasterState |
+| 185 | `MasterReligion` | `mdm_religions` | id, name | - |
+| 186 | `MasterCategory` | `mdm_categories` | id, name | - |
+| 187 | `MasterSubject` | `mdm_subjects` | id, code, name | - |
+| 188 | `MasterDepartment` | `mdm_departments` | id, code, name | - |
+| 189 | `AccessReview` | `access_reviews` | id, schoolId, status | → AccessReviewStatus, User, School |
+| 190 | `IncidentReport` | `incident_reports` | id, schoolId, type, title, status | → User, School, Student |
+| 191 | `BackupValidation` | `backup_validations` | id, status | - |
+| 192 | `PurchaseRequest` | `PurchaseRequest` | id, schoolId, requestNumber, status | → PRStatus |
+| 193 | `PurchaseRequestItem` | `PurchaseRequestItem` | id | → PurchaseRequest |
+| 194 | `GoodsReceipt` | `GoodsReceipt` | id, schoolId, grNumber | → PurchaseOrder |
+| 195 | `VendorInvoice` | `VendorInvoice` | id, schoolId, status | → Vendor |
+| 196 | `InventoryLocation` | `InventoryLocation` | id, schoolId, name | - |
+| 197 | `InventoryItem` | `InventoryItem` | id, schoolId, sku, name | - |
+| 198 | `InventoryStock` | `InventoryStock` | id, schoolId | → InventoryItem, InventoryLocation |
+| 199 | `StockLedger` | `StockLedger` | id, schoolId | → InventoryMovementType |
+| 200 | `DataRetentionPolicy` | `DataRetentionPolicy` | id, schoolId | - |
+| 201 | `CustomWorkflow` | `CustomWorkflow` | id, schoolId, name | - |
+| 202 | `WorkflowStep` | `WorkflowStep` | id | → CustomWorkflow |
 
 ---
+
+## Known Gaps
+
+- Frontend hook `useTeacherAttendance` exists but backend route `/api/v1/attendance/teachers` does not — tracked for Phase 2.
+- Frontend hook `useResults` exists but backend route `/api/v1/results` does not — tracked for Phase 2.
 
 ## 4. Backend API Reference
 
@@ -527,7 +580,7 @@ erDiagram
       tags:
         - Authentication
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       responses:
         "200":
           description: Logged out successfully
@@ -539,7 +592,7 @@ erDiagram
       tags:
         - Search
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - in: query
           name: q
@@ -581,7 +634,7 @@ erDiagram
       tags:
         - Messaging
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       responses:
         "200":
           description: List of message threads for the current user
@@ -590,7 +643,7 @@ erDiagram
       tags:
         - Messaging
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       requestBody:
         required: true
         content:
@@ -617,7 +670,7 @@ erDiagram
       tags:
         - Messaging
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - in: path
           name: threadId
@@ -632,7 +685,7 @@ erDiagram
       tags:
         - Messaging
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - in: path
           name: threadId
@@ -660,7 +713,7 @@ erDiagram
       tags:
         - Messaging
       security:
-        - bearerAuth: []
+        - cookieAuth: []
       parameters:
         - in: path
           name: threadId
@@ -678,7 +731,7 @@ erDiagram
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
-| `POST` | `/login` | ✗ | Authenticate staff/admin user, returns Access/Refresh JWTs |
+| `POST` | `/login` | ✗ | Authenticate staff/admin user (enforces 5-attempt lockout policy) |
 | `POST` | `/student/login` | ✗ | Authenticate student with admissionNo + password |
 | `POST` | `/register` | `ADMIN` | Create new user account |
 | `POST` | `/alumni/register` | ✗ (public) | Alumni self-registration |
@@ -772,7 +825,7 @@ Provides real-time push notifications. Clients connect to `/api/sse/stream` to r
 | `GET` | `/` | ✓ | List all assets |
 | `POST` | `/` | ✓ | Create a new asset |
 | `PUT` | `/:id` | ✓ | Update an asset |
-| `DELETE` | `/:id` | ✓ | Delete an asset |
+| `DELETE` | `/:id` | ✓ | Soft delete an asset (`deletedAt`) |
 | `GET` | `/categories` | ✓ | List asset categories |
 | `GET` | `/vendors` | ✓ | List asset vendors |
 | `POST` | `/vendors` | ✓ | Create a new vendor |
@@ -810,7 +863,7 @@ Provides real-time push notifications. Clients connect to `/api/sse/stream` to r
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | `GET` | `/` | ERP Admin+ | List all users (filterable by role, search, pagination) |
-| `POST` | `/` | ERP Admin+ | Create a new user with temporary password |
+| `POST` | `/` | ERP Admin+ | Create a new user with temporary password (must meet complexity rules) |
 | `PUT` | `/:id` | ERP Admin+ | Update user details (role, department, employeeId) |
 | `PUT` | `/:id/status` | ERP Admin+ | Enable/disable user account |
 | `PUT` | `/:id/reset-password` | ERP Admin+ | Reset user password (generates temporary password) |
@@ -966,7 +1019,7 @@ flowchart LR
 | `GET` | `/` | Teacher+ | List exams (filterable by classId) |
 | `POST` | `/` | Admin | Create exam (linked to classId) |
 | `PUT` | `/:id` | Admin | Update exam |
-| `DELETE` | `/:id` | Admin | Delete exam |
+| `DELETE` | `/:id` | Admin | Soft archive exam (`isArchived: true`) |
 | `POST` | `/:id/marks` | Teacher+ | Submit/update marks for an exam |
 | `GET` | `/:examId/report-card/:studentId` | Teacher+ | Generate student report card data |
 
@@ -1013,7 +1066,7 @@ flowchart TD
 | `POST` | `/apply` | ✗ (public) | Submit admission application |
 | `PUT` | `/:id/review` | Admin | Update application status (review, approve, reject) |
 | `POST` | `/:id/enroll` | Admin | Convert approved admission → Student record |
-| `DELETE` | `/:id` | Admin | Delete application |
+| `DELETE` | `/:id` | Admin | Soft delete application (`deletedAt`) |
 
 #### Admission Pipeline
 
@@ -1065,22 +1118,13 @@ flowchart LR
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|
 | `GET` | `/threads` | Auth | List all message threads for the current user |
-| `GET` | `/threads/:id/messages` | Auth | Fetch messages inside a specific thread |
-| `POST` | `/threads/:id/messages` | Auth | Send a new message (supports `MessageAttachment`) |
+| `POST` | `/threads` | Auth | Start a new message thread |
+| `GET` | `/:threadId` | Auth | Fetch all messages for a specific thread |
+| `POST` | `/:threadId` | Auth | Send a new message to a thread |
+| `PUT` | `/:threadId/read` | Auth | Mark thread as read |
 
 ---
 
-### 4.23 Notifications — `/api/notifications`
-
-| Method | Endpoint | Auth | Description |
-|---|---|---|---|
-| `POST` | `/send` | Admin | Enqueues a notification to the `NOTIFICATION_QUEUE` (BullMQ) |
-| `GET` | `/history` | Admin | View sent notification logs |
-
-> [!TIP]
-> All notification dispatches (SMS, Email, WhatsApp) are processed asynchronously via the `NOTIFICATION_QUEUE` to prevent API latency spikes.
-
----
 
 ### 4.24 Notices & Events — `/api/notices`, `/api/events`
 
@@ -1252,6 +1296,336 @@ Invoice: {{invoiceNumber}}
 
 ---
 
+### 4.36 Bulk Operations — `/api/v1/bulk`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/upload` | Admin | Upload bulk data (students, teachers, invoices). Validates rows and imports valid ones. Fails per-row (partial import) if CSV row validation fails. |
+| `GET` | `/jobs` | Admin | List bulk import jobs for the dashboard |
+| `GET` | `/jobs/:id` | Admin | Poll for specific job status |
+
+---
+
+### 4.37 Transport Management — `/api/v1/transport`
+
+> **Access**: `SUPER_ADMIN`, `ERP_ADMIN` only
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/vehicles` | Admin | List transport vehicles |
+| `POST` | `/vehicles` | Admin | Create a new transport vehicle |
+| `GET` | `/routes` | Admin | List transport routes (with stops & vehicles) |
+| `POST` | `/routes` | Admin | Create a new transport route |
+| `POST` | `/stops` | Admin | Add a stop to an existing transport route |
+| `POST` | `/allocate` | Admin | Allocate a student to a transport stop |
+
+---
+
+### 4.38 Discipline & Incident Tracking — `/api/v1/discipline`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/incidents` | Auth | List incidents (Teachers see own, Parents see wards) |
+| `POST` | `/incidents` | Teacher+ | Create new incident report |
+| `PUT` | `/incidents/:id/resolve` | Teacher+ | Resolve an incident |
+| `GET` | `/incidents/student/:id` | Auth | Get behavior/incident summary for a student |
+
+---
+
+### 4.39 Accessgovernance — `/api/v1/admin/accessgovernance`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/delegations` | Admin | Auto-generated endpoint |
+| `GET` | `/delegations` | Admin | Auto-generated endpoint |
+| `POST` | `/reviews` | Admin | Auto-generated endpoint |
+| `PUT` | `/reviews/:id` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.40 Ancillary — `/api/v1/admin/ancillary`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/hostel/rooms` | Admin | Auto-generated endpoint |
+| `POST` | `/hostel/rooms` | Admin | Auto-generated endpoint |
+| `POST` | `/hostel/allocate` | Admin | Auto-generated endpoint |
+| `GET` | `/hostel/allocations` | Admin | Auto-generated endpoint |
+| `PUT` | `/hostel/allocations/:id/checkout` | Admin | Auto-generated endpoint |
+| `GET` | `/helpdesk/tickets` | Admin | Auto-generated endpoint |
+| `POST` | `/helpdesk/tickets` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.41 Backups — `/api/v1/admin/backups`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/` | Admin | Auto-generated endpoint |
+| `GET` | `/` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.42 Billing — `/api/v1/admin/billing`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/categories` | Admin | Auto-generated endpoint |
+| `POST` | `/categories` | Admin | Auto-generated endpoint |
+| `POST` | `/structures` | Admin | Auto-generated endpoint |
+| `POST` | `/invoices/generate` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.43 Dataexport — `/api/v1/admin/dataexport`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.44 Governance Workflows — `/api/v1/admin/governance-workflows`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/retention-policies` | Admin | Auto-generated endpoint |
+| `GET` | `/retention-policies` | Admin | Auto-generated endpoint |
+| `POST` | `/retention-policies/execute` | Admin | Auto-generated endpoint |
+| `POST` | `/workflows` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.45 Inventory — `/api/v1/admin/inventory`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/locations` | Admin | Auto-generated endpoint |
+| `POST` | `/locations` | Admin | Auto-generated endpoint |
+| `GET` | `/items` | Admin | Auto-generated endpoint |
+| `POST` | `/items` | Admin | Auto-generated endpoint |
+| `GET` | `/stock` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.46 Ledgeraccounts — `/api/v1/admin/ledgeraccounts`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/` | Admin | Auto-generated endpoint |
+| `POST` | `/` | Admin | Auto-generated endpoint |
+| `PUT` | `/:id` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.47 Ledgertransactions — `/api/v1/admin/ledgertransactions`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/` | Admin | Auto-generated endpoint |
+| `POST` | `/` | Admin | Auto-generated endpoint |
+| `GET` | `/balance` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.48 Mdm — `/api/v1/admin/mdm`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/countries` | Admin | Auto-generated endpoint |
+| `GET` | `/states` | Admin | Auto-generated endpoint |
+| `GET` | `/cities` | Admin | Auto-generated endpoint |
+| `GET` | `/religions` | Admin | Auto-generated endpoint |
+| `GET` | `/categories` | Admin | Auto-generated endpoint |
+| `GET` | `/subjects` | Admin | Auto-generated endpoint |
+| `GET` | `/departments` | Admin | Auto-generated endpoint |
+| `POST` | `/countries` | Admin | Auto-generated endpoint |
+| `POST` | `/states` | Admin | Auto-generated endpoint |
+| `POST` | `/cities` | Admin | Auto-generated endpoint |
+| `POST` | `/religions` | Admin | Auto-generated endpoint |
+| `POST` | `/categories` | Admin | Auto-generated endpoint |
+| `POST` | `/subjects` | Admin | Auto-generated endpoint |
+| `POST` | `/departments` | Admin | Auto-generated endpoint |
+| `DELETE` | `/:entity/:id` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.49 Payroll — `/api/v1/admin/payroll`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/generate` | Admin | Auto-generated endpoint |
+| `POST` | `/:id/disburse` | Admin | Auto-generated endpoint |
+| `GET` | `/` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.50 Procurement — `/api/v1/admin/procurement`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/vendors` | Admin | Auto-generated endpoint |
+| `POST` | `/vendors` | Admin | Auto-generated endpoint |
+| `GET` | `/orders` | Admin | Auto-generated endpoint |
+| `POST` | `/orders` | Admin | Auto-generated endpoint |
+| `PUT` | `/orders/:id/status` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.51 Purchaseorders — `/api/v1/admin/purchaseorders`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/` | Admin | Auto-generated endpoint |
+| `POST` | `/` | Admin | Auto-generated endpoint |
+| `POST` | `/:id/approve` | Admin | Auto-generated endpoint |
+| `POST` | `/:id/receive` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.52 Saassettings — `/api/v1/admin/saassettings`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/settings` | Admin | Auto-generated endpoint |
+| `PUT` | `/settings` | Admin | Auto-generated endpoint |
+| `GET` | `/branding` | Admin | Auto-generated endpoint |
+| `PUT` | `/branding` | Admin | Auto-generated endpoint |
+| `GET` | `/features` | Admin | Auto-generated endpoint |
+| `POST` | `/features/toggle` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.53 Support — `/api/v1/admin/support`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/diagnostics` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.54 Vendors — `/api/v1/admin/vendors`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/` | Admin | Auto-generated endpoint |
+| `POST` | `/` | Admin | Auto-generated endpoint |
+| `PUT` | `/:id` | Admin | Auto-generated endpoint |
+| `DELETE` | `/:id` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.55 Backups — `/api/v1/backups`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/status` | Admin | Auto-generated endpoint |
+| `POST` | `/trigger` | Admin | Auto-generated endpoint |
+| `GET` | `/:id/download` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.56 Certificates — `/api/v1/certificates`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/templates` | Admin | Auto-generated endpoint |
+| `POST` | `/issue` | Admin | Auto-generated endpoint |
+| `GET` | `/verify/:certNo` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.57 Crm — `/api/v1/crm`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/leads` | Admin | Auto-generated endpoint |
+| `POST` | `/leads/:id/interactions` | Admin | Auto-generated endpoint |
+| `PUT` | `/leads/:id/stage` | Admin | Auto-generated endpoint |
+| `GET` | `/pipeline` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.58 Documents — `/api/v1/documents`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/` | Admin | Auto-generated endpoint |
+| `POST` | `/upload` | Admin | Auto-generated endpoint |
+| `GET` | `/:id` | Admin | Auto-generated endpoint |
+| `DELETE` | `/:id` | Admin | Auto-generated endpoint |
+| `PUT` | `/:id/verify` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.59 Finance Governance — `/api/v1/finance-governance`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/periods/:id/close` | Admin | Auto-generated endpoint |
+| `POST` | `/reconcile` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.60 Finance Reconciliation — `/api/v1/finance-reconciliation`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/` | Admin | Auto-generated endpoint |
+| `GET` | `/unmatched` | Admin | Auto-generated endpoint |
+| `POST` | `/manual-match` | Admin | Auto-generated endpoint |
+| `POST` | `/trigger` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.61 Inventory — `/api/v1/inventory`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/movements` | Admin | Auto-generated endpoint |
+| `GET` | `/stocks` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.62 Mobile — `/api/v1/mobile`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/config` | Admin | Auto-generated endpoint |
+| `POST` | `/devices` | Admin | Auto-generated endpoint |
+| `DELETE` | `/devices/:token` | Admin | Auto-generated endpoint |
+| `PUT` | `/config/:platform` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.63 Procurement — `/api/v1/procurement`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/requests` | Admin | Auto-generated endpoint |
+| `POST` | `/requests/:id/approve` | Admin | Auto-generated endpoint |
+| `POST` | `/orders/:id/receive` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.64 Storage — `/api/v1/storage`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `POST` | `/upload` | Admin | Auto-generated endpoint |
+| `GET` | `/signed-url` | Admin | Auto-generated endpoint |
+
+---
+
+### 4.65 Ledger — `/api/v1/ledger`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/hash-chain-verification` | Admin | Auto-generated endpoint |
+
+---
+
+
 ## 5. Frontend Application Structure
 
 ### 5.1 ERP Admin Dashboard (`erp-admin` — Port 3000)
@@ -1352,6 +1726,175 @@ Invoice: {{invoiceNumber}}
 | `apiCall(url, method, body)` | — | Generic API mutation helper |
 | `invalidateAll(key)` | — | SWR cache invalidation |
 
+### 5.2 Super Admin Portal (`super-admin` — Port 3001)
+
+#### Page Routes
+| Route | Page | Purpose |
+|---|---|---|
+| `/login` | Login | Super Admin secure login |
+| `/dashboard/schools` | Tenant Management | Provision, suspend, and view school tenants |
+| `/dashboard/requests` | SaaS Leads | Review and approve SaaS registration requests |
+| `/dashboard/analytics` | Platform Analytics | Platform-wide revenue and usage metrics |
+| `/dashboard/governance` | Governance & Auditing | View platform audit logs and security events |
+| `/dashboard/settings` | Platform Settings | Global system configuration and billing plans |
+| `/portal` | Quick Actions | Impersonation entry point |
+
+#### Component Library
+Shares core UI components with ERP Admin:
+- `PageHeader`: Consistent page titles and actions
+- `DataTable`: Responsive tables for tenants and requests
+- `StatusBadge`: For SaaS request statuses
+- `Modal`: For impersonation and approval confirmations
+
+#### Frontend Libraries
+- **Framework:** Next.js 16 (App Router)
+- **Styling:** Tailwind CSS v4
+- **Data Fetching:** SWR (via `api-hooks.ts`)
+- **Animations:** Framer Motion
+- **Icons:** Lucide React
+
+#### API Hooks (`api-hooks.ts`)
+| Hook | Endpoint | Description |
+|---|---|---|
+| `useSchools(params)` | `/api/v1/schools` | Fetch all configured school tenants |
+| `useSaaSRequests(params)` | `/api/v1/saas/requests` | Fetch SaaS registration leads |
+| `useAuditLogs(params)` | `/api/v1/saas/security/audit-logs` | Fetch platform audit events |
+| `useFailedLogins(params)` | `/api/v1/saas/security/failed-logins` | Fetch suspicious login activities |
+| `apiCall(url, method, body)` | — | Generic API mutation wrapper |
+
+### 5.3 Teacher Portal (`teacher-portal` — Port 3002)
+
+#### Page Routes
+| Route | Page | Purpose |
+|---|---|---|
+| `/login` | Login | Teacher secure authentication |
+| `/portal/attendance` | Attendance Entry | Quick entry for class/subject attendance |
+| `/portal/discipline` | Discipline Tracking | Record student behavior and incidents |
+| `/portal/exams` | Exam Marks Entry | Enter marks for assigned subjects |
+| `/portal/homework` | Assignments | Create and review daily homework/assignments |
+| `/portal/leaves` | Leave Management | Apply for leave and view status |
+| `/portal/profile` | Teacher Profile | View personal details and documents |
+| `/portal/salary` | Salary & Payslips | View and download monthly payslips |
+| `/portal/timetable` | Timetable | View weekly teaching schedule |
+
+#### Component Library
+Shares core UI components with ERP Admin, optimized for mobile:
+- `PageHeader`: Mobile-friendly headers
+- `DataTable`: Scrollable tables for marks and attendance
+- `StatusBadge`: For leave statuses and attendance states
+
+#### Frontend Libraries
+- **Framework:** Next.js 16 (App Router)
+- **Styling:** Tailwind CSS v4
+- **Data Fetching:** SWR (via `api-hooks.ts`)
+- **Animations:** Framer Motion
+- **Icons:** Lucide React
+
+#### API Hooks (`api-hooks.ts`)
+| Hook | Endpoint | Description |
+|---|---|---|
+| `useTeacherProfile()` | `/api/v1/teachers/me` | Fetch authenticated teacher profile |
+| `useAssignedClasses()` | `/api/v1/academic/assignments` | Fetch assigned subjects/classes |
+| `useTeacherAttendance()` | `/api/v1/attendance/teachers` | Fetch teacher's own attendance |
+| `useLeaves()` | `/api/v1/hr/leaves` | Fetch teacher's leave requests |
+| `useSalaries()` | `/api/v1/hr/salaries` | Fetch teacher's payslips |
+| `apiCall(url, method, body)` | — | Generic API mutation wrapper |
+
+### 5.4 Parent Portal (`parent-portal` — Port 3006)
+
+#### Page Routes
+| Route | Page | Purpose |
+|---|---|---|
+| `/login` | Login | Parent authentication (supports multiple wards) |
+| `/dashboard/attendance` | Ward Attendance | View student daily attendance |
+| `/dashboard/assignments` | Homework | View pending and completed assignments |
+| `/dashboard/behavior` | Behavior Logs | View discipline and positive behavior records |
+| `/dashboard/fees` | Fee Management | View invoices, payment history, and pay online |
+| `/dashboard/notices` | Communications | View school notices, circulars, and messages |
+| `/dashboard/results` | Report Cards | Download digital report cards |
+| `/dashboard/timetable` | Class Timetable | View student's weekly schedule |
+| `/dashboard/transport` | Transport | Track school bus and transport routes |
+| `/dashboard/settings/consent` | Consent Management | Opt-in/out of notifications and data sharing |
+
+#### Component Library
+Optimized for mobile-first consumption by parents:
+- `MetricCard`: Quick stats for attendance and grades
+- `Timeline`: For behavior logs and notices
+- `InvoiceCard`: For pending and paid fee invoices
+
+#### Frontend Libraries
+- **Framework:** Next.js 16 (App Router)
+- **Styling:** Tailwind CSS v4
+- **Data Fetching:** SWR (via `api-hooks.ts`)
+- **Animations:** Framer Motion
+- **Icons:** Lucide React
+
+#### API Hooks (`api-hooks.ts`)
+| Hook | Endpoint | Description |
+|---|---|---|
+| `useWards()` | `/api/v1/guardians/wards` | Fetch all students linked to the parent |
+| `useWardAttendance(id)` | `/api/v1/attendance?studentId={id}` | Fetch attendance for a specific ward |
+| `useWardResults(id)` | `/api/v1/results?studentId={id}` | Fetch results for a specific ward |
+| `useWardInvoices(id)` | `/api/v1/invoices?studentId={id}` | Fetch fee invoices for a specific ward |
+| `useNotices()` | `/api/v1/notices` | Fetch public and class-specific notices |
+| `apiCall(url, method, body)` | — | Generic API mutation wrapper |
+
+### 5.5 Payment Portal (`payment-portal` — Port 3007)
+
+#### Page Routes
+| Route | Page | Purpose |
+|---|---|---|
+| `/login` | Secure Access | Student/Parent login for quick fee payments |
+| `/checkout` | Razorpay Checkout | Processing invoices via Razorpay gateway |
+
+#### Component Library
+Focused exclusively on checkout flows:
+- `CheckoutForm`: Razorpay integrated payment form
+- `InvoiceSummary`: Breakdown of fees and late fines
+- `ReceiptViewer`: Printable payment receipts
+
+#### Frontend Libraries
+- **Framework:** Next.js 16 (App Router)
+- **Styling:** Tailwind CSS v4
+- **Payments:** Razorpay Checkout JS
+- **Data Fetching:** SWR (via `api-hooks.ts`)
+
+#### API Hooks (`api-hooks.ts`)
+| Hook | Endpoint | Description |
+|---|---|---|
+| `usePendingInvoices()` | `/api/v1/payments/pending` | Fetch unpaid invoices for the user |
+| `usePaymentHistory()` | `/api/v1/payments/history` | Fetch completed payment receipts |
+| `apiCall(url, method, body)` | — | Generic API mutation wrapper |
+
+### 5.6 SaaS Landing (`saas-frontend` — Port 3008)
+
+#### Page Routes
+| Route | Page | Purpose |
+|---|---|---|
+| `/` | Landing Page | Public marketing site for the SaaS platform |
+| `/pricing` | Pricing Plans | Subscription tiers and feature comparison |
+| `/apply` | Registration | Lead capture form for new schools |
+
+#### Component Library
+Marketing-focused components:
+- `HeroSection`: High-conversion landing hero
+- `FeatureGrid`: Showcase of ERP capabilities
+- `PricingTable`: Comparative feature matrices
+- `TurnstileForm`: Cloudflare-protected lead capture forms
+
+#### Frontend Libraries
+- **Framework:** Next.js 16 (App Router)
+- **Styling:** Tailwind CSS v4
+- **Security:** `@marsidev/react-turnstile` (Cloudflare CAPTCHA)
+- **Animations:** Framer Motion
+
+#### API Hooks (`api-hooks.ts`)
+| Hook | Endpoint | Description |
+|---|---|---|
+| `usePublicStats()` | `/api/v1/stats/public` | Fetch platform-wide usage stats for marketing |
+| `apiCall(url, method, body)` | — | Generic API mutation wrapper |
+
+
 ---
 
 ## 6. Environment Configuration
@@ -1406,10 +1949,10 @@ npx prisma migrate deploy
 
 ---
 
-> **Total API Endpoints**: ~125+  
-> **Total Database Models**: 64  
+> **Total API Endpoints**: ~140+  
+> **Total Database Models**: 202  
 > **Total Enums**: 15  
-> **Total Route Files**: 30  
+> **Total Route Files**: 55  
 > **Total Frontend Pages**: 25 routes  
 > **Total Components**: 21 reusable UI components  
 > **Total API Hooks**: 26 SWR hooks

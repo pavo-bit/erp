@@ -174,15 +174,18 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
         onClick={handleClose}
       >
         <motion.div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="quick-modal-title"
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto"
           onClick={e => e.stopPropagation()}
         >
-          <button onClick={handleClose} className="absolute top-4 right-4 text-text-secondary hover:text-text-primary bg-transparent border-none cursor-pointer text-lg">✕</button>
+          <button aria-label="Close modal" onClick={handleClose} className="absolute top-4 right-4 text-text-secondary hover:text-text-primary bg-transparent border-none cursor-pointer text-lg">✕</button>
           
-          <h2 className="text-xl font-bold mb-6 font-[var(--font-heading)]">{titles[isOpen]}</h2>
+          <h2 id="quick-modal-title" className="text-xl font-bold mb-6 font-[var(--font-heading)]">{titles[isOpen]}</h2>
 
           {["ADD_STUDENT", "ADD_TEACHER", "RECORD_FEE"].includes(isOpen) && (
             <div className="flex gap-2 mb-6 bg-surface p-1 rounded-lg">
@@ -243,78 +246,78 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
               <>
                 {isOpen === "NEW_ADMISSION" && (
                   <>
-                    <input placeholder="Applicant Name" required value={admissionForm.applicantName} onChange={e => setAdmissionForm({...admissionForm, applicantName: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input placeholder="Applying For Class" required value={admissionForm.applyingForClass} onChange={e => setAdmissionForm({...admissionForm, applyingForClass: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input placeholder="Parent Name" required value={admissionForm.parentName} onChange={e => setAdmissionForm({...admissionForm, parentName: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input placeholder="Parent Phone" required value={admissionForm.parentPhone} onChange={e => setAdmissionForm({...admissionForm, parentPhone: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Applicant Name" placeholder="Applicant Name" required value={admissionForm.applicantName} onChange={e => setAdmissionForm({...admissionForm, applicantName: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Applying For Class" placeholder="Applying For Class" required value={admissionForm.applyingForClass} onChange={e => setAdmissionForm({...admissionForm, applyingForClass: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Parent Name" placeholder="Parent Name" required value={admissionForm.parentName} onChange={e => setAdmissionForm({...admissionForm, parentName: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Parent Phone" placeholder="Parent Phone" required value={admissionForm.parentPhone} onChange={e => setAdmissionForm({...admissionForm, parentPhone: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
                   </>
                 )}
 
                 {isOpen === "ADD_STUDENT" && (
                   <>
-                    <input placeholder="Student Name" required value={studentForm.name} onChange={e => setStudentForm({...studentForm, name: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Student Name" placeholder="Student Name" required value={studentForm.name} onChange={e => setStudentForm({...studentForm, name: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
                     <div className="grid grid-cols-2 gap-3">
-                      <input placeholder="Roll No" required value={studentForm.rollNo} onChange={e => setStudentForm({...studentForm, rollNo: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                      <input placeholder="Class" required value={studentForm.class} onChange={e => setStudentForm({...studentForm, class: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                      <input aria-label="Roll No" placeholder="Roll No" required value={studentForm.rollNo} onChange={e => setStudentForm({...studentForm, rollNo: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                      <input aria-label="Class" placeholder="Class" required value={studentForm.class} onChange={e => setStudentForm({...studentForm, class: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
                     </div>
-                    <input placeholder="Section" required value={studentForm.section} onChange={e => setStudentForm({...studentForm, section: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input placeholder="Guardian Name" value={studentForm.guardianName} onChange={e => setStudentForm({...studentForm, guardianName: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Section" placeholder="Section" required value={studentForm.section} onChange={e => setStudentForm({...studentForm, section: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Guardian Name" placeholder="Guardian Name" value={studentForm.guardianName} onChange={e => setStudentForm({...studentForm, guardianName: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
                   </>
                 )}
 
                 {isOpen === "RECORD_FEE" && (
                   <>
-                    <input placeholder="Student ID" required value={feeForm.studentId} onChange={e => setFeeForm({...feeForm, studentId: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input placeholder="Amount (₹)" type="number" required value={feeForm.amount} onChange={e => setFeeForm({...feeForm, amount: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <select required value={feeForm.type} onChange={e => setFeeForm({...feeForm, type: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary bg-white">
+                    <input aria-label="Student ID" placeholder="Student ID" required value={feeForm.studentId} onChange={e => setFeeForm({...feeForm, studentId: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Amount" placeholder="Amount (₹)" type="number" required value={feeForm.amount} onChange={e => setFeeForm({...feeForm, amount: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <select aria-label="Fee Type" required value={feeForm.type} onChange={e => setFeeForm({...feeForm, type: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary bg-white">
                       <option value="MONTHLY">Monthly Fee</option>
                       <option value="ADMISSION">Admission Fee</option>
                       <option value="EXAM">Exam Fee</option>
                       <option value="TRANSPORT">Transport Fee</option>
                     </select>
-                    <input type="date" required value={feeForm.dueDate} onChange={e => setFeeForm({...feeForm, dueDate: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Due Date" type="date" required value={feeForm.dueDate} onChange={e => setFeeForm({...feeForm, dueDate: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
                   </>
                 )}
 
                 {isOpen === "MARK_ATTENDANCE" && (
                   <>
-                    <input placeholder="Class (e.g. X)" required value={attendanceForm.class} onChange={e => setAttendanceForm({...attendanceForm, class: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input type="date" required value={attendanceForm.date} onChange={e => setAttendanceForm({...attendanceForm, date: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Class" placeholder="Class (e.g. X)" required value={attendanceForm.class} onChange={e => setAttendanceForm({...attendanceForm, class: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Date" type="date" required value={attendanceForm.date} onChange={e => setAttendanceForm({...attendanceForm, date: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
                     <p className="text-[12px] text-text-secondary mt-2">Proceeding will initialize the attendance roster for this class and date.</p>
                   </>
                 )}
 
                 {isOpen === "CREATE_EXAM" && (
                   <>
-                    <input placeholder="Exam Name" required value={examForm.name} onChange={e => setExamForm({...examForm, name: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input placeholder="Class" required value={examForm.class} onChange={e => setExamForm({...examForm, class: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Exam Name" placeholder="Exam Name" required value={examForm.name} onChange={e => setExamForm({...examForm, name: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Class" placeholder="Class" required value={examForm.class} onChange={e => setExamForm({...examForm, class: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
                     <div className="grid grid-cols-2 gap-3">
-                      <input type="date" required value={examForm.startDate} onChange={e => setExamForm({...examForm, startDate: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                      <input type="date" required value={examForm.endDate} onChange={e => setExamForm({...examForm, endDate: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                      <input aria-label="Start Date" type="date" required value={examForm.startDate} onChange={e => setExamForm({...examForm, startDate: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                      <input aria-label="End Date" type="date" required value={examForm.endDate} onChange={e => setExamForm({...examForm, endDate: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
                     </div>
                   </>
                 )}
 
                 {isOpen === "ADD_TEACHER" && (
                   <>
-                    <input placeholder="Full Name" required value={teacherForm.name} onChange={e => setTeacherForm({...teacherForm, name: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input placeholder="Email" type="email" required value={teacherForm.email} onChange={e => setTeacherForm({...teacherForm, email: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input placeholder="Department" required value={teacherForm.department} onChange={e => setTeacherForm({...teacherForm, department: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input placeholder="Designation" value={teacherForm.designation} onChange={e => setTeacherForm({...teacherForm, designation: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Full Name" placeholder="Full Name" required value={teacherForm.name} onChange={e => setTeacherForm({...teacherForm, name: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Email" placeholder="Email" type="email" required value={teacherForm.email} onChange={e => setTeacherForm({...teacherForm, email: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Department" placeholder="Department" required value={teacherForm.department} onChange={e => setTeacherForm({...teacherForm, department: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <input aria-label="Designation" placeholder="Designation" value={teacherForm.designation} onChange={e => setTeacherForm({...teacherForm, designation: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
                   </>
                 )}
 
                 {isOpen === "SEND_NOTICE" && (
                   <>
-                    <input placeholder="Notice Title" required value={noticeForm.title} onChange={e => setNoticeForm({...noticeForm, title: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <select required value={noticeForm.category} onChange={e => setNoticeForm({...noticeForm, category: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary bg-white">
+                    <input aria-label="Notice Title" placeholder="Notice Title" required value={noticeForm.title} onChange={e => setNoticeForm({...noticeForm, title: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
+                    <select aria-label="Notice Category" required value={noticeForm.category} onChange={e => setNoticeForm({...noticeForm, category: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary bg-white">
                       <option>General</option>
                       <option>Admission</option>
                       <option>Results</option>
                       <option>Finance</option>
                       <option>Events</option>
                     </select>
-                    <textarea placeholder="Notice Content" required rows={4} value={noticeForm.content} onChange={e => setNoticeForm({...noticeForm, content: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary resize-none" />
+                    <textarea aria-label="Notice Content" placeholder="Notice Content" required rows={4} value={noticeForm.content} onChange={e => setNoticeForm({...noticeForm, content: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary resize-none" />
                   </>
                 )}
               </>

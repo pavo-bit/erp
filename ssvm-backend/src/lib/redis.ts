@@ -212,3 +212,33 @@ export async function increment2FAAttempts(userId: string): Promise<number> {
     throw new Error("Security Service Unavailable");
   }
 }
+
+/**
+ * Increment failed login attempts for a user (15 min window).
+ */
+export async function incrementFailedLogins(email: string): Promise<number> {
+  if (!isRedisAvailable()) return 0;
+  try {
+    const key = `failed_logins:${email}`;
+    const attempts = await redisClient!.incr(key);
+    if (attempts === 1) {
+      await redisClient!.expire(key, 900); // 15 minutes lockout window
+    }
+    return attempts;
+  } catch (err) {
+    logger.error({ err }, "Redis failed logins error");
+    return 0;
+  }
+}
+
+/**
+ * Reset failed login attempts on successful login.
+ */
+export async function resetFailedLogins(email: string): Promise<void> {
+  if (!isRedisAvailable()) return;
+  try {
+    await redisClient!.del(`failed_logins:${email}`);
+  } catch (err) {
+    logger.error({ err }, "Redis reset failed logins error");
+  }
+}

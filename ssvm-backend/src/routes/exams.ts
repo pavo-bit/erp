@@ -165,7 +165,10 @@ router.get("/:examId/report-card/:studentId", authenticate, async (req: AuthRequ
 // DELETE /api/exams/:id
 router.delete("/:id", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.exam.delete({ where: { id: req.params.id as string } });
+    await prisma.exam.update({ 
+      where: { id: req.params.id as string },
+      data: { isArchived: true }
+    });
     res.json({ success: true, data: { message: "Exam deleted" } });
   } catch (e) {
     logger.error({ err: e }, "Delete exam error");

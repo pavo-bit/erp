@@ -5,21 +5,24 @@ import { AuthRequest, authenticate, requireRole, requireContentAdmin } from "../
 
 const router = Router();
 
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
+
 // GET /api/events
 router.get("/", async (req, res: Response) => {
   try {
-    const { page = "1", limit = "20", status, category } = req.query as Record<string, string | undefined>;
-    const skip = (Math.max(1, +page) - 1) * Math.min(100, +limit);
-    const take = Math.min(100, +limit);
+    const { status, category } = req.query as Record<string, string | undefined>;
+    const paginationParams = parsePaginationParams(req.query, ['date', 'createdAt']);
     const where: Record<string, unknown> = {};
     if (status) where.status = status;
     if (category) where.category = category;
 
-    const [data, total] = await Promise.all([
-      prisma.event.findMany({ where, include: { creator: { select: { name: true } } }, orderBy: { date: "asc" }, skip, take }),
-      prisma.event.count({ where }),
-    ]);
-    res.json({ success: true, data, pagination: { page: +page, limit: take, total, totalPages: Math.ceil(total / take) } });
+    const result = await paginatedQuery(
+      prisma.event,
+      where,
+      { creator: { select: { name: true } } },
+      paginationParams
+    );
+    res.json(result);
   } catch (e) { logger.error({ err: e }, "Events error"); res.status(500).json({ success: false, error: "Server error" }); }
 });
 

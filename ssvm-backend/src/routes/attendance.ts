@@ -92,4 +92,74 @@ router.post("/", authenticate, requireRole("ADMIN", "TEACHER"), async (req: Auth
   }
 });
 
+// GET /api/attendance/teachers
+router.get("/teachers", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { month, date, teacherId } = req.query as Record<string, string | undefined>;
+    const where: any = { schoolId: req.user!.schoolId! };
+
+    if (teacherId) where.teacherId = teacherId;
+
+    if (month) {
+      const [y, m] = month.split("-").map(Number);
+      where.date = { gte: new Date(y, m - 1, 1), lt: new Date(y, m, 1) };
+    }
+
+    if (date) where.date = new Date(date);
+
+    const { cursor, limit = "50" } = req.query;
+
+    const result = await paginateCursor(
+      prisma.teacherAttendance,
+      where,
+      cursor,
+      parseInt(limit as string, 10),
+      { teacher: { select: { name: true, employeeId: true } } },
+      { date: "desc" }
+    );
+
+    res.json(result);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// POST /api/attendance/teachers
+router.post("/teachers", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { records, date } = req.body;
+    const schoolId = req.user!.schoolId!;
+
+    if (!records?.length || !date) {
+      res.status(400).json({ success: false, error: "Records and date required" });
+      return;
+    }
+
+    const created = await prisma.$transaction(
+      records.map((r: any) =>
+        prisma.teacherAttendance.upsert({
+          where: { teacherId_date: { teacherId: r.teacherId, date: new Date(date) } },
+          create: {
+            schoolId,
+            teacherId: r.teacherId,
+            date: new Date(date),
+            status: r.status,
+            remarks: r.remarks || null,
+          },
+          update: {
+            status: r.status,
+            remarks: r.remarks || null,
+          }
+        })
+      )
+    );
+
+    res.json({ success: true, data: created });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 export default router;

@@ -76,6 +76,9 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
           onClick={onClose}
         >
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="login-modal-title"
             initial={{ scale: 0.92, y: 20 }}
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.92, y: 20 }}
@@ -126,6 +129,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
             <div className="w-full md:w-1/2 p-8 md:p-12 relative flex flex-col justify-center bg-[#F8F9FA] min-h-[400px]">
               <button
                 onClick={onClose}
+                aria-label="Close modal"
                 className="absolute top-5 right-5 w-9 h-9 rounded-full border-[1.5px] border-gray-200 bg-white flex items-center justify-center text-gray-500 hover:text-orange-500 hover:border-orange-500 hover:rotate-90 transition-all duration-200 z-10"
               >
                 ✕
@@ -154,7 +158,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                 >
-                  <h3 className="font-[var(--font-heading)] text-[24px] font-bold text-gray-900 mb-1.5">Select Dashboard</h3>
+                  <h3 id="login-modal-title" className="font-[var(--font-heading)] text-[24px] font-bold text-gray-900 mb-1.5">Select Dashboard</h3>
                   <p className="text-[14px] text-gray-500 mb-7 leading-relaxed">Choose your role to proceed to the login panel.</p>
 
                   <div className="grid grid-cols-2 gap-3.5">
@@ -197,7 +201,7 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
                     {getRoleIcon()} {getRoleLabel()} Dashboard
                   </div>
 
-                  <h3 className="font-[var(--font-heading)] text-[24px] font-bold text-gray-900 mb-1.5">{getRoleLabel()} Login</h3>
+                  <h3 id="login-modal-title" className="font-[var(--font-heading)] text-[24px] font-bold text-gray-900 mb-1.5">{getRoleLabel()} Login</h3>
                   <p className="text-[14px] text-gray-500 mb-7 leading-relaxed">Enter your credentials to access the dashboard.</p>
 
                   {error && (
@@ -212,25 +216,30 @@ export function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
                   <form onSubmit={handleLogin} className="flex flex-col">
                     <div className="mb-4.5">
-                      <label className="block font-[var(--font-heading)] text-[12px] font-semibold text-gray-900 mb-1.5 tracking-[0.03em]">Email Address / User ID</label>
+                      <label htmlFor="email" className="block font-[var(--font-heading)] text-[12px] font-semibold text-gray-900 mb-1.5 tracking-[0.03em]">Email Address / User ID</label>
                       <input
+                        id="email"
                         type="text"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="Enter your email or ID"
                         required
+                        aria-required="true"
+                        autoFocus
                         className="w-full p-[12px_16px] border-[1.5px] border-gray-200 rounded-xl text-[14px] text-gray-900 bg-white outline-none focus:border-orange-500 focus:ring-[3px] focus:ring-orange-500/10 transition-all font-[var(--font-body)]"
                       />
                     </div>
                     
                     <div className="mb-4.5">
-                      <label className="block font-[var(--font-heading)] text-[12px] font-semibold text-gray-900 mb-1.5 tracking-[0.03em]">Password</label>
+                      <label htmlFor="password" className="block font-[var(--font-heading)] text-[12px] font-semibold text-gray-900 mb-1.5 tracking-[0.03em]">Password</label>
                       <input
+                        id="password"
                         type="password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="Enter your password"
                         required
+                        aria-required="true"
                         className="w-full p-[12px_16px] border-[1.5px] border-gray-200 rounded-xl text-[14px] text-gray-900 bg-white outline-none focus:border-orange-500 focus:ring-[3px] focus:ring-orange-500/10 transition-all font-[var(--font-body)] mb-5"
                       />
                     </div>

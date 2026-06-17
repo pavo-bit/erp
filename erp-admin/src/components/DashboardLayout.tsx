@@ -65,7 +65,7 @@ export function DashboardLayout({
         </div>
 
         {/* Nav Items */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3">
+        <nav aria-label="Main Navigation" className="flex-1 overflow-y-auto py-4 px-3">
           <div className="flex flex-col gap-1">
             {sidebarItems.map((item) => {
               const isActive = pathname === item.href;
@@ -133,11 +133,13 @@ export function DashboardLayout({
           onClick={() => setSidebarOpen(true)}
           className="p-2 bg-transparent border-none cursor-pointer"
           aria-label="Open menu"
+          aria-expanded={sidebarOpen}
+          aria-controls="mobile-sidebar"
         >
           <div className="flex flex-col gap-1">
-            <span className="w-5 h-[2px] bg-text-primary rounded block" />
-            <span className="w-5 h-[2px] bg-text-primary rounded block" />
-            <span className="w-5 h-[2px] bg-text-primary rounded block" />
+            <span className="w-5 h-[2px] bg-text-primary rounded block" aria-hidden="true" />
+            <span className="w-5 h-[2px] bg-text-primary rounded block" aria-hidden="true" />
+            <span className="w-5 h-[2px] bg-text-primary rounded block" aria-hidden="true" />
           </div>
         </button>
         <span className="text-[13px] font-semibold font-[var(--font-heading)]" style={{ color: roleColor }}>
@@ -158,6 +160,10 @@ export function DashboardLayout({
               className="lg:hidden fixed inset-0 bg-black/30 z-[60]"
             />
             <motion.aside
+              id="mobile-sidebar"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Mobile Navigation"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
@@ -171,11 +177,12 @@ export function DashboardLayout({
                 <button
                   onClick={() => setSidebarOpen(false)}
                   className="text-[20px] bg-transparent border-none cursor-pointer text-text-secondary"
+                  aria-label="Close menu"
                 >
                   ✕
                 </button>
               </div>
-              <nav className="flex-1 overflow-y-auto py-4 px-3">
+              <nav aria-label="Mobile Navigation Menu" className="flex-1 overflow-y-auto py-4 px-3">
                 {sidebarItems.map((item) => {
                   const isActive = pathname === item.href;
                   return (
@@ -356,7 +363,8 @@ export function GlobalSearch() {
       <div className="relative">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary text-[14px]">🔍</span>
         <input 
-          type="text" 
+          type="search" 
+          aria-label="Global search"
           placeholder="Search students, teachers, invoices..." 
           value={query}
           onChange={(e) => setQuery(e.target.value)}

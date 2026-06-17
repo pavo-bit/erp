@@ -191,4 +191,58 @@ router.get("/activity-feed", authenticate, async (req, res) => {
   }
 });
 
+// GET /api/stats/finance - High-level dashboard finance stats
+router.get("/finance", authenticate, async (req, res) => {
+  try {
+    const schoolId = (req as any).user.schoolId;
+
+    // Fetch accounts to calculate revenue
+    const accounts = await prisma.ledgerAccount.findMany({
+      where: { schoolId, category: 'REVENUE' },
+      include: { LedgerEntry: { select: { creditAmount: true, debitAmount: true } } }
+    });
+
+    const totalRevenue = accounts.reduce((total: number, acc: any) => {
+      const cr = acc.LedgerEntry.reduce((sum: number, e: any) => sum + Number(e.creditAmount), 0);
+      const db = acc.LedgerEntry.reduce((sum: number, e: any) => sum + Number(e.debitAmount), 0);
+      return total + (cr - db);
+    }, 0);
+
+    // Fetch outstanding dues from invoices
+    const outstandingInvoices = await prisma.invoice.findMany({
+      where: { schoolId, status: { in: ['PENDING', 'OVERDUE', 'PARTIAL'] } }
+    });
+
+    const outstandingDues = outstandingInvoices.reduce((total: number, inv: any) => {
+      return total + (inv.amount + inv.fineAmount - inv.amountPaid);
+    }, 0);
+
+    // Get recent 30 days revenue (approximation using invoices paid)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentPayments = await prisma.invoice.findMany({
+      where: { 
+        schoolId, 
+        updatedAt: { gte: thirtyDaysAgo },
+        status: { in: ['PAID', 'PARTIAL'] }
+      }
+    });
+    
+    const recentRevenue = recentPayments.reduce((total: number, inv: any) => total + inv.amountPaid, 0);
+
+    const stats = {
+      totalRevenue,
+      outstandingDues,
+      recentRevenue
+    };
+
+    logger.info({ stats, schoolId }, "Finance stats fetched");
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    logger.error({ err: error }, "Finance stats error");
+    res.status(500).json({ success: false, error: "Failed to fetch finance stats" });
+  }
+});
+
 export default router;

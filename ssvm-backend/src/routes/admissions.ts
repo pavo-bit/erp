@@ -144,7 +144,10 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
 // DELETE /api/admissions/:id
 router.delete("/:id", authenticate, requireAdmissionsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.admission.delete({ where: { id: req.params.id as string } });
+    await prisma.admission.update({ 
+      where: { id: req.params.id as string },
+      data: { deletedAt: new Date(), deletedById: req.user!.id }
+    });
     res.json({ success: true, data: { message: "Admission deleted" } });
   } catch (e) {
     logger.error({ err: e }, "Delete admission error");

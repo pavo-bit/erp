@@ -1,15 +1,15 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole, requireContentAdmin, optionalAuth } from "../middleware/auth";
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
 
 // GET /api/notices
 router.get("/", optionalAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { page = "1", limit = "20", status, category, search } = req.query as Record<string, string | undefined>;
-    const skip = (Math.max(1, +page) - 1) * Math.min(100, +limit);
-    const take = Math.min(100, +limit);
+    const { status, category, search } = req.query as Record<string, string | undefined>;
+    const paginationParams = parsePaginationParams(req.query, ['createdAt', 'title']);
 
     const where: Record<string, unknown> = {};
     const isContentAdmin = req.user && ["SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN"].includes(req.user.role);
@@ -18,11 +18,13 @@ router.get("/", optionalAuth, async (req: AuthRequest, res: Response) => {
     if (category) where.category = category;
     if (search) where.title = { contains: search };
 
-    const [data, total] = await Promise.all([
-      prisma.notice.findMany({ where, include: { author: { select: { name: true } } }, orderBy: { createdAt: "desc" }, skip, take }),
-      prisma.notice.count({ where }),
-    ]);
-    res.json({ success: true, data, pagination: { page: +page, limit: take, total, totalPages: Math.ceil(total / take) } });
+    const result = await paginatedQuery(
+      prisma.notice,
+      where,
+      { author: { select: { name: true } } },
+      paginationParams
+    );
+    res.json(result);
   } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
 });
 

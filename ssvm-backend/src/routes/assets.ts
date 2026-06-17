@@ -85,17 +85,12 @@ router.put("/:id", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async 
 router.delete("/:id", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId!;
-    const { id } = req.params;
-
-    const asset = await prisma.asset.update({
-      where: { id: id as string },
-      data: { 
-        deletedAt: new Date(),
-        deletedById: req.user!.id
-      }
+    const assetId = req.params.id as string;
+    await prisma.asset.update({
+      where: { id: assetId },
+      data: { deletedAt: new Date(), deletedById: req.user!.id }
     });
-
-    res.json({ success: true, data: { message: "Asset deleted successfully" } });
+    res.json({ success: true, message: "Asset deleted" });
   } catch (e) {
     logger.error({ err: e }, "Delete asset error");
     res.status(500).json({ success: false, error: "Server error" });

@@ -89,7 +89,7 @@ export function useSalaries(params?: string) { return useSWR(`/api/v1/hr/salarie
 export function useLeaves(params?: string) { return useSWR(`/api/v1/hr/leaves${params ? `?${params}` : ""}`, fetcher); }
 export function useTimetable(params?: string) { return useSWR(`/api/v1/timetable${params ? `?${params}` : ""}`, fetcher); }
 export function useNotifications(params?: string) { return useSWR(`/api/v1/notifications${params ? `?${params}` : ""}`, fetcher); }
-export function useAnalytics() { return useSWR("/api/v1/stats/overview", fetcher); }
+export function useAnalytics() { return useSWR("/api/v1/stats/detailed", fetcher); }
 export function useFinanceStats() { return useSWR("/api/v1/stats/finance", fetcher); }
 export function usePublicStats() { return useSWR("/api/v1/stats/public", fetcher); }
 export function useSearch(query: string) { return useSWR(query.length >= 2 ? `/api/v1/search?q=${query}` : null, fetcher); }

@@ -1,6 +1,7 @@
 import { Queue, QueueOptions } from "bullmq";
 import { getEnv } from "../config/env";
 import logger from "../lib/logger";
+import crypto from "crypto";
 
 const env = getEnv();
 
@@ -117,6 +118,21 @@ export async function enqueueImport(data: { jobId: string; fileKey: string; scho
     await importQueue.add("processImport", data);
   } else {
     logger.warn({ data }, "Import queue disabled");
+  }
+}
+
+export async function enqueueWebhook(endpoint: { id: string; url: string; secret: string }, payload: any): Promise<void> {
+  if (webhookQueue) {
+    const bodyString = JSON.stringify(payload);
+    const signature = crypto.createHmac("sha256", endpoint.secret).update(bodyString).digest("hex");
+    await webhookQueue.add("deliverWebhook", {
+      endpointId: endpoint.id,
+      url: endpoint.url,
+      payload,
+      signature
+    });
+  } else {
+    logger.warn({ endpointId: endpoint.id, url: endpoint.url }, "Webhook queue disabled");
   }
 }
 

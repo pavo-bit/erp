@@ -3,6 +3,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import prisma from "../lib/prisma";
 import { authenticate, requireRole, AuthRequest } from "../middleware/auth";
+import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
 
@@ -15,7 +16,12 @@ const createUserSchema = z.object({
   branchId: z.string().optional(),
   employeeId: z.string().optional(),
   department: z.string().optional(),
-  password: z.string().min(6).optional(), // Can provide one, or system generates it
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .optional(), // Can provide one, or system generates it
 });
 
 const updateUserSchema = z.object({
@@ -67,25 +73,31 @@ router.get("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (re
       ];
     }
 
-    const users = await prisma.user.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        phone: true,
-        isActive: true,
-        lastLogin: true,
-        department: true,
-        employeeId: true,
-        branchId: true,
-        createdAt: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const paginationParams = parsePaginationParams(req.query, ['name', 'email', 'createdAt']);
 
-    res.json({ success: true, data: users });
+    const result = await paginatedQuery(
+      prisma.user,
+      whereClause,
+      undefined,
+      paginationParams
+    );
+
+    // Filter sensitive info like passwordHash just in case, though select is better. But paginatedQuery doesn't support select yet. We should map it.
+    const safeData = result.data.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      phone: u.phone,
+      isActive: u.isActive,
+      lastLogin: u.lastLogin,
+      department: u.department,
+      employeeId: u.employeeId,
+      branchId: u.branchId,
+      createdAt: u.createdAt,
+    }));
+
+    res.json({ success: true, data: safeData, pagination: result.pagination });
   } catch (error) {
     console.error(error);
     res.status(500).json({ success: false, error: "Failed to fetch users" });
