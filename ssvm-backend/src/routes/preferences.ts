@@ -142,7 +142,7 @@ router.get("/consent", async (req: AuthRequest, res: Response): Promise<void> =>
 
     const consents = await prisma.consentRecord.findMany({
       where: { guardianId: guardian.id },
-      orderBy: { createdAt: "desc" },
+      orderBy: { acceptedAt: "desc" },
     });
 
     res.json({ success: true, data: consents });

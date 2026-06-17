@@ -40,6 +40,67 @@ router.get('/me', authenticate, requireRole('STUDENT'), async (req: AuthRequest,
   }
 });
 
+// POST /api/students
+router.post("/", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, rollNo, class: className, section, session, guardianName, guardianPhone } = req.body;
+    
+    // Auto-generate dummy admission No and password
+    const admissionNo = `ADM${Math.floor(100000 + Math.random() * 900000)}`;
+    const hashedPassword = await hashPassword(`SSVM@${Math.floor(1000 + Math.random() * 9000)}`);
+
+    const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: "No school found to associate with" });
+    }
+
+    // Find or create class/section
+    let sectionRec = await prisma.section.findFirst({
+      where: { name: section, class: { name: className, schoolId } },
+      include: { class: true }
+    });
+
+    if (!sectionRec) {
+      let classRec = await prisma.class.findFirst({ where: { name: className, schoolId } });
+      if (!classRec) {
+        // Find session
+        let sessionRec = await prisma.academicSession.findFirst({ where: { name: session || "2025-26", schoolId } });
+        if (!sessionRec) {
+          sessionRec = await prisma.academicSession.create({
+            data: { schoolId, name: session || "2025-26", startDate: new Date("2025-04-01"), endDate: new Date("2026-03-31") }
+          });
+        }
+        classRec = await prisma.class.create({ data: { schoolId, name: className, sessionId: sessionRec.id } });
+      }
+      sectionRec = await prisma.section.create({ data: { classId: classRec.id, name: section }, include: { class: true } });
+    }
+
+    let guardian = null;
+    if (guardianName || guardianPhone) {
+      guardian = await prisma.guardian.create({
+        data: { schoolId, primaryName: guardianName || "Unknown", primaryPhone: guardianPhone || "0000000000" }
+      });
+    }
+
+    const student = await prisma.student.create({
+      data: {
+        schoolId,
+        name,
+        rollNo,
+        admissionNo,
+        password: hashedPassword,
+        sectionId: sectionRec!.id,
+        guardianId: guardian?.id
+      }
+    });
+
+    res.status(201).json({ success: true, data: student, message: "Student created successfully" });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 // GET /api/students
 router.get("/", authenticate, requireRole("ADMIN", "PARENT", "ERP_ADMIN", "SUPER_ADMIN", "TEACHER"), async (req: AuthRequest, res: Response) => {
   try {

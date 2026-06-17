@@ -7,6 +7,8 @@ import { startWebhookWorker } from "./webhookWorker";
 import { startNotificationWorker } from "./notificationWorker";
 import { startScanWorker } from "./scanWorker";
 import { startExportWorker } from "./exportWorker";
+import { startMaintenanceWorker } from "./maintenanceWorker";
+import { startSoftDeleteCleanupWorker } from "./softDeleteWorker";
 import { generatePDF, defaultReceiptTemplate, defaultReportCardTemplate } from "../routes/reports";
 import { storageService } from "../services/storage.service";
 import { sendSSEToUser } from "../lib/sse";
@@ -27,6 +29,8 @@ export function startWorkers() {
   startNotificationWorker();
   startScanWorker();
   startExportWorker();
+  startMaintenanceWorker();
+  startSoftDeleteCleanupWorker();
 
   // ═══════════════════════════════════════════
   // Email Worker
@@ -173,6 +177,8 @@ export function startWorkers() {
   const webhookWorker = startWebhookWorker();
   const notificationWorker = startNotificationWorker();
   const exportWorker = startExportWorker();
+  const maintenanceWorker = startMaintenanceWorker();
+  const softDeleteWorker = startSoftDeleteCleanupWorker();
 
   logger.info("BullMQ Workers started");
 
@@ -186,7 +192,9 @@ export function startWorkers() {
       importWorker?.close(),
       webhookWorker?.close(),
       notificationWorker?.close(),
-      exportWorker?.close()
+      exportWorker?.close(),
+      maintenanceWorker?.close(),
+      softDeleteWorker?.close(),
     ]);
   });
 }

@@ -29,8 +29,10 @@ import logger from "./lib/logger";
 import { notFoundHandler, globalErrorHandler } from "./middleware/errorHandler";
 import { deprecated } from "./middleware/versioning";
 import { addResponseHeaders } from "./lib/response";
-import { defaultLimiter, authLimiter, strictLimiter, uploadLimiter, bulkLimiter, webhookLimiter } from "./middleware/rateLimiter";
+import { defaultLimiter, authLimiter, strictLimiter, uploadLimiter, bulkLimiter, webhookLimiter, paymentCreateLimiter, paymentVerifyLimiter, crmLimiter, otpLimiter, passwordResetLimiter } from "./middleware/rateLimiter";
+import { bruteForceCheck } from "./middleware/brute-force.middleware";
 import { csrfProtection } from "./middleware/csrf";
+import { schoolContextMiddleware } from "./middleware/school-context.middleware";
 import { startTokenCleanupScheduler, stopTokenCleanupScheduler } from "./jobs/cleanupTokens";
 import { startWorkers } from "./jobs/worker";
 import { closeQueues } from "./jobs/queue";
@@ -177,7 +179,7 @@ app.use(helmet({
   },
 }));
 
-import { isRedisAvailable } from "./lib/redis";
+import { isRedisAvailable, initRedis } from "./lib/redis";
 import prisma from "./lib/prisma";
 
 // PM2 / Load Balancer Healthcheck (Root Level)
@@ -235,6 +237,9 @@ app.use(csrfProtection);
 // Add X-Request-ID and X-API-Version to every response
 app.use(addResponseHeaders());
 
+// GAP 3: School context propagation (AsyncLocalStorage → RLS)
+app.use(schoolContextMiddleware);
+
 // Request logging
 app.use((req, _res, next) => {
   logger.info({ method: req.method, url: req.url }, "Incoming request");
@@ -260,10 +265,8 @@ function mountRoute(routePath: string, router: express.Router, ...middleware: ex
 // ═══════════════════════════════════════════
 
 const edgeCacheMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  // Only cache GET requests
-  if (req.method === 'GET') {
-    // Determine if it's a static resource vs dynamic API
-    // This allows Cloudflare/CloudFront to cache effectively at edge nodes
+  // Only cache GET requests that are NOT API endpoints
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400');
   }
   next();
@@ -275,9 +278,9 @@ app.use(edgeCacheMiddleware);
 // 11. API ROUTE MOUNTING
 // ═══════════════════════════════════════════
 
-// Auth (with stricter rate limits)
-app.use("/api/v1/auth", authLimiter, authRoutes);
-app.use("/api/auth", deprecated, authLimiter, authRoutes);
+// Auth (with stricter rate limits + brute force protection)
+app.use("/api/v1/auth", authLimiter, bruteForceCheck(), authRoutes);
+app.use("/api/auth", deprecated, authLimiter, bruteForceCheck(), authRoutes);
 
 // Apply refresh limiter to the refresh endpoint specifically
 app.use("/api/v1/auth/refresh", authLimiter);
@@ -296,7 +299,8 @@ mountRoute("/gallery", galleryRoutes, uploadLimiter);
 mountRoute("/users", userRoutes);
 mountRoute("/alumni", alumniRoutes);
 mountRoute("/stats", statsRoutes);
-mountRoute("/payments", paymentRoutes);
+mountRoute("/payments", paymentRoutes, paymentCreateLimiter);
+mountRoute("/crm", crmRoutes, crmLimiter);
 mountRoute("/timetable", timetableRoutes);
 mountRoute("/exams", examRoutes, strictLimiter);
 mountRoute("/admissions", admissionRoutes);
@@ -404,7 +408,9 @@ app.use(globalErrorHandler);
 // Start Server
 // ═══════════════════════════════════════════
 
-const server = app.listen(parseInt(env.PORT, 10), "0.0.0.0", () => {
+const server = app.listen(parseInt(env.PORT, 10), "0.0.0.0", async () => {
+  await initRedis();
+
   logger.info(`🚀 SSVM ERP Backend running on http://localhost:${env.PORT}`);
   logger.info(`📡 API v1: http://localhost:${env.PORT}/api/v1`);
   logger.info(`📡 API (compat): http://localhost:${env.PORT}/api`);

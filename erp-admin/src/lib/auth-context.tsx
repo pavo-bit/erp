@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshUser = useCallback(async () => {
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout to allow Next.js proxy compilation
 
       const res = await fetch("/api/v1/auth/me", {
         credentials: "include",

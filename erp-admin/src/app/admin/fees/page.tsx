@@ -12,8 +12,8 @@ export default function FeesPage() {
   const handleGenerateFees = async () => {
     if (confirm("Are you sure you want to auto-generate invoices for all students for this month?")) {
       try {
-        const res = await apiCall("/api/finance/generate-monthly-fees", "POST");
-        alert(res.message || "Monthly fees generated successfully!");
+        await apiCall("/api/finance/generate-monthly-fees", "POST");
+        alert("Monthly fees generated successfully!");
       } catch (e: any) {
         alert(e.message || "Failed to generate fees");
       }

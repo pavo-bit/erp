@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageHeader, StatCard, StatusBadge } from "@/components/DashboardLayout";
-import { useStudents, apiCall, invalidateAll } from "@/lib/api-hooks";
+import { useStudents, apiCall, invalidate, invalidateAll } from "@/lib/api-hooks";
 
 export default function StudentsPage() {
   const [showModal, setShowModal] = useState(false);
@@ -24,16 +24,20 @@ export default function StudentsPage() {
     setSaving(true);
     try {
       await apiCall("/api/students", "POST", formData);
-      invalidateAll("/api/students");
+      invalidate("/api/v1/students");
+      invalidateAll("/api/v1/students");
       setShowModal(false);
       setFormData({ name: "", rollNo: "", class: "10", section: "A", session: "2025-26", guardianName: "", guardianPhone: "" });
+      
+      // Force reload if SWR fails to invalidate
+      setTimeout(() => window.location.reload(), 500);
     } catch (err) { alert((err as Error).message); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this student?")) return;
-    try { await apiCall(`/api/students/${id}`, "DELETE"); invalidateAll("/api/students"); }
+    try { await apiCall(`/api/students/${id}`, "DELETE"); invalidateAll("/api/v1/students"); }
     catch (err) { alert((err as Error).message); }
   };
 

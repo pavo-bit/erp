@@ -752,7 +752,7 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
     res.clearCookie("auth_token", { path: "/" });
 
     logger.info({ userId: user.id }, "Password changed successfully");
-    await logAuthEvent(prisma, { eventType: "PASSWORD_CHANGED", userId: user.id, req, success: true });
+    await logAuthEvent(prisma, { eventType: "PASSWORD_RESET_SUCCESS", userId: user.id, req, success: true });
 
     res.json({ success: true, data: { message: "Password changed successfully. Please log in again." } });
   } catch (e) {

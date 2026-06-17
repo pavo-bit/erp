@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+// ═══════════════════════════════════════════
+// Environment Validation (GAP 4 — Enhanced)
+// ═══════════════════════════════════════════
+// Strict validation of all environment variables.
+// Production-specific checks for secrets that MUST NOT be defaults.
+
 const envSchema = z.object({
   PORT: z.string().default("5000"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
@@ -39,11 +45,69 @@ const envSchema = z.object({
   AWS_ACCESS_KEY_ID: z.string().optional(),
   AWS_SECRET_ACCESS_KEY: z.string().optional(),
   AWS_S3_BUCKET: z.string().optional(),
+
+  // ─── GAP 4: Additional Secrets ───
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
+
+  // ─── GAP 4: Secrets Manager (optional — used in production) ───
+  AWS_SECRETS_MANAGER_ARN: z.string().optional(),
+  SECRETS_ROTATION_INTERVAL_HOURS: z.string().default("24"),
 });
 
 export type Env = z.infer<typeof envSchema>;
 
 let _env: Env;
+
+/**
+ * Production-specific validation: ensure no placeholder secrets.
+ */
+function validateProductionSecrets(env: Env): void {
+  if (env.NODE_ENV !== "production") return;
+
+  const errors: string[] = [];
+
+  // Check for placeholder values that must not be in production
+  const placeholderPatterns = [
+    "placeholder", "test", "example", "changeme", "default",
+    "rzp_test_", "sk_test_", "dummy",
+  ];
+
+  const secretFields: Array<{ key: keyof Env; name: string }> = [
+    { key: "RAZORPAY_KEY_ID", name: "Razorpay Key ID" },
+    { key: "RAZORPAY_KEY_SECRET", name: "Razorpay Key Secret" },
+    { key: "RAZORPAY_WEBHOOK_SECRET", name: "Razorpay Webhook Secret" },
+    { key: "FIELD_ENCRYPTION_KEY", name: "Field Encryption Key" },
+  ];
+
+  for (const { key, name } of secretFields) {
+    const value = env[key] as string | undefined;
+    if (!value) continue;
+
+    const lowerValue = value.toLowerCase();
+    for (const pattern of placeholderPatterns) {
+      if (lowerValue.includes(pattern)) {
+        errors.push(`${name} (${key}) contains placeholder value — must use real credentials in production`);
+        break;
+      }
+    }
+  }
+
+  // Mandatory in production
+  if (!env.REDIS_URL) {
+    errors.push("REDIS_URL is required in production for rate limiting, sessions, and caching");
+  }
+  if (!env.SENTRY_DSN) {
+    errors.push("SENTRY_DSN is required in production for error tracking");
+  }
+
+  if (errors.length > 0) {
+    console.error("❌ Production environment validation failed:");
+    errors.forEach((err) => console.error(`   • ${err}`));
+    process.exit(1);
+  }
+}
 
 export function getEnv(): Env {
   if (!_env) {
@@ -65,7 +129,9 @@ export function getEnv(): Env {
         process.exit(1);
       }
     }
+
+    // Production-specific checks
+    validateProductionSecrets(_env);
   }
   return _env;
 }
-

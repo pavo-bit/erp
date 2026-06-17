@@ -8,7 +8,7 @@ const router = Router();
 // GET /api/finance/defaulters
 router.get("/defaulters", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const schoolId = req.user!.schoolId;
+    const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
     if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
 
     const now = new Date();
@@ -48,7 +48,7 @@ router.get("/defaulters", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER
 // POST /api/finance/generate-monthly-fees
 router.post("/generate-monthly-fees", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const schoolId = req.user!.schoolId;
+    const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
     if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
 
     // Logic: Fetch all active students, fetch fee structures for their class/section, create invoices
@@ -117,7 +117,7 @@ router.post("/generate-monthly-fees", authenticate, requireRole("ADMIN", "ERP_AD
 // GET /api/finance/ledger/trial-balance
 router.get("/ledger/trial-balance", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const schoolId = req.user!.schoolId;
+    const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
     if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
 
     const accounts = await prisma.ledgerAccount.findMany({
@@ -166,7 +166,7 @@ router.get("/ledger/trial-balance", authenticate, requireRole("ADMIN", "ERP_ADMI
 // GET /api/finance/ledger/profit-loss
 router.get("/ledger/profit-loss", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
-    const schoolId = req.user!.schoolId;
+    const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
     if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
 
     const accounts = await prisma.ledgerAccount.findMany({

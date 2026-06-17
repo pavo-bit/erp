@@ -64,7 +64,7 @@ router.post("/", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"),
 });
 
 // PUT /api/invoices/:id/pay
-router.put("/:id/pay", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/:id/pay", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN", "PARENT", "STUDENT"), async (req: AuthRequest, res: Response) => {
   try {
     const { amountPaid, gateway, transactionId } = req.body;
     if (!amountPaid) {

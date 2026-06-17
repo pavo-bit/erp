@@ -35,9 +35,25 @@ export const importQueue = env.REDIS_URL ? new Queue("importQueue", defaultQueue
 export const webhookQueue = env.REDIS_URL ? new Queue("webhookQueue", defaultQueueOptions) : null;
 export const scanQueue = env.REDIS_URL ? new Queue("scanQueue", defaultQueueOptions) : null;
 export const exportQueue = env.REDIS_URL ? new Queue("exportQueue", defaultQueueOptions) : null;
+export const maintenanceQueue = env.REDIS_URL ? new Queue("maintenanceQueue", defaultQueueOptions) : null;
+
+// Schedule recurring maintenance jobs at startup
+async function scheduleMaintenanceJobs() {
+  if (!maintenanceQueue) return;
+
+  // Cleanup expired IdempotencyRecords every 6 hours
+  await maintenanceQueue.upsertJobScheduler(
+    "idempotency-cleanup",
+    { every: 6 * 60 * 60 * 1000 },
+    { name: "cleanupExpiredIdempotencyRecords" }
+  );
+
+  logger.info("Maintenance jobs scheduled");
+}
 
 if (env.REDIS_URL) {
   logger.info("BullMQ Queues initialized");
+  scheduleMaintenanceJobs().catch(err => logger.error({ err }, "Failed to schedule maintenance jobs"));
 } else {
   logger.warn("REDIS_URL not set — background jobs will run synchronously or fail");
 }
@@ -97,7 +113,8 @@ export async function closeQueues(): Promise<void> {
     importQueue?.close(),
     webhookQueue?.close(),
     scanQueue?.close(),
-    exportQueue?.close()
+    exportQueue?.close(),
+    maintenanceQueue?.close(),
   ]);
   logger.info("BullMQ Queues closed");
 }

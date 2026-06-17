@@ -1,6 +1,6 @@
 # SSVM College Square — Full Platform Documentation
 
-> **Version**: 3.0.0 | **Last Updated**: June 12, 2026  
+> **Version**: 3.1.0 | **Last Updated**: June 17, 2026  
 > **Base URL**: `http://localhost:5000` (Backend API)  
 > **Stack**: Node.js / Express / Prisma / PostgreSQL / Next.js
 
@@ -194,6 +194,11 @@ sequenceDiagram
 | `requireTeacherOrAdmin()` | Teacher+ | Admin roles + `TEACHER` |
 | `requireSuperAdmin()` | Platform admin | `SUPER_ADMIN` only |
 | `requireSchoolAccess()` | Tenant guard | Ensures users can only access their own school's data |
+| `schoolContextMiddleware` | Tenant Isolation | Injects `app.current_school_id` into Prisma via AsyncLocalStorage |
+| `bruteForceCheck` | Rate Limiting | Progressive delay (up to 1hr lockout) for failed auth attempts |
+| `securityHeaders` | WAF/Sec Headers | Hardens response headers (HSTS, NoSniff, Frame-Options) |
+| `rejectClosedPeriod` | Financial Guard | Blocks mutations on records within a CLOSED financial period |
+| `metricsMiddleware` | SLO/SLI | Tracks request duration, active connections, and per-tenant usage |
 
 ---
 
@@ -308,7 +313,7 @@ erDiagram
 | `NotificationStatus` | `QUEUED`, `SENT`, `FAILED` |
 | `SalaryStatus` | `PENDING`, `PAID`, `HOLD` |
 
-### Model Summary (62 Models)
+### Model Summary (64 Models)
 
 #### Tenant & Subscription (6 Models)
 
@@ -452,17 +457,19 @@ erDiagram
 
 | # | Model | Table | Key Fields | Relations |
 |---|---|---|---|---|
-| 59 | `AuditLog` | `audit_logs` | id, schoolId, userId, action, entity, entityId, details, ipAddress | → School, User |
+| 59 | `AuditLog` | `audit_logs` | id, schoolId, userId, action, entity, entityId, details, ipAddress, hash, previousHash | → School, User |
 | 60 | `ActivityLog` | `activity_logs` | id, schoolId, type, title, description, metadata(JSON) | → School |
 | 61 | `Document` | `documents` | id, schoolId, ownerType, ownerId, category, fileUrl | → School |
 | 62 | `OnboardingProgress` | `onboarding_progress` | id, schoolId, profileCompleted, academicSetupCompleted, studentsImported | → School (1:1) |
+| 63 | `IdempotencyRecord` | `idempotency_records` | id, key, response, status, expiresAt | — |
+| 64 | `SystemBackup` | `system_backups` | id, type, status, sizeBytes, fileUrl, checksum | — |
 
 #### Library (2 Models)
 
 | # | Model | Table | Key Fields | Relations |
 |---|---|---|---|---|
-| 63 | `Book` | `books` | id, schoolId, title, author, isbn, category, totalCopies, available | → School |
-| 64 | `BookIssue` | `book_issues` | id, bookId, studentId, teacherId, issueDate, dueDate, returnDate, status, fineAmount | → Book, Student?, Teacher? |
+| 65 | `Book` | `books` | id, schoolId, title, author, isbn, category, totalCopies, available | → School |
+| 66 | `BookIssue` | `book_issues` | id, bookId, studentId, teacherId, issueDate, dueDate, returnDate, status, fineAmount | → Book, Student?, Teacher? |
 
 ---
 
@@ -1338,6 +1345,12 @@ Invoice: {{invoiceNumber}}
 | `ACCESS_TOKEN_EXPIRES_IN`| `15m` | Access token expiry |
 | `REFRESH_TOKEN_EXPIRES_IN`| `30d` | Refresh token expiry |
 | `NODE_ENV` | `production` | Runtime environment |
+| `RAZORPAY_KEY_ID` | — | Razorpay integration ID |
+| `RAZORPAY_KEY_SECRET` | — | Razorpay integration Secret |
+| `AWS_S3_BUCKET` | — | S3 bucket for system backups |
+| `AWS_REGION` | `ap-south-1` | S3 region |
+| `AWS_ACCESS_KEY_ID` | — | AWS IAM Access Key |
+| `AWS_SECRET_ACCESS_KEY` | — | AWS IAM Secret Key |
 
 ### Security Configuration
 
@@ -1365,8 +1378,8 @@ npx prisma migrate deploy
 
 ---
 
-> **Total API Endpoints**: ~115+  
-> **Total Database Models**: 62  
+> **Total API Endpoints**: ~125+  
+> **Total Database Models**: 64  
 > **Total Enums**: 15  
 > **Total Route Files**: 30  
 > **Total Frontend Pages**: 25 routes  

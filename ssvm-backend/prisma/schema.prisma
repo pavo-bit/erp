@@ -309,19 +309,25 @@ model User {
 }
 
 model RefreshToken {
-  id        String    @id @default(cuid())
-  token     String    @unique
-  userId    String
-  expiresAt DateTime
-  revokedAt DateTime?
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime  @default(now())
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String    @id @default(cuid())
+  token             String    @unique
+  userId            String
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime  @default(now())
+  familyId          String?
+  replacedBy        String?
+  deviceFingerprint String?
+  isRevoked         Boolean   @default(false)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([token])
   @@index([expiresAt])
+  @@index([familyId])
+  @@index([userId, isRevoked])
   @@map("refresh_tokens")
 }
 
@@ -1192,7 +1198,20 @@ model PaymentTransaction {
   @@index([transactionId])
   @@index([schoolId, status])
   @@index([schoolId, createdAt])
+  @@unique([invoiceId, transactionId])
   @@map("payment_transactions")
+}
+
+model IdempotencyRecord {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  response  Json
+  status    String   @default("COMPLETED")
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([expiresAt])
+  @@map("idempotency_records")
 }
 
 model ReportTemplate {
@@ -1263,6 +1282,7 @@ model CommunicationLog {
   content      String
   status       String
   errorMsg     String?
+  metadata     Json?
   sentAt       DateTime @default(now())
   school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
@@ -1271,18 +1291,20 @@ model CommunicationLog {
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  schoolId  String?
-  userId    String?
-  action    String
-  entity    String
-  entityId  String?
-  details   String?
-  ipAddress String?
-  device    String?
-  createdAt DateTime @default(now())
-  school    School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user      User?    @relation("AuditUser", fields: [userId], references: [id])
+  id           String   @id @default(cuid())
+  schoolId     String?
+  userId       String?
+  action       String
+  entity       String
+  entityId     String?
+  details      String?
+  ipAddress    String?
+  device       String?
+  previousHash String?
+  hash         String?
+  createdAt    DateTime @default(now())
+  school       School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user         User?    @relation("AuditUser", fields: [userId], references: [id])
 
   @@index([schoolId, action])
   @@index([userId])
@@ -1440,6 +1462,7 @@ model SystemBackup {
   sizeBytes Int?
   fileUrl   String?
   errorMsg  String?
+  checksum  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

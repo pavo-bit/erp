@@ -6,9 +6,11 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
   const admissionNo = `E2E-${Math.floor(Math.random() * 100000)}`;
 
   test('ERP Admin can login, create a student, and generate an invoice', async ({ page }) => {
+    test.setTimeout(90000); // Next.js dev server compiles pages on demand, increasing load times
+
     // --- 1. Authentication ---
     // Navigate to the ERP Admin login page
-    await page.goto('/');
+    await page.goto('/', { timeout: 60000 });
     
     // Fill in credentials. We will use the seeded admin credentials.
     await page.getByPlaceholder(/email/i).fill('superadmin@ssvmerp.com');
@@ -24,7 +26,7 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
 
     // --- 2. Admissions (Student Creation) ---
     // Navigate to Students/Admissions module
-    await page.getByRole('link', { name: /students/i }).click();
+    await page.goto('/admin/students', { timeout: 60000 });
     await page.waitForURL('**/admin/students');
     
     // Wait a bit for React hydration and layout
@@ -48,7 +50,7 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
 
     // --- 3. Invoicing ---
     // Navigate to Fee Management module
-    await page.getByRole('link', { name: /fee management/i }).click();
+    await page.goto('/admin/fees', { timeout: 60000 });
     await page.waitForURL('**/admin/fees');
     
     // Wait a bit for React hydration

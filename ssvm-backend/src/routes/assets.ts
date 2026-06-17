@@ -168,7 +168,7 @@ router.get("/:id/maintenance", authenticate, requireRole("ASSET_MANAGER", "SUPER
 
     const records = await prisma.maintenanceRecord.findMany({
       where: { assetId: id as string },
-      orderBy: { date: "desc" }
+      orderBy: { startDate: "desc" }
     });
 
     res.json({ success: true, data: records });
@@ -193,7 +193,7 @@ router.post("/:id/maintenance", authenticate, requireRole("ASSET_MANAGER", "SUPE
         assetId: id as string,
         description,
         cost: cost ? parseFloat(cost) : null,
-        date: new Date(date),
+        startDate: new Date(date),
         performedBy
       }
     });
@@ -219,9 +219,9 @@ router.post("/vendors", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN"
       data: {
         schoolId,
         name,
-        contactPerson,
-        phone,
-        email,
+        contactName: contactPerson,
+        contactPhone: phone,
+        contactEmail: email,
         address
       }
     });
@@ -241,7 +241,7 @@ router.put("/vendors/:id", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADM
 
     const vendor = await prisma.vendor.update({
       where: { id: id as string },
-      data: { name, contactPerson, phone, email, address }
+      data: { name, contactName: contactPerson, contactPhone: phone, contactEmail: email, address }
     });
 
     res.json({ success: true, data: vendor });
