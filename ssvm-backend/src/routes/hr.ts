@@ -58,6 +58,90 @@ router.post("/salaries", authenticate, requireHRAdmin(), async (req: AuthRequest
   }
 });
 
+// POST /api/v1/hr/payroll/generate — Generate payroll for all active teachers
+router.post("/payroll/generate", authenticate, requireHRAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId!;
+    const { month, year } = req.body;
+
+    if (!month || !year) {
+      res.status(400).json({ success: false, error: "Required: month, year" }); return;
+    }
+
+    const m = parseInt(month);
+    const y = parseInt(year);
+
+    // 1. Get all active teachers
+    const teachers = await prisma.teacher.findMany({
+      where: { schoolId, isActive: true },
+      select: { id: true }
+    });
+
+    if (!teachers.length) {
+      res.status(400).json({ success: false, error: "No active teachers found." }); return;
+    }
+
+    // Check if salaries are already generated for this month
+    const existingSalaries = await prisma.salary.findFirst({
+      where: { schoolId, month: m, year: y }
+    });
+
+    if (existingSalaries) {
+      res.status(400).json({ success: false, error: "Payroll for this month has already been generated." }); return;
+    }
+
+    const workingDays = 22; // Typical working days
+    const generatedSalaries = [];
+
+    for (const teacher of teachers) {
+
+
+      // Count absents
+      const absents = await prisma.teacherAttendance.count({
+        where: {
+          teacherId: teacher.id,
+          status: "ABSENT",
+          date: {
+            gte: new Date(y, m - 1, 1),
+            lt: new Date(y, m, 1)
+          }
+        }
+      });
+
+      const allowedLeaves = 1;
+      const unpaidLeaves = Math.max(0, absents - allowedLeaves);
+      const baseSalary = 50000; // Mock default salary
+      const dailyRate = baseSalary / workingDays;
+      const deductions = unpaidLeaves * dailyRate;
+      const allowances = baseSalary * 0.10; // e.g. 10% HRA
+      const netPay = baseSalary + allowances - deductions;
+
+      generatedSalaries.push({
+        schoolId,
+        teacherId: teacher.id,
+        month: m,
+        year: y,
+        basicPay: baseSalary,
+        allowances,
+        deductions,
+        netPay,
+        status: "PENDING"
+      });
+    }
+
+    await prisma.salary.createMany({
+      data: generatedSalaries as any
+    });
+
+    logger.info({ schoolId, month: m, year: y, generated: generatedSalaries.length }, "Payroll generated");
+    res.status(201).json({ success: true, message: `Generated payroll for ${generatedSalaries.length} teachers.` });
+
+  } catch (e) {
+    logger.error({ err: e }, "Generate payroll error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 // PUT /api/hr/salaries/:id/pay — Mark salary as paid
 router.put("/salaries/:id/pay", authenticate, requireHRAdmin(), async (req: AuthRequest, res: Response) => {
   try {

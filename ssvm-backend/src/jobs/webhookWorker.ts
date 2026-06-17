@@ -1,8 +1,10 @@
 import { Worker, Job } from "bullmq";
+import { PrismaClient } from "@prisma/client";
 import { getEnv } from "../config/env";
 import logger from "../lib/logger";
 
 const env = getEnv();
+const prisma = new PrismaClient();
 
 /**
  * Starts the BullMQ worker for the webhook delivery queue.
@@ -54,8 +56,26 @@ export function startWebhookWorker() {
     logger.debug({ jobId: job.id }, "Webhook job completed");
   });
 
-  worker.on("failed", (job, err) => {
+  worker.on("failed", async (job, err) => {
     logger.error({ jobId: job?.id, error: err.message }, "Webhook job failed");
+    
+    // DLQ: Route failed webhooks to FailedWebhook table if retries are exhausted
+    if (job && job.attemptsMade >= (job.opts.attempts || 1)) {
+      try {
+        await prisma.failedWebhook.create({
+          data: {
+            payload: job.data,
+            errorMessage: err.message,
+            retryCount: job.attemptsMade,
+            // paymentId is optional, extract if it's an inbound payment webhook
+            paymentId: job.data?.payload?.payment?.entity?.id || undefined,
+          }
+        });
+        logger.info({ jobId: job.id }, "Webhook routed to DLQ (FailedWebhook)");
+      } catch (dlqErr) {
+        logger.error({ err: dlqErr }, "Failed to write to DLQ");
+      }
+    }
   });
 
   return worker;

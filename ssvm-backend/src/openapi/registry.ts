@@ -352,3 +352,65 @@ registry.registerPath({
     }
   }
 });
+
+// Phase D: HR & Library APIs
+registry.registerPath({
+  method: "post",
+  path: "/api/v1/hr/payroll/generate",
+  description: "Automated Payroll Generation",
+  summary: "Generate monthly salary records based on attendance",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            schoolId: z.string(),
+            month: z.number().int().min(1).max(12),
+            year: z.number().int().min(2000),
+          })
+        }
+      }
+    }
+  },
+  responses: {
+    201: {
+      description: "Payroll Generated successfully",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string() })
+        }
+      }
+    }
+  }
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/v1/library/fines/calculate",
+  description: "Automated Library Fine Calculation",
+  summary: "Calculate fines for overdue books",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            schoolId: z.string().optional(),
+            dailyFineRate: z.number().optional()
+          })
+        }
+      }
+    }
+  },
+  responses: {
+    200: {
+      description: "Fines calculated successfully",
+      content: {
+        "application/json": {
+          schema: z.object({ success: z.boolean(), message: z.string() })
+        }
+      }
+    }
+  }
+});

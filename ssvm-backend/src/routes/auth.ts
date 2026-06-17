@@ -163,7 +163,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
       return; 
     }
 
-    const valid = await verifyPassword(password, (user as any).passwordHash);
+    const valid = await verifyPassword(password, (user as any).passwordHash, { id: user.id, type: "USER" });
     if (!valid) {
       logger.warn({ email }, "Failed login attempt");
       const attempts = await incrementFailedLogins(email);
@@ -255,7 +255,7 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
       return; 
     }
 
-    const valid = await verifyPassword(password, student.password);
+    const valid = await verifyPassword(password, student.password, { id: student.id, type: "STUDENT" });
     if (!valid) {
       logger.warn({ admissionNo }, "Failed student login attempt");
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "invalid_credentials", metadata: { admissionNo } });
@@ -757,7 +757,7 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
       return;
     }
 
-    const validCurrent = await verifyPassword(currentPassword, user.passwordHash);
+    const validCurrent = await verifyPassword(currentPassword, user.passwordHash, { id: user.id, type: "USER" });
     if (!validCurrent) {
       res.status(401).json({ success: false, error: "Current password is incorrect" });
       return;

@@ -5,8 +5,10 @@ import { Role } from "@prisma/client";
 import { z } from "zod";
 import crypto from "crypto";
 import { webhookProcessingTotal } from "../middleware/metrics";
+import { IdempotencyService } from "../services/idempotency.service";
+import logger from "../lib/logger";
+import prisma from "../lib/prisma";
 
-const prisma = new PrismaClient();
 const router = Router();
 
 // Webhook creation validator
@@ -139,7 +141,18 @@ router.post("/razorpay", async (req, res) => {
     }
 
     const event = req.body;
-    console.log(`[Webhook] Received Razorpay event: ${event.event}`);
+    const eventId = (req.headers["x-razorpay-event-id"] as string) || event.id;
+    
+    logger.info(`[Webhook] Received Razorpay event: ${event.event}`);
+
+    // Check Idempotency Lock
+    if (eventId) {
+      const lockAcquired = await IdempotencyService.acquireLock("RAZORPAY_WEBHOOK", eventId);
+      if (!lockAcquired) {
+        webhookProcessingTotal.labels("razorpay", "success_idempotent", eventType).inc();
+        return res.status(200).json({ status: "ok", message: "Duplicate event suppressed" });
+      }
+    }
 
     // Process event (e.g. payment.captured)
     if (event.event === "payment.captured") {
@@ -239,11 +252,23 @@ router.post("/razorpay", async (req, res) => {
         });
       });
 
-      console.log(`Payment successfully processed and booked to Ledger for invoice ${invoiceId}`);
+      logger.info(`Payment successfully processed and booked to Ledger for invoice ${invoiceId}`);
+    } else if (event.event === "payment.failed") {
+      const paymentData = event.payload.payment.entity;
+      logger.warn({ paymentId: paymentData.id, reason: paymentData.error_description }, "Payment Failed webhook received");
+      
+      // Persist failed event to Dead Letter Queue table for manual review
+      await prisma.failedWebhook.create({
+        data: {
+          payload: event,
+          errorMessage: paymentData.error_description || "Payment failed",
+        }
+      });
     }
     webhookProcessingTotal.labels("razorpay", "success", eventType).inc();
     res.json({ success: true, message: "Webhook processed securely" });
   } catch (error) {
+    console.error("Webhook processing error:", error);
     const eventType = req.body?.event || "unknown";
     webhookProcessingTotal.labels("razorpay", "error_processing", eventType).inc();
     res.status(500).json({ error: "Webhook processing failed" });

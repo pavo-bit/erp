@@ -1,5 +1,6 @@
 import { PrismaClient, Role } from '@prisma/client';
 import crypto from 'crypto';
+import { hashPassword } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 
@@ -50,14 +51,14 @@ export class IdentityService {
     // 5. If no local user exists, perform Just-In-Time (JIT) Provisioning
     if (!localUser) {
       // Generate a strong random password since they will rely entirely on SSO
-      // (In production, this would be bcrypt hashed)
       const randomPassword = crypto.randomBytes(32).toString('hex');
+      const hashedPassword = await hashPassword(randomPassword);
       
       localUser = await prisma.user.create({
         data: {
           email,
           name,
-          passwordHash: randomPassword, 
+          passwordHash: hashedPassword, 
           role: Role.STUDENT, // Default fallback role, should be mapped via Claims
           isActive: true
         }

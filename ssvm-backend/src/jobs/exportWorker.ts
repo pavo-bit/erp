@@ -84,6 +84,24 @@ export function startExportWorker() {
             student: { select: { name: true, admissionNo: true } }
           }
         });
+      } else if (entity === "AUDIT_LOGS") {
+        data = await prisma.auditLog.findMany({
+          where: { schoolId, ...filters },
+          select: {
+            id: true,
+            action: true,
+            entity: true,
+            entityId: true,
+            details: true,
+            reason: true,
+            ipAddress: true,
+            hash: true,
+            previousHash: true,
+            createdAt: true,
+            user: { select: { name: true, email: true } }
+          },
+          orderBy: { createdAt: "desc" }
+        });
       } else {
         throw new Error(`Unsupported entity for export: ${entity}`);
       }

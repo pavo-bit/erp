@@ -49,7 +49,7 @@ export const verifyTurnstile = async (req: PublicFormRequest, res: Response, nex
       body: formData,
     });
 
-    const data = await response.json();
+    const data = await response.json() as { success: boolean; "error-codes"?: string[] };
 
     if (!data.success) {
       publicFormSubmissionsTotal.labels(endpoint, "CAPTCHA_FAILED").inc();

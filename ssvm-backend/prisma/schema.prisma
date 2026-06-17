@@ -1177,29 +1177,32 @@ model Testimonial {
 }
 
 model PaymentTransaction {
-  id                String    @id @default(cuid())
+  id                String          @id @default(cuid())
   invoiceId         String
   amountPaid        Float
-  gateway           String    @default("RAZORPAY")
-  transactionId     String?   @unique
+  gateway           String          @default("RAZORPAY")
+  transactionId     String?         @unique
   razorpaySignature String?
-  status            String    @default("CREATED")
+  status            String          @default("CREATED")
   paidAt            DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
   branchId          String?
   schoolId          String?
   deletedAt         DateTime?
   deletedById       String?
-  gatewayPaymentId  String?   @unique
-  idempotencyKey    String?   @unique
-  invoice           Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  gatewayPaymentId  String?         @unique
+  idempotencyKey    String?
+  processedAt       DateTime?
+  invoice           Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  FailedWebhook     FailedWebhook[]
 
+  @@unique([invoiceId, transactionId])
+  @@unique([schoolId, idempotencyKey])
   @@index([invoiceId])
   @@index([transactionId])
   @@index([schoolId, status])
   @@index([schoolId, createdAt])
-  @@unique([invoiceId, transactionId])
   @@map("payment_transactions")
 }
 
@@ -1218,7 +1221,7 @@ model RazorpayReconciliation {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
-  school                School               @relation(fields: [schoolId], references: [id])
+  school School @relation(fields: [schoolId], references: [id])
 
   @@index([schoolId, settlementDate])
   @@index([status])
@@ -1320,22 +1323,22 @@ model CommunicationLog {
 }
 
 model AuditLog {
-  id           String   @id @default(cuid())
-  schoolId     String?
-  userId       String?
-  action       String
-  entity       String
-  entityId     String?
-  details      String?
-  reason       String?
+  id             String   @id @default(cuid())
+  schoolId       String?
+  userId         String?
+  action         String
+  entity         String
+  entityId       String?
+  details        String?
+  reason         String?
   impersonatedBy String?
-  ipAddress    String?
-  device       String?
-  previousHash String?
-  hash         String?
-  createdAt    DateTime @default(now())
-  school       School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user         User?    @relation("AuditUser", fields: [userId], references: [id])
+  ipAddress      String?
+  device         String?
+  previousHash   String?
+  hash           String?
+  createdAt      DateTime @default(now())
+  school         School?  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user           User?    @relation("AuditUser", fields: [userId], references: [id])
 
   @@index([schoolId, action])
   @@index([userId])
@@ -1411,7 +1414,7 @@ model ActivityLog {
 }
 
 model Scholarship {
-  id         String   @id @default(cuid())
+  id         String            @id @default(cuid())
   schoolId   String
   branchId   String?
   studentId  String
@@ -1421,12 +1424,12 @@ model Scholarship {
   reason     String?
   approvedBy String?
   status     ScholarshipStatus @default(PENDING)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  user       User?    @relation("ScholarshipApprover", fields: [approvedBy], references: [id])
-  branch     Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student    Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  user       User?             @relation("ScholarshipApprover", fields: [approvedBy], references: [id])
+  branch     Branch?           @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  school     School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student    Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@map("scholarships")
 }
@@ -1494,12 +1497,12 @@ model SystemBackup {
   sizeBytes Int?
   fileUrl   String?
   errorMsg  String?
-  checksum         String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  checksum  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  lastValidatedAt  DateTime?
-  validationStatus String   @default("NOT_YET_RUN")
+  lastValidatedAt   DateTime?
+  validationStatus  String    @default("NOT_YET_RUN")
   validationDetails Json?
 
   @@index([status])
@@ -2862,7 +2865,8 @@ model LedgerTransaction {
   approvedAt              DateTime?
   approvalStatus          ApprovalStatus?
   createdAt               DateTime            @default(now())
-  idempotencyKey          String?             @unique
+  idempotencyKey          String?
+  processedAt             DateTime?
   FinancialAudit          FinancialAudit[]
   LedgerEntry             LedgerEntry[]
   LedgerEvent             LedgerEvent[]
@@ -2873,6 +2877,7 @@ model LedgerTransaction {
   document_repository     DocumentRepository? @relation(fields: [supportingDocumentId], references: [id])
 
   @@unique([schoolId, transactionNumber])
+  @@unique([schoolId, idempotencyKey])
   @@index([postingDate])
   @@index([schoolId, accountingPeriodId])
   @@index([schoolId])
@@ -3856,3 +3861,45 @@ enum ComplaintStatus {
   RESOLVED
   CLOSED
 }
+
+model FailedWebhook {
+  id           String    @id @default(cuid())
+  paymentId    String?
+  payload      Json
+  errorMessage String
+  retryCount   Int       @default(0)
+  nextRetryAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  PaymentTransaction PaymentTransaction? @relation(fields: [paymentId], references: [id])
+}
+
+model AppConfiguration {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String   // Stored as string, can be JSON or scalar
+  type        String   @default("STRING") // STRING, BOOLEAN, NUMBER, JSON
+  description String?
+  isSecret    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  updatedBy   String?
+
+  history     ConfigHistory[]
+  @@map("app_configurations")
+}
+
+model ConfigHistory {
+  id              String   @id @default(cuid())
+  configurationId String
+  oldValue        String?
+  newValue        String
+  changedAt       DateTime @default(now())
+  changedBy       String?
+  reason          String?
+
+  configuration   AppConfiguration @relation(fields: [configurationId], references: [id], onDelete: Cascade)
+  @@index([configurationId])
+  @@map("config_history")
+}
+

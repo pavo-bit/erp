@@ -196,40 +196,43 @@ router.get("/finance", authenticate, async (req, res) => {
   try {
     const schoolId = (req as any).user.schoolId;
 
-    // Fetch accounts to calculate revenue
-    const accounts = await prisma.ledgerAccount.findMany({
-      where: { schoolId, category: 'REVENUE' },
-      include: { LedgerEntry: { select: { creditAmount: true, debitAmount: true } } }
+    // Fetch accounts to calculate revenue using aggregate
+    const revenueAgg = await prisma.ledgerEntry.aggregate({
+      where: { LedgerAccount: { schoolId, category: 'REVENUE' } },
+      _sum: {
+        creditAmount: true,
+        debitAmount: true,
+      }
     });
 
-    const totalRevenue = accounts.reduce((total: number, acc: any) => {
-      const cr = acc.LedgerEntry.reduce((sum: number, e: any) => sum + Number(e.creditAmount), 0);
-      const db = acc.LedgerEntry.reduce((sum: number, e: any) => sum + Number(e.debitAmount), 0);
-      return total + (cr - db);
-    }, 0);
+    const totalRevenue = (Number(revenueAgg._sum?.creditAmount || 0)) - (Number(revenueAgg._sum?.debitAmount || 0));
 
-    // Fetch outstanding dues from invoices
-    const outstandingInvoices = await prisma.invoice.findMany({
-      where: { schoolId, status: { in: ['PENDING', 'OVERDUE', 'PARTIAL'] } }
+    // Fetch outstanding dues from invoices using aggregate
+    const duesAgg = await prisma.invoice.aggregate({
+      where: { schoolId, status: { in: ['PENDING', 'OVERDUE', 'PARTIAL'] } },
+      _sum: {
+        amount: true,
+        fineAmount: true,
+        amountPaid: true,
+      }
     });
 
-    const outstandingDues = outstandingInvoices.reduce((total: number, inv: any) => {
-      return total + (inv.amount + inv.fineAmount - inv.amountPaid);
-    }, 0);
+    const outstandingDues = (Number(duesAgg._sum.amount || 0) + Number(duesAgg._sum.fineAmount || 0)) - Number(duesAgg._sum.amountPaid || 0);
 
-    // Get recent 30 days revenue (approximation using invoices paid)
+    // Get recent 30 days revenue
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     
-    const recentPayments = await prisma.invoice.findMany({
+    const recentPaymentsAgg = await prisma.invoice.aggregate({
       where: { 
         schoolId, 
         updatedAt: { gte: thirtyDaysAgo },
         status: { in: ['PAID', 'PARTIAL'] }
-      }
+      },
+      _sum: { amountPaid: true }
     });
     
-    const recentRevenue = recentPayments.reduce((total: number, inv: any) => total + inv.amountPaid, 0);
+    const recentRevenue = Number(recentPaymentsAgg._sum.amountPaid || 0);
 
     const stats = {
       totalRevenue,

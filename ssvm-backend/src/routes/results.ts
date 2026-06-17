@@ -12,17 +12,20 @@ router.get("/", authenticate, requireTeacherOrAdmin(), async (req: AuthRequest, 
     const schoolId = req.user!.schoolId!;
     const { examName, limit = "50", cursor } = req.query;
 
-    const where: any = { examSubject: { exam: { schoolId } } };
-    
-    if (examName) {
-      where.examSubject = { ...where.examSubject, exam: { ...where.examSubject.exam, name: examName } };
-    }
+    const where: import('@prisma/client').Prisma.StudentMarkWhereInput = { 
+      examSubject: { 
+        exam: { 
+          schoolId,
+          ...(examName ? { name: examName as string } : {})
+        } 
+      } 
+    };
 
     const marks = await prisma.studentMark.findMany({
       where,
       include: {
         student: {
-          select: { id: true, class: true, section: true, rollNo: true, user: { select: { name: true } } }
+          select: { id: true, rollNo: true, user: { select: { name: true } } }
         },
         examSubject: {
           include: { exam: true, subject: true }
@@ -67,7 +70,7 @@ router.post("/", authenticate, requireTeacherOrAdmin(), async (req: AuthRequest,
       let exam = await tx.exam.findFirst({ where: { schoolId, name: examName } });
       if (!exam) {
         exam = await tx.exam.create({
-          data: { schoolId, name: examName, startDate: new Date(), endDate: new Date() }
+          data: { schoolId, name: examName, startDate: new Date(), endDate: new Date(), classId: "mock_class_id" }
         });
       }
 
@@ -86,7 +89,7 @@ router.post("/", authenticate, requireTeacherOrAdmin(), async (req: AuthRequest,
       
       if (!examSubject) {
         examSubject = await tx.examSubject.create({
-          data: { examId: exam.id, subjectId: subjectObj.id, maxMarks: totalMarks, passingMarks: Math.round(totalMarks * 0.33) }
+          data: { examId: exam.id, subjectId: subjectObj.id, maxMarks: totalMarks, passMarks: Math.round(totalMarks * 0.33) }
         });
       }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "../../index";
+import { app } from "../../app";
 import prisma from "../../lib/prisma";
 
 process.env.SKIP_TRUNCATE = "true";
@@ -180,6 +180,7 @@ describe("Tenant Isolation & Security", () => {
       name: user.name,
       role: user.role,
       schoolId: user.schoolId,
+      sid: "dummy_sid",
     });
     return `access_token=${token}`;
   };
@@ -282,6 +283,7 @@ describe("Tenant Isolation & Security", () => {
         name: schoolAErpAdmin.name,
         role: schoolAErpAdmin.role,
         schoolId: null, // Removed
+        sid: "dummy_sid",
       });
 
       const res = await request(app)
@@ -299,6 +301,7 @@ describe("Tenant Isolation & Security", () => {
         name: schoolAErpAdmin.name,
         role: schoolAErpAdmin.role,
         schoolId: schoolBId, // Forged
+        sid: "dummy_sid",
       });
 
       // It will have a valid signature (since we signed it), but

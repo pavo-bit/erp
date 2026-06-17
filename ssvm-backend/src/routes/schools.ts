@@ -157,9 +157,6 @@ router.put("/:id", authenticate, requireSuperAdmin(), async (req: AuthRequest, r
   }
 });
 
-    res.status(500).json({ success: false, error: "Server error" });
-  }
-});
 
 // GET /api/schools/:id/onboarding — Get school onboarding progress
 router.get("/:id/onboarding", authenticate, async (req: AuthRequest, res: Response) => {

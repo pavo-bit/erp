@@ -1,5 +1,5 @@
 import request from "supertest";
-import { app } from "../index"; // Ensure you export 'app' from index.ts without starting the server, or mock it
+import { app } from "../app"; // Ensure you export 'app' from index.ts without starting the server, or mock it
 
 describe("Auth Routes", () => {
   it("should fail login with invalid credentials", async () => {

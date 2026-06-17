@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { getEnv } from "../config/env";
+import { sendSMS } from "../lib/sms";
 import logger from "../lib/logger";
 import prisma from "../lib/prisma";
 import { sendSSEToUser } from "../lib/sse";
@@ -75,11 +76,13 @@ export function startNotificationWorker() {
               break;
 
             case "SMS":
-              // Production: integrate with Twilio/MSG91
-              // const msg = await twilio.messages.create({ to, body: content });
-              await new Promise(resolve => setTimeout(resolve, 200));
-              deliveryResult = { success: true, externalId: `sms_${Date.now()}` };
-              logger.info({ to }, "SMS delivered");
+              const smsSuccess = await sendSMS(to, content);
+              if (smsSuccess) {
+                deliveryResult = { success: true, externalId: `sms_${Date.now()}` };
+                logger.info({ to }, "SMS delivered");
+              } else {
+                deliveryResult = { success: false, error: "Twilio send failed or Circuit Breaker OPEN" };
+              }
               break;
 
             case "WHATSAPP":

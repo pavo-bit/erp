@@ -141,7 +141,6 @@ router.post("/teachers", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_
         prisma.teacherAttendance.upsert({
           where: { teacherId_date: { teacherId: r.teacherId, date: new Date(date) } },
           create: {
-            schoolId,
             teacherId: r.teacherId,
             date: new Date(date),
             status: r.status,

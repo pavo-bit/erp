@@ -1,3 +1,4 @@
+import { createAuditLog } from "../lib/audit";
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
@@ -64,7 +65,7 @@ router.put("/enquiries/:id", authenticate, requireOperationsAdmin("RECEPTIONIST"
   try {
     const enquiryId = req.params.id as string;
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
-    const { status, notes } = req.body;
+    const { status, remarks } = req.body;
 
     const enquiry = await prisma.admissionEnquiry.findUnique({ where: { id: enquiryId } });
     if (!enquiry || enquiry.schoolId !== schoolId) {
@@ -74,17 +75,17 @@ router.put("/enquiries/:id", authenticate, requireOperationsAdmin("RECEPTIONIST"
 
     const updated = await prisma.admissionEnquiry.update({
       where: { id: enquiryId },
-      data: { status, notes },
+      data: { status, remarks },
     });
 
-    await prisma.auditLog.create({
+    await createAuditLog({
       data: {
         schoolId,
         userId: req.user!.id,
         action: "UPDATE_ENQUIRY",
         entity: "AdmissionEnquiry",
         entityId: enquiryId,
-        details: JSON.stringify({ status, notes })
+        details: JSON.stringify({ status, remarks })
       }
     });
 

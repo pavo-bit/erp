@@ -1,3 +1,4 @@
+import { createAuditLog } from "../lib/audit";
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
@@ -62,7 +63,7 @@ router.post("/", authenticate, requireFinanceAdmin(), validate(createScholarship
     });
 
     // Log to AuditLog
-    await prisma.auditLog.create({
+    await createAuditLog({
       data: {
         action: "SCHOLARSHIP_REQUESTED",
         userId: req.user!.id,
@@ -101,7 +102,7 @@ router.put("/:id/approve", authenticate, requireFinanceAdmin(), async (req: Auth
       const nextInvoice = await tx.invoice.findFirst({
         where: {
           studentId: scholarship.studentId,
-          status: { in: ["PENDING", "PARTIALLY_PAID"] }
+          status: { in: ["PENDING", "PARTIAL"] }
         },
         orderBy: { dueDate: "asc" }
       });
@@ -114,7 +115,7 @@ router.put("/:id/approve", authenticate, requireFinanceAdmin(), async (req: Auth
       const creditAmount = Math.min(scholarship.amount, nextInvoice.remainingAmount || nextInvoice.amount);
       const newRemainingAmount = (nextInvoice.remainingAmount || nextInvoice.amount) - creditAmount;
       const newAmountPaid = (nextInvoice.amountPaid || 0) + creditAmount;
-      const newStatus = newRemainingAmount <= 0 ? "PAID" : "PARTIALLY_PAID";
+      const newStatus = newRemainingAmount <= 0 ? "PAID" : "PARTIAL";
 
       await tx.invoice.update({
         where: { id: nextInvoice.id },
@@ -133,7 +134,7 @@ router.put("/:id/approve", authenticate, requireFinanceAdmin(), async (req: Auth
           gateway: "SCHOLARSHIP",
           transactionId: `SCH-${scholarship.id}`,
           status: "SUCCESS",
-          metadata: JSON.stringify({ scholarshipId: scholarship.id })
+          gatewayPaymentId: `SCHOLARSHIP_${scholarship.id}`
         }
       });
 
@@ -192,7 +193,7 @@ router.put("/:id/reject", authenticate, requireFinanceAdmin(), async (req: AuthR
     });
 
     // Log to AuditLog
-    await prisma.auditLog.create({
+    await createAuditLog({
       data: {
         action: "SCHOLARSHIP_REJECTED",
         userId: req.user!.id,

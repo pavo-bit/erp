@@ -1,8 +1,8 @@
+import { createAuditLog } from "../lib/audit";
 import { Router, Response } from "express";
 import { z } from "zod";
-import bcrypt from "bcryptjs";
 import prisma from "../lib/prisma";
-import { authenticate, requireRole, AuthRequest } from "../middleware/auth";
+import { authenticate, requireRole, AuthRequest, hashPassword } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
@@ -36,7 +36,7 @@ const updateUserSchema = z.object({
 // Helper to log audit trail
 async function logAudit(schoolId: string, userId: string, action: string, entity: string, entityId: string, details: any, req: any) {
   try {
-    await prisma.auditLog.create({
+    await createAuditLog({
       data: {
         schoolId,
         userId,
@@ -117,7 +117,7 @@ router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (r
     // Workflow: Generate Temp Password if not provided
     const isTempPassword = !data.password;
     const plainPassword = data.password || generateTempPassword();
-    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+    const hashedPassword = await hashPassword(plainPassword);
 
     const user = await prisma.user.create({
       data: {
@@ -202,7 +202,7 @@ router.put("/:id/status", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"),
 router.put("/:id/reset-password", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const tempPassword = generateTempPassword();
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const hashedPassword = await hashPassword(tempPassword);
 
     const user = await prisma.user.update({
       where: { id: req.params.id, schoolId: req.user.schoolId },

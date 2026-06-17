@@ -278,7 +278,7 @@ router.put("/issues/:id/waive-fine", authenticate, requireLibraryAdmin(), async 
         for (const inv of invoices) {
           await tx.invoice.update({
             where: { id: inv.id },
-            data: { status: "VOID", remainingAmount: 0 }
+            data: { status: "PAID", remainingAmount: 0 }
           });
         }
       }
@@ -346,6 +346,47 @@ router.get("/overdue", authenticate, requireLibraryAdmin(), async (req: AuthRequ
     res.json({ success: true, data: overdueIssues });
   } catch (e) {
     logger.error({ err: e }, "List overdue issues error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// Calculate Fines
+router.post("/fines/calculate", authenticate, requireLibraryAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId!;
+    const { dailyFineRate = 10 } = req.body; // Default ₹10 per day
+
+    const overdueIssues = await prisma.bookIssue.findMany({
+      where: {
+        schoolId,
+        status: { in: ["ISSUED", "OVERDUE"] },
+        dueDate: { lt: new Date() }
+      }
+    });
+
+    let updatedCount = 0;
+    const now = new Date();
+
+    for (const issue of overdueIssues) {
+      const daysOverdue = Math.floor((now.getTime() - issue.dueDate.getTime()) / (1000 * 3600 * 24));
+      if (daysOverdue > 0) {
+        const calculatedFine = daysOverdue * dailyFineRate;
+        
+        await prisma.bookIssue.update({
+          where: { id: issue.id },
+          data: {
+            status: "OVERDUE",
+            fineAmount: calculatedFine
+          }
+        });
+        updatedCount++;
+      }
+    }
+
+    logger.info({ schoolId, updatedCount }, "Overdue fines calculated");
+    res.json({ success: true, message: `Calculated fines for ${updatedCount} overdue issues.` });
+  } catch (e) {
+    logger.error({ err: e }, "Calculate fines error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });

@@ -58,6 +58,14 @@ const envSchema = z.object({
   // ─── GAP 4: Secrets Manager (optional — used in production) ───
   AWS_SECRETS_MANAGER_ARN: z.string().optional(),
   SECRETS_ROTATION_INTERVAL_HOURS: z.string().default("24"),
+
+  // ─── GAP 12: Backups ───
+  BACKUP_RETENTION_DAYS: z.string().default("30"),
+
+  // ─── Twilio SMS ───
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_PHONE_NUMBER: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

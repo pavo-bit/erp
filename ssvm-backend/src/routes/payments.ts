@@ -7,7 +7,9 @@ import { AuthRequest, authenticate } from "../middleware/auth";
 import { getEnv } from "../config/env";
 import { LedgerService } from "../services/ledger.service";
 import { paymentIdempotencyMiddleware, computePaymentIdempotencyKey } from "../middleware/idempotency";
+import { IdempotencyService } from "../services/idempotency.service";
 import { logSecurityEvent } from "../lib/audit";
+import { razorpayCircuitBreaker } from "../lib/circuitBreaker";
 import logger from "../lib/logger";
 
 const router = Router();
@@ -44,14 +46,23 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
 
     const totalAmount = fee.amount + fee.fineAmount;
 
-    // Create Razorpay Order
+    // Create Razorpay Order with Circuit Breaker protection
     const options = {
       amount: totalAmount * 100, // Razorpay expects amount in paise
       currency: "INR",
       receipt: `rcpt_${fee.id.substring(0, 8)}`,
     };
 
-    const order = await razorpay.orders.create(options);
+    let order;
+    try {
+      order = await razorpayCircuitBreaker.fire(() => razorpay.orders.create(options));
+    } catch (cbError: any) {
+      if (cbError.message.includes("OPEN")) {
+        res.status(503).json({ success: false, error: "Payment gateway is currently unavailable. Please try again later." });
+        return;
+      }
+      throw cbError;
+    }
 
     if (!order) {
       res.status(500).json({ success: false, error: "Failed to create Razorpay order" });
@@ -291,6 +302,15 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
         ? crypto.createHash("sha256").update(razorpayEventId).digest("hex")
         : crypto.createHash("sha256").update(payloadString).digest("hex");
 
+      // Fast-path: Redis SETNX Idempotency Lock
+      // Use 'system' as schoolId if we don't have it parsed yet
+      const lockAcquired = await IdempotencyService.acquireLock("system", idempotencyKey);
+      if (!lockAcquired) {
+        logger.info({ idempotencyKey, gatewayPaymentId }, "Webhook duplicate detected (Redis lock)");
+        res.status(200).json({ success: true, message: "Already processed" });
+        return;
+      }
+
       try {
         const result = await prisma.$transaction(async (tx) => {
           // ── Idempotency Check 1: By idempotency key ──
@@ -454,6 +474,7 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
         // Serialization failure → tell Razorpay to retry
         if (txError.code === "P2034" || txError.message?.includes("serialization")) {
           logger.warn({ err: txError, gatewayPaymentId }, "Serialization conflict in webhook — Razorpay will retry");
+          await IdempotencyService.releaseLock("system", idempotencyKey);
           res.status(500).json({ success: false, error: "Concurrency error, retry later" });
           return;
         }
@@ -466,6 +487,7 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
         }
 
         logger.error({ err: txError, gatewayPaymentId }, "Webhook transaction error");
+        await IdempotencyService.releaseLock("system", idempotencyKey);
         res.status(500).json({ success: false, error: "Processing error" });
         return;
       }

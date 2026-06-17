@@ -227,9 +227,9 @@ export class ReconciliationService {
           status,
           matchedTransactionIds: result.items
             .filter(i => i.ssvmTransactionId)
-            .map(i => i.ssvmTransactionId),
+            .map(i => i.ssvmTransactionId as string),
           unmatchedItems: result.items
-            .filter(i => i.status !== "MATCHED"),
+            .filter(i => i.status !== "MATCHED") as any[],
           summary: {
             totalItems: result.totalItems,
             matched: result.matched,
@@ -247,9 +247,9 @@ export class ReconciliationService {
           status,
           matchedTransactionIds: result.items
             .filter(i => i.ssvmTransactionId)
-            .map(i => i.ssvmTransactionId),
+            .map(i => i.ssvmTransactionId as string),
           unmatchedItems: result.items
-            .filter(i => i.status !== "MATCHED"),
+            .filter(i => i.status !== "MATCHED") as any[],
           summary: {
             totalItems: result.totalItems,
             matched: result.matched,

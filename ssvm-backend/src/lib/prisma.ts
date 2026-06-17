@@ -35,32 +35,43 @@ const prisma = basePrisma
             }
           }
 
-          // ── RLS Context Injection ──
-          // Before every query, set the PostgreSQL session variable
-          // so that RLS policies can filter by tenant.
+          // ── Application-Level Tenant Isolation ──
+          // Prisma connection pooling prevents reliable `SET LOCAL` outside of
+          // explicit interactive transactions. To strictly enforce tenant isolation,
+          // we dynamically inject `schoolId` into every query for tenant-scoped models.
           const schoolId = getCurrentSchoolId();
 
-          if (schoolId) {
-            try {
-              // SET LOCAL scopes to the current transaction only
-              // This is safe for concurrent requests
-              await basePrisma.$executeRawUnsafe(
-                `SET LOCAL app.current_school_id = '${schoolId.replace(/'/g, "''")}'`
-              );
-            } catch (err) {
-              // RLS context set failure should not crash the query
-              // Log and continue — RLS will deny if school_id is not set
-              logger.warn({ err, model, operation, schoolId }, "Failed to set RLS context");
+          const tenantScopedModels = [
+            'Student', 'Teacher', 'Invoice', 'PaymentTransaction', 'FeeCategory',
+            'FeeStructure', 'FineRule', 'Attendance', 'Event', 'Assignment',
+            'StudyMaterial', 'Admission', 'Salary', 'Notification', 'AuditLog',
+            'ActivityLog', 'Document', 'Book', 'LedgerTransaction', 'SystemLog',
+            'SchoolFeature', 'SubscriptionPayment', 'UnifiedTemplate', 'UsageMetric',
+            'Vendor', 'VisitorLog', 'WebhookEndpoint'
+          ];
+
+          if (schoolId && tenantScopedModels.includes(model as string)) {
+            // Inject schoolId into WHERE clauses
+            if (['findUnique', 'findFirst', 'findMany', 'count', 'update', 'updateMany', 'delete', 'deleteMany', 'aggregate', 'groupBy'].includes(operation)) {
+              // Convert findUnique to findFirst if we're injecting a non-unique WHERE clause
+              if (operation === 'findUnique') {
+                operation = 'findFirst';
+              }
+              (args as any).where = { ...(args as any).where, schoolId };
             }
-          } else {
-            // No schoolId = super-admin or system context
-            // Reset to empty so RLS USING clause allows all (current_tenant_id() IS NULL)
-            try {
-              await basePrisma.$executeRawUnsafe(
-                `SET LOCAL app.current_school_id = ''`
-              );
-            } catch {
-              // Ignore — may fail outside transaction context
+            // Inject schoolId into CREATE payloads
+            else if (operation === 'create') {
+              (args as any).data = { ...(args as any).data, schoolId };
+            } else if (operation === 'createMany') {
+              if (Array.isArray((args as any).data)) {
+                (args as any).data = (args as any).data.map((d: any) => ({ ...d, schoolId }));
+              } else {
+                (args as any).data = { ...(args as any).data, schoolId };
+              }
+            } else if (operation === 'upsert') {
+              (args as any).where = { ...(args as any).where, schoolId };
+              (args as any).create = { ...(args as any).create, schoolId };
+              (args as any).update = { ...(args as any).update, schoolId }; // Though update might not strictly need it if where has it
             }
           }
 
@@ -71,14 +82,14 @@ const prisma = basePrisma
             if (operation === 'delete') {
               // @ts-ignore
               return basePrisma[model.charAt(0).toLowerCase() + model.slice(1)].update({
-                where: args.where,
+                where: (args as any).where,
                 data: { deletedAt: new Date() },
               });
             }
             if (operation === 'deleteMany') {
               // @ts-ignore
               return basePrisma[model.charAt(0).toLowerCase() + model.slice(1)].updateMany({
-                where: args.where,
+                where: (args as any).where,
                 data: { deletedAt: new Date() },
               });
             }

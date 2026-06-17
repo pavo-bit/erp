@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
 import { authenticate, requireRole } from "../middleware/auth";
-import bcrypt from "bcryptjs";
 import { saasRequestLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
+import { hashPassword } from "../middleware/auth";
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -90,7 +90,7 @@ router.post("/approve/:id", authenticate, requireRole("SUPER_ADMIN"), async (req
       });
 
       // 3. Create the ERP Admin User for this School
-      const hashedPassword = await bcrypt.hash("Admin@123", 10);
+      const hashedPassword = await hashPassword("Admin@123");
       const adminUser = await tx.user.create({
         data: {
           email: request.email,

@@ -1,3 +1,4 @@
+import { createAuditLog } from "../lib/audit";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 
@@ -68,7 +69,7 @@ export class DataRetentionService {
             
             // Log the purge action to Audit
             if (deletedCount > 0) {
-                await prisma.auditLog.create({
+                await createAuditLog({
                     data: {
                         schoolId: policy.schoolId,
                         action: "DATA_RETENTION_PURGE",

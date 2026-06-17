@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
+import * as argon2 from "argon2";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { verifyAccessToken, isTokenExpiredError, AccessTokenPayload } from "../lib/tokens";
@@ -39,11 +40,44 @@ export interface TokenPayload {
 // ═══════════════════════════════════════════
 
 export async function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, 12);
+  return argon2.hash(password, {
+    type: argon2.argon2id,
+    memoryCost: 65536, // 64 MB
+    timeCost: 3,
+    parallelism: 4
+  });
 }
 
-export async function verifyPassword(password: string, hashed: string): Promise<boolean> {
-  return bcrypt.compare(password, hashed);
+export async function verifyPassword(password: string, hashed: string, userMeta?: { id: string; type: "USER" | "STUDENT" }): Promise<boolean> {
+  let isValid = false;
+  let needsRehash = false;
+
+  // Detect legacy bcrypt hash
+  if (hashed.startsWith("$2a$") || hashed.startsWith("$2b$") || hashed.startsWith("$2y$")) {
+    isValid = await bcrypt.compare(password, hashed);
+    needsRehash = true;
+  } else {
+    // Argon2 verification
+    isValid = await argon2.verify(hashed, password);
+    needsRehash = argon2.needsRehash(hashed);
+  }
+
+  // Graceful upgrade on successful login
+  if (isValid && needsRehash && userMeta) {
+    const newHash = await hashPassword(password);
+    try {
+      if (userMeta.type === "USER") {
+        await prisma.user.update({ where: { id: userMeta.id }, data: { passwordHash: newHash } });
+      } else if (userMeta.type === "STUDENT") {
+        await prisma.student.update({ where: { id: userMeta.id }, data: { password: newHash } });
+      }
+      logger.info({ userId: userMeta.id, type: userMeta.type }, "Upgraded password hash to Argon2id");
+    } catch (err) {
+      logger.warn({ err, userId: userMeta.id }, "Failed to upgrade password hash");
+    }
+  }
+
+  return isValid;
 }
 
 // ═══════════════════════════════════════════

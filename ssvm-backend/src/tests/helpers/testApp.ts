@@ -1,5 +1,5 @@
 import express, { Express } from 'express';
-import { app } from '../../index'; // Import the main app (you might need to adjust export in index.ts)
+import { app } from '../../app'; // Import the main app (you might need to adjust export in index.ts)
 import prisma from '../../lib/prisma';
 import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
