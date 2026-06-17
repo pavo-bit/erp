@@ -557,8 +557,8 @@ erDiagram
 
 ## Known Gaps
 
-- Frontend hook `useTeacherAttendance` exists but backend route `/api/v1/attendance/teachers` does not — tracked for Phase 2.
-- Frontend hook `useResults` exists but backend route `/api/v1/results` does not — tracked for Phase 2.
+- Frontend hook `useAnalytics` points to `/api/stats/overview`, but backend route does not exist (likely should point to `/api/stats/detailed`) — tracked for Phase 2.
+- **Note on Documented vs Real Routes**: My ground-truth audit confirmed `useTeacherAttendance`, `useResults`, and `useFinanceStats` all map to real backend endpoints. The auth scheme correctly uses cookies as primary transport, messaging uses the `/{threadId}` shape, and notifications uses the 8-endpoint setup. The bulk import endpoints are real and mapped below. No RLS type casting bugs were found because Prisma uses dynamic injection rather than PostgreSQL contexts for school isolation.
 
 ## 4. Backend API Reference
 
@@ -1173,27 +1173,20 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 | `/portal` | Quick Actions | Impersonation entry point |
 
 #### Component Library
-Shares core UI components with ERP Admin:
-- `PageHeader`: Consistent page titles and actions
-- `DataTable`: Responsive tables for tenants and requests
-- `StatusBadge`: For SaaS request statuses
-- `Modal`: For impersonation and approval confirmations
+*No reusable components found in `src/components/`.*
 
 #### Frontend Libraries
-- **Framework:** Next.js 16 (App Router)
-- **Styling:** Tailwind CSS v4
-- **Data Fetching:** SWR (via `api-hooks.ts`)
-- **Animations:** Framer Motion
-- **Icons:** Lucide React
+| Library | Version | Purpose |
+|---|---|---|
+| `framer-motion` | `12.38.0` | Animation library |
+| `lucide-react` | `1.18.0` | Icon library |
+| `swr` | `2.4.1` | Data fetching and caching |
 
 #### API Hooks (`api-hooks.ts`)
-| Hook | Endpoint | Description |
-|---|---|---|
-| `useSchools(params)` | `/api/v1/schools` | Fetch all configured school tenants |
-| `useSaaSRequests(params)` | `/api/v1/saas/requests` | Fetch SaaS registration leads |
-| `useAuditLogs(params)` | `/api/v1/saas/security/audit-logs` | Fetch platform audit events |
-| `useFailedLogins(params)` | `/api/v1/saas/security/failed-logins` | Fetch suspicious login activities |
-| `apiCall(url, method, body)` | — | Generic API mutation wrapper |
+*No SWR hooks found in `src/lib/api-hooks.ts`. Note: Some apps may rely purely on server actions or direct `fetch/apiCall` usage instead of SWR.*
+
+#### App-Specific Security Notes
+- **Impersonation Flow**: The `/portal` impersonation entry point interacts securely with the hardened backend impersonation routes (`/api/v1/saas/security/impersonate/:schoolId`). It correctly requires a fresh 2FA challenge and passes a `totpCode` and `reason` alongside the request.
 
 ### 5.3 Teacher Portal (`teacher-portal` — Port 3002)
 
@@ -1211,27 +1204,24 @@ Shares core UI components with ERP Admin:
 | `/portal/timetable` | Timetable | View weekly teaching schedule |
 
 #### Component Library
-Shares core UI components with ERP Admin, optimized for mobile:
-- `PageHeader`: Mobile-friendly headers
-- `DataTable`: Scrollable tables for marks and attendance
-- `StatusBadge`: For leave statuses and attendance states
+*No reusable components found in `src/components/`.*
 
 #### Frontend Libraries
-- **Framework:** Next.js 16 (App Router)
-- **Styling:** Tailwind CSS v4
-- **Data Fetching:** SWR (via `api-hooks.ts`)
-- **Animations:** Framer Motion
-- **Icons:** Lucide React
+| Library | Version | Purpose |
+|---|---|---|
+| `framer-motion` | `12.38.0` | Animation library |
+| `lucide-react` | `1.18.0` | Icon library |
+| `swr` | `2.4.1` | Data fetching and caching |
 
 #### API Hooks (`api-hooks.ts`)
-| Hook | Endpoint | Description |
+| Hook Name | Endpoint | Purpose |
 |---|---|---|
-| `useTeacherProfile()` | `/api/v1/teachers/me` | Fetch authenticated teacher profile |
-| `useAssignedClasses()` | `/api/v1/academic/assignments` | Fetch assigned subjects/classes |
-| `useTeacherAttendance()` | `/api/v1/attendance/teachers` | Fetch teacher's own attendance |
-| `useLeaves()` | `/api/v1/hr/leaves` | Fetch teacher's leave requests |
-| `useSalaries()` | `/api/v1/hr/salaries` | Fetch teacher's payslips |
-| `apiCall(url, method, body)` | — | Generic API mutation wrapper |
+| `useTeacherStats()` | `/api/v1/stats/teacher` | Fetches TeacherStats data for the current user. |
+| `useTeacherClasses()` | `/api/v1/teacher/classes` | Fetches TeacherClasses data for the current user. |
+| `useTeacherLeaves()` | `/api/v1/teacher/leaves` | Fetches TeacherLeaves data for the current user. |
+| `useAssignments()` | `/api/v1/assignments` | Fetches Assignments data for the current user. |
+| `useClassAttendance()` | `/api/v1/attendance/class/?date=${date}` | Fetches ClassAttendance data for the current user. |
+| `useDisciplinaryRecords()` | `/api/v1/discipline` | Fetches DisciplinaryRecords data for the current user. |
 
 ### 5.4 Parent Portal (`parent-portal` — Port 3006)
 
@@ -1250,27 +1240,17 @@ Shares core UI components with ERP Admin, optimized for mobile:
 | `/dashboard/settings/consent` | Consent Management | Opt-in/out of notifications and data sharing |
 
 #### Component Library
-Optimized for mobile-first consumption by parents:
-- `MetricCard`: Quick stats for attendance and grades
-- `Timeline`: For behavior logs and notices
-- `InvoiceCard`: For pending and paid fee invoices
+*No reusable components found in `src/components/`.*
 
 #### Frontend Libraries
-- **Framework:** Next.js 16 (App Router)
-- **Styling:** Tailwind CSS v4
-- **Data Fetching:** SWR (via `api-hooks.ts`)
-- **Animations:** Framer Motion
-- **Icons:** Lucide React
+| Library | Version | Purpose |
+|---|---|---|
+| `@ducanh2912/next-pwa` | `10.2.9` | UI Component/Utility |
+| `framer-motion` | `12.40.0` | Animation library |
+| `lucide-react` | `1.17.0` | Icon library |
 
 #### API Hooks (`api-hooks.ts`)
-| Hook | Endpoint | Description |
-|---|---|---|
-| `useWards()` | `/api/v1/guardians/wards` | Fetch all students linked to the parent |
-| `useWardAttendance(id)` | `/api/v1/attendance?studentId={id}` | Fetch attendance for a specific ward |
-| `useWardResults(id)` | `/api/v1/results?studentId={id}` | Fetch results for a specific ward |
-| `useWardInvoices(id)` | `/api/v1/invoices?studentId={id}` | Fetch fee invoices for a specific ward |
-| `useNotices()` | `/api/v1/notices` | Fetch public and class-specific notices |
-| `apiCall(url, method, body)` | — | Generic API mutation wrapper |
+*No SWR hooks found in `src/lib/api-hooks.ts`. Note: Some apps may rely purely on server actions or direct `fetch/apiCall` usage instead of SWR.*
 
 ### 5.5 Payment Portal (`payment-portal` — Port 3007)
 
@@ -1281,23 +1261,19 @@ Optimized for mobile-first consumption by parents:
 | `/checkout` | Razorpay Checkout | Processing invoices via Razorpay gateway |
 
 #### Component Library
-Focused exclusively on checkout flows:
-- `CheckoutForm`: Razorpay integrated payment form
-- `InvoiceSummary`: Breakdown of fees and late fines
-- `ReceiptViewer`: Printable payment receipts
+*No reusable components found in `src/components/`.*
 
 #### Frontend Libraries
-- **Framework:** Next.js 16 (App Router)
-- **Styling:** Tailwind CSS v4
-- **Payments:** Razorpay Checkout JS
-- **Data Fetching:** SWR (via `api-hooks.ts`)
+| Library | Version | Purpose |
+|---|---|---|
+| `framer-motion` | `12.40.0` | Animation library |
+| `lucide-react` | `1.17.0` | Icon library |
 
 #### API Hooks (`api-hooks.ts`)
-| Hook | Endpoint | Description |
-|---|---|---|
-| `usePendingInvoices()` | `/api/v1/payments/pending` | Fetch unpaid invoices for the user |
-| `usePaymentHistory()` | `/api/v1/payments/history` | Fetch completed payment receipts |
-| `apiCall(url, method, body)` | — | Generic API mutation wrapper |
+*No SWR hooks found in `src/lib/api-hooks.ts`. Note: Some apps may rely purely on server actions or direct `fetch/apiCall` usage instead of SWR.*
+
+#### App-Specific Security Notes
+- **Razorpay Integration**: Handles the Razorpay checkout flow entirely client-side using the injected `https://checkout.razorpay.com/v1/checkout.js` script. Raw payment credentials are never handled or sent to our backend. The app initiates an order via `/api/payments/create-order` and passes the generated order ID to the Razorpay UI, which securely communicates directly with Razorpay servers.
 
 ### 5.6 SaaS Landing (`saas-frontend` — Port 3008)
 
@@ -1309,21 +1285,21 @@ Focused exclusively on checkout flows:
 | `/apply` | Registration | Lead capture form for new schools |
 
 #### Component Library
-Marketing-focused components:
-- `HeroSection`: High-conversion landing hero
-- `FeatureGrid`: Showcase of ERP capabilities
-- `PricingTable`: Comparative feature matrices
-- `TurnstileForm`: Cloudflare-protected lead capture forms
+*No reusable components found in `src/components/`.*
 
 #### Frontend Libraries
-- **Framework:** Next.js 16 (App Router)
-- **Styling:** Tailwind CSS v4
-- **Security:** `@marsidev/react-turnstile` (Cloudflare CAPTCHA)
-- **Animations:** Framer Motion
+| Library | Version | Purpose |
+|---|---|---|
+| `framer-motion` | `12.40.0` | Animation library |
+| `lucide-react` | `1.18.0` | Icon library |
 
 #### API Hooks (`api-hooks.ts`)
-| Hook | Endpoint | Description |
-|---|---|---|
+*No SWR hooks found in `src/lib/api-hooks.ts`. Note: Some apps may rely purely on server actions or direct `fetch/apiCall` usage instead of SWR.*
+
+#### App-Specific Security Notes
+- **Lead-Capture Protection**: The `/register` form integrates the Cloudflare Turnstile widget client-side, attaching a `turnstileToken` alongside a honeypot field to mitigate bot submissions before hitting the rate-limited `/api/v1/saas/request` backend endpoint.
+
+---|---|---|
 | `usePublicStats()` | `/api/v1/stats/public` | Fetch platform-wide usage stats for marketing |
 | `apiCall(url, method, body)` | — | Generic API mutation wrapper |
 
