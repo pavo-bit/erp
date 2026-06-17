@@ -1,6 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { encryptionExtension } from "./prismaEncryptionMiddleware";
-import { getCurrentSchoolId } from "../middleware/school-context.middleware";
+import { getCurrentSchoolId, getSchoolContext } from "../middleware/school-context.middleware";
 import logger from "./logger";
 
 const basePrisma = new PrismaClient();
@@ -19,6 +19,22 @@ const prisma = basePrisma
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
+          // ── Audit Log Impersonation Tagging ──
+          if (model === 'AuditLog' && (operation === 'create' || operation === 'createMany')) {
+            const context = getSchoolContext();
+            if (context?.impersonatedBy) {
+              if (operation === 'create') {
+                (args as any).data.impersonatedBy = context.impersonatedBy;
+              } else if (operation === 'createMany') {
+                if (Array.isArray((args as any).data)) {
+                  (args as any).data = (args as any).data.map((d: any) => ({ ...d, impersonatedBy: context.impersonatedBy }));
+                } else {
+                  (args as any).data.impersonatedBy = context.impersonatedBy;
+                }
+              }
+            }
+          }
+
           // ── RLS Context Injection ──
           // Before every query, set the PostgreSQL session variable
           // so that RLS policies can filter by tenant.

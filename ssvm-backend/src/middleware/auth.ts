@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { verifyAccessToken, isTokenExpiredError, AccessTokenPayload } from "../lib/tokens";
+import { jwtVerificationTotal } from "./metrics";
 
 // ═══════════════════════════════════════════
 // Types
@@ -19,6 +20,8 @@ export interface AuthRequest extends Request {
     phone: string | null;
     schoolId: string | null;
     branchId: string | null;
+    impersonated?: boolean;
+    originalUserId?: string;
   };
 }
 
@@ -56,10 +59,21 @@ export function signToken(payload: TokenPayload): string {
 }
 
 export function verifyToken(token: string): TokenPayload | null {
+  const env = getEnv();
   try {
-    const env = getEnv();
-    return jwt.verify(token, env.ACCESS_TOKEN_PUBLIC_KEY, { algorithms: ["RS256"] }) as TokenPayload;
-  } catch {
+    const payload = jwt.verify(token, env.ACCESS_TOKEN_PUBLIC_KEY, { algorithms: ["RS256"] }) as TokenPayload;
+    jwtVerificationTotal.labels({ algorithm: "RS256" }).inc();
+    return payload;
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError && env.ACCESS_TOKEN_SECRET) {
+      try {
+        const payload = jwt.verify(token, env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] }) as TokenPayload;
+        jwtVerificationTotal.labels({ algorithm: "HS256" }).inc();
+        return payload;
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }
@@ -147,6 +161,16 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       where: { id: userId },
       select: { mustChangePassword: true }
     });
+
+    if (payload.schoolId && payload.schoolId !== user.schoolId && user.role !== "SUPER_ADMIN") {
+      res.status(403).json({ success: false, error: "Token schoolId mismatch. Invalid token." });
+      return;
+    }
+
+    if (!payload.schoolId && user.schoolId && user.role !== "SUPER_ADMIN") {
+      res.status(401).json({ success: false, error: "Token missing schoolId. Invalid token." });
+      return;
+    }
     
     if (userWithPasswordPolicy?.mustChangePassword && req.path !== '/api/auth/change-password' && !req.path.includes('/logout')) {
       res.status(403).json({
@@ -157,7 +181,16 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
-    req.user = user;
+    if ('impersonated' in payload && payload.impersonated) {
+      req.user = {
+        ...user,
+        impersonated: true,
+        originalUserId: (payload as any).originalUserId
+      };
+    } else {
+      req.user = user;
+    }
+    
     next();
   } catch (err) {
     logger.error({ err }, "Auth middleware DB error");
@@ -210,11 +243,43 @@ export function requireSuperAdmin() {
 }
 
 export function requireAdmin() {
-  return requireRole("SUPER_ADMIN", "ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN");
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN");
 }
 
 export function requireTeacherOrAdmin() {
-  return requireRole("SUPER_ADMIN", "ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN", "TEACHER");
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "TEACHER");
+}
+
+export function requireFinanceAdmin() {
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "ACCOUNTANT");
+}
+
+export function requireContentAdmin() {
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN");
+}
+
+export function requireHRAdmin() {
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "HR");
+}
+
+export function requireAcademicAdmin() {
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN");
+}
+
+export function requireOperationsAdmin(...roles: string[]) {
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN", ...roles);
+}
+
+export function requireLibraryAdmin() {
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "LIBRARIAN");
+}
+
+export function requireAdmissionsAdmin() {
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "RECEPTIONIST");
+}
+
+export function requireCommunicationsAdmin() {
+  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "RECEPTIONIST", "HR");
 }
 
 // ═══════════════════════════════════════════

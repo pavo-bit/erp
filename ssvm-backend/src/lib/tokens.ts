@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { getEnv } from "../config/env";
 import logger from "./logger";
+import { jwtVerificationTotal } from "../middleware/metrics";
 
 // ═══════════════════════════════════════════
 // Token Payload Types
@@ -17,6 +18,8 @@ export interface AccessTokenPayload {
   studentId?: string; // For STUDENT role
   jti: string;
   sid: string;
+  impersonated?: boolean;
+  originalUserId?: string;
   type: "access";
 }
 
@@ -46,13 +49,35 @@ export function generateAccessToken(payload: Omit<AccessTokenPayload, "type" | "
   return { token, jti };
 }
 
+export function generateImpersonationToken(payload: Omit<AccessTokenPayload, "type" | "jti" | "impersonated">): { token: string; jti: string } {
+  const env = getEnv();
+  const jti = crypto.randomUUID();
+  const token = jwt.sign(
+    { ...payload, impersonated: true, jti, type: "access" } as AccessTokenPayload,
+    env.ACCESS_TOKEN_PRIVATE_KEY,
+    { algorithm: "RS256", expiresIn: "30m" }
+  );
+  return { token, jti };
+}
+
 export function verifyAccessToken(token: string): AccessTokenPayload | null {
+  const env = getEnv();
   try {
-    const env = getEnv();
     const payload = jwt.verify(token, env.ACCESS_TOKEN_PUBLIC_KEY, { algorithms: ["RS256"] }) as AccessTokenPayload;
     if (payload.type !== "access") return null;
+    jwtVerificationTotal.labels({ algorithm: "RS256" }).inc();
     return payload;
-  } catch {
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError && env.ACCESS_TOKEN_SECRET) {
+      try {
+        const payload = jwt.verify(token, env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] }) as AccessTokenPayload;
+        if (payload.type !== "access") return null;
+        jwtVerificationTotal.labels({ algorithm: "HS256" }).inc();
+        return payload;
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }
@@ -62,12 +87,21 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
  * Used to set X-Token-Expired header for the frontend to auto-refresh.
  */
 export function isTokenExpiredError(token: string): boolean {
+  const env = getEnv();
   try {
-    const env = getEnv();
     jwt.verify(token, env.ACCESS_TOKEN_PUBLIC_KEY, { algorithms: ["RS256"] });
     return false;
   } catch (err) {
-    return err instanceof jwt.TokenExpiredError;
+    if (err instanceof jwt.TokenExpiredError) return true;
+    if (err instanceof jwt.JsonWebTokenError && env.ACCESS_TOKEN_SECRET) {
+      try {
+        jwt.verify(token, env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] });
+        return false;
+      } catch (fallbackErr) {
+        return fallbackErr instanceof jwt.TokenExpiredError;
+      }
+    }
+    return false;
   }
 }
 
@@ -87,12 +121,23 @@ export function generateRefreshToken(userId: string): { token: string; jti: stri
 }
 
 export function verifyRefreshToken(token: string): RefreshTokenPayload | null {
+  const env = getEnv();
   try {
-    const env = getEnv();
     const payload = jwt.verify(token, env.REFRESH_TOKEN_PUBLIC_KEY, { algorithms: ["RS256"] }) as RefreshTokenPayload;
     if (payload.type !== "refresh") return null;
+    jwtVerificationTotal.labels({ algorithm: "RS256" }).inc();
     return payload;
-  } catch {
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError && env.REFRESH_TOKEN_SECRET) {
+      try {
+        const payload = jwt.verify(token, env.REFRESH_TOKEN_SECRET, { algorithms: ["HS256"] }) as RefreshTokenPayload;
+        if (payload.type !== "refresh") return null;
+        jwtVerificationTotal.labels({ algorithm: "HS256" }).inc();
+        return payload;
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }
@@ -111,12 +156,23 @@ export function generate2FAPendingToken(userId: string): string {
 }
 
 export function verify2FAPendingToken(token: string): PendingTwoFactorPayload | null {
+  const env = getEnv();
   try {
-    const env = getEnv();
     const payload = jwt.verify(token, env.ACCESS_TOKEN_PUBLIC_KEY, { algorithms: ["RS256"] }) as PendingTwoFactorPayload;
     if (payload.type !== "2fa_pending") return null;
+    jwtVerificationTotal.labels({ algorithm: "RS256" }).inc();
     return payload;
-  } catch {
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError && env.ACCESS_TOKEN_SECRET) {
+      try {
+        const payload = jwt.verify(token, env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] }) as PendingTwoFactorPayload;
+        if (payload.type !== "2fa_pending") return null;
+        jwtVerificationTotal.labels({ algorithm: "HS256" }).inc();
+        return payload;
+      } catch {
+        return null;
+      }
+    }
     return null;
   }
 }
@@ -167,7 +223,7 @@ export function getRefreshTokenCookieOptions(): {
     secure: env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false),
     sameSite: "lax" as const,
     maxAge: parseDuration(env.REFRESH_TOKEN_EXPIRES_IN) * 1000,
-    path: "/api/auth", // Refresh token only sent to auth endpoints
+    path: "/api/v1/auth", // Refresh token only sent to auth endpoints
   };
 }
 

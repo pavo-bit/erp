@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
+import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
 
 const router = Router();
 
@@ -30,7 +30,7 @@ router.get("/", authenticate, requireTeacherOrAdmin(), requireSchoolAccess(), as
 });
 
 // POST /api/exams — Create exam (Admin only)
-router.post("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { name, classId, startDate, endDate } = req.body;
@@ -58,7 +58,7 @@ router.post("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Res
 });
 
 // PUT /api/exams/:id — Update exam
-router.put("/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.put("/:id", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { name, startDate, endDate, isPublished } = req.body;
     const exam = await prisma.exam.update({
@@ -163,7 +163,7 @@ router.get("/:examId/report-card/:studentId", authenticate, async (req: AuthRequ
 });
 
 // DELETE /api/exams/:id
-router.delete("/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.delete("/:id", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     await prisma.exam.delete({ where: { id: req.params.id as string } });
     res.json({ success: true, data: { message: "Exam deleted" } });

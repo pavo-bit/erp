@@ -2,13 +2,19 @@ import { Router } from "express";
 import { PrismaClient } from "@prisma/client";
 import { authenticate, requireRole } from "../middleware/auth";
 import bcrypt from "bcryptjs";
+import { saasRequestLimiter } from "../middleware/rateLimiter";
+import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
 
 const router = Router();
 const prisma = new PrismaClient();
 
 // 1. Submit a new SaaS Registration Request (Public)
-router.post("/request", async (req, res) => {
+router.post("/request", saasRequestLimiter, verifyTurnstile, spamQualityValidation, async (req: PublicFormRequest, res) => {
   try {
+    if (req.spamSuspected) {
+      return res.status(201).json({ success: true, message: "Request submitted successfully" });
+    }
+
     const { schoolName, principalName, email, phone, address, expectedStudents } = req.body;
 
     if (!schoolName || !principalName || !email || !phone) {

@@ -32,6 +32,7 @@ model School {
   AccountingPeriod                                                      AccountingPeriod[]
   BankReconciliation                                                    BankReconciliation[]
   Budget                                                                Budget[]
+  RazorpayReconciliation                                                RazorpayReconciliation[]
   DailyRevenueProjection                                                DailyRevenueProjection[]
   DeferredRevenueSchedule                                               DeferredRevenueSchedule[]
   DomainEvent                                                           DomainEvent[]
@@ -1202,6 +1203,34 @@ model PaymentTransaction {
   @@map("payment_transactions")
 }
 
+model RazorpayReconciliation {
+  id                    String               @id @default(cuid())
+  schoolId              String
+  settlementId          String               @unique
+  settlementDate        DateTime
+  settlementAmount      Float
+  reconciledAmount      Float                @default(0)
+  unreconciledAmount    Float                @default(0)
+  status                ReconciliationStatus @default(FAILED)
+  matchedTransactionIds Json?
+  unmatchedItems        Json?
+  summary               Json?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  school                School               @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, settlementDate])
+  @@index([status])
+  @@map("razorpay_reconciliations")
+}
+
+enum ReconciliationStatus {
+  FULLY_RECONCILED
+  PARTIALLY_RECONCILED
+  FAILED
+}
+
 model IdempotencyRecord {
   id        String   @id @default(cuid())
   key       String   @unique
@@ -1298,6 +1327,8 @@ model AuditLog {
   entity       String
   entityId     String?
   details      String?
+  reason       String?
+  impersonatedBy String?
   ipAddress    String?
   device       String?
   previousHash String?
@@ -1389,6 +1420,7 @@ model Scholarship {
   percentage Float?
   reason     String?
   approvedBy String?
+  status     ScholarshipStatus @default(PENDING)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   user       User?    @relation("ScholarshipApprover", fields: [approvedBy], references: [id])
@@ -1462,9 +1494,13 @@ model SystemBackup {
   sizeBytes Int?
   fileUrl   String?
   errorMsg  String?
-  checksum  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  checksum         String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  lastValidatedAt  DateTime?
+  validationStatus String   @default("NOT_YET_RUN")
+  validationDetails Json?
 
   @@index([status])
   @@map("system_backups")
@@ -3727,6 +3763,19 @@ enum LedgerStatus {
   PENDING
   POSTED
   REVERSED
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum ScholarshipStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum OutboxStatus {

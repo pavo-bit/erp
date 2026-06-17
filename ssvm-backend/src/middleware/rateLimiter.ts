@@ -209,3 +209,30 @@ export const crmLimiter = createLimiter({
   max: 5,
   prefix: "crm",
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// 13. Admissions Apply Limiter: 5 req / hour per IP
+// ─────────────────────────────────────────────────────────────────────
+export const admissionsApplyLimiter = createLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  prefix: "admissions_apply",
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// 14. SaaS Request Limiter: 3 req / hour per IP
+// ─────────────────────────────────────────────────────────────────────
+export const saasRequestLimiter = createLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  prefix: "saas_request",
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// 15. Alumni Register Limiter: 5 req / hour per IP
+// ─────────────────────────────────────────────────────────────────────
+export const alumniRegisterLimiter = createLimiter({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  prefix: "alumni_register",
+});

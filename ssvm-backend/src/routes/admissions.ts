@@ -1,13 +1,15 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAdmin, hashPassword } from "../middleware/auth";
+import { AuthRequest, authenticate, requireAdmissionsAdmin, hashPassword } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
+import { admissionsApplyLimiter } from "../middleware/rateLimiter";
+import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
 
 const router = Router();
 
 // GET /api/admissions — Admin: list applications
-router.get("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.get("/", authenticate, requireAdmissionsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
     const { status } = req.query;
@@ -30,8 +32,14 @@ router.get("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Resp
 });
 
 // POST /api/admissions/apply — Public application
-router.post("/apply", async (req: AuthRequest, res: Response) => {
+router.post("/apply", admissionsApplyLimiter, verifyTurnstile, spamQualityValidation, async (req: PublicFormRequest, res: Response) => {
   try {
+    // If honeypot caught a bot, silently return success without saving
+    if (req.spamSuspected) {
+      res.status(201).json({ success: true, message: "Application submitted successfully!" });
+      return;
+    }
+
     const { schoolId, applicantName, applyingForClass, dob, gender, parentName, parentPhone, parentEmail, address, previousSchool } = req.body;
 
     if (!schoolId || !applicantName || !applyingForClass || !parentName || !parentPhone) {
@@ -64,7 +72,7 @@ router.post("/apply", async (req: AuthRequest, res: Response) => {
 });
 
 // PUT /api/admissions/:id/review — Admin: approve/reject
-router.put("/:id/review", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.put("/:id/review", authenticate, requireAdmissionsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { status, remarks } = req.body;
 
@@ -84,7 +92,7 @@ router.put("/:id/review", authenticate, requireAdmin(), async (req: AuthRequest,
 });
 
 // POST /api/admissions/:id/enroll — Convert approved admission to student
-router.post("/:id/enroll", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const admission = await prisma.admission.findUnique({ where: { id: req.params.id as string } });
     if (!admission) { res.status(404).json({ success: false, error: "Admission not found" }); return; }
@@ -134,7 +142,7 @@ router.post("/:id/enroll", authenticate, requireAdmin(), async (req: AuthRequest
 });
 
 // DELETE /api/admissions/:id
-router.delete("/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.delete("/:id", authenticate, requireAdmissionsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     await prisma.admission.delete({ where: { id: req.params.id as string } });
     res.json({ success: true, data: { message: "Admission deleted" } });

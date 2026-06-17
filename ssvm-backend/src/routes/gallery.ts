@@ -5,7 +5,7 @@ import fs from "fs";
 import sharp from "sharp";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireContentAdmin } from "../middleware/auth";
 
 const uploadDir = path.join(process.cwd(), "uploads", "gallery");
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -54,7 +54,7 @@ router.get("/", async (req, res: Response) => {
 });
 
 // POST /api/gallery — with image compression
-router.post("/", authenticate, requireRole("ADMIN"), upload.single("image"), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireContentAdmin(), upload.single("image"), async (req: AuthRequest, res: Response) => {
   try {
     const file = req.file;
     const { title, category, description } = req.body;
@@ -96,7 +96,7 @@ router.post("/", authenticate, requireRole("ADMIN"), upload.single("image"), asy
 });
 
 // DELETE /api/gallery/:id
-router.delete("/:id", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.delete("/:id", authenticate, requireContentAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const img = await prisma.galleryImage.findUnique({ where: { id } });

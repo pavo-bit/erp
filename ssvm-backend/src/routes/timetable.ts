@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
+import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
 
 const router = Router();
 
@@ -62,7 +62,7 @@ router.get("/teacher/:teacherId", authenticate, requireTeacherOrAdmin(), async (
 });
 
 // POST /api/timetable — Create/update timetable
-router.post("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { sectionId, day, slots } = req.body;
@@ -109,7 +109,7 @@ router.post("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Res
 });
 
 // DELETE /api/timetable/:id
-router.delete("/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.delete("/:id", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     await prisma.timetable.delete({ where: { id: req.params.id as string } });
     res.json({ success: true, data: { message: "Timetable deleted" } });

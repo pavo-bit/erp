@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
+import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
 
 const router = Router();
 
@@ -26,7 +26,7 @@ router.get("/sessions", authenticate, requireTeacherOrAdmin(), requireSchoolAcce
 });
 
 // POST /api/academic/sessions
-router.post("/sessions", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/sessions", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { name, startDate, endDate, isCurrent } = req.body;
@@ -78,7 +78,7 @@ router.get("/classes", authenticate, requireTeacherOrAdmin(), requireSchoolAcces
 });
 
 // POST /api/academic/classes
-router.post("/classes", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/classes", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { sessionId, name, sortOrder } = req.body;
@@ -98,7 +98,7 @@ router.post("/classes", authenticate, requireAdmin(), async (req: AuthRequest, r
 });
 
 // POST /api/academic/classes/bulk — create multiple classes at once
-router.post("/classes/bulk", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/classes/bulk", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { sessionId, classes } = req.body; // classes: [{name, sortOrder}]
@@ -143,7 +143,7 @@ router.get("/sections", authenticate, requireTeacherOrAdmin(), requireSchoolAcce
 });
 
 // POST /api/academic/sections
-router.post("/sections", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/sections", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { classId, name, capacity } = req.body;
     if (!classId || !name) {
@@ -161,7 +161,7 @@ router.post("/sections", authenticate, requireAdmin(), async (req: AuthRequest, 
 });
 
 // POST /api/academic/sections/bulk
-router.post("/sections/bulk", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/sections/bulk", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { classId, sections } = req.body; // sections: [{name, capacity?}]
     if (!classId || !Array.isArray(sections)) {
@@ -184,7 +184,7 @@ router.post("/sections/bulk", authenticate, requireAdmin(), async (req: AuthRequ
 // ─── CLASS TEACHERS ───
 
 // POST /api/academic/class-teachers
-router.post("/class-teachers", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/class-teachers", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { sectionId, teacherId, isPrimary } = req.body;
     if (!sectionId || !teacherId) {
@@ -217,7 +217,7 @@ router.get("/class-teachers/:sectionId", authenticate, requireTeacherOrAdmin(), 
 });
 
 // DELETE /api/academic/class-teachers/:id
-router.delete("/class-teachers/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.delete("/class-teachers/:id", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     await prisma.classTeacher.delete({ where: { id: req.params.id as string } });
     res.json({ success: true, data: { message: "Class teacher removed" } });

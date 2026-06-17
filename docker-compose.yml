@@ -94,6 +94,8 @@ services:
       REDIS_URL: redis://redis:6379
       UPLOAD_DIR: /app/uploads
       SENTRY_DSN: ${SENTRY_DSN:-}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_SECRETS_MANAGER_SECRET_NAME: ${AWS_SECRETS_MANAGER_SECRET_NAME:-}
     ports:
       - "${BACKEND_PORT:-5000}:5000"
     volumes:
@@ -297,10 +299,28 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
       - ssvm_prometheus:/prometheus
     depends_on:
       backend:
         condition: service_started
+    networks:
+      - ssvm-network
+
+  # ─────────────────────────────────────────────────────────────────────
+  # 9.5 PROMETHEUS ALERTMANAGER (GAP A14)
+  # ─────────────────────────────────────────────────────────────────────
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: ssvm-alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
     networks:
       - ssvm-network
 

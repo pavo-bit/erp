@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireOperationsAdmin } from "../middleware/auth";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
 
@@ -20,7 +20,7 @@ const assetSchema = z.object({
 });
 
 // GET /api/v1/assets - List assets
-router.get("/", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.query.schoolId : req.user!.schoolId) as string;
     const assets = await prisma.asset.findMany({
@@ -36,7 +36,7 @@ router.get("/", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ADMIN
 });
 
 // POST /api/v1/assets - Create asset
-router.post("/", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), validate(assetSchema), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireOperationsAdmin("ASSET_MANAGER"), validate(assetSchema), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId) as string;
     const asset = await prisma.asset.create({
@@ -53,7 +53,7 @@ router.post("/", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ADMI
 });
 
 // PUT /api/v1/assets/:id - Update asset
-router.put("/:id", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/:id", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId!;
     const { id } = req.params;
@@ -82,7 +82,7 @@ router.put("/:id", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ER
 });
 
 // DELETE /api/v1/assets/:id - Soft delete asset
-router.delete("/:id", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.delete("/:id", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId!;
     const { id } = req.params;
@@ -103,7 +103,7 @@ router.delete("/:id", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", 
 });
 
 // POST /api/v1/assets/:id/assign - Assign asset to user
-router.post("/:id/assign", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/:id/assign", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { userId, notes } = req.body;
@@ -133,7 +133,7 @@ router.post("/:id/assign", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADM
 });
 
 // DELETE /api/v1/assets/:id/assign - Unassign asset (return)
-router.delete("/:id/assign", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.delete("/:id/assign", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -162,7 +162,7 @@ router.delete("/:id/assign", authenticate, requireRole("ASSET_MANAGER", "SUPER_A
 });
 
 // GET /api/v1/assets/:id/maintenance - Get maintenance history
-router.get("/:id/maintenance", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/:id/maintenance", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -179,7 +179,7 @@ router.get("/:id/maintenance", authenticate, requireRole("ASSET_MANAGER", "SUPER
 });
 
 // POST /api/v1/assets/:id/maintenance - Log maintenance
-router.post("/:id/maintenance", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/:id/maintenance", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { description, cost, date, performedBy } = req.body;
@@ -206,7 +206,7 @@ router.post("/:id/maintenance", authenticate, requireRole("ASSET_MANAGER", "SUPE
 });
 
 // POST /api/v1/assets/vendors - Create vendor
-router.post("/vendors", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/vendors", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId) as string;
     const { name, contactPerson, phone, email, address } = req.body;
@@ -234,7 +234,7 @@ router.post("/vendors", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN"
 });
 
 // PUT /api/v1/assets/vendors/:id - Update vendor
-router.put("/vendors/:id", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/vendors/:id", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { name, contactPerson, phone, email, address } = req.body;
@@ -252,7 +252,7 @@ router.put("/vendors/:id", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADM
 });
 
 // POST /api/v1/assets/categories - Create category
-router.post("/categories", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/categories", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId) as string;
     const { name, description } = req.body;
@@ -273,7 +273,7 @@ router.post("/categories", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADM
 });
 
 // PUT /api/v1/assets/categories/:id - Update category
-router.put("/categories/:id", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/categories/:id", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { name, description } = req.body;
@@ -291,7 +291,7 @@ router.put("/categories/:id", authenticate, requireRole("ASSET_MANAGER", "SUPER_
 });
 
 // GET /api/v1/assets/stats - Asset statistics
-router.get("/stats", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/stats", authenticate, requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.query.schoolId : req.user!.schoolId) as string;
 
@@ -332,7 +332,7 @@ const transferSchema = z.object({
   reason: z.string().optional()
 });
 
-router.post("/:id/transfer", authenticate, requireRole("ASSET_MANAGER", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), validate(transferSchema), async (req: AuthRequest, res: Response) => {
+router.post("/:id/transfer", authenticate, requireOperationsAdmin("ASSET_MANAGER"), validate(transferSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { toLocation, toBranchId, reason } = req.body;

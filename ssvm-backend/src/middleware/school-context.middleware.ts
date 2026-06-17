@@ -17,6 +17,7 @@ interface SchoolContext {
   userId: string | null;
   role: string | null;
   isSuperAdmin: boolean;
+  impersonatedBy?: string | null;
 }
 
 const schoolContextStorage = new AsyncLocalStorage<SchoolContext>();
@@ -33,6 +34,7 @@ export function schoolContextMiddleware(req: Request, _res: Response, next: Next
     userId: user?.id || null,
     role: user?.role || null,
     isSuperAdmin: user?.role === "SUPER_ADMIN",
+    impersonatedBy: user?.impersonated ? user?.originalUserId : null,
   };
 
   schoolContextStorage.run(context, () => {

@@ -1,201 +1,357 @@
-import { PrismaClient } from "@prisma/client";
-import Razorpay from "razorpay";
+import prisma from "../lib/prisma";
 import logger from "../lib/logger";
+import { RazorpaySettlementService, RazorpaySettlement, RazorpaySettlementItem } from "./razorpay-settlement.service";
 
-const prisma = new PrismaClient();
+/**
+ * Reconciliation Service
+ * Core engine that matches Razorpay settlement items against SSVM's
+ * PaymentTransaction records and produces reconciliation reports.
+ */
 
-// ═══════════════════════════════════════════
-// Reconciliation Service (GAP 12)
-// ═══════════════════════════════════════════
-// Daily reconciliation between SSVM payment records
-// and Razorpay settlements/payments.
-// Identifies:
-//   1. Payments in Razorpay but not in SSVM (missed webhooks)
-//   2. Payments in SSVM but not in Razorpay (phantom records)
-//   3. Amount mismatches
-//   4. Status mismatches (SSVM says CREATED, Razorpay says captured)
+export type ReconciliationItemStatus =
+  | "MATCHED"
+  | "UNMATCHED_PAYMENT"   // In Razorpay, NOT in SSVM — investigate immediately
+  | "UNMATCHED_SETTLEMENT" // In SSVM as PAID, not in this settlement — timing diff
+  | "AMOUNT_MISMATCH";
+
+export interface ReconciliationItem {
+  razorpayPaymentId: string;
+  razorpayOrderId: string;
+  razorpayAmount: number;      // in rupees
+  razorpayFee: number;         // in rupees
+  razorpayNetAmount: number;   // amount - fee, in rupees
+  ssvmTransactionId?: string;
+  ssvmAmountPaid?: number;
+  status: ReconciliationItemStatus;
+  discrepancy?: number;
+}
 
 export interface ReconciliationResult {
-  date: string;
-  schoolId: string;
-  totalSSVM: number;
-  totalRazorpay: number;
+  settlementId: string;
+  settlementDate: Date;
+  settlementAmount: number;
+  totalItems: number;
   matched: number;
-  missingInSSVM: Array<{ razorpayPaymentId: string; amount: number; orderId: string }>;
-  missingInRazorpay: Array<{ ssvmTransactionId: string; amount: number; gatewayPaymentId: string | null }>;
-  amountMismatches: Array<{ transactionId: string; ssvmAmount: number; razorpayAmount: number }>;
-  statusMismatches: Array<{ transactionId: string; ssvmStatus: string; razorpayStatus: string }>;
-  isClean: boolean;
+  unmatchedPayment: number;
+  unmatchedSettlement: number;
+  amountMismatch: number;
+  reconciledAmount: number;
+  unreconciledAmount: number;
+  items: ReconciliationItem[];
 }
 
 export class ReconciliationService {
-  private static getRazorpayClient(): Razorpay {
-    return new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID || "",
-      key_secret: process.env.RAZORPAY_KEY_SECRET || "",
-    });
-  }
-
   /**
-   * Run daily reconciliation for a specific school.
-   * Compares SSVM PaymentTransaction records with Razorpay payments.
+   * Reconcile a single Razorpay settlement against SSVM PaymentTransaction records.
    */
-  static async runDailyReconciliation(schoolId: string, date?: Date): Promise<ReconciliationResult> {
-    const reconciliationDate = date || new Date(Date.now() - 24 * 60 * 60 * 1000); // Yesterday
-    const startOfDay = new Date(reconciliationDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(reconciliationDate);
-    endOfDay.setHours(23, 59, 59, 999);
+  static async reconcileSettlement(settlement: RazorpaySettlement): Promise<ReconciliationResult> {
+    const settlementId = settlement.id;
+    const settlementAmount = RazorpaySettlementService.paiseToRupees(settlement.amount);
+    const settlementDate = new Date(settlement.created_at * 1000);
 
-    logger.info({ schoolId, date: startOfDay.toISOString() }, "Starting daily reconciliation");
-
-    // 1. Fetch SSVM records for this date range
-    const ssvmPayments = await prisma.paymentTransaction.findMany({
-      where: {
-        schoolId,
-        createdAt: { gte: startOfDay, lte: endOfDay },
-      },
-      select: {
-        id: true,
-        transactionId: true,
-        gatewayPaymentId: true,
-        amountPaid: true,
-        status: true,
-      },
-    });
-
-    // 2. Fetch Razorpay payments for the same period
-    let razorpayPayments: any[] = [];
+    // Fetch the line items for this settlement
+    let items: RazorpaySettlementItem[];
     try {
-      const razorpay = this.getRazorpayClient();
-      const from = Math.floor(startOfDay.getTime() / 1000);
-      const to = Math.floor(endOfDay.getTime() / 1000);
-
-      // Razorpay API: fetch payments
-      const result = await razorpay.payments.all({
-        from,
-        to,
-        count: 100, // Max per request
-      });
-      razorpayPayments = result.items || [];
+      items = await RazorpaySettlementService.fetchSettlementItems(settlementId);
     } catch (err) {
-      logger.error({ err, schoolId }, "Failed to fetch Razorpay payments for reconciliation");
-      // Continue with empty Razorpay data — will flag all SSVM records as "missing in Razorpay"
+      logger.error({ err, settlementId }, "Failed to fetch settlement items");
+      return {
+        settlementId,
+        settlementDate,
+        settlementAmount,
+        totalItems: 0,
+        matched: 0,
+        unmatchedPayment: 0,
+        unmatchedSettlement: 0,
+        amountMismatch: 0,
+        reconciledAmount: 0,
+        unreconciledAmount: settlementAmount,
+        items: [],
+      };
     }
 
-    // 3. Build lookup maps
-    const ssvmByGatewayId = new Map(
-      ssvmPayments
-        .filter(p => p.gatewayPaymentId)
-        .map(p => [p.gatewayPaymentId!, p])
-    );
+    const reconciliationItems: ReconciliationItem[] = [];
+    let reconciledAmount = 0;
 
-    const ssvmByOrderId = new Map(
-      ssvmPayments
-        .filter(p => p.transactionId)
-        .map(p => [p.transactionId!, p])
-    );
+    for (const item of items) {
+      const razorpayAmount = RazorpaySettlementService.paiseToRupees(item.amount);
+      const razorpayFee = RazorpaySettlementService.paiseToRupees(item.fee);
+      const razorpayNetAmount = razorpayAmount - razorpayFee;
 
-    const razorpayMap = new Map(
-      razorpayPayments.map((p: any) => [p.id, p])
-    );
+      // Try to find the matching PaymentTransaction by transactionId (Razorpay order_id)
+      let ssvmTransaction = await prisma.paymentTransaction.findUnique({
+        where: { transactionId: item.order_id },
+      });
 
-    // 4. Reconcile
-    const result: ReconciliationResult = {
-      date: startOfDay.toISOString().split("T")[0],
-      schoolId,
-      totalSSVM: ssvmPayments.length,
-      totalRazorpay: razorpayPayments.length,
-      matched: 0,
-      missingInSSVM: [],
-      missingInRazorpay: [],
-      amountMismatches: [],
-      statusMismatches: [],
-      isClean: true,
-    };
-
-    // Check each Razorpay payment against SSVM
-    for (const rzpPayment of razorpayPayments) {
-      const ssvmMatch = ssvmByGatewayId.get(rzpPayment.id) || ssvmByOrderId.get(rzpPayment.order_id);
-
-      if (!ssvmMatch) {
-        result.missingInSSVM.push({
-          razorpayPaymentId: rzpPayment.id,
-          amount: rzpPayment.amount / 100,
-          orderId: rzpPayment.order_id,
+      // Fallback: try matching by gatewayPaymentId (razorpay payment_id)
+      if (!ssvmTransaction && item.payment_id) {
+        ssvmTransaction = await prisma.paymentTransaction.findUnique({
+          where: { gatewayPaymentId: item.payment_id },
         });
-        result.isClean = false;
+      }
+
+      if (!ssvmTransaction) {
+        // CRITICAL: Money Razorpay says was collected, but SSVM has no record
+        reconciliationItems.push({
+          razorpayPaymentId: item.payment_id,
+          razorpayOrderId: item.order_id,
+          razorpayAmount,
+          razorpayFee,
+          razorpayNetAmount,
+          status: "UNMATCHED_PAYMENT",
+        });
         continue;
       }
 
-      // Check amount (Razorpay amounts are in paise)
-      const razorpayAmount = rzpPayment.amount / 100;
-      if (Math.abs(ssvmMatch.amountPaid - razorpayAmount) > 0.01) {
-        result.amountMismatches.push({
-          transactionId: ssvmMatch.id,
-          ssvmAmount: ssvmMatch.amountPaid,
+      // Match found — verify amount alignment
+      const amountDiff = Math.abs(ssvmTransaction.amountPaid - razorpayAmount);
+      const toleranceRupees = 1; // Allow Rs 1 rounding tolerance
+
+      if (amountDiff > toleranceRupees) {
+        reconciliationItems.push({
+          razorpayPaymentId: item.payment_id,
+          razorpayOrderId: item.order_id,
           razorpayAmount,
+          razorpayFee,
+          razorpayNetAmount,
+          ssvmTransactionId: ssvmTransaction.id,
+          ssvmAmountPaid: ssvmTransaction.amountPaid,
+          status: "AMOUNT_MISMATCH",
+          discrepancy: ssvmTransaction.amountPaid - razorpayAmount,
         });
-        result.isClean = false;
+        continue;
       }
 
-      // Check status
-      const rzpStatus = rzpPayment.status; // captured, failed, refunded, etc.
-      const expectedSSVMStatus = rzpStatus === "captured" ? "SUCCESS" : rzpStatus === "failed" ? "FAILED" : ssvmMatch.status;
-
-      if (ssvmMatch.status !== expectedSSVMStatus && rzpStatus === "captured" && ssvmMatch.status !== "SUCCESS") {
-        result.statusMismatches.push({
-          transactionId: ssvmMatch.id,
-          ssvmStatus: ssvmMatch.status,
-          razorpayStatus: rzpStatus,
-        });
-        result.isClean = false;
-      }
-
-      result.matched++;
+      // Perfect match
+      reconciledAmount += razorpayAmount;
+      reconciliationItems.push({
+        razorpayPaymentId: item.payment_id,
+        razorpayOrderId: item.order_id,
+        razorpayAmount,
+        razorpayFee,
+        razorpayNetAmount,
+        ssvmTransactionId: ssvmTransaction.id,
+        ssvmAmountPaid: ssvmTransaction.amountPaid,
+        status: "MATCHED",
+      });
     }
 
-    // Check SSVM payments with no Razorpay match (phantom records)
-    for (const ssvmPayment of ssvmPayments) {
-      if (ssvmPayment.gatewayPaymentId && !razorpayMap.has(ssvmPayment.gatewayPaymentId)) {
-        result.missingInRazorpay.push({
-          ssvmTransactionId: ssvmPayment.id,
-          amount: ssvmPayment.amountPaid,
-          gatewayPaymentId: ssvmPayment.gatewayPaymentId,
-        });
-        result.isClean = false;
+    const matched = reconciliationItems.filter(i => i.status === "MATCHED").length;
+    const unmatchedPayment = reconciliationItems.filter(i => i.status === "UNMATCHED_PAYMENT").length;
+    const amountMismatch = reconciliationItems.filter(i => i.status === "AMOUNT_MISMATCH").length;
+
+    return {
+      settlementId,
+      settlementDate,
+      settlementAmount,
+      totalItems: reconciliationItems.length,
+      matched,
+      unmatchedPayment,
+      unmatchedSettlement: 0,
+      amountMismatch,
+      reconciledAmount,
+      unreconciledAmount: settlementAmount - reconciledAmount,
+      items: reconciliationItems,
+    };
+  }
+
+  /**
+   * Run full reconciliation for a date range and persist results.
+   * Called by the daily BullMQ worker.
+   */
+  static async runDailyReconciliation(from: Date, to: Date): Promise<{
+    processed: number;
+    fullyReconciled: number;
+    partiallyReconciled: number;
+    failed: number;
+    criticalAlerts: string[];
+  }> {
+    const settlements = await RazorpaySettlementService.fetchSettlements(from, to);
+
+    let processed = 0;
+    let fullyReconciled = 0;
+    let partiallyReconciled = 0;
+    let failed = 0;
+    const criticalAlerts: string[] = [];
+
+    for (const settlement of settlements) {
+      // Skip already-reconciled settlements
+      const existing = await prisma.razorpayReconciliation.findUnique({
+        where: { settlementId: settlement.id },
+      });
+
+      if (existing && existing.status === "FULLY_RECONCILED") {
+        logger.info({ settlementId: settlement.id }, "Settlement already fully reconciled, skipping");
+        continue;
       }
+
+      const result = await this.reconcileSettlement(settlement);
+
+      // Determine overall status
+      let status: "FULLY_RECONCILED" | "PARTIALLY_RECONCILED" | "FAILED";
+      if (result.unmatchedPayment === 0 && result.amountMismatch === 0 && result.matched > 0) {
+        status = "FULLY_RECONCILED";
+        fullyReconciled++;
+      } else if (result.matched > 0) {
+        status = "PARTIALLY_RECONCILED";
+        partiallyReconciled++;
+      } else {
+        status = "FAILED";
+        failed++;
+      }
+
+      // Determine the schoolId from matched transactions
+      let schoolId: string | null = null;
+      const matchedItem = result.items.find(i => i.ssvmTransactionId);
+      if (matchedItem?.ssvmTransactionId) {
+        const txn = await prisma.paymentTransaction.findUnique({
+          where: { id: matchedItem.ssvmTransactionId },
+          select: { schoolId: true },
+        });
+        schoolId = txn?.schoolId || null;
+      }
+
+      if (!schoolId) {
+        const firstSchool = await prisma.school.findFirst({ select: { id: true } });
+        schoolId = firstSchool?.id || "UNKNOWN";
+      }
+
+      // Persist the reconciliation record
+      await prisma.razorpayReconciliation.upsert({
+        where: { settlementId: settlement.id },
+        update: {
+          settlementDate: result.settlementDate,
+          settlementAmount: result.settlementAmount,
+          reconciledAmount: result.reconciledAmount,
+          unreconciledAmount: result.unreconciledAmount,
+          status,
+          matchedTransactionIds: result.items
+            .filter(i => i.ssvmTransactionId)
+            .map(i => i.ssvmTransactionId),
+          unmatchedItems: result.items
+            .filter(i => i.status !== "MATCHED"),
+          summary: {
+            totalItems: result.totalItems,
+            matched: result.matched,
+            unmatchedPayment: result.unmatchedPayment,
+            amountMismatch: result.amountMismatch,
+          },
+        },
+        create: {
+          schoolId,
+          settlementId: settlement.id,
+          settlementDate: result.settlementDate,
+          settlementAmount: result.settlementAmount,
+          reconciledAmount: result.reconciledAmount,
+          unreconciledAmount: result.unreconciledAmount,
+          status,
+          matchedTransactionIds: result.items
+            .filter(i => i.ssvmTransactionId)
+            .map(i => i.ssvmTransactionId),
+          unmatchedItems: result.items
+            .filter(i => i.status !== "MATCHED"),
+          summary: {
+            totalItems: result.totalItems,
+            matched: result.matched,
+            unmatchedPayment: result.unmatchedPayment,
+            amountMismatch: result.amountMismatch,
+          },
+        },
+      });
+
+      // Flag critical alerts for unmatched payments
+      if (result.unmatchedPayment > 0) {
+        const unmatchedTotal = result.items
+          .filter(i => i.status === "UNMATCHED_PAYMENT")
+          .reduce((sum, i) => sum + i.razorpayAmount, 0);
+
+        criticalAlerts.push(
+          `Settlement ${settlement.id}: ${result.unmatchedPayment} unmatched payment(s) ` +
+          `totaling Rs ${unmatchedTotal.toFixed(2)} — money collected by Razorpay with no SSVM record`
+        );
+      }
+
+      processed++;
     }
 
-    // 5. Store reconciliation result
-    await prisma.systemLog.create({
-      data: {
-        level: result.isClean ? "INFO" : "WARN",
-        module: "RECONCILIATION",
-        message: result.isClean
-          ? `Reconciliation clean: ${result.matched} matched`
-          : `Reconciliation discrepancies found`,
-        metadata: JSON.stringify(result),
-        schoolId,
-      },
+    logger.info(
+      { processed, fullyReconciled, partiallyReconciled, failed, criticalAlerts: criticalAlerts.length },
+      "Daily reconciliation completed"
+    );
+
+    return { processed, fullyReconciled, partiallyReconciled, failed, criticalAlerts };
+  }
+
+  /**
+   * Manual match: link an unmatched Razorpay payment to an existing Invoice.
+   */
+  static async manualMatch(params: {
+    reconciliationId: string;
+    razorpayPaymentId: string;
+    invoiceId: string;
+    justification: string;
+    userId: string;
+  }): Promise<void> {
+    const { reconciliationId, razorpayPaymentId, invoiceId, justification, userId } = params;
+
+    const recon = await prisma.razorpayReconciliation.findUnique({
+      where: { id: reconciliationId },
+    });
+    if (!recon) throw new Error("Reconciliation record not found");
+
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+    });
+    if (!invoice) throw new Error("Invoice not found");
+
+    await prisma.$transaction(async (tx) => {
+      // Create a PaymentTransaction record for the manual match
+      await tx.paymentTransaction.create({
+        data: {
+          invoiceId,
+          amountPaid: 0,
+          gateway: "RAZORPAY",
+          gatewayPaymentId: razorpayPaymentId,
+          transactionId: `MANUAL-${razorpayPaymentId}`,
+          status: "SUCCESS",
+          schoolId: invoice.schoolId,
+          paidAt: new Date(),
+        },
+      });
+
+      // Remove the item from unmatchedItems
+      const unmatchedItems = (recon.unmatchedItems as any[]) || [];
+      const updatedUnmatched = unmatchedItems.filter(
+        (item: any) => item.razorpayPaymentId !== razorpayPaymentId
+      );
+
+      const matchedIds = ((recon.matchedTransactionIds as string[]) || []);
+      await tx.razorpayReconciliation.update({
+        where: { id: reconciliationId },
+        data: {
+          unmatchedItems: updatedUnmatched,
+          matchedTransactionIds: [...matchedIds, razorpayPaymentId],
+          status: updatedUnmatched.length === 0 ? "FULLY_RECONCILED" : "PARTIALLY_RECONCILED",
+        },
+      });
+
+      // Audit log
+      await tx.auditLog.create({
+        data: {
+          action: "RECONCILIATION_MANUAL_MATCH",
+          userId,
+          entity: "RazorpayReconciliation",
+          entityId: reconciliationId,
+          schoolId: invoice.schoolId,
+          details: JSON.stringify({
+            razorpayPaymentId,
+            invoiceId,
+            justification,
+          }),
+        },
+      });
     });
 
-    if (!result.isClean) {
-      logger.warn(
-        {
-          schoolId,
-          date: result.date,
-          missingInSSVM: result.missingInSSVM.length,
-          missingInRazorpay: result.missingInRazorpay.length,
-          amountMismatches: result.amountMismatches.length,
-          statusMismatches: result.statusMismatches.length,
-        },
-        "Reconciliation completed with discrepancies"
-      );
-    } else {
-      logger.info({ schoolId, matched: result.matched }, "Reconciliation clean");
-    }
-
-    return result;
+    logger.info({ reconciliationId, razorpayPaymentId, invoiceId }, "Manual reconciliation match completed");
   }
 }

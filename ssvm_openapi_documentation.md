@@ -123,6 +123,7 @@ ssvm-backend/
 │       ├── search.ts          # Global cross-entity search
 │       ├── bulk.ts            # CSV bulk import with validation pipeline
 │       ├── activity.ts        # Activity log feed
+│       ├── webhooks.ts        # Outbound webhooks and Razorpay webhook listener
 │       └── saas.ts            # SaaS registration & approval logic
 ├── Dockerfile
 └── entrypoint.sh
@@ -190,8 +191,15 @@ sequenceDiagram
 | `authenticate` | Required auth | Verifies JWT, attaches `req.user` |
 | `optionalAuth` | Optional auth | Attaches user if token present, continues otherwise |
 | `requireRole(...roles)` | Role guard | Restricts to specific roles |
-| `requireAdmin()` | Admin shortcut | `SUPER_ADMIN`, `ADMIN`, `ERP_ADMIN`, `WEBSITE_ADMIN` |
-| `requireTeacherOrAdmin()` | Teacher+ | Admin roles + `TEACHER` |
+| `requireTeacherOrAdmin()` | Teacher+ | `SUPER_ADMIN`, `ERP_ADMIN`, `TEACHER` |
+| `requireFinanceAdmin()` | Finance Domain | `SUPER_ADMIN`, `ERP_ADMIN`, `ACCOUNTANT` |
+| `requireContentAdmin()` | Content Domain | `SUPER_ADMIN`, `ERP_ADMIN`, `WEBSITE_ADMIN` |
+| `requireHRAdmin()` | HR Domain | `SUPER_ADMIN`, `ERP_ADMIN`, `HR` |
+| `requireAcademicAdmin()` | Academic Domain | `SUPER_ADMIN`, `ERP_ADMIN` |
+| `requireLibraryAdmin()` | Library Domain | `SUPER_ADMIN`, `ERP_ADMIN`, `LIBRARIAN` |
+| `requireAdmissionsAdmin()` | Admissions Domain | `SUPER_ADMIN`, `ERP_ADMIN`, `RECEPTIONIST` |
+| `requireCommunicationsAdmin()` | Comm Domain | `SUPER_ADMIN`, `ERP_ADMIN`, `RECEPTIONIST`, `HR` |
+| `requireOperationsAdmin()` | Operations Domain | `SUPER_ADMIN`, `ERP_ADMIN` |
 | `requireSuperAdmin()` | Platform admin | `SUPER_ADMIN` only |
 | `requireSchoolAccess()` | Tenant guard | Ensures users can only access their own school's data |
 | `schoolContextMiddleware` | Tenant Isolation | Injects `app.current_school_id` into Prisma via AsyncLocalStorage |
@@ -325,6 +333,7 @@ erDiagram
 | 4 | `SubscriptionPlanConfig` | `subscription_plan_configs` | id, name, fixedPrice, billingCycle, features | → Subscription[] |
 | 5 | `SubscriptionPayment` | `subscription_payments` | id, schoolId, subscriptionId, amountPaid | → Subscription, School |
 | 6 | `SchoolRegistrationRequest` | `SchoolRegistrationRequest` | id, schoolName, principalName, email, status | Lead capturing for new SaaS tenants |
+| 7 | `OnboardingProgress` | `onboarding_progress` | id, schoolId, isProfileComplete, isSubscriptionActive, isDataImported | → School |
 
 #### RBAC & Users (3 Models)
 
@@ -390,7 +399,7 @@ erDiagram
 | 34 | `Notice` | `notices` | id, schoolId, title, content, category, status, authorId | → School, User, Branch? |
 | 35 | `Event` | `events` | id, schoolId, title, date, venue, category, status, creatorId | → School, User, Branch? |
 
-#### Finance & Fees (5 Models)
+#### Finance & Fees (6 Models)
 
 | # | Model | Table | Key Fields | Relations |
 |---|---|---|---|---|
@@ -399,6 +408,7 @@ erDiagram
 | 38 | `FineRule` | `fine_rules` | id, schoolId, graceDays, fineAmount, isPercentage | → School |
 | 39 | `Invoice` | `invoices` | id, studentId, schoolId, amount, amountPaid, remainingAmount, fineAmount, type, status, dueDate | → Student, School, Branch?, PaymentTransaction[] |
 | 40 | `PaymentTransaction` | `payment_transactions` | id, invoiceId, amountPaid, gateway, transactionId, status | → Invoice |
+| 41 | `RazorpayReconciliation` | `razorpay_reconciliation` | id, schoolId, batchId, status, totalRecords, mismatchCount | → School |
 
 #### Assignments (4 Models)
 
@@ -489,22 +499,11 @@ erDiagram
       description: Issues a new access token using a valid refresh token. Rotates the refresh token and checks for family reuse.
       tags:
         - Authentication
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - refreshToken
-              properties:
-                refreshToken:
-                  type: string
-                  description: The current refresh token.
+      security:
+        - cookieAuth: []
       responses:
         "200":
-          description: Token refreshed successfully
+          description: Token refreshed successfully. New tokens are set as httpOnly cookies.
           content:
             application/json:
               schema:
@@ -512,12 +511,12 @@ erDiagram
                 properties:
                   success:
                     type: boolean
-                  token:
-                    type: string
-                    description: New short-lived access token
-                  refreshToken:
-                    type: string
-                    description: New rotated refresh token
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Token refreshed"
         "401":
           description: Invalid or expired refresh token, or token family reused
   
@@ -754,9 +753,12 @@ Provides real-time push notifications. Clients connect to `/api/sse/stream` to r
 |---|---|---|---|
 | `GET` | `/books` | ✓ | List books (searchable by title, category, isbn) |
 | `POST` | `/books` | Admin, Librarian | Add new book |
+| `PUT` | `/books/:id` | Admin, Librarian | Update book details |
+| `DELETE` | `/books/:id` | Admin, Librarian | Soft delete a book (if no active issues) |
 | `GET` | `/issues` | ✓ | List book issues (filterable by student, status) |
 | `POST` | `/issues/issue` | Admin, Librarian | Issue a book to a student/teacher |
 | `POST` | `/issues/return` | Admin, Librarian | Return an issued book, marks returned date (Generates Fine Invoice) |
+| `PUT` | `/issues/:id/waive-fine` | Admin, Librarian | Waives a fine and voids associated pending invoice |
 | `GET` | `/overdue` | Admin, Librarian | List overdue book issues |
 
 ---
@@ -769,8 +771,12 @@ Provides real-time push notifications. Clients connect to `/api/sse/stream` to r
 |---|---|---|---|
 | `GET` | `/` | ✓ | List all assets |
 | `POST` | `/` | ✓ | Create a new asset |
+| `PUT` | `/:id` | ✓ | Update an asset |
+| `DELETE` | `/:id` | ✓ | Delete an asset |
 | `GET` | `/categories` | ✓ | List asset categories |
 | `GET` | `/vendors` | ✓ | List asset vendors |
+| `POST` | `/vendors` | ✓ | Create a new vendor |
+| `PUT` | `/vendors/:id` | ✓ | Update a vendor |
 
 ---
 
@@ -782,8 +788,10 @@ Provides real-time push notifications. Clients connect to `/api/sse/stream` to r
 |---|---|---|---|
 | `GET` | `/enquiries` | ✓ | List admission enquiries |
 | `POST` | `/enquiries` | ✓ | Create new admission enquiry |
+| `PUT` | `/enquiries/:id` | ✓ | Update enquiry status and notes |
 | `GET` | `/visitors` | ✓ | List visitor logs |
 | `POST` | `/visitors` | ✓ | Create a new visitor log |
+| `PUT` | `/visitors/:id` | ✓ | Record checkout time for visitor |
 
 ---
 
@@ -822,6 +830,8 @@ Provides real-time push notifications. Clients connect to `/api/sse/stream` to r
 | `GET` | `/:id` | SUPER_ADMIN | Get school details |
 | `POST` | `/` | SUPER_ADMIN | Create new school |
 | `POST` | `/:id/setup` | SUPER_ADMIN | Initial school setup (sessions, classes, fee categories) |
+| `GET` | `/:id/onboarding` | SUPER_ADMIN/ERP_ADMIN | Get school onboarding progress |
+| `PUT` | `/:id/onboarding` | SUPER_ADMIN/ERP_ADMIN | Update onboarding progress flags |
 | `PUT` | `/:id` | SUPER_ADMIN | Update school |
 | `DELETE` | `/:id` | SUPER_ADMIN | Delete school |
 | `GET` | `/:id/stats` | SUPER_ADMIN | Get school statistics |
@@ -915,6 +925,13 @@ flowchart TD
 | `PUT` | `/invoices/:id/pay` | Admin | Record payment on invoice |
 | `GET` | `/finance/defaulters` | Admin | List fee defaulters |
 | `POST` | `/finance/generate-monthly-fees` | Admin | Auto-generate monthly invoices for all active students |
+| `POST` | `/finance/reconciliation/trigger` | Admin | Manually trigger Razorpay fee reconciliation sync |
+| `GET` | `/finance/reconciliation` | Admin | List fee reconciliation batch results |
+| `GET` | `/finance/reconciliation/:id` | Admin | Get details of a specific reconciliation batch |
+| `GET` | `/finance/scholarships` | Admin/Teacher | List scholarships |
+| `POST` | `/finance/scholarships` | Finance Admin | Create scholarship request |
+| `PUT` | `/finance/scholarships/:id/approve` | Finance Admin | Approve scholarship and apply credit to invoice |
+| `PUT` | `/finance/scholarships/:id/reject` | Finance Admin | Reject scholarship request |
 
 #### Invoice Flow
 
@@ -1216,7 +1233,18 @@ Invoice: {{invoiceNumber}}
 
 ---
 
-### 4.34 Background Jobs (BullMQ) — `/admin/queues`
+### 4.34 Webhooks — `/api/webhooks`
+
+| Method | Endpoint | Auth | Description |
+|---|---|---|---|
+| `GET` | `/` | Admin | List all configured webhook endpoints |
+| `POST` | `/` | Admin | Create a new webhook endpoint |
+| `DELETE` | `/:id` | Admin | Delete a webhook endpoint |
+| `POST` | `/razorpay` | ✗ (Razorpay) | Enterprise-grade Razorpay Webhook listener with Signature Validation |
+
+---
+
+### 4.35 Background Jobs (BullMQ) — `/admin/queues`
 
 | Method | Endpoint | Auth | Description |
 |---|---|---|---|

@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAdmin } from "../middleware/auth";
+import { AuthRequest, authenticate, requireCommunicationsAdmin } from "../middleware/auth";
 import { sendSSEToSchool } from "../lib/sse";
 import { enqueueNotification } from "../jobs/queue";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
@@ -9,7 +9,7 @@ import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 const router = Router();
 
 // POST /api/notifications/send — Admin: send notification
-router.post("/send", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/send", authenticate, requireCommunicationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { type, recipientPhone, recipientEmail, recipientName, subject, message } = req.body;
@@ -87,7 +87,7 @@ router.post("/send", authenticate, requireAdmin(), async (req: AuthRequest, res:
 });
 
 // POST /api/notifications/bulk — Admin: send bulk notifications
-router.post("/bulk", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/bulk", authenticate, requireCommunicationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { type, subject, message, recipients } = req.body;
@@ -140,7 +140,7 @@ router.post("/bulk", authenticate, requireAdmin(), async (req: AuthRequest, res:
 });
 
 // GET /api/notifications — Admin: notification log
-router.get("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.get("/", authenticate, requireCommunicationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
     const { type } = req.query;
@@ -164,7 +164,7 @@ router.get("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Resp
 });
 
 // POST /api/notifications/fee-reminder — Send fee reminders to all pending fees
-router.post("/fee-reminder", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/fee-reminder", authenticate, requireCommunicationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
 
@@ -218,7 +218,7 @@ router.post("/fee-reminder", authenticate, requireAdmin(), async (req: AuthReque
 // --- Notification Templates CRUD ---
 
 // GET /api/notifications/templates - List all templates
-router.get("/templates", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.get("/templates", authenticate, requireCommunicationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId as string;
     const templates = await prisma.notificationTemplate.findMany({
@@ -233,7 +233,7 @@ router.get("/templates", authenticate, requireAdmin(), async (req: AuthRequest, 
 });
 
 // POST /api/notifications/templates - Create template
-router.post("/templates", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/templates", authenticate, requireCommunicationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { name, type, content, isActive } = req.body;
     if (!name || !type || !content) {
@@ -258,7 +258,7 @@ router.post("/templates", authenticate, requireAdmin(), async (req: AuthRequest,
 });
 
 // PUT /api/notifications/templates/:id - Update template
-router.put("/templates/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.put("/templates/:id", authenticate, requireCommunicationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { name, type, content, isActive } = req.body;
     
@@ -275,7 +275,7 @@ router.put("/templates/:id", authenticate, requireAdmin(), async (req: AuthReque
 });
 
 // DELETE /api/notifications/templates/:id - Delete template
-router.delete("/templates/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.delete("/templates/:id", authenticate, requireCommunicationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     await prisma.notificationTemplate.delete({
       where: { id: req.params.id as string, schoolId: req.user!.schoolId as string },

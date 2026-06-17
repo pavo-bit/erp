@@ -4,6 +4,7 @@ import { authenticate, requireSchoolAccess, requireRole, AuthRequest } from "../
 import { Role } from "@prisma/client";
 import { z } from "zod";
 import crypto from "crypto";
+import { webhookProcessingTotal } from "../middleware/metrics";
 
 const prisma = new PrismaClient();
 const router = Router();
@@ -112,10 +113,16 @@ router.delete(
  */
 router.post("/razorpay", async (req, res) => {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-  if (!secret) return res.status(500).json({ error: "Webhook secret not configured" });
+  if (!secret) {
+    webhookProcessingTotal.labels("razorpay", "error_config", "unknown").inc();
+    return res.status(500).json({ error: "Webhook secret not configured" });
+  }
 
   const signature = req.headers["x-razorpay-signature"];
-  if (!signature) return res.status(400).json({ error: "Missing signature" });
+  if (!signature) {
+    webhookProcessingTotal.labels("razorpay", "error_missing_signature", "unknown").inc();
+    return res.status(400).json({ error: "Missing signature" });
+  }
 
   try {
     const bodyString = JSON.stringify(req.body);
@@ -124,7 +131,10 @@ router.post("/razorpay", async (req, res) => {
       .update(bodyString)
       .digest("hex");
 
+    const eventType = req.body?.event || "unknown";
+
     if (expectedSignature !== signature) {
+      webhookProcessingTotal.labels("razorpay", "error_signature", eventType).inc();
       return res.status(400).json({ error: "Invalid signature" });
     }
 
@@ -139,6 +149,7 @@ router.post("/razorpay", async (req, res) => {
 
       if (!invoiceId) {
         console.error("Webhook received payment without invoiceId in notes");
+        webhookProcessingTotal.labels("razorpay", "error_missing_invoice_id", eventType).inc();
         return res.status(400).json({ error: "Missing invoiceId" });
       }
 
@@ -150,11 +161,13 @@ router.post("/razorpay", async (req, res) => {
 
       if (!invoice) {
         console.error({ invoiceId }, "Webhook received payment for unknown invoice");
+        webhookProcessingTotal.labels("razorpay", "error_invoice_not_found", eventType).inc();
         return res.status(404).json({ error: "Invoice not found" });
       }
 
       // Check if already paid
       if (invoice.status === "PAID") {
+        webhookProcessingTotal.labels("razorpay", "success_duplicate", eventType).inc();
         return res.status(200).json({ status: "ok", message: "Already processed" });
       }
 
@@ -170,6 +183,7 @@ router.post("/razorpay", async (req, res) => {
 
       if (!receivableAccount || !bankAccount) {
         console.error("Missing system ledger accounts for payment processing");
+        webhookProcessingTotal.labels("razorpay", "error_ledger_config", eventType).inc();
         return res.status(500).json({ error: "System configuration error" });
       }
 
@@ -227,9 +241,11 @@ router.post("/razorpay", async (req, res) => {
 
       console.log(`Payment successfully processed and booked to Ledger for invoice ${invoiceId}`);
     }
-    
+    webhookProcessingTotal.labels("razorpay", "success", eventType).inc();
     res.json({ success: true, message: "Webhook processed securely" });
   } catch (error) {
+    const eventType = req.body?.event || "unknown";
+    webhookProcessingTotal.labels("razorpay", "error_processing", eventType).inc();
     res.status(500).json({ error: "Webhook processing failed" });
   }
 });

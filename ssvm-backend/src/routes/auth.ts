@@ -18,6 +18,8 @@ import { getEnv } from "../config/env";
 import crypto from "crypto";
 import { injectCsrfToken } from "../middleware/csrf";
 import { logAuthEvent } from "../lib/authEventLogger";
+import { alumniRegisterLimiter } from "../middleware/rateLimiter";
+import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
 
 const router = Router();
 
@@ -136,7 +138,7 @@ export async function issueTokenPair(
 }
 
 // ═══════════════════════════════════════════
-// POST /api/auth/login
+// POST /api/v1/auth/login
 // ═══════════════════════════════════════════
 
 router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Response) => {
@@ -198,7 +200,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
 });
 
 // ═══════════════════════════════════════════
-// POST /api/auth/student/login
+// POST /api/v1/auth/student/login
 // ═══════════════════════════════════════════
 
 router.post("/student/login", async (req: AuthRequest, res: Response) => {
@@ -260,7 +262,7 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
 });
 
 // ═══════════════════════════════════════════
-// POST /api/auth/refresh — Token Rotation
+// POST /api/v1/auth/refresh — Token Rotation
 // ═══════════════════════════════════════════
 
 router.post("/refresh", async (req: AuthRequest, res: Response) => {
@@ -355,7 +357,7 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
 });
 
 // ═══════════════════════════════════════════
-// POST /api/auth/logout — Server-Side Revocation
+// POST /api/v1/auth/logout — Server-Side Revocation
 // ═══════════════════════════════════════════
 
 router.post("/logout", async (req: AuthRequest, res: Response) => {
@@ -399,9 +401,13 @@ router.post("/logout", async (req: AuthRequest, res: Response) => {
     }
 
     // Clear ALL auth cookies
-    res.clearCookie("access_token", { path: "/" });
-    res.clearCookie("refresh_token", { path: "/api/auth" });
-    res.clearCookie("auth_token", { path: "/" }); // legacy
+    const env = getEnv();
+    const isSecure = env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false);
+    const clearOptions = { httpOnly: true, secure: isSecure, sameSite: "lax" as const };
+
+    res.clearCookie("access_token", { ...clearOptions, path: "/" });
+    res.clearCookie("refresh_token", { ...clearOptions, path: "/api/auth" });
+    res.clearCookie("auth_token", { ...clearOptions, path: "/" }); // legacy
 
     if (accessTokenCookie) {
       // Decode user context from token if possible for the log
@@ -420,9 +426,13 @@ router.post("/logout", async (req: AuthRequest, res: Response) => {
   } catch (e) {
     logger.error({ err: e }, "Logout error");
     // Still clear cookies even on DB error
-    res.clearCookie("access_token", { path: "/" });
-    res.clearCookie("refresh_token", { path: "/api/auth" });
-    res.clearCookie("auth_token", { path: "/" });
+    const env = getEnv();
+    const isSecure = env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false);
+    const clearOptions = { httpOnly: true, secure: isSecure, sameSite: "lax" as const };
+    
+    res.clearCookie("access_token", { ...clearOptions, path: "/" });
+    res.clearCookie("refresh_token", { ...clearOptions, path: "/api/auth" });
+    res.clearCookie("auth_token", { ...clearOptions, path: "/" });
     res.json({ success: true, data: { message: "Logged out" } });
   }
 });
@@ -443,9 +453,13 @@ router.post("/logout/all", authenticate, async (req: AuthRequest, res: Response)
       data: { isActive: false }
     });
 
-    res.clearCookie("access_token", { path: "/" });
-    res.clearCookie("refresh_token", { path: "/api/auth" });
-    res.clearCookie("auth_token", { path: "/" });
+    const env = getEnv();
+    const isSecure = env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false);
+    const clearOptions = { httpOnly: true, secure: isSecure, sameSite: "lax" as const };
+
+    res.clearCookie("access_token", { ...clearOptions, path: "/" });
+    res.clearCookie("refresh_token", { ...clearOptions, path: "/api/auth" });
+    res.clearCookie("auth_token", { ...clearOptions, path: "/" });
 
     logger.info({ userId: req.user!.id, revokedCount: result.count }, "All sessions revoked");
     res.json({ success: true, data: { message: `${result.count} session(s) revoked` } });
@@ -521,8 +535,12 @@ router.post("/revoke-session", authenticate, requireRole("SUPER_ADMIN", "ERP_ADM
 // POST /api/auth/alumni/register (public)
 // ═══════════════════════════════════════════
 
-router.post("/alumni/register", async (req: AuthRequest, res: Response) => {
+router.post("/alumni/register", alumniRegisterLimiter, verifyTurnstile, spamQualityValidation, async (req: PublicFormRequest, res: Response) => {
   try {
+    if (req.spamSuspected) {
+      return res.status(201).json({ success: true, message: "Registration successful" });
+    }
+
     const { email, password, name, phone, batch, currentRole, company } = req.body;
 
     if (!email || !password || !name) {
@@ -747,9 +765,13 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
     }
 
     // Clear cookies
-    res.clearCookie("access_token", { path: "/" });
-    res.clearCookie("refresh_token", { path: "/api/auth" });
-    res.clearCookie("auth_token", { path: "/" });
+    const env = getEnv();
+    const isSecure = env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false);
+    const clearOptions = { httpOnly: true, secure: isSecure, sameSite: "lax" as const };
+
+    res.clearCookie("access_token", { ...clearOptions, path: "/" });
+    res.clearCookie("refresh_token", { ...clearOptions, path: "/api/auth" });
+    res.clearCookie("auth_token", { ...clearOptions, path: "/" });
 
     logger.info({ userId: user.id }, "Password changed successfully");
     await logAuthEvent(prisma, { eventType: "PASSWORD_RESET_SUCCESS", userId: user.id, req, success: true });

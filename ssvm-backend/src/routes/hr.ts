@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAdmin, requireTeacherOrAdmin } from "../middleware/auth";
+import { AuthRequest, authenticate, requireHRAdmin, requireTeacherOrAdmin } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
@@ -11,7 +11,7 @@ const router = Router();
 // ═══════════════════════════════
 
 // GET /api/hr/salaries — List salaries
-router.get("/salaries", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.get("/salaries", authenticate, requireHRAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
     const { month, year } = req.query;
@@ -35,7 +35,7 @@ router.get("/salaries", authenticate, requireAdmin(), async (req: AuthRequest, r
 });
 
 // POST /api/hr/salaries — Create salary entry
-router.post("/salaries", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/salaries", authenticate, requireHRAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { teacherId, month, year, basicPay, allowances, deductions } = req.body;
@@ -59,7 +59,7 @@ router.post("/salaries", authenticate, requireAdmin(), async (req: AuthRequest, 
 });
 
 // PUT /api/hr/salaries/:id/pay — Mark salary as paid
-router.put("/salaries/:id/pay", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.put("/salaries/:id/pay", authenticate, requireHRAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const salary = await prisma.salary.update({
       where: { id: req.params.id as string as string },
@@ -168,7 +168,7 @@ router.post("/leaves", authenticate, requireTeacherOrAdmin(), async (req: AuthRe
 });
 
 // PUT /api/hr/leaves/:id — Admin: approve/reject
-router.put("/leaves/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.put("/leaves/:id", authenticate, requireHRAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { status, approverRemarks } = req.body;
     if (!["APPROVED", "REJECTED"].includes(status)) {

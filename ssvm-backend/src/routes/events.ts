@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireContentAdmin } from "../middleware/auth";
 
 const router = Router();
 
@@ -24,7 +24,7 @@ router.get("/", async (req, res: Response) => {
 });
 
 // POST /api/events
-router.post("/", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireContentAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { title, description, date, endDate, venue, category, status } = req.body;
     if (!title || !date || !venue) { res.status(400).json({ success: false, error: "Title, date, and venue required" }); return; }
@@ -37,7 +37,7 @@ router.post("/", authenticate, requireRole("ADMIN"), async (req: AuthRequest, re
 });
 
 // PUT /api/events/:id
-router.put("/:id", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/:id", authenticate, requireContentAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const b = req.body;
     const event = await prisma.event.update({
@@ -50,7 +50,7 @@ router.put("/:id", authenticate, requireRole("ADMIN"), async (req: AuthRequest, 
 });
 
 // DELETE /api/events/:id
-router.delete("/:id", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.delete("/:id", authenticate, requireContentAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     await prisma.event.delete({ where: { id } });

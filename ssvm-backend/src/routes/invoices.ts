@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
-import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireFinanceAdmin } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
@@ -41,7 +41,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/invoices
-router.post("/", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { studentId, amount, type, status, dueDate, session, remarks } = req.body;
     if (!studentId || !amount || !type || !dueDate) { res.status(400).json({ success: false, error: "Required fields missing" }); return; }
@@ -64,7 +64,7 @@ router.post("/", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"),
 });
 
 // PUT /api/invoices/:id/pay
-router.put("/:id/pay", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN", "PARENT", "STUDENT"), async (req: AuthRequest, res: Response) => {
+router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "SUPER_ADMIN", "PARENT", "STUDENT"), async (req: AuthRequest, res: Response) => {
   try {
     const { amountPaid, gateway, transactionId } = req.body;
     if (!amountPaid) {

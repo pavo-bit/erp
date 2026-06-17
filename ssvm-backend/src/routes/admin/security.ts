@@ -3,9 +3,18 @@ import { authenticate, requireRole, AuthRequest } from '../../middleware/auth';
 import prisma from '../../lib/prisma';
 import logger from '../../lib/logger';
 import { Role } from '@prisma/client';
-import { generateAccessToken } from '../../lib/tokens';
+import { generateAccessToken, generateImpersonationToken } from '../../lib/tokens';
 import { getEnv } from '../../config/env';
 import crypto from 'crypto';
+import { z } from 'zod';
+import { validate } from '../../middleware/validate';
+import { notificationQueue } from '../../jobs/queue';
+const { authenticator } = require('otplib');
+
+const impersonateSchema = z.object({
+  totpCode: z.string().length(6, "Invalid 2FA code length"),
+  reason: z.string().min(10, "Reason must be at least 10 characters long")
+});
 
 const router = Router();
 
@@ -115,34 +124,48 @@ router.post('/quarantine/:documentId', requireRole(Role.SUPER_ADMIN, Role.ERP_AD
  * Impersonate a tenant (school) as a SUPER_ADMIN.
  * This generates a new session token that is scoped to the target school.
  */
-router.post('/impersonate/:schoolId', requireRole(Role.SUPER_ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/impersonate/:schoolId', requireRole(Role.SUPER_ADMIN), validate(impersonateSchema), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { schoolId } = req.params;
+    const { totpCode, reason } = req.body;
     
-    // 1. Verify school exists
+    // 1. Verify SUPER_ADMIN 2FA is enabled and code is valid
+    const adminUser = await prisma.user.findUnique({ where: { id: req.user!.id } });
+    if (!adminUser || !adminUser.twoFactorEnabled || !adminUser.twoFactorSecret) {
+      res.status(403).json({ success: false, error: 'You must enable 2FA before you can impersonate tenants.' });
+      return;
+    }
+    
+    const isValid = authenticator.verify({ token: totpCode, secret: adminUser.twoFactorSecret });
+    if (!isValid) {
+      res.status(401).json({ success: false, error: 'Invalid 2FA code.' });
+      return;
+    }
+
+    // 2. Verify school exists
     const school = await prisma.school.findUnique({ where: { id: schoolId as string } });
     if (!school) {
       res.status(404).json({ success: false, error: 'School not found' });
       return;
     }
 
-    // 2. Audit log the impersonation event
+    // 3. Audit log the impersonation event
     await prisma.auditLog.create({
       data: {
         userId: req.user!.id,
-        action: 'IMPERSONATE_TENANT',
+        action: 'IMPERSONATION_STARTED',
         entity: 'SCHOOL',
         entityId: schoolId as string,
         ipAddress: (req.ip as string) || "Unknown",
         device: req.headers['user-agent'],
-        details: JSON.stringify({ reason: req.body.reason || 'Support Request' })
+        reason: reason,
+        details: JSON.stringify({ reason: reason })
       }
     });
 
-    // 3. Generate a new token scoped to the target school
-    // We keep the SUPER_ADMIN role but switch the schoolId
-    const env = getEnv();
-    const { token: impersonationToken } = generateAccessToken({
+    // 4. Generate a new short-lived impersonation token
+    const { token: impersonationToken } = generateImpersonationToken({
+      originalUserId: req.user!.id,
       userId: req.user!.id,
       email: req.user!.email,
       name: req.user!.name,
@@ -150,6 +173,21 @@ router.post('/impersonate/:schoolId', requireRole(Role.SUPER_ADMIN), async (req:
       schoolId: school.id,
       sid: crypto.randomUUID()
     });
+    
+    // 5. Notify the target school's ERP_ADMIN
+    if (notificationQueue) {
+      const erpAdmin = await prisma.user.findFirst({
+        where: { schoolId: school.id, role: Role.ERP_ADMIN }
+      });
+      
+      if (erpAdmin) {
+        await notificationQueue.add('email', {
+          to: erpAdmin.email,
+          subject: 'Security Alert: Impersonation Session Started',
+          html: `<p>SUPER_ADMIN ${req.user!.name} has started an impersonation session on your school account.</p><p>Reason: ${reason}</p><p>If you did not expect this, contact platform support immediately.</p>`
+        });
+      }
+    }
 
     res.json({
       success: true,
@@ -159,6 +197,49 @@ router.post('/impersonate/:schoolId', requireRole(Role.SUPER_ADMIN), async (req:
 
   } catch (error: any) {
     logger.error({ err: error }, 'Failed to impersonate tenant');
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+/**
+ * POST /api/v1/saas/impersonate/:schoolId/end
+ * Ends the impersonation session.
+ */
+router.post('/impersonate/:schoolId/end', requireRole(Role.SUPER_ADMIN), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { schoolId } = req.params;
+    
+    // Audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user!.originalUserId || req.user!.id,
+        action: 'IMPERSONATION_ENDED',
+        entity: 'SCHOOL',
+        entityId: schoolId as string,
+        ipAddress: (req.ip as string) || "Unknown",
+        device: req.headers['user-agent']
+      }
+    });
+    
+    // Add to Redis blocklist
+    const token = req.headers.authorization?.split(' ')[1] || req.cookies?.access_token;
+    if (token) {
+      const { verifyAccessToken, hashToken } = await import('../../lib/tokens');
+      const payload = verifyAccessToken(token);
+      const { blocklistAccessToken } = await import('../../lib/redis');
+      if (payload && payload.jti) {
+        await blocklistAccessToken(payload.jti, 30 * 60); // 30 mins
+      } else {
+        await blocklistAccessToken(hashToken(token), 30 * 60);
+      }
+    }
+    
+    const cookieOptions = (await import('../../lib/tokens')).getAccessTokenCookieOptions();
+    res.clearCookie("access_token", cookieOptions);
+    
+    res.json({ success: true, message: 'Impersonation ended successfully' });
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to end impersonation');
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 });

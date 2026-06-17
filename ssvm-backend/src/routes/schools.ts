@@ -117,6 +117,22 @@ router.post("/:id/setup", authenticate, requireSuperAdmin(), async (req: AuthReq
         where: { id: schoolId },
         data: { onboardingDone: true }
       });
+
+      // 5. Update Onboarding Progress
+      await tx.onboardingProgress.upsert({
+        where: { schoolId },
+        update: {
+          academicSetupCompleted: true,
+          classesSectionsCompleted: true,
+          feeStructureSetup: true,
+        },
+        create: {
+          schoolId,
+          academicSetupCompleted: true,
+          classesSectionsCompleted: true,
+          feeStructureSetup: true,
+        }
+      });
     });
 
     res.json({ success: true, message: "School setup completed successfully" });
@@ -137,6 +153,77 @@ router.put("/:id", authenticate, requireSuperAdmin(), async (req: AuthRequest, r
     res.json({ success: true, data: school });
   } catch (e) {
     logger.error({ err: e }, "Update school error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/schools/:id/onboarding — Get school onboarding progress
+router.get("/:id/onboarding", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.params.id as string;
+    
+    // Authorization: SUPER_ADMIN or ERP_ADMIN of that school
+    if (req.user!.role !== "SUPER_ADMIN" && req.user!.schoolId !== schoolId) {
+      res.status(403).json({ success: false, error: "Forbidden" }); return;
+    }
+
+    let progress = await prisma.onboardingProgress.findUnique({
+      where: { schoolId },
+    });
+
+    if (!progress) {
+      // Create default if missing
+      progress = await prisma.onboardingProgress.create({
+        data: { schoolId }
+      });
+    }
+
+    res.json({ success: true, data: progress });
+  } catch (e) {
+    logger.error({ err: e }, "Get onboarding progress error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// PUT /api/schools/:id/onboarding — Update onboarding progress flags
+router.put("/:id/onboarding", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.params.id as string;
+    
+    if (req.user!.role !== "SUPER_ADMIN" && req.user!.schoolId !== schoolId) {
+      res.status(403).json({ success: false, error: "Forbidden" }); return;
+    }
+
+    const { profileCompleted, academicSetupCompleted, classesSectionsCompleted, teachersAdded, studentsImported, feeStructureSetup } = req.body;
+
+    const progress = await prisma.onboardingProgress.upsert({
+      where: { schoolId },
+      update: {
+        profileCompleted: profileCompleted ?? undefined,
+        academicSetupCompleted: academicSetupCompleted ?? undefined,
+        classesSectionsCompleted: classesSectionsCompleted ?? undefined,
+        teachersAdded: teachersAdded ?? undefined,
+        studentsImported: studentsImported ?? undefined,
+        feeStructureSetup: feeStructureSetup ?? undefined,
+      },
+      create: {
+        schoolId,
+        profileCompleted: profileCompleted || false,
+        academicSetupCompleted: academicSetupCompleted || false,
+        classesSectionsCompleted: classesSectionsCompleted || false,
+        teachersAdded: teachersAdded || false,
+        studentsImported: studentsImported || false,
+        feeStructureSetup: feeStructureSetup || false,
+      }
+    });
+
+    res.json({ success: true, data: progress });
+  } catch (e) {
+    logger.error({ err: e }, "Update onboarding progress error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });

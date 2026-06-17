@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAdmin, requireRole } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireOperationsAdmin, requireLibraryAdmin } from "../middleware/auth";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
 
@@ -61,7 +61,7 @@ router.get("/books", authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 // Add Book
-router.post("/books", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), validate(bookSchema), async (req: AuthRequest, res: Response) => {
+router.post("/books", authenticate, requireLibraryAdmin(), validate(bookSchema), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const bookData = req.body;
@@ -83,7 +83,7 @@ router.post("/books", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADM
 });
 
 // Update Book
-router.put("/books/:id", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), validate(bookSchema), async (req: AuthRequest, res: Response) => {
+router.put("/books/:id", authenticate, requireLibraryAdmin(), validate(bookSchema), async (req: AuthRequest, res: Response) => {
   try {
     const bookId = req.params.id as string;
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
@@ -114,7 +114,7 @@ router.put("/books/:id", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "
 });
 
 // Delete Book
-router.delete("/books/:id", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.delete("/books/:id", authenticate, requireLibraryAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const bookId = req.params.id as string;
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
@@ -142,7 +142,7 @@ router.delete("/books/:id", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN"
 // ═══════════════════════════════════════════
 
 // Issue Book
-router.post("/issues", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), validate(issueBookSchema), async (req: AuthRequest, res: Response) => {
+router.post("/issues", authenticate, requireLibraryAdmin(), validate(issueBookSchema), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { bookId, userId, userType, dueDate } = req.body;
@@ -183,7 +183,7 @@ router.post("/issues", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "AD
 });
 
 // Return Book
-router.post("/issues/:id/return", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/issues/:id/return", authenticate, requireLibraryAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const issueId = req.params.id as string;
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
@@ -237,6 +237,74 @@ router.post("/issues/:id/return", authenticate, requireRole("LIBRARIAN", "SUPER_
   }
 });
 
+// Waive Fine
+router.put("/issues/:id/waive-fine", authenticate, requireLibraryAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const issueId = req.params.id as string;
+    const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
+    const { reason } = req.body;
+
+    if (!reason || reason.length < 5) {
+      res.status(400).json({ success: false, error: "A valid reason (min 5 chars) is required to waive a fine" });
+      return;
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      const issue = await tx.bookIssue.findUnique({ where: { id: issueId } });
+      if (!issue || issue.schoolId !== schoolId) {
+        throw new Error("Issue record not found");
+      }
+      if (!issue.fineAmount || issue.fineAmount <= 0) {
+        throw new Error("No fine to waive for this issue");
+      }
+
+      // Update the issue record
+      const updated = await tx.bookIssue.update({
+        where: { id: issueId },
+        data: { fineAmount: 0 },
+      });
+
+      // Find and void the associated invoice if it exists and is pending
+      if (issue.userType === "STUDENT") {
+        const invoices = await tx.invoice.findMany({
+          where: {
+            schoolId,
+            studentId: issue.userId,
+            description: `Library Fine for Book Issue ID: ${issue.id}`,
+            status: "PENDING"
+          }
+        });
+
+        for (const inv of invoices) {
+          await tx.invoice.update({
+            where: { id: inv.id },
+            data: { status: "VOID", remainingAmount: 0 }
+          });
+        }
+      }
+
+      // Audit Log
+      await tx.auditLog.create({
+        data: {
+          schoolId,
+          userId: req.user!.id,
+          action: "WAIVE_LIBRARY_FINE",
+          entity: "BookIssue",
+          entityId: issueId,
+          details: JSON.stringify({ previousFine: issue.fineAmount, reason })
+        }
+      });
+
+      return updated;
+    });
+
+    res.json({ success: true, data: result });
+  } catch (e: any) {
+    logger.error({ err: e }, "Waive fine error");
+    res.status(400).json({ success: false, error: e.message || "Failed to waive fine" });
+  }
+});
+
 // List Active Issues
 router.get("/issues", authenticate, async (req: AuthRequest, res: Response) => {
   try {
@@ -261,7 +329,7 @@ router.get("/issues", authenticate, async (req: AuthRequest, res: Response) => {
 });
 
 // List Overdue Issues
-router.get("/overdue", authenticate, requireRole("LIBRARIAN", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/overdue", authenticate, requireLibraryAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.query.schoolId as string : req.user!.schoolId;
 

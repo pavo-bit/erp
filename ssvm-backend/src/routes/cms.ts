@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
-import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireContentAdmin } from "../middleware/auth";
 
 const router = Router();
 
@@ -12,7 +12,7 @@ router.get("/testimonials", async (_req, res: Response) => {
   } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
 });
 
-router.post("/testimonials", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/testimonials", authenticate, requireContentAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { name, role, content, rating } = req.body;
     if (!name || !role || !content) { res.status(400).json({ success: false, error: "Required fields missing" }); return; }
@@ -34,7 +34,7 @@ router.get("/site-content", async (req, res: Response) => {
   } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
 });
 
-router.put("/site-content", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/site-content", authenticate, requireContentAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { updates } = req.body;
     if (!updates?.length) { res.status(400).json({ success: false, error: "Updates array required" }); return; }
@@ -52,7 +52,7 @@ router.put("/site-content", authenticate, requireRole("ADMIN"), async (req: Auth
 });
 
 // Analytics
-router.get("/analytics", authenticate, requireRole("ADMIN"), async (_req: AuthRequest, res: Response) => {
+router.get("/analytics", authenticate, requireContentAdmin(), async (_req: AuthRequest, res: Response) => {
   try {
     const [totalStudents, totalParents, totalAlumni, totalFaculty, activeNotices, upcomingEvents, feesPaid, feesPending, recentAdmissions] = await Promise.all([
       prisma.student.count(), prisma.guardian.count(), prisma.alumni.count(),

@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAdmin, requireTeacherOrAdmin, requireSchoolAccess, hashPassword } from "../middleware/auth";
+import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin, requireSchoolAccess, hashPassword } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
 const router = Router();
@@ -51,7 +51,7 @@ router.get("/:id", authenticate, requireTeacherOrAdmin(), async (req: AuthReques
 });
 
 // POST /api/teachers — Create teacher with user account
-router.post("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { name, email, phone, password, department, designation, qualification, experience, subjects, employeeId } = req.body;
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
@@ -88,7 +88,7 @@ router.post("/", authenticate, requireAdmin(), async (req: AuthRequest, res: Res
 });
 
 // PUT /api/teachers/:id — Update teacher
-router.put("/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.put("/:id", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { department, designation, qualification, experience, subjects, isActive } = req.body;
     const teacher = await prisma.teacher.update({
@@ -104,7 +104,7 @@ router.put("/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: R
 });
 
 // DELETE /api/teachers/:id — Deactivate teacher
-router.delete("/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.delete("/:id", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const teacher = await prisma.teacher.findUnique({ where: { id: req.params.id as string } });
     if (!teacher) { res.status(404).json({ success: false, error: "Teacher not found" }); return; }

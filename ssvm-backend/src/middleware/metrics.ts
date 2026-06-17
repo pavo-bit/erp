@@ -37,6 +37,22 @@ export const httpErrorsTotal = new client.Counter({
 });
 register.registerMetric(httpErrorsTotal);
 
+// ─── JWT Verification (SLI) ───
+export const jwtVerificationTotal = new client.Counter({
+  name: "jwt_verification_total",
+  help: "Total number of successful JWT verifications by algorithm",
+  labelNames: ["algorithm"],
+});
+register.registerMetric(jwtVerificationTotal);
+
+// ─── Public Form Submissions (GAP A5) ───
+export const publicFormSubmissionsTotal = new client.Counter({
+  name: "public_form_submissions_total",
+  help: "Total number of public form submissions with spam/captcha status",
+  labelNames: ["endpoint", "status"],
+});
+register.registerMetric(publicFormSubmissionsTotal);
+
 // ─── Active Connections ───
 export const activeConnectionsGauge = new client.Gauge({
   name: "http_active_connections",
@@ -59,6 +75,14 @@ export const paymentTotal = new client.Counter({
   labelNames: ["gateway", "status"],
 });
 register.registerMetric(paymentTotal);
+
+// ─── Webhook Processing (GAP A14) ───
+export const webhookProcessingTotal = new client.Counter({
+  name: "webhook_processing_total",
+  help: "Total number of webhooks processed",
+  labelNames: ["gateway", "status", "event"],
+});
+register.registerMetric(webhookProcessingTotal);
 
 // ─── Database Query Duration ───
 export const dbQueryDuration = new client.Histogram({

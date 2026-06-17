@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAdmin, hashPassword } from "../middleware/auth";
+import { AuthRequest, authenticate, requireOperationsAdmin, hashPassword } from "../middleware/auth";
 import { enqueueImport } from "../jobs/queue";
 import { storageService } from "../services/storage.service";
 import { v4 as uuidv4 } from "uuid";
@@ -11,7 +11,7 @@ import { sendSuccess, sendError } from "../lib/response";
 const router = Router();
 
 // POST /api/bulk/upload
-router.post("/upload", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.post("/upload", authenticate, requireOperationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { type, data } = req.body;
     const { action } = req.query;
@@ -212,7 +212,7 @@ router.post("/upload", authenticate, requireAdmin(), async (req: AuthRequest, re
 
 // GET /api/v1/bulk/jobs
 // List import jobs for dashboard
-router.get("/jobs", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.get("/jobs", authenticate, requireOperationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
     if (!schoolId) return sendError(res, 400, "School ID required");
@@ -231,7 +231,7 @@ router.get("/jobs", authenticate, requireAdmin(), async (req: AuthRequest, res: 
 
 // GET /api/v1/bulk/jobs/:id
 // Poll for specific job status
-router.get("/jobs/:id", authenticate, requireAdmin(), async (req: AuthRequest, res: Response) => {
+router.get("/jobs/:id", authenticate, requireOperationsAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const job = await prisma.bulkJob.findUnique({
       where: { id: req.params.id as string }

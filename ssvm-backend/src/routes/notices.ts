@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
-import { AuthRequest, authenticate, requireRole, optionalAuth } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireContentAdmin, optionalAuth } from "../middleware/auth";
 
 const router = Router();
 
@@ -12,7 +12,8 @@ router.get("/", optionalAuth, async (req: AuthRequest, res: Response) => {
     const take = Math.min(100, +limit);
 
     const where: Record<string, unknown> = {};
-    if (req.user?.role !== "ADMIN") where.status = "PUBLISHED";
+    const isContentAdmin = req.user && ["SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN"].includes(req.user.role);
+    if (!isContentAdmin) where.status = "PUBLISHED";
     else if (status) where.status = status;
     if (category) where.category = category;
     if (search) where.title = { contains: search };
@@ -26,7 +27,7 @@ router.get("/", optionalAuth, async (req: AuthRequest, res: Response) => {
 });
 
 // POST /api/notices
-router.post("/", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireContentAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { title, content, category, status, expiryDate } = req.body;
     if (!title || !content) { res.status(400).json({ success: false, error: "Title and content required" }); return; }
@@ -49,7 +50,7 @@ router.get("/:id", async (req, res: Response) => {
 });
 
 // PUT /api/notices/:id
-router.put("/:id", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/:id", authenticate, requireContentAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const notice = await prisma.notice.update({
       where: { id: req.params.id as string },
@@ -61,7 +62,7 @@ router.put("/:id", authenticate, requireRole("ADMIN"), async (req: AuthRequest, 
 });
 
 // DELETE /api/notices/:id
-router.delete("/:id", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.delete("/:id", authenticate, requireContentAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     await prisma.notice.delete({ where: { id: req.params.id as string } });
     res.json({ success: true, message: "Deleted" });

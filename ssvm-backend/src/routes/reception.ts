@@ -1,7 +1,7 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireOperationsAdmin } from "../middleware/auth";
 import { z } from "zod";
 import { validate } from "../middleware/validate";
 
@@ -28,7 +28,7 @@ const visitorSchema = z.object({
 });
 
 // GET /api/v1/reception/enquiries
-router.get("/enquiries", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/enquiries", authenticate, requireOperationsAdmin("RECEPTIONIST"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.query.schoolId : req.user!.schoolId) as string;
     const enquiries = await prisma.admissionEnquiry.findMany({
@@ -43,7 +43,7 @@ router.get("/enquiries", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN"
 });
 
 // POST /api/v1/reception/enquiries
-router.post("/enquiries", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), validate(enquirySchema), async (req: AuthRequest, res: Response) => {
+router.post("/enquiries", authenticate, requireOperationsAdmin("RECEPTIONIST"), validate(enquirySchema), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId) as string;
     const enquiry = await prisma.admissionEnquiry.create({
@@ -59,8 +59,44 @@ router.post("/enquiries", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN
   }
 });
 
+// PUT /api/v1/reception/enquiries/:id
+router.put("/enquiries/:id", authenticate, requireOperationsAdmin("RECEPTIONIST"), async (req: AuthRequest, res: Response) => {
+  try {
+    const enquiryId = req.params.id as string;
+    const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
+    const { status, notes } = req.body;
+
+    const enquiry = await prisma.admissionEnquiry.findUnique({ where: { id: enquiryId } });
+    if (!enquiry || enquiry.schoolId !== schoolId) {
+      res.status(404).json({ success: false, error: "Enquiry not found" });
+      return;
+    }
+
+    const updated = await prisma.admissionEnquiry.update({
+      where: { id: enquiryId },
+      data: { status, notes },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        schoolId,
+        userId: req.user!.id,
+        action: "UPDATE_ENQUIRY",
+        entity: "AdmissionEnquiry",
+        entityId: enquiryId,
+        details: JSON.stringify({ status, notes })
+      }
+    });
+
+    res.json({ success: true, data: updated });
+  } catch (e) {
+    logger.error({ err: e }, "Update enquiry error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 // GET /api/v1/reception/visitors
-router.get("/visitors", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/visitors", authenticate, requireOperationsAdmin("RECEPTIONIST"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.query.schoolId : req.user!.schoolId) as string;
     const logs = await prisma.visitorLog.findMany({
@@ -75,7 +111,7 @@ router.get("/visitors", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN",
 });
 
 // POST /api/v1/reception/visitors
-router.post("/visitors", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ADMIN", "ERP_ADMIN"), validate(visitorSchema), async (req: AuthRequest, res: Response) => {
+router.post("/visitors", authenticate, requireOperationsAdmin("RECEPTIONIST"), validate(visitorSchema), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId) as string;
     const log = await prisma.visitorLog.create({
@@ -92,7 +128,7 @@ router.post("/visitors", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN"
 });
 
 // PUT /api/v1/reception/visitors/:id - Update visitor (check-out, notes)
-router.put("/visitors/:id", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/visitors/:id", authenticate, requireOperationsAdmin("RECEPTIONIST"), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { checkOut, remarks } = req.body;
@@ -125,7 +161,7 @@ const complaintSchema = z.object({
 });
 
 // GET /api/v1/reception/complaints - List complaints
-router.get("/complaints", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/complaints", authenticate, requireOperationsAdmin("RECEPTIONIST"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.query.schoolId : req.user!.schoolId) as string;
     const { status } = req.query;
@@ -146,7 +182,7 @@ router.get("/complaints", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN
 });
 
 // POST /api/v1/reception/complaints - Create complaint
-router.post("/complaints", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ERP_ADMIN"), validate(complaintSchema), async (req: AuthRequest, res: Response) => {
+router.post("/complaints", authenticate, requireOperationsAdmin("RECEPTIONIST"), validate(complaintSchema), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId) as string;
     const { name, phone, subject, description } = req.body;
@@ -169,7 +205,7 @@ router.post("/complaints", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMI
 });
 
 // PUT /api/v1/reception/complaints/:id - Update complaint status
-router.put("/complaints/:id", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/complaints/:id", authenticate, requireOperationsAdmin("RECEPTIONIST"), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { status, resolvedBy } = req.body;
@@ -207,7 +243,7 @@ const callLogSchema = z.object({
 });
 
 // GET /api/v1/reception/calls - List call logs
-router.get("/calls", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/calls", authenticate, requireOperationsAdmin("RECEPTIONIST"), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.query.schoolId : req.user!.schoolId) as string;
     const { from, to } = req.query;
@@ -232,7 +268,7 @@ router.get("/calls", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "E
 });
 
 // POST /api/v1/reception/calls - Log a call
-router.post("/calls", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ERP_ADMIN"), validate(callLogSchema), async (req: AuthRequest, res: Response) => {
+router.post("/calls", authenticate, requireOperationsAdmin("RECEPTIONIST"), validate(callLogSchema), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = (req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId) as string;
     const { callerName, callerPhone, purpose, handledBy, followUpDate, notes } = req.body;
@@ -257,7 +293,7 @@ router.post("/calls", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "
 });
 
 // PUT /api/v1/reception/calls/:id - Update call log
-router.put("/calls/:id", authenticate, requireRole("RECEPTIONIST", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/calls/:id", authenticate, requireOperationsAdmin("RECEPTIONIST"), async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { handledBy, followUpDate, notes } = req.body;

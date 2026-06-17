@@ -1,12 +1,12 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
-import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireFinanceAdmin } from "../middleware/auth";
 import logger from "../lib/logger";
 
 const router = Router();
 
 // GET /api/finance/defaulters
-router.get("/defaulters", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/defaulters", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
     if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
@@ -46,7 +46,7 @@ router.get("/defaulters", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER
 });
 
 // POST /api/finance/generate-monthly-fees
-router.post("/generate-monthly-fees", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/generate-monthly-fees", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
     if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
@@ -115,7 +115,7 @@ router.post("/generate-monthly-fees", authenticate, requireRole("ADMIN", "ERP_AD
 });
 
 // GET /api/finance/ledger/trial-balance
-router.get("/ledger/trial-balance", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/ledger/trial-balance", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
     if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
@@ -164,7 +164,7 @@ router.get("/ledger/trial-balance", authenticate, requireRole("ADMIN", "ERP_ADMI
 });
 
 // GET /api/finance/ledger/profit-loss
-router.get("/ledger/profit-loss", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/ledger/profit-loss", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
     if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }

@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
-import { AuthRequest, authenticate, requireRole, hashPassword } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole, requireAcademicAdmin, hashPassword } from "../middleware/auth";
 
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
@@ -41,7 +41,7 @@ router.get('/me', authenticate, requireRole('STUDENT'), async (req: AuthRequest,
 });
 
 // POST /api/students
-router.post("/", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const { name, rollNo, class: className, section, session, guardianName, guardianPhone } = req.body;
     
@@ -139,11 +139,14 @@ router.get("/", authenticate, requireRole("ADMIN", "PARENT", "ERP_ADMIN", "SUPER
 });
 
 // GET /api/students/:id
-router.get("/:id", authenticate, async (req, res: Response) => {
+router.get("/:id", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const student = await prisma.student.findUnique({
-      where: { id: req.params.id as string },
-      include: { 
+      where: { 
+        id: req.params.id as string,
+        ...(req.user!.role !== "SUPER_ADMIN" ? { schoolId: req.user!.schoolId! } : {})
+      },
+      include: {
         guardian: { include: { user: { select: { id: true, name: true, email: true, phone: true } } } },
         sectionRef: { include: { class: true } }
       },
@@ -154,7 +157,7 @@ router.get("/:id", authenticate, async (req, res: Response) => {
 });
 
 // PUT /api/students/:id
-router.put("/:id", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/:id", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const b = req.body;
     let dataToUpdate: any = { 
@@ -169,7 +172,10 @@ router.put("/:id", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"
     }
 
     const student = await prisma.student.update({
-      where: { id: req.params.id as string },
+      where: { 
+        id: req.params.id as string,
+        ...(req.user!.role !== "SUPER_ADMIN" ? { schoolId: req.user!.schoolId! } : {})
+      },
       data: dataToUpdate,
       include: { guardian: { include: { user: { select: { id: true, name: true, email: true } } } } },
     });
@@ -177,6 +183,10 @@ router.put("/:id", authenticate, requireRole("ADMIN", "ERP_ADMIN", "SUPER_ADMIN"
   } catch (e: any) { 
     if (e.code === 'P2002') {
       res.status(400).json({ success: false, error: "Admission number already exists" });
+      return;
+    }
+    if (e.code === 'P2025') {
+      res.status(404).json({ success: false, error: "Student not found" });
       return;
     }
     console.error(e); res.status(500).json({ success: false, error: "Server error" }); 

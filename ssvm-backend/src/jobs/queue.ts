@@ -36,6 +36,7 @@ export const webhookQueue = env.REDIS_URL ? new Queue("webhookQueue", defaultQue
 export const scanQueue = env.REDIS_URL ? new Queue("scanQueue", defaultQueueOptions) : null;
 export const exportQueue = env.REDIS_URL ? new Queue("exportQueue", defaultQueueOptions) : null;
 export const maintenanceQueue = env.REDIS_URL ? new Queue("maintenanceQueue", defaultQueueOptions) : null;
+export const reconciliationQueue = env.REDIS_URL ? new Queue("reconciliationQueue", defaultQueueOptions) : null;
 
 // Schedule recurring maintenance jobs at startup
 async function scheduleMaintenanceJobs() {
@@ -47,6 +48,22 @@ async function scheduleMaintenanceJobs() {
     { every: 6 * 60 * 60 * 1000 },
     { name: "cleanupExpiredIdempotencyRecords" }
   );
+
+  // GAP A12: Weekly backup restore validation (Sunday 2 AM)
+  await maintenanceQueue.upsertJobScheduler(
+    "backup-restore-validation",
+    { pattern: "0 2 * * 0" }, // CRON: Every Sunday at 2 AM
+    { name: "validate-backup" }
+  );
+
+  // GAP A9: Daily Razorpay settlement reconciliation (9 AM)
+  if (reconciliationQueue) {
+    await reconciliationQueue.upsertJobScheduler(
+      "daily-reconciliation",
+      { pattern: "0 9 * * *" }, // CRON: Every day at 9 AM
+      { name: "reconcile-settlements" }
+    );
+  }
 
   logger.info("Maintenance jobs scheduled");
 }
@@ -115,6 +132,7 @@ export async function closeQueues(): Promise<void> {
     scanQueue?.close(),
     exportQueue?.close(),
     maintenanceQueue?.close(),
+    reconciliationQueue?.close(),
   ]);
   logger.info("BullMQ Queues closed");
 }
