@@ -570,92 +570,494 @@ erDiagram
 > **API Versioning (Phase 12A.1)**:
 > All API routes are mounted under the `/api/v1/*` namespace globally.
 
-### Endpoints Map (55 Total Route Modules)
+### Endpoints Map (263 Endpoints across 55 Route Modules)
 
-To provide a high-level structural overview, the 55 route modules are categorized below. For exact payload definitions, consult `ssvm_openapi_documentation.json`.
+This section auto-documents the 263 distinct API endpoints currently live in the system, extracted directly from the routing layer via the OpenAPI 3.1.0 generator.
 
-#### Core Platform
-| Module | Base Path | Description |
+#### Module: `2fa`
+| Method | Path | Summary |
 |---|---|---|
-| `auth.ts` | `/api/v1/auth` | Endpoints for auth management |
-| `branches.ts` | `/api/v1/branches` | Endpoints for branches management |
-| `health.ts` | `/api/v1/health` | Endpoints for health management |
-| `saas.ts` | `/api/v1/saas` | Endpoints for saas management |
-| `schools.ts` | `/api/v1/schools` | Endpoints for schools management |
-| `subscriptions.ts` | `/api/v1/subscriptions` | Endpoints for subscriptions management |
-| `users.ts` | `/api/v1/users` | Endpoints for users management |
+| **POST** | `/api/v1/2fa/disable` | POST /api/v1/2fa/disable |
+| **POST** | `/api/v1/2fa/setup` | POST /api/v1/2fa/setup |
+| **POST** | `/api/v1/2fa/validate` | POST /api/v1/2fa/validate |
+| **POST** | `/api/v1/2fa/verify-setup` | POST /api/v1/2fa/verify-setup |
 
-#### Academics
-| Module | Base Path | Description |
+#### Module: `academic`
+| Method | Path | Summary |
 |---|---|---|
-| `academic.ts` | `/api/v1/academic` | Endpoints for academic management |
-| `attendance.ts` | `/api/v1/attendance` | Endpoints for attendance management |
-| `sessions.ts` | `/api/v1/sessions` | Endpoints for sessions management |
-| `timetable.ts` | `/api/v1/timetable` | Endpoints for timetable management |
+| **POST** | `/api/v1/academic/class-teachers` | POST /api/v1/academic/class-teachers |
+| **DELETE** | `/api/v1/academic/class-teachers/{id}` | DELETE /api/v1/academic/class-teachers/{id} |
+| **GET** | `/api/v1/academic/class-teachers/{sectionId}` | GET /api/v1/academic/class-teachers/{sectionId} |
+| **GET** | `/api/v1/academic/classes` | GET /api/v1/academic/classes |
+| **POST** | `/api/v1/academic/classes` | POST /api/v1/academic/classes |
+| **POST** | `/api/v1/academic/classes/bulk` | POST /api/v1/academic/classes/bulk |
+| **GET** | `/api/v1/academic/sections` | GET /api/v1/academic/sections |
+| **POST** | `/api/v1/academic/sections` | POST /api/v1/academic/sections |
+| **POST** | `/api/v1/academic/sections/bulk` | POST /api/v1/academic/sections/bulk |
+| **GET** | `/api/v1/academic/sessions` | GET /api/v1/academic/sessions |
+| **POST** | `/api/v1/academic/sessions` | POST /api/v1/academic/sessions |
 
-#### People
-| Module | Base Path | Description |
+#### Module: `activity`
+| Method | Path | Summary |
 |---|---|---|
-| `alumni.ts` | `/api/v1/alumni` | Endpoints for alumni management |
-| `guardians.ts` | `/api/v1/guardians` | Endpoints for guardians management |
-| `students.ts` | `/api/v1/students` | Endpoints for students management |
-| `teachers.ts` | `/api/v1/teachers` | Endpoints for teachers management |
+| **GET** | `/api/v1/activity` | GET /api/v1/activity |
 
-#### Finance & Operations
-| Module | Base Path | Description |
+#### Module: `admin`
+| Method | Path | Summary |
 |---|---|---|
-| `finance-governance.ts` | `/api/v1/finance-governance` | Endpoints for finance-governance management |
-| `finance-reconciliation.ts` | `/api/v1/finance-reconciliation` | Endpoints for finance-reconciliation management |
-| `finance.ts` | `/api/v1/finance` | Endpoints for finance management |
-| `invoices.ts` | `/api/v1/invoices` | Endpoints for invoices management |
-| `payments.ts` | `/api/v1/payments` | Endpoints for payments management |
+| **POST** | `/api/v1/admin/governance-workflows/retention-policies` | Configure automated database purges |
 
-#### HR & Admin
-| Module | Base Path | Description |
+#### Module: `admissions`
+| Method | Path | Summary |
 |---|---|---|
-| `assets.ts` | `/api/v1/assets` | Endpoints for assets management |
-| `certificates.ts` | `/api/v1/certificates` | Endpoints for certificates management |
-| `hr.ts` | `/api/v1/hr` | Endpoints for hr management |
-| `inventory.ts` | `/api/v1/inventory` | Endpoints for inventory management |
-| `library.ts` | `/api/v1/library` | Endpoints for library management |
-| `procurement.ts` | `/api/v1/procurement` | Endpoints for procurement management |
+| **GET** | `/api/v1/admissions` | GET /api/v1/admissions |
+| **POST** | `/api/v1/admissions/apply` | POST /api/v1/admissions/apply |
+| **DELETE** | `/api/v1/admissions/{id}` | DELETE /api/v1/admissions/{id} |
+| **POST** | `/api/v1/admissions/{id}/enroll` | POST /api/v1/admissions/{id}/enroll |
+| **PUT** | `/api/v1/admissions/{id}/review` | PUT /api/v1/admissions/{id}/review |
 
-#### Communications & Events
-| Module | Base Path | Description |
+#### Module: `alumni`
+| Method | Path | Summary |
 |---|---|---|
-| `cms.ts` | `/api/v1/cms` | Endpoints for cms management |
-| `communications.ts` | `/api/v1/communications` | Endpoints for communications management |
-| `events.ts` | `/api/v1/events` | Endpoints for events management |
-| `gallery.ts` | `/api/v1/gallery` | Endpoints for gallery management |
-| `messages.ts` | `/api/v1/messages` | Endpoints for messages management |
-| `notices.ts` | `/api/v1/notices` | Endpoints for notices management |
-| `notifications.ts` | `/api/v1/notifications` | Endpoints for notifications management |
+| **GET** | `/api/v1/alumni` | GET /api/v1/alumni |
+| **PUT** | `/api/v1/alumni` | PUT /api/v1/alumni |
+| **GET** | `/api/v1/alumni/contributions` | GET /api/v1/alumni/contributions |
+| **POST** | `/api/v1/alumni/contributions` | POST /api/v1/alumni/contributions |
 
-#### System & Tools
-| Module | Base Path | Description |
+#### Module: `assets`
+| Method | Path | Summary |
 |---|---|---|
-| `backups.ts` | `/api/v1/backups` | Endpoints for backups management |
-| `bulk.ts` | `/api/v1/bulk` | Endpoints for bulk management |
-| `reports.ts` | `/api/v1/reports` | Endpoints for reports management |
-| `search.ts` | `/api/v1/search` | Endpoints for search management |
-| `security.ts` | `/api/v1/security` | Endpoints for security management |
-| `sse.ts` | `/api/v1/sse` | Endpoints for sse management |
-| `storage.ts` | `/api/v1/storage` | Endpoints for storage management |
-| `webhooks.ts` | `/api/v1/webhooks` | Endpoints for webhooks management |
-| `2fa.ts` | `/api/v1/2fa` | Endpoints for 2fa management |
-| `activity.ts` | `/api/v1/activity` | Endpoints for activity management |
-| `admissions.ts` | `/api/v1/admissions` | Endpoints for admissions management |
-| `assignments.ts` | `/api/v1/assignments` | Endpoints for assignments management |
-| `crm.ts` | `/api/v1/crm` | Endpoints for crm management |
-| `discipline.ts` | `/api/v1/discipline` | Endpoints for discipline management |
-| `documents.ts` | `/api/v1/documents` | Endpoints for documents management |
-| `exams.ts` | `/api/v1/exams` | Endpoints for exams management |
-| `mobile.ts` | `/api/v1/mobile` | Endpoints for mobile management |
-| `preferences.ts` | `/api/v1/preferences` | Endpoints for preferences management |
-| `reception.ts` | `/api/v1/reception` | Endpoints for reception management |
-| `results.ts` | `/api/v1/results` | Endpoints for results management |
-| `scholarships.ts` | `/api/v1/scholarships` | Endpoints for scholarships management |
-| `stats.ts` | `/api/v1/stats` | Endpoints for stats management |
+| **GET** | `/api/v1/assets` | GET /api/v1/assets |
+| **POST** | `/api/v1/assets` | POST /api/v1/assets |
+| **POST** | `/api/v1/assets/categories` | POST /api/v1/assets/categories |
+| **GET** | `/api/v1/assets/categories` | GET /api/v1/assets/categories |
+| **PUT** | `/api/v1/assets/categories/{id}` | PUT /api/v1/assets/categories/{id} |
+| **GET** | `/api/v1/assets/stats` | GET /api/v1/assets/stats |
+| **POST** | `/api/v1/assets/vendors` | POST /api/v1/assets/vendors |
+| **GET** | `/api/v1/assets/vendors` | GET /api/v1/assets/vendors |
+| **PUT** | `/api/v1/assets/vendors/{id}` | PUT /api/v1/assets/vendors/{id} |
+| **PUT** | `/api/v1/assets/{id}` | PUT /api/v1/assets/{id} |
+| **DELETE** | `/api/v1/assets/{id}` | DELETE /api/v1/assets/{id} |
+| **POST** | `/api/v1/assets/{id}/assign` | POST /api/v1/assets/{id}/assign |
+| **DELETE** | `/api/v1/assets/{id}/assign` | DELETE /api/v1/assets/{id}/assign |
+| **GET** | `/api/v1/assets/{id}/maintenance` | GET /api/v1/assets/{id}/maintenance |
+| **POST** | `/api/v1/assets/{id}/maintenance` | POST /api/v1/assets/{id}/maintenance |
+| **POST** | `/api/v1/assets/{id}/transfer` | POST /api/v1/assets/{id}/transfer |
+
+#### Module: `assignments`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/assignments` | GET /api/v1/assignments |
+| **POST** | `/api/v1/assignments` | POST /api/v1/assignments |
+| **GET** | `/api/v1/assignments/study-materials` | GET /api/v1/assignments/study-materials |
+| **POST** | `/api/v1/assignments/submissions/{submissionId}/grade` | POST /api/v1/assignments/submissions/{submissionId}/grade |
+| **POST** | `/api/v1/assignments/{id}/submit` | POST /api/v1/assignments/{id}/submit |
+
+#### Module: `attendance`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/attendance` | GET /api/v1/attendance |
+| **POST** | `/api/v1/attendance` | POST /api/v1/attendance |
+| **GET** | `/api/v1/attendance/teachers` | GET /api/v1/attendance/teachers |
+| **POST** | `/api/v1/attendance/teachers` | POST /api/v1/attendance/teachers |
+
+#### Module: `auth`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/auth/alumni/register` | POST /api/v1/auth/alumni/register |
+| **POST** | `/api/v1/auth/change-password` | POST /api/v1/auth/change-password |
+| **GET** | `/api/v1/auth/events` | GET /api/v1/auth/events |
+| **POST** | `/api/v1/auth/login` | POST /api/v1/auth/login |
+| **POST** | `/api/v1/auth/logout` | POST /api/v1/auth/logout |
+| **POST** | `/api/v1/auth/logout/all` | POST /api/v1/auth/logout/all |
+| **GET** | `/api/v1/auth/me` | GET /api/v1/auth/me |
+| **POST** | `/api/v1/auth/refresh` | POST /api/v1/auth/refresh |
+| **POST** | `/api/v1/auth/register` | POST /api/v1/auth/register |
+| **POST** | `/api/v1/auth/revoke-session` | POST /api/v1/auth/revoke-session |
+| **GET** | `/api/v1/auth/sessions` | GET /api/v1/auth/sessions |
+| **DELETE** | `/api/v1/auth/sessions/{id}` | DELETE /api/v1/auth/sessions/{id} |
+| **POST** | `/api/v1/auth/student/login` | POST /api/v1/auth/student/login |
+
+#### Module: `backups`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/backups/status` | GET /api/v1/backups/status |
+| **POST** | `/api/v1/backups/trigger` | POST /api/v1/backups/trigger |
+| **GET** | `/api/v1/backups/{id}/download` | GET /api/v1/backups/{id}/download |
+
+#### Module: `branches`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/branches` | GET /api/v1/branches |
+| **POST** | `/api/v1/branches` | POST /api/v1/branches |
+| **PUT** | `/api/v1/branches/{id}` | PUT /api/v1/branches/{id} |
+| **DELETE** | `/api/v1/branches/{id}` | DELETE /api/v1/branches/{id} |
+
+#### Module: `bulk`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/bulk/jobs` | GET /api/v1/bulk/jobs |
+| **GET** | `/api/v1/bulk/jobs/{id}` | GET /api/v1/bulk/jobs/{id} |
+| **POST** | `/api/v1/bulk/upload` | POST /api/v1/bulk/upload |
+
+#### Module: `certificates`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/certificates/issue` | POST /api/v1/certificates/issue |
+| **GET** | `/api/v1/certificates/templates` | GET /api/v1/certificates/templates |
+| **GET** | `/api/v1/certificates/verify/{certNo}` | GET /api/v1/certificates/verify/{certNo} |
+
+#### Module: `cms`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/cms/analytics` | GET /api/v1/cms/analytics |
+| **GET** | `/api/v1/cms/site-content` | GET /api/v1/cms/site-content |
+| **PUT** | `/api/v1/cms/site-content` | PUT /api/v1/cms/site-content |
+| **GET** | `/api/v1/cms/testimonials` | GET /api/v1/cms/testimonials |
+| **POST** | `/api/v1/cms/testimonials` | POST /api/v1/cms/testimonials |
+
+#### Module: `communications`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/communications/logs` | GET /api/v1/communications/logs |
+| **POST** | `/api/v1/communications/send` | POST /api/v1/communications/send |
+| **GET** | `/api/v1/communications/templates` | GET /api/v1/communications/templates |
+| **POST** | `/api/v1/communications/templates` | POST /api/v1/communications/templates |
+
+#### Module: `crm`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/crm/leads` | POST /api/v1/crm/leads |
+| **POST** | `/api/v1/crm/leads/{id}/interactions` | POST /api/v1/crm/leads/{id}/interactions |
+| **PUT** | `/api/v1/crm/leads/{id}/stage` | PUT /api/v1/crm/leads/{id}/stage |
+| **GET** | `/api/v1/crm/pipeline` | GET /api/v1/crm/pipeline |
+
+#### Module: `discipline`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/discipline/incidents` | GET /api/v1/discipline/incidents |
+| **POST** | `/api/v1/discipline/incidents` | POST /api/v1/discipline/incidents |
+| **GET** | `/api/v1/discipline/incidents/student/{id}` | GET /api/v1/discipline/incidents/student/{id} |
+| **PUT** | `/api/v1/discipline/incidents/{id}/resolve` | PUT /api/v1/discipline/incidents/{id}/resolve |
+
+#### Module: `documents`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/documents` | GET /api/v1/documents |
+| **POST** | `/api/v1/documents/upload` | POST /api/v1/documents/upload |
+| **GET** | `/api/v1/documents/{id}` | GET /api/v1/documents/{id} |
+| **DELETE** | `/api/v1/documents/{id}` | DELETE /api/v1/documents/{id} |
+| **PUT** | `/api/v1/documents/{id}/verify` | PUT /api/v1/documents/{id}/verify |
+
+#### Module: `events`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/events` | GET /api/v1/events |
+| **POST** | `/api/v1/events` | POST /api/v1/events |
+| **PUT** | `/api/v1/events/{id}` | PUT /api/v1/events/{id} |
+| **DELETE** | `/api/v1/events/{id}` | DELETE /api/v1/events/{id} |
+
+#### Module: `exams`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/exams` | GET /api/v1/exams |
+| **POST** | `/api/v1/exams` | POST /api/v1/exams |
+| **GET** | `/api/v1/exams/{examId}/report-card/{studentId}` | GET /api/v1/exams/{examId}/report-card/{studentId} |
+| **PUT** | `/api/v1/exams/{id}` | PUT /api/v1/exams/{id} |
+| **DELETE** | `/api/v1/exams/{id}` | DELETE /api/v1/exams/{id} |
+| **POST** | `/api/v1/exams/{id}/marks` | POST /api/v1/exams/{id}/marks |
+
+#### Module: `finance`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/finance/defaulters` | GET /api/v1/finance/defaulters |
+| **POST** | `/api/v1/finance/generate-monthly-fees` | POST /api/v1/finance/generate-monthly-fees |
+| **GET** | `/api/v1/finance/ledger/profit-loss` | GET /api/v1/finance/ledger/profit-loss |
+| **GET** | `/api/v1/finance/ledger/trial-balance` | GET /api/v1/finance/ledger/trial-balance |
+| **POST** | `/api/v1/finance/reconcile` | Reconcile Bank Statements against Immutable Ledger |
+| **GET** | `/api/v1/finance/scholarships` | GET /api/v1/finance/scholarships |
+| **POST** | `/api/v1/finance/scholarships` | POST /api/v1/finance/scholarships |
+| **PUT** | `/api/v1/finance/scholarships/{id}/approve` | PUT /api/v1/finance/scholarships/{id}/approve |
+| **PUT** | `/api/v1/finance/scholarships/{id}/reject` | PUT /api/v1/finance/scholarships/{id}/reject |
+
+#### Module: `finance-governance`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/finance-governance/periods/{id}/close` | POST /api/v1/finance-governance/periods/{id}/close |
+| **POST** | `/api/v1/finance-governance/reconcile` | POST /api/v1/finance-governance/reconcile |
+
+#### Module: `finance-reconciliation`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/finance-reconciliation` | GET /api/v1/finance-reconciliation |
+| **POST** | `/api/v1/finance-reconciliation/manual-match` | POST /api/v1/finance-reconciliation/manual-match |
+| **POST** | `/api/v1/finance-reconciliation/trigger` | POST /api/v1/finance-reconciliation/trigger |
+| **GET** | `/api/v1/finance-reconciliation/unmatched` | GET /api/v1/finance-reconciliation/unmatched |
+
+#### Module: `gallery`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/gallery` | GET /api/v1/gallery |
+| **POST** | `/api/v1/gallery` | POST /api/v1/gallery |
+| **DELETE** | `/api/v1/gallery/{id}` | DELETE /api/v1/gallery/{id} |
+
+#### Module: `guardians`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/guardians/me/fees` | GET /api/v1/guardians/me/fees |
+| **GET** | `/api/v1/guardians/me/students` | GET /api/v1/guardians/me/students |
+
+#### Module: `health`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/health` | GET /api/v1/health |
+
+#### Module: `hr`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/hr/leaves` | GET /api/v1/hr/leaves |
+| **POST** | `/api/v1/hr/leaves` | POST /api/v1/hr/leaves |
+| **PUT** | `/api/v1/hr/leaves/{id}` | PUT /api/v1/hr/leaves/{id} |
+| **POST** | `/api/v1/hr/payroll/generate` | POST /api/v1/hr/payroll/generate |
+| **GET** | `/api/v1/hr/payslips/{teacherId}` | GET /api/v1/hr/payslips/{teacherId} |
+| **GET** | `/api/v1/hr/salaries` | GET /api/v1/hr/salaries |
+| **POST** | `/api/v1/hr/salaries` | POST /api/v1/hr/salaries |
+| **PUT** | `/api/v1/hr/salaries/{id}/pay` | PUT /api/v1/hr/salaries/{id}/pay |
+
+#### Module: `inventory`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/inventory/movements` | POST /api/v1/inventory/movements |
+| **GET** | `/api/v1/inventory/stocks` | GET /api/v1/inventory/stocks |
+
+#### Module: `invoices`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/invoices` | POST /api/v1/invoices |
+| **GET** | `/api/v1/invoices` | GET /api/v1/invoices |
+| **PUT** | `/api/v1/invoices/{id}/pay` | PUT /api/v1/invoices/{id}/pay |
+
+#### Module: `library`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/library/books` | GET /api/v1/library/books |
+| **POST** | `/api/v1/library/books` | POST /api/v1/library/books |
+| **PUT** | `/api/v1/library/books/{id}` | PUT /api/v1/library/books/{id} |
+| **DELETE** | `/api/v1/library/books/{id}` | DELETE /api/v1/library/books/{id} |
+| **POST** | `/api/v1/library/fines/calculate` | POST /api/v1/library/fines/calculate |
+| **POST** | `/api/v1/library/issues` | POST /api/v1/library/issues |
+| **GET** | `/api/v1/library/issues` | GET /api/v1/library/issues |
+| **POST** | `/api/v1/library/issues/{id}/return` | POST /api/v1/library/issues/{id}/return |
+| **PUT** | `/api/v1/library/issues/{id}/waive-fine` | PUT /api/v1/library/issues/{id}/waive-fine |
+| **GET** | `/api/v1/library/overdue` | GET /api/v1/library/overdue |
+
+#### Module: `messages`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/messages/threads` | GET /api/v1/messages/threads |
+| **POST** | `/api/v1/messages/threads` | POST /api/v1/messages/threads |
+| **GET** | `/api/v1/messages/{threadId}` | GET /api/v1/messages/{threadId} |
+| **POST** | `/api/v1/messages/{threadId}` | POST /api/v1/messages/{threadId} |
+| **PUT** | `/api/v1/messages/{threadId}/read` | PUT /api/v1/messages/{threadId}/read |
+
+#### Module: `mobile`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/mobile/config` | GET /api/v1/mobile/config |
+| **PUT** | `/api/v1/mobile/config/{platform}` | PUT /api/v1/mobile/config/{platform} |
+| **POST** | `/api/v1/mobile/devices` | POST /api/v1/mobile/devices |
+| **DELETE** | `/api/v1/mobile/devices/{token}` | DELETE /api/v1/mobile/devices/{token} |
+
+#### Module: `notices`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/notices` | GET /api/v1/notices |
+| **POST** | `/api/v1/notices` | POST /api/v1/notices |
+| **GET** | `/api/v1/notices/{id}` | GET /api/v1/notices/{id} |
+| **PUT** | `/api/v1/notices/{id}` | PUT /api/v1/notices/{id} |
+| **DELETE** | `/api/v1/notices/{id}` | DELETE /api/v1/notices/{id} |
+
+#### Module: `notifications`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/notifications` | GET /api/v1/notifications |
+| **POST** | `/api/v1/notifications/bulk` | POST /api/v1/notifications/bulk |
+| **POST** | `/api/v1/notifications/fee-reminder` | POST /api/v1/notifications/fee-reminder |
+| **POST** | `/api/v1/notifications/send` | POST /api/v1/notifications/send |
+| **GET** | `/api/v1/notifications/templates` | GET /api/v1/notifications/templates |
+| **POST** | `/api/v1/notifications/templates` | POST /api/v1/notifications/templates |
+| **PUT** | `/api/v1/notifications/templates/{id}` | PUT /api/v1/notifications/templates/{id} |
+| **DELETE** | `/api/v1/notifications/templates/{id}` | DELETE /api/v1/notifications/templates/{id} |
+
+#### Module: `payments`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/payments/create-order` | POST /api/v1/payments/create-order |
+| **POST** | `/api/v1/payments/trigger-late-fines` | POST /api/v1/payments/trigger-late-fines |
+| **POST** | `/api/v1/payments/verify` | POST /api/v1/payments/verify |
+| **POST** | `/api/v1/payments/webhook` | POST /api/v1/payments/webhook |
+
+#### Module: `preferences`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/preferences` | GET /api/v1/preferences |
+| **PUT** | `/api/v1/preferences` | PUT /api/v1/preferences |
+| **POST** | `/api/v1/preferences/consent` | POST /api/v1/preferences/consent |
+| **GET** | `/api/v1/preferences/consent` | GET /api/v1/preferences/consent |
+
+#### Module: `procurement`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/procurement/orders/{id}/receive` | POST /api/v1/procurement/orders/{id}/receive |
+| **POST** | `/api/v1/procurement/requests` | POST /api/v1/procurement/requests |
+| **POST** | `/api/v1/procurement/requests/{id}/approve` | POST /api/v1/procurement/requests/{id}/approve |
+
+#### Module: `reception`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/reception/calls` | GET /api/v1/reception/calls |
+| **POST** | `/api/v1/reception/calls` | POST /api/v1/reception/calls |
+| **PUT** | `/api/v1/reception/calls/{id}` | PUT /api/v1/reception/calls/{id} |
+| **GET** | `/api/v1/reception/complaints` | GET /api/v1/reception/complaints |
+| **POST** | `/api/v1/reception/complaints` | POST /api/v1/reception/complaints |
+| **PUT** | `/api/v1/reception/complaints/{id}` | PUT /api/v1/reception/complaints/{id} |
+| **GET** | `/api/v1/reception/enquiries` | GET /api/v1/reception/enquiries |
+| **POST** | `/api/v1/reception/enquiries` | POST /api/v1/reception/enquiries |
+| **PUT** | `/api/v1/reception/enquiries/{id}` | PUT /api/v1/reception/enquiries/{id} |
+| **GET** | `/api/v1/reception/visitors` | GET /api/v1/reception/visitors |
+| **POST** | `/api/v1/reception/visitors` | POST /api/v1/reception/visitors |
+| **PUT** | `/api/v1/reception/visitors/{id}` | PUT /api/v1/reception/visitors/{id} |
+
+#### Module: `reports`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/reports/export/attendance` | GET /api/v1/reports/export/attendance |
+| **POST** | `/api/v1/reports/generate/receipt` | POST /api/v1/reports/generate/receipt |
+| **POST** | `/api/v1/reports/generate/report-card` | POST /api/v1/reports/generate/report-card |
+
+#### Module: `results`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/results` | GET /api/v1/results |
+| **POST** | `/api/v1/results` | POST /api/v1/results |
+
+#### Module: `saas`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/saas/approve/{id}` | POST /api/v1/saas/approve/{id} |
+| **POST** | `/api/v1/saas/reject/{id}` | POST /api/v1/saas/reject/{id} |
+| **POST** | `/api/v1/saas/request` | POST /api/v1/saas/request |
+| **GET** | `/api/v1/saas/requests` | GET /api/v1/saas/requests |
+
+#### Module: `schools`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/schools` | GET /api/v1/schools |
+| **POST** | `/api/v1/schools` | POST /api/v1/schools |
+| **GET** | `/api/v1/schools/{id}` | GET /api/v1/schools/{id} |
+| **PUT** | `/api/v1/schools/{id}` | PUT /api/v1/schools/{id} |
+| **DELETE** | `/api/v1/schools/{id}` | DELETE /api/v1/schools/{id} |
+| **GET** | `/api/v1/schools/{id}/onboarding` | GET /api/v1/schools/{id}/onboarding |
+| **PUT** | `/api/v1/schools/{id}/onboarding` | PUT /api/v1/schools/{id}/onboarding |
+| **POST** | `/api/v1/schools/{id}/setup` | POST /api/v1/schools/{id}/setup |
+| **GET** | `/api/v1/schools/{id}/stats` | GET /api/v1/schools/{id}/stats |
+
+#### Module: `search`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/search` | GET /api/v1/search |
+
+#### Module: `security`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/security/quarantine` | GET /api/v1/security/quarantine |
+| **DELETE** | `/api/v1/security/quarantine/{id}` | DELETE /api/v1/security/quarantine/{id} |
+| **POST** | `/api/v1/security/quarantine/{id}/release` | POST /api/v1/security/quarantine/{id}/release |
+
+#### Module: `sessions`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/sessions` | GET /api/v1/sessions |
+| **POST** | `/api/v1/sessions/logout-all` | POST /api/v1/sessions/logout-all |
+| **DELETE** | `/api/v1/sessions/{sessionId}` | DELETE /api/v1/sessions/{sessionId} |
+
+#### Module: `sse`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/sse` | GET /api/v1/sse |
+
+#### Module: `stats`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/stats/activity-feed` | GET /api/v1/stats/activity-feed |
+| **GET** | `/api/v1/stats/detailed` | GET /api/v1/stats/detailed |
+| **GET** | `/api/v1/stats/finance` | GET /api/v1/stats/finance |
+| **GET** | `/api/v1/stats/public` | GET /api/v1/stats/public |
+
+#### Module: `storage`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/storage/signed-url` | GET /api/v1/storage/signed-url |
+| **POST** | `/api/v1/storage/upload` | POST /api/v1/storage/upload |
+
+#### Module: `students`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/students` | GET /api/v1/students |
+| **POST** | `/api/v1/students` | POST /api/v1/students |
+| **GET** | `/api/v1/students/me` | GET /api/v1/students/me |
+| **GET** | `/api/v1/students/{id}` | GET /api/v1/students/{id} |
+| **PUT** | `/api/v1/students/{id}` | PUT /api/v1/students/{id} |
+
+#### Module: `subscriptions`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/subscriptions/assign` | POST /api/v1/subscriptions/assign |
+| **GET** | `/api/v1/subscriptions/my` | GET /api/v1/subscriptions/my |
+| **GET** | `/api/v1/subscriptions/payments` | GET /api/v1/subscriptions/payments |
+| **POST** | `/api/v1/subscriptions/payments` | POST /api/v1/subscriptions/payments |
+| **GET** | `/api/v1/subscriptions/plans` | GET /api/v1/subscriptions/plans |
+| **POST** | `/api/v1/subscriptions/plans` | POST /api/v1/subscriptions/plans |
+| **PUT** | `/api/v1/subscriptions/plans/{id}` | PUT /api/v1/subscriptions/plans/{id} |
+| **DELETE** | `/api/v1/subscriptions/plans/{id}` | DELETE /api/v1/subscriptions/plans/{id} |
+| **GET** | `/api/v1/subscriptions/stats` | GET /api/v1/subscriptions/stats |
+| **POST** | `/api/v1/subscriptions/sync-expiries` | POST /api/v1/subscriptions/sync-expiries |
+| **PUT** | `/api/v1/subscriptions/{id}/renew` | PUT /api/v1/subscriptions/{id}/renew |
+| **PUT** | `/api/v1/subscriptions/{id}/suspend` | PUT /api/v1/subscriptions/{id}/suspend |
+
+#### Module: `teachers`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/teachers` | GET /api/v1/teachers |
+| **POST** | `/api/v1/teachers` | POST /api/v1/teachers |
+| **GET** | `/api/v1/teachers/{id}` | GET /api/v1/teachers/{id} |
+| **PUT** | `/api/v1/teachers/{id}` | PUT /api/v1/teachers/{id} |
+| **DELETE** | `/api/v1/teachers/{id}` | DELETE /api/v1/teachers/{id} |
+
+#### Module: `timetable`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/timetable` | GET /api/v1/timetable |
+| **POST** | `/api/v1/timetable` | POST /api/v1/timetable |
+| **GET** | `/api/v1/timetable/teacher/{teacherId}` | GET /api/v1/timetable/teacher/{teacherId} |
+| **DELETE** | `/api/v1/timetable/{id}` | DELETE /api/v1/timetable/{id} |
+
+#### Module: `users`
+| Method | Path | Summary |
+|---|---|---|
+| **GET** | `/api/v1/users` | GET /api/v1/users |
+| **POST** | `/api/v1/users` | POST /api/v1/users |
+| **PUT** | `/api/v1/users/{id}` | PUT /api/v1/users/{id} |
+| **PUT** | `/api/v1/users/{id}/reset-password` | PUT /api/v1/users/{id}/reset-password |
+| **PUT** | `/api/v1/users/{id}/status` | PUT /api/v1/users/{id}/status |
+
+#### Module: `webhooks`
+| Method | Path | Summary |
+|---|---|---|
+| **POST** | `/api/v1/webhooks` | POST /api/v1/webhooks |
+| **GET** | `/api/v1/webhooks` | GET /api/v1/webhooks |
+| **POST** | `/api/v1/webhooks/razorpay` | POST /api/v1/webhooks/razorpay |
+| **DELETE** | `/api/v1/webhooks/{id}` | DELETE /api/v1/webhooks/{id} |
 
 ## 5. Frontend Application Structure
 

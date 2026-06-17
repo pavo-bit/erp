@@ -1,15 +1,17 @@
-import { OpenApiGeneratorV3 } from "@asteasolutions/zod-to-openapi";
+import { OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
 import { registry } from "./registry";
+import { registerGeneratedRoutes } from "./generated_routes";
 
 export function generateSpec() {
-  const generator = new OpenApiGeneratorV3(registry.definitions);
+  registerGeneratedRoutes();
+  const generator = new OpenApiGeneratorV31(registry.definitions);
 
   return generator.generateDocument({
-    openapi: "3.0.0",
+    openapi: "3.1.0",
     info: {
       version: "1.0.0",
       title: "SSVM Platform API",
-      description: "Auto-generated OpenAPI 3.0 specification for the SSVM backend.",
+      description: "Auto-generated OpenAPI 3.1.0 specification for the SSVM backend.",
     },
     servers: [
       { url: "/api/v1", description: "V1 API" },
