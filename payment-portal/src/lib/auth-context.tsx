@@ -29,7 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function initAuth() {
       try {
-        const res = await apiCall("/api/auth/me");
+        const res = await apiCall("/api/v1/auth/me");
         if (res.success && res.data.role === "STUDENT") {
           // Since the endpoint /api/auth/me returns the user, but we logged in via /api/auth/student/login
           // wait, /api/auth/me returns the standard User. But the student token has studentId as `userId` and role `STUDENT`.
@@ -60,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await apiCall("/api/auth/logout", "POST");
+      await apiCall("/api/v1/auth/logout", "POST");
     } catch (e) {}
     setStudent(null);
     router.push("/login");

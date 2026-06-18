@@ -48,7 +48,7 @@ export default function Checkout() {
       const resLoaded = await loadRazorpay();
       if (!resLoaded) throw new Error("Razorpay SDK failed to load. Are you online?");
 
-      const { order, transactionId } = await apiCall("/api/payments/create-order", "POST", { feeId });
+      const { order, transactionId } = await apiCall("/api/v1/payments/create-order", "POST", { feeId });
       
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_placeholder",
@@ -59,7 +59,7 @@ export default function Checkout() {
         order_id: order.id,
         handler: async function (response: any) {
           try {
-            const verifyRes = await apiCall("/api/payments/verify", "POST", {
+            const verifyRes = await apiCall("/api/v1/payments/verify", "POST", {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,

@@ -31,11 +31,11 @@ export default function EventsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await apiCall("/api/events", "POST", {
+      await apiCall("/api/v1/events", "POST", {
         title: formTitle, date: formDate, venue: formVenue, category: formCategory,
         description: formDesc, status: "UPCOMING",
       });
-      invalidateAll("/api/events");
+      invalidateAll("/api/v1/events");
       setShowModal(false);
       setFormTitle(""); setFormDate(""); setFormVenue(""); setFormDesc("");
     } catch (err) { alert((err as Error).message); }
@@ -44,12 +44,12 @@ export default function EventsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this event?")) return;
-    try { await apiCall(`/api/events/${id}`, "DELETE"); invalidateAll("/api/events"); }
+    try { await apiCall(`/api/v1/events/${id}`, "DELETE"); invalidateAll("/api/v1/events"); }
     catch (err) { alert((err as Error).message); }
   };
 
   const handleStatusChange = async (id: string, status: string) => {
-    try { await apiCall(`/api/events/${id}`, "PUT", { status }); invalidateAll("/api/events"); }
+    try { await apiCall(`/api/v1/events/${id}`, "PUT", { status }); invalidateAll("/api/v1/events"); }
     catch (err) { alert((err as Error).message); }
   };
 

@@ -28,7 +28,7 @@ export default function DashboardPage() {
 
   const handleCreateSchool = async () => {
     try {
-      await apiCall("/api/schools", "POST", schoolForm);
+      await apiCall("/api/v1/schools", "POST", schoolForm);
       window.location.reload();
     } catch (e) { alert((e as Error).message); }
   };

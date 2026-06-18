@@ -27,8 +27,8 @@ export default function FacultyPage() {
       if (fQual) formData.append("qualification", fQual);
       if (fPhoto) formData.append("photo", fPhoto);
 
-      await apiCall("/api/faculty", "POST", formData);
-      invalidateAll("/api/faculty"); setShowModal(false);
+      await apiCall("/api/v1/faculty", "POST", formData);
+      invalidateAll("/api/v1/faculty"); setShowModal(false);
       setFName(""); setFDesig(""); setFDept(""); setFQual(""); setFPhoto(null);
     } catch (err) { alert((err as Error).message); }
     finally { setSaving(false); }
@@ -36,7 +36,7 @@ export default function FacultyPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Remove this faculty member?")) return;
-    try { await apiCall(`/api/faculty/${id}`, "DELETE"); invalidateAll("/api/faculty"); }
+    try { await apiCall(`/api/v1/faculty/${id}`, "DELETE"); invalidateAll("/api/v1/faculty"); }
     catch (err) { alert((err as Error).message); }
   };
 

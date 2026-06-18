@@ -8,7 +8,7 @@ import useSWR from "swr";
 const fetcher = (url: string) => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }).then(res => res.json());
 
 export default function DocumentsPage() {
-  const { data: documentsData, isLoading } = useSWR("/api/documents", fetcher);
+  const { data: documentsData, isLoading } = useSWR("/api/v1/documents", fetcher);
   const [activeTab, setActiveTab] = useState("all");
 
   const documents = documentsData?.data || [];

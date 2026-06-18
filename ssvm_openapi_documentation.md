@@ -1,7 +1,7 @@
 # SSVM College Square — Full Platform Documentation
 
-> **Note**: This document was last reconciled against source code on June 17, 2026. Any future discrepancy should be resolved in favor of the code, and this note updated.
-> **Version**: 3.2.0 | **Last Updated**: June 17, 2026  
+> **Note**: This document was last reconciled against source code on June 18, 2026. Any future discrepancy should be resolved in favor of the code, and this note updated.
+> **Version**: 3.3.0 | **Last Updated**: June 18, 2026  
 > **Base URL**: `http://localhost:5000` (Backend API)  
 > **Stack**: Node.js / Express / Prisma / PostgreSQL / Next.js
 
@@ -570,32 +570,32 @@ erDiagram
 > **API Versioning (Phase 12A.1)**:
 > All API routes are mounted under the `/api/v1/*` namespace globally.
 
-### Endpoints Map (263 Endpoints across 55 Route Modules)
+### Endpoints Map (265 Endpoints across 55 Route Modules)
 
-This section auto-documents the 263 distinct API endpoints currently live in the system, extracted directly from the routing layer via the OpenAPI 3.1.0 generator.
+This section auto-documents the endpoints currently live in the system, extracted directly from the routing layer via the OpenAPI 3.1.0 generator.
 
 #### Module: `2fa`
 | Method | Path | Summary |
 |---|---|---|
-| **POST** | `/api/v1/2fa/disable` | POST /api/v1/2fa/disable |
 | **POST** | `/api/v1/2fa/setup` | POST /api/v1/2fa/setup |
-| **POST** | `/api/v1/2fa/validate` | POST /api/v1/2fa/validate |
 | **POST** | `/api/v1/2fa/verify-setup` | POST /api/v1/2fa/verify-setup |
+| **POST** | `/api/v1/2fa/disable` | POST /api/v1/2fa/disable |
+| **POST** | `/api/v1/2fa/validate` | POST /api/v1/2fa/validate |
 
 #### Module: `academic`
 | Method | Path | Summary |
 |---|---|---|
-| **POST** | `/api/v1/academic/class-teachers` | POST /api/v1/academic/class-teachers |
-| **DELETE** | `/api/v1/academic/class-teachers/{id}` | DELETE /api/v1/academic/class-teachers/{id} |
-| **GET** | `/api/v1/academic/class-teachers/{sectionId}` | GET /api/v1/academic/class-teachers/{sectionId} |
+| **GET** | `/api/v1/academic/sessions` | GET /api/v1/academic/sessions |
+| **POST** | `/api/v1/academic/sessions` | POST /api/v1/academic/sessions |
 | **GET** | `/api/v1/academic/classes` | GET /api/v1/academic/classes |
 | **POST** | `/api/v1/academic/classes` | POST /api/v1/academic/classes |
 | **POST** | `/api/v1/academic/classes/bulk` | POST /api/v1/academic/classes/bulk |
 | **GET** | `/api/v1/academic/sections` | GET /api/v1/academic/sections |
 | **POST** | `/api/v1/academic/sections` | POST /api/v1/academic/sections |
 | **POST** | `/api/v1/academic/sections/bulk` | POST /api/v1/academic/sections/bulk |
-| **GET** | `/api/v1/academic/sessions` | GET /api/v1/academic/sessions |
-| **POST** | `/api/v1/academic/sessions` | POST /api/v1/academic/sessions |
+| **POST** | `/api/v1/academic/class-teachers` | POST /api/v1/academic/class-teachers |
+| **GET** | `/api/v1/academic/class-teachers/{sectionId}` | GET /api/v1/academic/class-teachers/{sectionId} |
+| **DELETE** | `/api/v1/academic/class-teachers/{id}` | DELETE /api/v1/academic/class-teachers/{id} |
 
 #### Module: `activity`
 | Method | Path | Summary |
@@ -612,9 +612,9 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 |---|---|---|
 | **GET** | `/api/v1/admissions` | GET /api/v1/admissions |
 | **POST** | `/api/v1/admissions/apply` | POST /api/v1/admissions/apply |
-| **DELETE** | `/api/v1/admissions/{id}` | DELETE /api/v1/admissions/{id} |
-| **POST** | `/api/v1/admissions/{id}/enroll` | POST /api/v1/admissions/{id}/enroll |
 | **PUT** | `/api/v1/admissions/{id}/review` | PUT /api/v1/admissions/{id}/review |
+| **POST** | `/api/v1/admissions/{id}/enroll` | POST /api/v1/admissions/{id}/enroll |
+| **DELETE** | `/api/v1/admissions/{id}` | DELETE /api/v1/admissions/{id} |
 
 #### Module: `alumni`
 | Method | Path | Summary |
@@ -629,19 +629,19 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 |---|---|---|
 | **GET** | `/api/v1/assets` | GET /api/v1/assets |
 | **POST** | `/api/v1/assets` | POST /api/v1/assets |
-| **POST** | `/api/v1/assets/categories` | POST /api/v1/assets/categories |
-| **GET** | `/api/v1/assets/categories` | GET /api/v1/assets/categories |
-| **PUT** | `/api/v1/assets/categories/{id}` | PUT /api/v1/assets/categories/{id} |
-| **GET** | `/api/v1/assets/stats` | GET /api/v1/assets/stats |
-| **POST** | `/api/v1/assets/vendors` | POST /api/v1/assets/vendors |
-| **GET** | `/api/v1/assets/vendors` | GET /api/v1/assets/vendors |
-| **PUT** | `/api/v1/assets/vendors/{id}` | PUT /api/v1/assets/vendors/{id} |
 | **PUT** | `/api/v1/assets/{id}` | PUT /api/v1/assets/{id} |
 | **DELETE** | `/api/v1/assets/{id}` | DELETE /api/v1/assets/{id} |
 | **POST** | `/api/v1/assets/{id}/assign` | POST /api/v1/assets/{id}/assign |
 | **DELETE** | `/api/v1/assets/{id}/assign` | DELETE /api/v1/assets/{id}/assign |
 | **GET** | `/api/v1/assets/{id}/maintenance` | GET /api/v1/assets/{id}/maintenance |
 | **POST** | `/api/v1/assets/{id}/maintenance` | POST /api/v1/assets/{id}/maintenance |
+| **POST** | `/api/v1/assets/vendors` | POST /api/v1/assets/vendors |
+| **GET** | `/api/v1/assets/vendors` | GET /api/v1/assets/vendors |
+| **PUT** | `/api/v1/assets/vendors/{id}` | PUT /api/v1/assets/vendors/{id} |
+| **POST** | `/api/v1/assets/categories` | POST /api/v1/assets/categories |
+| **GET** | `/api/v1/assets/categories` | GET /api/v1/assets/categories |
+| **PUT** | `/api/v1/assets/categories/{id}` | PUT /api/v1/assets/categories/{id} |
+| **GET** | `/api/v1/assets/stats` | GET /api/v1/assets/stats |
 | **POST** | `/api/v1/assets/{id}/transfer` | POST /api/v1/assets/{id}/transfer |
 
 #### Module: `assignments`
@@ -649,9 +649,9 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 |---|---|---|
 | **GET** | `/api/v1/assignments` | GET /api/v1/assignments |
 | **POST** | `/api/v1/assignments` | POST /api/v1/assignments |
-| **GET** | `/api/v1/assignments/study-materials` | GET /api/v1/assignments/study-materials |
-| **POST** | `/api/v1/assignments/submissions/{submissionId}/grade` | POST /api/v1/assignments/submissions/{submissionId}/grade |
 | **POST** | `/api/v1/assignments/{id}/submit` | POST /api/v1/assignments/{id}/submit |
+| **POST** | `/api/v1/assignments/submissions/{submissionId}/grade` | POST /api/v1/assignments/submissions/{submissionId}/grade |
+| **GET** | `/api/v1/assignments/study-materials` | GET /api/v1/assignments/study-materials |
 
 #### Module: `attendance`
 | Method | Path | Summary |
@@ -664,19 +664,19 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `auth`
 | Method | Path | Summary |
 |---|---|---|
-| **POST** | `/api/v1/auth/alumni/register` | POST /api/v1/auth/alumni/register |
-| **POST** | `/api/v1/auth/change-password` | POST /api/v1/auth/change-password |
-| **GET** | `/api/v1/auth/events` | GET /api/v1/auth/events |
 | **POST** | `/api/v1/auth/login` | POST /api/v1/auth/login |
+| **POST** | `/api/v1/auth/student/login` | POST /api/v1/auth/student/login |
+| **POST** | `/api/v1/auth/refresh` | POST /api/v1/auth/refresh |
 | **POST** | `/api/v1/auth/logout` | POST /api/v1/auth/logout |
 | **POST** | `/api/v1/auth/logout/all` | POST /api/v1/auth/logout/all |
-| **GET** | `/api/v1/auth/me` | GET /api/v1/auth/me |
-| **POST** | `/api/v1/auth/refresh` | POST /api/v1/auth/refresh |
-| **POST** | `/api/v1/auth/register` | POST /api/v1/auth/register |
-| **POST** | `/api/v1/auth/revoke-session` | POST /api/v1/auth/revoke-session |
 | **GET** | `/api/v1/auth/sessions` | GET /api/v1/auth/sessions |
 | **DELETE** | `/api/v1/auth/sessions/{id}` | DELETE /api/v1/auth/sessions/{id} |
-| **POST** | `/api/v1/auth/student/login` | POST /api/v1/auth/student/login |
+| **POST** | `/api/v1/auth/revoke-session` | POST /api/v1/auth/revoke-session |
+| **POST** | `/api/v1/auth/alumni/register` | POST /api/v1/auth/alumni/register |
+| **POST** | `/api/v1/auth/register` | POST /api/v1/auth/register |
+| **GET** | `/api/v1/auth/me` | GET /api/v1/auth/me |
+| **GET** | `/api/v1/auth/events` | GET /api/v1/auth/events |
+| **POST** | `/api/v1/auth/change-password` | POST /api/v1/auth/change-password |
 
 #### Module: `backups`
 | Method | Path | Summary |
@@ -696,33 +696,33 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `bulk`
 | Method | Path | Summary |
 |---|---|---|
+| **POST** | `/api/v1/bulk/upload` | POST /api/v1/bulk/upload |
 | **GET** | `/api/v1/bulk/jobs` | GET /api/v1/bulk/jobs |
 | **GET** | `/api/v1/bulk/jobs/{id}` | GET /api/v1/bulk/jobs/{id} |
-| **POST** | `/api/v1/bulk/upload` | POST /api/v1/bulk/upload |
 
 #### Module: `certificates`
 | Method | Path | Summary |
 |---|---|---|
-| **POST** | `/api/v1/certificates/issue` | POST /api/v1/certificates/issue |
 | **GET** | `/api/v1/certificates/templates` | GET /api/v1/certificates/templates |
+| **POST** | `/api/v1/certificates/issue` | POST /api/v1/certificates/issue |
 | **GET** | `/api/v1/certificates/verify/{certNo}` | GET /api/v1/certificates/verify/{certNo} |
 
 #### Module: `cms`
 | Method | Path | Summary |
 |---|---|---|
-| **GET** | `/api/v1/cms/analytics` | GET /api/v1/cms/analytics |
-| **GET** | `/api/v1/cms/site-content` | GET /api/v1/cms/site-content |
-| **PUT** | `/api/v1/cms/site-content` | PUT /api/v1/cms/site-content |
 | **GET** | `/api/v1/cms/testimonials` | GET /api/v1/cms/testimonials |
 | **POST** | `/api/v1/cms/testimonials` | POST /api/v1/cms/testimonials |
+| **GET** | `/api/v1/cms/site-content` | GET /api/v1/cms/site-content |
+| **PUT** | `/api/v1/cms/site-content` | PUT /api/v1/cms/site-content |
+| **GET** | `/api/v1/cms/analytics` | GET /api/v1/cms/analytics |
 
 #### Module: `communications`
 | Method | Path | Summary |
 |---|---|---|
-| **GET** | `/api/v1/communications/logs` | GET /api/v1/communications/logs |
-| **POST** | `/api/v1/communications/send` | POST /api/v1/communications/send |
 | **GET** | `/api/v1/communications/templates` | GET /api/v1/communications/templates |
 | **POST** | `/api/v1/communications/templates` | POST /api/v1/communications/templates |
+| **POST** | `/api/v1/communications/send` | POST /api/v1/communications/send |
+| **GET** | `/api/v1/communications/logs` | GET /api/v1/communications/logs |
 
 #### Module: `crm`
 | Method | Path | Summary |
@@ -737,8 +737,8 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 |---|---|---|
 | **GET** | `/api/v1/discipline/incidents` | GET /api/v1/discipline/incidents |
 | **POST** | `/api/v1/discipline/incidents` | POST /api/v1/discipline/incidents |
-| **GET** | `/api/v1/discipline/incidents/student/{id}` | GET /api/v1/discipline/incidents/student/{id} |
 | **PUT** | `/api/v1/discipline/incidents/{id}/resolve` | PUT /api/v1/discipline/incidents/{id}/resolve |
+| **GET** | `/api/v1/discipline/incidents/student/{id}` | GET /api/v1/discipline/incidents/student/{id} |
 
 #### Module: `documents`
 | Method | Path | Summary |
@@ -762,19 +762,19 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 |---|---|---|
 | **GET** | `/api/v1/exams` | GET /api/v1/exams |
 | **POST** | `/api/v1/exams` | POST /api/v1/exams |
-| **GET** | `/api/v1/exams/{examId}/report-card/{studentId}` | GET /api/v1/exams/{examId}/report-card/{studentId} |
 | **PUT** | `/api/v1/exams/{id}` | PUT /api/v1/exams/{id} |
 | **DELETE** | `/api/v1/exams/{id}` | DELETE /api/v1/exams/{id} |
 | **POST** | `/api/v1/exams/{id}/marks` | POST /api/v1/exams/{id}/marks |
+| **GET** | `/api/v1/exams/{examId}/report-card/{studentId}` | GET /api/v1/exams/{examId}/report-card/{studentId} |
 
 #### Module: `finance`
 | Method | Path | Summary |
 |---|---|---|
+| **POST** | `/api/v1/finance/reconcile` | Reconcile Bank Statements against Immutable Ledger |
 | **GET** | `/api/v1/finance/defaulters` | GET /api/v1/finance/defaulters |
 | **POST** | `/api/v1/finance/generate-monthly-fees` | POST /api/v1/finance/generate-monthly-fees |
-| **GET** | `/api/v1/finance/ledger/profit-loss` | GET /api/v1/finance/ledger/profit-loss |
 | **GET** | `/api/v1/finance/ledger/trial-balance` | GET /api/v1/finance/ledger/trial-balance |
-| **POST** | `/api/v1/finance/reconcile` | Reconcile Bank Statements against Immutable Ledger |
+| **GET** | `/api/v1/finance/ledger/profit-loss` | GET /api/v1/finance/ledger/profit-loss |
 | **GET** | `/api/v1/finance/scholarships` | GET /api/v1/finance/scholarships |
 | **POST** | `/api/v1/finance/scholarships` | POST /api/v1/finance/scholarships |
 | **PUT** | `/api/v1/finance/scholarships/{id}/approve` | PUT /api/v1/finance/scholarships/{id}/approve |
@@ -790,9 +790,9 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 | Method | Path | Summary |
 |---|---|---|
 | **GET** | `/api/v1/finance-reconciliation` | GET /api/v1/finance-reconciliation |
+| **GET** | `/api/v1/finance-reconciliation/unmatched` | GET /api/v1/finance-reconciliation/unmatched |
 | **POST** | `/api/v1/finance-reconciliation/manual-match` | POST /api/v1/finance-reconciliation/manual-match |
 | **POST** | `/api/v1/finance-reconciliation/trigger` | POST /api/v1/finance-reconciliation/trigger |
-| **GET** | `/api/v1/finance-reconciliation/unmatched` | GET /api/v1/finance-reconciliation/unmatched |
 
 #### Module: `gallery`
 | Method | Path | Summary |
@@ -804,8 +804,8 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `guardians`
 | Method | Path | Summary |
 |---|---|---|
-| **GET** | `/api/v1/guardians/me/fees` | GET /api/v1/guardians/me/fees |
 | **GET** | `/api/v1/guardians/me/students` | GET /api/v1/guardians/me/students |
+| **GET** | `/api/v1/guardians/me/fees` | GET /api/v1/guardians/me/fees |
 
 #### Module: `health`
 | Method | Path | Summary |
@@ -815,14 +815,14 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `hr`
 | Method | Path | Summary |
 |---|---|---|
-| **GET** | `/api/v1/hr/leaves` | GET /api/v1/hr/leaves |
-| **POST** | `/api/v1/hr/leaves` | POST /api/v1/hr/leaves |
-| **PUT** | `/api/v1/hr/leaves/{id}` | PUT /api/v1/hr/leaves/{id} |
 | **POST** | `/api/v1/hr/payroll/generate` | POST /api/v1/hr/payroll/generate |
-| **GET** | `/api/v1/hr/payslips/{teacherId}` | GET /api/v1/hr/payslips/{teacherId} |
 | **GET** | `/api/v1/hr/salaries` | GET /api/v1/hr/salaries |
 | **POST** | `/api/v1/hr/salaries` | POST /api/v1/hr/salaries |
 | **PUT** | `/api/v1/hr/salaries/{id}/pay` | PUT /api/v1/hr/salaries/{id}/pay |
+| **GET** | `/api/v1/hr/payslips/{teacherId}` | GET /api/v1/hr/payslips/{teacherId} |
+| **GET** | `/api/v1/hr/leaves` | GET /api/v1/hr/leaves |
+| **POST** | `/api/v1/hr/leaves` | POST /api/v1/hr/leaves |
+| **PUT** | `/api/v1/hr/leaves/{id}` | PUT /api/v1/hr/leaves/{id} |
 
 #### Module: `inventory`
 | Method | Path | Summary |
@@ -840,11 +840,11 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `library`
 | Method | Path | Summary |
 |---|---|---|
+| **POST** | `/api/v1/library/fines/calculate` | POST /api/v1/library/fines/calculate |
 | **GET** | `/api/v1/library/books` | GET /api/v1/library/books |
 | **POST** | `/api/v1/library/books` | POST /api/v1/library/books |
 | **PUT** | `/api/v1/library/books/{id}` | PUT /api/v1/library/books/{id} |
 | **DELETE** | `/api/v1/library/books/{id}` | DELETE /api/v1/library/books/{id} |
-| **POST** | `/api/v1/library/fines/calculate` | POST /api/v1/library/fines/calculate |
 | **POST** | `/api/v1/library/issues` | POST /api/v1/library/issues |
 | **GET** | `/api/v1/library/issues` | GET /api/v1/library/issues |
 | **POST** | `/api/v1/library/issues/{id}/return` | POST /api/v1/library/issues/{id}/return |
@@ -864,9 +864,9 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 | Method | Path | Summary |
 |---|---|---|
 | **GET** | `/api/v1/mobile/config` | GET /api/v1/mobile/config |
-| **PUT** | `/api/v1/mobile/config/{platform}` | PUT /api/v1/mobile/config/{platform} |
 | **POST** | `/api/v1/mobile/devices` | POST /api/v1/mobile/devices |
 | **DELETE** | `/api/v1/mobile/devices/{token}` | DELETE /api/v1/mobile/devices/{token} |
+| **PUT** | `/api/v1/mobile/config/{platform}` | PUT /api/v1/mobile/config/{platform} |
 
 #### Module: `notices`
 | Method | Path | Summary |
@@ -880,10 +880,10 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `notifications`
 | Method | Path | Summary |
 |---|---|---|
-| **GET** | `/api/v1/notifications` | GET /api/v1/notifications |
-| **POST** | `/api/v1/notifications/bulk` | POST /api/v1/notifications/bulk |
-| **POST** | `/api/v1/notifications/fee-reminder` | POST /api/v1/notifications/fee-reminder |
 | **POST** | `/api/v1/notifications/send` | POST /api/v1/notifications/send |
+| **POST** | `/api/v1/notifications/bulk` | POST /api/v1/notifications/bulk |
+| **GET** | `/api/v1/notifications` | GET /api/v1/notifications |
+| **POST** | `/api/v1/notifications/fee-reminder` | POST /api/v1/notifications/fee-reminder |
 | **GET** | `/api/v1/notifications/templates` | GET /api/v1/notifications/templates |
 | **POST** | `/api/v1/notifications/templates` | POST /api/v1/notifications/templates |
 | **PUT** | `/api/v1/notifications/templates/{id}` | PUT /api/v1/notifications/templates/{id} |
@@ -893,8 +893,8 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 | Method | Path | Summary |
 |---|---|---|
 | **POST** | `/api/v1/payments/create-order` | POST /api/v1/payments/create-order |
-| **POST** | `/api/v1/payments/trigger-late-fines` | POST /api/v1/payments/trigger-late-fines |
 | **POST** | `/api/v1/payments/verify` | POST /api/v1/payments/verify |
+| **POST** | `/api/v1/payments/trigger-late-fines` | POST /api/v1/payments/trigger-late-fines |
 | **POST** | `/api/v1/payments/webhook` | POST /api/v1/payments/webhook |
 
 #### Module: `preferences`
@@ -908,32 +908,32 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `procurement`
 | Method | Path | Summary |
 |---|---|---|
-| **POST** | `/api/v1/procurement/orders/{id}/receive` | POST /api/v1/procurement/orders/{id}/receive |
 | **POST** | `/api/v1/procurement/requests` | POST /api/v1/procurement/requests |
 | **POST** | `/api/v1/procurement/requests/{id}/approve` | POST /api/v1/procurement/requests/{id}/approve |
+| **POST** | `/api/v1/procurement/orders/{id}/receive` | POST /api/v1/procurement/orders/{id}/receive |
 
 #### Module: `reception`
 | Method | Path | Summary |
 |---|---|---|
-| **GET** | `/api/v1/reception/calls` | GET /api/v1/reception/calls |
-| **POST** | `/api/v1/reception/calls` | POST /api/v1/reception/calls |
-| **PUT** | `/api/v1/reception/calls/{id}` | PUT /api/v1/reception/calls/{id} |
-| **GET** | `/api/v1/reception/complaints` | GET /api/v1/reception/complaints |
-| **POST** | `/api/v1/reception/complaints` | POST /api/v1/reception/complaints |
-| **PUT** | `/api/v1/reception/complaints/{id}` | PUT /api/v1/reception/complaints/{id} |
 | **GET** | `/api/v1/reception/enquiries` | GET /api/v1/reception/enquiries |
 | **POST** | `/api/v1/reception/enquiries` | POST /api/v1/reception/enquiries |
 | **PUT** | `/api/v1/reception/enquiries/{id}` | PUT /api/v1/reception/enquiries/{id} |
 | **GET** | `/api/v1/reception/visitors` | GET /api/v1/reception/visitors |
 | **POST** | `/api/v1/reception/visitors` | POST /api/v1/reception/visitors |
 | **PUT** | `/api/v1/reception/visitors/{id}` | PUT /api/v1/reception/visitors/{id} |
+| **GET** | `/api/v1/reception/complaints` | GET /api/v1/reception/complaints |
+| **POST** | `/api/v1/reception/complaints` | POST /api/v1/reception/complaints |
+| **PUT** | `/api/v1/reception/complaints/{id}` | PUT /api/v1/reception/complaints/{id} |
+| **GET** | `/api/v1/reception/calls` | GET /api/v1/reception/calls |
+| **POST** | `/api/v1/reception/calls` | POST /api/v1/reception/calls |
+| **PUT** | `/api/v1/reception/calls/{id}` | PUT /api/v1/reception/calls/{id} |
 
 #### Module: `reports`
 | Method | Path | Summary |
 |---|---|---|
-| **GET** | `/api/v1/reports/export/attendance` | GET /api/v1/reports/export/attendance |
 | **POST** | `/api/v1/reports/generate/receipt` | POST /api/v1/reports/generate/receipt |
 | **POST** | `/api/v1/reports/generate/report-card` | POST /api/v1/reports/generate/report-card |
+| **GET** | `/api/v1/reports/export/attendance` | GET /api/v1/reports/export/attendance |
 
 #### Module: `results`
 | Method | Path | Summary |
@@ -944,10 +944,10 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `saas`
 | Method | Path | Summary |
 |---|---|---|
-| **POST** | `/api/v1/saas/approve/{id}` | POST /api/v1/saas/approve/{id} |
-| **POST** | `/api/v1/saas/reject/{id}` | POST /api/v1/saas/reject/{id} |
 | **POST** | `/api/v1/saas/request` | POST /api/v1/saas/request |
 | **GET** | `/api/v1/saas/requests` | GET /api/v1/saas/requests |
+| **POST** | `/api/v1/saas/approve/{id}` | POST /api/v1/saas/approve/{id} |
+| **POST** | `/api/v1/saas/reject/{id}` | POST /api/v1/saas/reject/{id} |
 
 #### Module: `schools`
 | Method | Path | Summary |
@@ -957,9 +957,9 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 | **GET** | `/api/v1/schools/{id}` | GET /api/v1/schools/{id} |
 | **PUT** | `/api/v1/schools/{id}` | PUT /api/v1/schools/{id} |
 | **DELETE** | `/api/v1/schools/{id}` | DELETE /api/v1/schools/{id} |
+| **POST** | `/api/v1/schools/{id}/setup` | POST /api/v1/schools/{id}/setup |
 | **GET** | `/api/v1/schools/{id}/onboarding` | GET /api/v1/schools/{id}/onboarding |
 | **PUT** | `/api/v1/schools/{id}/onboarding` | PUT /api/v1/schools/{id}/onboarding |
-| **POST** | `/api/v1/schools/{id}/setup` | POST /api/v1/schools/{id}/setup |
 | **GET** | `/api/v1/schools/{id}/stats` | GET /api/v1/schools/{id}/stats |
 
 #### Module: `search`
@@ -971,15 +971,15 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 | Method | Path | Summary |
 |---|---|---|
 | **GET** | `/api/v1/security/quarantine` | GET /api/v1/security/quarantine |
-| **DELETE** | `/api/v1/security/quarantine/{id}` | DELETE /api/v1/security/quarantine/{id} |
 | **POST** | `/api/v1/security/quarantine/{id}/release` | POST /api/v1/security/quarantine/{id}/release |
+| **DELETE** | `/api/v1/security/quarantine/{id}` | DELETE /api/v1/security/quarantine/{id} |
 
 #### Module: `sessions`
 | Method | Path | Summary |
 |---|---|---|
 | **GET** | `/api/v1/sessions` | GET /api/v1/sessions |
-| **POST** | `/api/v1/sessions/logout-all` | POST /api/v1/sessions/logout-all |
 | **DELETE** | `/api/v1/sessions/{sessionId}` | DELETE /api/v1/sessions/{sessionId} |
+| **POST** | `/api/v1/sessions/logout-all` | POST /api/v1/sessions/logout-all |
 
 #### Module: `sse`
 | Method | Path | Summary |
@@ -989,16 +989,16 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `stats`
 | Method | Path | Summary |
 |---|---|---|
-| **GET** | `/api/v1/stats/activity-feed` | GET /api/v1/stats/activity-feed |
-| **GET** | `/api/v1/stats/detailed` | GET /api/v1/stats/detailed |
-| **GET** | `/api/v1/stats/finance` | GET /api/v1/stats/finance |
 | **GET** | `/api/v1/stats/public` | GET /api/v1/stats/public |
+| **GET** | `/api/v1/stats/detailed` | GET /api/v1/stats/detailed |
+| **GET** | `/api/v1/stats/activity-feed` | GET /api/v1/stats/activity-feed |
+| **GET** | `/api/v1/stats/finance` | GET /api/v1/stats/finance |
 
 #### Module: `storage`
 | Method | Path | Summary |
 |---|---|---|
-| **GET** | `/api/v1/storage/signed-url` | GET /api/v1/storage/signed-url |
 | **POST** | `/api/v1/storage/upload` | POST /api/v1/storage/upload |
+| **GET** | `/api/v1/storage/signed-url` | GET /api/v1/storage/signed-url |
 
 #### Module: `students`
 | Method | Path | Summary |
@@ -1012,18 +1012,18 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 #### Module: `subscriptions`
 | Method | Path | Summary |
 |---|---|---|
-| **POST** | `/api/v1/subscriptions/assign` | POST /api/v1/subscriptions/assign |
-| **GET** | `/api/v1/subscriptions/my` | GET /api/v1/subscriptions/my |
-| **GET** | `/api/v1/subscriptions/payments` | GET /api/v1/subscriptions/payments |
-| **POST** | `/api/v1/subscriptions/payments` | POST /api/v1/subscriptions/payments |
 | **GET** | `/api/v1/subscriptions/plans` | GET /api/v1/subscriptions/plans |
 | **POST** | `/api/v1/subscriptions/plans` | POST /api/v1/subscriptions/plans |
+| **GET** | `/api/v1/subscriptions/stats` | GET /api/v1/subscriptions/stats |
 | **PUT** | `/api/v1/subscriptions/plans/{id}` | PUT /api/v1/subscriptions/plans/{id} |
 | **DELETE** | `/api/v1/subscriptions/plans/{id}` | DELETE /api/v1/subscriptions/plans/{id} |
-| **GET** | `/api/v1/subscriptions/stats` | GET /api/v1/subscriptions/stats |
-| **POST** | `/api/v1/subscriptions/sync-expiries` | POST /api/v1/subscriptions/sync-expiries |
+| **POST** | `/api/v1/subscriptions/assign` | POST /api/v1/subscriptions/assign |
 | **PUT** | `/api/v1/subscriptions/{id}/renew` | PUT /api/v1/subscriptions/{id}/renew |
 | **PUT** | `/api/v1/subscriptions/{id}/suspend` | PUT /api/v1/subscriptions/{id}/suspend |
+| **POST** | `/api/v1/subscriptions/sync-expiries` | POST /api/v1/subscriptions/sync-expiries |
+| **GET** | `/api/v1/subscriptions/payments` | GET /api/v1/subscriptions/payments |
+| **POST** | `/api/v1/subscriptions/payments` | POST /api/v1/subscriptions/payments |
+| **GET** | `/api/v1/subscriptions/my` | GET /api/v1/subscriptions/my |
 
 #### Module: `teachers`
 | Method | Path | Summary |
@@ -1048,12 +1048,18 @@ This section auto-documents the 263 distinct API endpoints currently live in the
 | **GET** | `/api/v1/users` | GET /api/v1/users |
 | **POST** | `/api/v1/users` | POST /api/v1/users |
 | **PUT** | `/api/v1/users/{id}` | PUT /api/v1/users/{id} |
-| **PUT** | `/api/v1/users/{id}/reset-password` | PUT /api/v1/users/{id}/reset-password |
 | **PUT** | `/api/v1/users/{id}/status` | PUT /api/v1/users/{id}/status |
+| **PUT** | `/api/v1/users/{id}/reset-password` | PUT /api/v1/users/{id}/reset-password |
 
 #### Module: `webhooks`
 | Method | Path | Summary |
 |---|---|---|
+| **POST** | `/api/v1/webhooks/razorpay` | POST /api/v1/webhooks/razorpay |
+| **POST** | `/api/v1/webhooks` | POST /api/v1/webhooks |
+| **GET** | `/api/v1/webhooks` | GET /api/v1/webhooks |
+| **DELETE** | `/api/v1/webhooks/{id}` | DELETE /api/v1/webhooks/{id} |
+
+---|
 | **POST** | `/api/v1/webhooks` | POST /api/v1/webhooks |
 | **GET** | `/api/v1/webhooks` | GET /api/v1/webhooks |
 | **POST** | `/api/v1/webhooks/razorpay` | POST /api/v1/webhooks/razorpay |

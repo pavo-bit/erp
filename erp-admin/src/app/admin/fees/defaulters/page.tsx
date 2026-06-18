@@ -15,7 +15,7 @@ export default function DefaultersPage() {
   const fetchDefaulters = async () => {
     try {
       setLoading(true);
-      const res = await apiCall("/api/finance/defaulters", "GET");
+      const res = await apiCall("/api/v1/finance/defaulters", "GET");
       setDefaulters(res.data || []);
     } catch (e) {
       console.error("Failed to fetch defaulters");

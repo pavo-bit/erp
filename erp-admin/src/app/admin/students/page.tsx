@@ -23,7 +23,7 @@ export default function StudentsPage() {
     e.preventDefault();
     setSaving(true);
     try {
-      await apiCall("/api/students", "POST", formData);
+      await apiCall("/api/v1/students", "POST", formData);
       invalidate("/api/v1/students");
       invalidateAll("/api/v1/students");
       setShowModal(false);
@@ -37,7 +37,7 @@ export default function StudentsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this student?")) return;
-    try { await apiCall(`/api/students/${id}`, "DELETE"); invalidateAll("/api/v1/students"); }
+    try { await apiCall(`/api/v1/students/${id}`, "DELETE"); invalidateAll("/api/v1/students"); }
     catch (err) { alert((err as Error).message); }
   };
 

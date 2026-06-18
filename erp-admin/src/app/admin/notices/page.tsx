@@ -66,12 +66,12 @@ export default function NoticesPage() {
       if (formAttachment) formData.append("attachment", formAttachment);
 
       if (editingNotice) {
-        await apiCall(`/api/notices/${editingNotice.id}`, "PUT", formData);
+        await apiCall(`/api/v1/notices/${editingNotice.id}`, "PUT", formData);
       } else {
-        await apiCall("/api/notices", "POST", formData);
+        await apiCall("/api/v1/notices", "POST", formData);
       }
 
-      invalidateAll("/api/notices");
+      invalidateAll("/api/v1/notices");
       setShowModal(false);
     } catch (err) {
       alert((err as Error).message);
@@ -83,8 +83,8 @@ export default function NoticesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this notice?")) return;
     try {
-      await apiCall(`/api/notices/${id}`, "DELETE");
-      invalidateAll("/api/notices");
+      await apiCall(`/api/v1/notices/${id}`, "DELETE");
+      invalidateAll("/api/v1/notices");
     } catch (err) {
       alert((err as Error).message);
     }

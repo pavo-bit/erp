@@ -37,7 +37,7 @@ export default function SettingsPage() {
   const saveCMS = async () => {
     setSaving(true);
     try {
-      await apiCall("/api/site-content", "PUT", { updates: [
+      await apiCall("/api/v1/site-content", "PUT", { updates: [
         { section: "hero", key: "title", value: heroTitle },
         { section: "hero", key: "subtitle", value: heroSubtitle },
         { section: "about", key: "title", value: aboutTitle },
@@ -45,7 +45,7 @@ export default function SettingsPage() {
         { section: "admission", key: "ctaTitle", value: ctaTitle },
         { section: "admission", key: "ctaDescription", value: ctaDesc },
       ]});
-      invalidateAll("/api/site-content");
+      invalidateAll("/api/v1/site-content");
       alert("Settings saved!");
     } catch (err) { alert((err as Error).message); }
     finally { setSaving(false); }
@@ -54,8 +54,8 @@ export default function SettingsPage() {
   const addTestimonial = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      await apiCall("/api/testimonials", "POST", { name: tName, role: tRole, content: tContent, rating: +tRating });
-      invalidateAll("/api/testimonials"); setShowTestimonialModal(false);
+      await apiCall("/api/v1/testimonials", "POST", { name: tName, role: tRole, content: tContent, rating: +tRating });
+      invalidateAll("/api/v1/testimonials"); setShowTestimonialModal(false);
       setTName(""); setTRole(""); setTContent("");
     } catch (err) { alert((err as Error).message); }
     finally { setSaving(false); }

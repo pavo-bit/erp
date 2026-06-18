@@ -21,7 +21,7 @@ export default function NotificationTemplates() {
 
   const fetchTemplates = async () => {
     setLoading(true);
-    const res = await apiCall("/api/notifications/templates");
+    const res = await apiCall("/api/v1/notifications/templates");
     if (res.success) {
       setTemplates(res.data);
     }
@@ -35,9 +35,9 @@ export default function NotificationTemplates() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingTemplate) {
-      await apiCall(`/api/notifications/templates/${editingTemplate.id}`, "PUT", formData);
+      await apiCall(`/api/v1/notifications/templates/${editingTemplate.id}`, "PUT", formData);
     } else {
-      await apiCall("/api/notifications/templates", "POST", formData);
+      await apiCall("/api/v1/notifications/templates", "POST", formData);
     }
     setIsModalOpen(false);
     fetchTemplates();
@@ -45,7 +45,7 @@ export default function NotificationTemplates() {
 
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this template?")) {
-      await apiCall(`/api/notifications/templates/${id}`, "DELETE");
+      await apiCall(`/api/v1/notifications/templates/${id}`, "DELETE");
       fetchTemplates();
     }
   };

@@ -497,10 +497,21 @@ router.post("/logout/all", authenticate, async (req: AuthRequest, res: Response)
 
 router.get("/sessions", authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const sessions = await prisma.refreshToken.findMany({
-      where: { userId: req.user!.id, revokedAt: null, expiresAt: { gt: new Date() } },
-      select: { id: true, ipAddress: true, userAgent: true, createdAt: true, expiresAt: true },
-      orderBy: { createdAt: "desc" },
+    const sessions = await prisma.userSession.findMany({
+      where: { userId: req.user!.id, isActive: true },
+      select: {
+        sessionId: true,
+        deviceName: true,
+        browser: true,
+        os: true,
+        ipAddress: true,
+        country: true,
+        city: true,
+        lastSeen: true,
+        createdAt: true,
+        expiresAt: true,
+      },
+      orderBy: { lastSeen: "desc" },
     });
 
     res.json({ success: true, data: sessions });
@@ -511,15 +522,22 @@ router.get("/sessions", authenticate, async (req: AuthRequest, res: Response) =>
 });
 
 // ═══════════════════════════════════════════
-// DELETE /api/auth/sessions/:id — Revoke Specific Session
+// DELETE /api/auth/sessions/:sessionId — Revoke Specific Session
 // ═══════════════════════════════════════════
 
-router.delete("/sessions/:id", authenticate, async (req: AuthRequest, res: Response) => {
+router.delete("/sessions/:sessionId", authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    await prisma.refreshToken.updateMany({
-      where: { id: req.params.id as string, userId: req.user!.id },
-      data: { revokedAt: new Date() },
+    const { sessionId } = req.params;
+
+    const result = await prisma.userSession.updateMany({
+      where: { sessionId: sessionId as string, userId: req.user!.id, isActive: true },
+      data: { isActive: false },
     });
+
+    if (result.count === 0) {
+      res.status(404).json({ success: false, error: "Session not found or already inactive" });
+      return;
+    }
 
     res.json({ success: true, data: { message: "Session revoked" } });
   } catch (e) {

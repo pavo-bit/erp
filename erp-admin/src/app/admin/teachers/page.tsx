@@ -37,10 +37,10 @@ export default function TeachersPage() {
     
     setIsDeactivating(true);
     try {
-      await apiCall(`/api/teachers/${id}`, "DELETE");
+      await apiCall(`/api/v1/teachers/${id}`, "DELETE");
       alert("Teacher deactivated successfully!");
       setSelectedTeacher(null);
-      invalidateAll("/api/teachers"); // refresh data
+      invalidateAll("/api/v1/teachers"); // refresh data
     } catch (e: any) {
       alert(e.message || "Failed to deactivate teacher");
     } finally {

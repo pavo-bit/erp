@@ -42,8 +42,8 @@ export default function GalleryPage() {
       }
       formData.append("description", finalDescription);
 
-      await apiCall("/api/gallery", "POST", formData);
-      invalidateAll("/api/gallery");
+      await apiCall("/api/v1/gallery", "POST", formData);
+      invalidateAll("/api/v1/gallery");
       setShowModal(false);
       setFormTitle(""); setFormStudentClass(""); setFormDesc(""); setFile(null);
     } catch (err) { alert((err as Error).message); }
@@ -53,8 +53,8 @@ export default function GalleryPage() {
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try { 
-      await apiCall(`/api/gallery/${id}`, "DELETE"); 
-      invalidateAll("/api/gallery"); 
+      await apiCall(`/api/v1/gallery/${id}`, "DELETE"); 
+      invalidateAll("/api/v1/gallery"); 
     }
     catch (err) { alert((err as Error).message); }
     finally { 

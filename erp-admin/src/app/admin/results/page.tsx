@@ -27,8 +27,8 @@ export default function ResultsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      await apiCall("/api/results", "POST", { studentId: formStudentId, examName: formExam, subject: formSubject, totalMarks: +formTotal, obtained: +formObtained, grade: formGrade || null });
-      invalidateAll("/api/results"); setShowModal(false);
+      await apiCall("/api/v1/results", "POST", { studentId: formStudentId, examName: formExam, subject: formSubject, totalMarks: +formTotal, obtained: +formObtained, grade: formGrade || null });
+      invalidateAll("/api/v1/results"); setShowModal(false);
     } catch (err) { alert((err as Error).message); }
     finally { setSaving(false); }
   };

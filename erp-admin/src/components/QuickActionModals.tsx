@@ -68,23 +68,23 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
   const handleSingleSubmit = async () => {
     switch (isOpen) {
       case "ADD_STUDENT":
-        await apiCall("/api/students", "POST", studentForm);
-        invalidateAll("/api/students");
-        invalidateAll("/api/stats/analytics");
+        await apiCall("/api/v1/students", "POST", studentForm);
+        invalidateAll("/api/v1/students");
+        invalidateAll("/api/v1/stats");
         break;
       case "RECORD_FEE":
-        await apiCall("/api/fees", "POST", { ...feeForm, amount: Number(feeForm.amount) });
-        invalidateAll("/api/fees");
-        invalidateAll("/api/stats/analytics");
+        await apiCall("/api/v1/invoices", "POST", { ...feeForm, amount: Number(feeForm.amount) });
+        invalidateAll("/api/v1/invoices");
+        invalidateAll("/api/v1/stats");
         break;
       case "CREATE_EXAM":
-        await apiCall("/api/exams", "POST", examForm);
-        invalidateAll("/api/exams");
+        await apiCall("/api/v1/exams", "POST", examForm);
+        invalidateAll("/api/v1/exams");
         break;
       case "ADD_TEACHER":
-        await apiCall("/api/teachers", "POST", teacherForm);
-        invalidateAll("/api/teachers");
-        invalidateAll("/api/stats/analytics");
+        await apiCall("/api/v1/teachers", "POST", teacherForm);
+        invalidateAll("/api/v1/teachers");
+        invalidateAll("/api/v1/stats");
         break;
       case "SEND_NOTICE":
         const fd = new FormData();
@@ -92,14 +92,14 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
         fd.append("content", noticeForm.content);
         fd.append("category", noticeForm.category);
         fd.append("status", "PUBLISHED");
-        await apiCall("/api/notices", "POST", fd);
-        invalidateAll("/api/notices");
-        invalidateAll("/api/stats/analytics");
+        await apiCall("/api/v1/notices", "POST", fd);
+        invalidateAll("/api/v1/notices");
+        invalidateAll("/api/v1/stats");
         break;
       case "NEW_ADMISSION":
-        await apiCall("/api/admissions", "POST", admissionForm);
-        invalidateAll("/api/admissions");
-        invalidateAll("/api/stats/analytics");
+        await apiCall("/api/v1/admissions", "POST", admissionForm);
+        invalidateAll("/api/v1/admissions");
+        invalidateAll("/api/v1/stats");
         break;
       case "MARK_ATTENDANCE":
         alert("Attendance roster initialized. Please visit Attendance module for bulk marking.");
@@ -127,7 +127,7 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
             }
 
             const payload = { type, data };
-            const endpoint = validateOnly ? "/api/bulk/upload?action=validate" : "/api/bulk/upload";
+            const endpoint = validateOnly ? "/api/v1/bulk/upload?action=validate" : "/api/v1/bulk/upload";
 
             const res = await apiCall(endpoint, "POST", payload);
             
@@ -135,10 +135,10 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
               setValidationReport(res.data?.report || []);
               setIsValidated(true);
             } else {
-              if (type === "students") invalidateAll("/api/students");
-              if (type === "teachers") invalidateAll("/api/teachers");
-              if (type === "invoices") invalidateAll("/api/fees");
-              invalidateAll("/api/stats/analytics");
+              if (type === "students") invalidateAll("/api/v1/students");
+              if (type === "teachers") invalidateAll("/api/v1/teachers");
+              if (type === "invoices") invalidateAll("/api/v1/invoices");
+              invalidateAll("/api/v1/stats");
               alert(`Successfully imported ${data.length} records!`);
             }
             resolve();

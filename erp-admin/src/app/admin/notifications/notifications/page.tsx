@@ -20,8 +20,8 @@ export default function NotificationsPage() {
   const handleSend = async () => {
     setSending(true);
     try {
-      await apiCall("/api/notifications/send", "POST", form);
-      invalidateAll("/api/notifications");
+      await apiCall("/api/v1/notifications/send", "POST", form);
+      invalidateAll("/api/v1/notifications");
       setShowSend(false);
       setForm({ type: "SMS", recipientName: "", recipientPhone: "", recipientEmail: "", subject: "", message: "" });
     } catch (e) { alert((e as Error).message); }
@@ -30,9 +30,9 @@ export default function NotificationsPage() {
 
   const handleFeeReminder = async () => {
     try {
-      const result = await apiCall("/api/notifications/fee-reminder", "POST");
+      const result = await apiCall("/api/v1/notifications/fee-reminder", "POST");
       alert(result?.message || "Fee reminders sent!");
-      invalidateAll("/api/notifications");
+      invalidateAll("/api/v1/notifications");
     } catch (e) { alert((e as Error).message); }
   };
 

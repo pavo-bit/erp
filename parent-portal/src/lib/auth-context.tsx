@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function initAuth() {
       try {
-        const res = await apiCall("/api/auth/me");
+        const res = await apiCall("/api/v1/auth/me");
         if (res.success && res.data.role === "PARENT") {
           setUser(res.data);
           if (res.data.guardian?.students?.length > 0) {
@@ -73,7 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await apiCall("/api/auth/logout", "POST");
+      await apiCall("/api/v1/auth/logout", "POST");
     } catch (e) {}
     setUser(null);
     setSelectedStudentId(null);

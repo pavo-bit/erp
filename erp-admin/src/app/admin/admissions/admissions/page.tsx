@@ -18,8 +18,8 @@ export default function AdmissionsPage() {
 
   const handleReview = async (id: string, status: string) => {
     try {
-      await apiCall(`/api/admissions/${id}/review`, "PUT", { status });
-      invalidateAll("/api/admissions");
+      await apiCall(`/api/v1/admissions/${id}/review`, "PUT", { status });
+      invalidateAll("/api/v1/admissions");
     } catch (e) {
       alert((e as Error).message);
     }

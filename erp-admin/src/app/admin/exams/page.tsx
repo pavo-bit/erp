@@ -16,8 +16,8 @@ export default function ExamsPage() {
 
   const handleCreate = async () => {
     try {
-      await apiCall("/api/exams", "POST", form);
-      invalidateAll("/api/exams");
+      await apiCall("/api/v1/exams", "POST", form);
+      invalidateAll("/api/v1/exams");
       setShowCreate(false);
       setForm({ name: "", class: "", session: "2025-26", startDate: "", endDate: "" });
     } catch (e) { alert((e as Error).message); }
@@ -25,8 +25,8 @@ export default function ExamsPage() {
 
   const togglePublish = async (id: string, current: boolean) => {
     try {
-      await apiCall(`/api/exams/${id}`, "PUT", { isPublished: !current });
-      invalidateAll("/api/exams");
+      await apiCall(`/api/v1/exams/${id}`, "PUT", { isPublished: !current });
+      invalidateAll("/api/v1/exams");
     } catch (e) { alert((e as Error).message); }
   };
 

@@ -65,16 +65,28 @@ router.get("/:threadId", async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ success: false, error: "Access denied to this thread" });
     }
 
-    const messages = await prisma.message.findMany({
-      where: { threadId: threadId as string, thread: { schoolId: schoolId as string } },
-      include: {
+    const limit = parseInt(req.query.limit as string) || 50;
+    const { cursor } = req.query;
+
+    // Use paginateCursor for efficient infinite scrolling
+    const { paginateCursor } = await import("../lib/paginate");
+    
+    const result = await paginateCursor(
+      prisma.message,
+      { threadId: threadId as string, thread: { schoolId: schoolId as string } },
+      cursor,
+      limit,
+      {
         sender: { select: { id: true, name: true, role: true } },
         attachments: true
       },
-      orderBy: { createdAt: "asc" }
-    });
+      { createdAt: "desc" }
+    );
 
-    res.json({ success: true, data: messages });
+    // Flip the data array to return chronologically ascending for the UI
+    result.data = result.data.reverse();
+
+    res.json(result);
   } catch (error: any) {
     logger.error({ err: error }, "Failed to fetch messages");
     res.status(500).json({ success: false, error: "Internal server error" });

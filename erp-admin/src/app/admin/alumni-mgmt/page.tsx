@@ -16,15 +16,15 @@ export default function AlumniMgmtPage() {
   const pendingAlumni = Array.isArray(rawPending) ? rawPending : rawPending?.data || rawPending || [];
 
   const toggleFeatured = async (id: string, current: boolean) => {
-    try { await apiCall("/api/alumni", "PUT", { id, isFeatured: !current }); invalidateAll("/api/alumni"); }
+    try { await apiCall("/api/v1/alumni", "PUT", { id, isFeatured: !current }); invalidateAll("/api/v1/alumni"); }
     catch (err) { alert((err as Error).message); }
   };
 
   const handleApproval = async (id: string, status: "APPROVED" | "DECLINED") => {
     if (status === "DECLINED" && !confirm("Are you sure you want to decline and delete this registration?")) return;
     try { 
-      await apiCall("/api/alumni/status", "PUT", { id, status }); 
-      invalidateAll("/api/alumni"); 
+      await apiCall("/api/v1/alumni/status", "PUT", { id, status }); 
+      invalidateAll("/api/v1/alumni"); 
     } catch (err) { alert((err as Error).message); }
   };
 

@@ -22,15 +22,15 @@ export default function HRPage() {
 
   const handlePaySalary = async (id: string) => {
     try {
-      await apiCall(`/api/hr/salaries/${id}/pay`, "PUT");
-      invalidateAll("/api/hr/salaries");
+      await apiCall(`/api/v1/hr/salaries/${id}/pay`, "PUT");
+      invalidateAll("/api/v1/hr/salaries");
     } catch (e) { alert((e as Error).message); }
   };
 
   const handleLeaveAction = async (id: string, status: string) => {
     try {
-      await apiCall(`/api/hr/leaves/${id}`, "PUT", { status });
-      invalidateAll("/api/hr/leaves");
+      await apiCall(`/api/v1/hr/leaves/${id}`, "PUT", { status });
+      invalidateAll("/api/v1/hr/leaves");
     } catch (e) { alert((e as Error).message); }
   };
 

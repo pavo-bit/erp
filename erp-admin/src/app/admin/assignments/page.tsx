@@ -20,8 +20,8 @@ export default function AssignmentsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true);
     try {
-      await apiCall("/api/assignments", "POST", { title: fTitle, subject: fSubject, class: fClass, description: fDesc, dueDate: fDue });
-      invalidateAll("/api/assignments"); setShowModal(false);
+      await apiCall("/api/v1/assignments", "POST", { title: fTitle, subject: fSubject, class: fClass, description: fDesc, dueDate: fDue });
+      invalidateAll("/api/v1/assignments"); setShowModal(false);
       setFTitle(""); setFSubject(""); setFDesc(""); setFDue("");
     } catch (err) { alert((err as Error).message); }
     finally { setSaving(false); }

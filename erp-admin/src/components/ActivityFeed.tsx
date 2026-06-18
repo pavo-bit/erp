@@ -20,7 +20,7 @@ export default function ActivityFeed() {
   useEffect(() => {
     async function fetchActivity() {
       try {
-        const res = await apiCall("/api/stats/activity-feed?limit=10");
+        const res = await apiCall("/api/v1/stats/activity-feed?limit=10");
         if (res.success) {
           setActivities(res.data);
         }
