@@ -11,7 +11,7 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including devDependencies for tsc)
-RUN npm ci
+RUN rm -rf node_modules package-lock.json && npm install
 
 # Copy application source code
 COPY . .

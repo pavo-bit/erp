@@ -101,12 +101,8 @@ export function validateEnvironment(): void {
     console.error(`\nTotal issues: ${allErrors.length}`);
     console.error("═══════════════════════════════════════════\n");
 
-    if (isProduction) {
-      console.error("FATAL: Cannot start in production with invalid environment. Exiting.");
-      process.exit(1);
-    } else {
-      console.warn("⚠️  Running in development mode with incomplete secrets — some features may not work.");
-    }
+    console.error("FATAL: Cannot start with invalid environment. Exiting.");
+    process.exit(1);
   } else {
     console.log(`✅ Environment validation passed (${isProduction ? "production" : "development"} mode)`);
   }

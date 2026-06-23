@@ -45,7 +45,7 @@ const createLimiter = (options: {
     standardHeaders: true,  // Return X-RateLimit-Limit, X-RateLimit-Remaining
     legacyHeaders: false,
     handler: defaultHandler,
-    keyGenerator: options.keyGenerator,
+    keyGenerator: options.keyGenerator || ((req) => req.ip || req.headers["x-forwarded-for"]?.toString() || "unknown"),
     skipFailedRequests: options.skipFailedRequests,
     skipSuccessfulRequests: options.skipSuccessfulRequests,
     store: redisClient

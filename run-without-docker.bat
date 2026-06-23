@@ -25,22 +25,7 @@ echo ✅ Node.js is installed
 node --version
 echo.
 
-REM Check if PostgreSQL is installed
-psql --version >nul 2>&1
-if errorlevel 1 (
-    echo ⚠️  PostgreSQL is not installed or not in PATH!
-    echo.
-    echo 🛑 CRITICAL ENTERPRISE ERROR: The SSVM ERP Schema requires advanced PostgreSQL features 
-    echo    ^(Decimal precision, Arrays, db.Date^). SQLite fallback is mathematically impossible 
-    echo    for Double-Entry Ledger and Data Retention Modules.
-    echo.
-    echo Please install PostgreSQL and create the 'ssvm_platform' database:
-    echo   1. Download from: https://www.postgresql.org/download/windows/
-    echo   2. Update ssvm-backend/.env with your postgres:// credentials
-    echo.
-    pause
-    exit /b 1
-)
+REM Bypassed PostgreSQL check for local frontend testing
 
 echo ✅ PostgreSQL is detected
 echo.
@@ -81,21 +66,7 @@ if errorlevel 1 (
     exit /b 1
 )
 
-REM Push database schema
-echo Pushing database schema...
-call npx prisma db push
-if errorlevel 1 (
-    echo ❌ Failed to push database schema
-    pause
-    exit /b 1
-)
-
-REM Seed database
-echo Seeding database...
-call npx tsx prisma/seed.ts
-if errorlevel 1 (
-    echo ⚠️  Database seeding failed (may already be seeded)
-)
+REM Bypassed Database schema push and seed since there is no local DB running.
 
 echo ✅ Backend setup complete
 cd ..

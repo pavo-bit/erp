@@ -1,11 +1,5 @@
-# ═══════════════════════════════════════════════════════════════════════
-# SSVM College Square — Microservices Architecture
-# ═══════════════════════════════════════════════════════════════════════
-
 services:
-  # ─────────────────────────────────────────────────────────────────────
-  # 1. DATABASE
-  # ─────────────────────────────────────────────────────────────────────
+  # Infrastructure
   database:
     image: postgres:16-alpine
     container_name: ssvm-database
@@ -28,9 +22,6 @@ services:
       retries: 5
       start_period: 10s
 
-  # ─────────────────────────────────────────────────────────────────────
-  # 1.2 PGBOUNCER (PostgreSQL Connection Pooling)
-  # ─────────────────────────────────────────────────────────────────────
   pgbouncer:
     image: edoburu/pgbouncer:latest
     container_name: ssvm-pgbouncer
@@ -51,9 +42,6 @@ services:
     networks:
       - ssvm-network
 
-  # ─────────────────────────────────────────────────────────────────────
-  # 1.5 REDIS (Caching, Rate Limiting, Job Queue)
-  # ─────────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: ssvm-redis
@@ -71,199 +59,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # ─────────────────────────────────────────────────────────────────────
-  # 2. BACKEND API
-  # ─────────────────────────────────────────────────────────────────────
-  backend:
-    build:
-      context: ./ssvm-backend
-      dockerfile: Dockerfile
-    container_name: ssvm-backend
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@pgbouncer:6432/${POSTGRES_DB:-ssvm_platform}?pgbouncer=true
-      DIRECT_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-ssvm_platform}
-      PORT: 5000
-      ACCESS_TOKEN_PRIVATE_KEY: ${ACCESS_TOKEN_PRIVATE_KEY:-}
-      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
-      REFRESH_TOKEN_PRIVATE_KEY: ${REFRESH_TOKEN_PRIVATE_KEY:-}
-      REFRESH_TOKEN_PUBLIC_KEY: ${REFRESH_TOKEN_PUBLIC_KEY:-}
-      ACCESS_TOKEN_EXPIRES_IN: ${ACCESS_TOKEN_EXPIRES_IN:-15m}
-      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-30d}
-      REDIS_URL: redis://redis:6379
-      UPLOAD_DIR: /app/uploads
-      SENTRY_DSN: ${SENTRY_DSN:-}
-      AWS_REGION: ${AWS_REGION:-ap-south-1}
-      AWS_SECRETS_MANAGER_SECRET_NAME: ${AWS_SECRETS_MANAGER_SECRET_NAME:-}
-    ports:
-      - "${BACKEND_PORT:-5000}:5000"
-    volumes:
-      - ssvm_uploads:/app/uploads
-    depends_on:
-      database:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    networks:
-      - ssvm-network
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 2g
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
-
-  # ─────────────────────────────────────────────────────────────────────
-  # 3. ERP ADMIN DASHBOARD
-  # ─────────────────────────────────────────────────────────────────────
-  erp-admin:
-    build:
-      context: ./erp-admin
-      dockerfile: Dockerfile
-      args:
-        BACKEND_URL: http://backend:5000
-    container_name: ssvm-erp-admin
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      BACKEND_URL: http://backend:5000
-      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
-    ports:
-      - "3000:3000"
-    depends_on:
-      backend:
-        condition: service_started
-    networks:
-      - ssvm-network
-
-  # ─────────────────────────────────────────────────────────────────────
-  # 4. SUPER ADMIN DASHBOARD
-  # ─────────────────────────────────────────────────────────────────────
-  super-admin:
-    build:
-      context: ./super-admin
-      dockerfile: Dockerfile
-      args:
-        BACKEND_URL: http://backend:5000
-    container_name: ssvm-super-admin
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3001
-      BACKEND_URL: http://backend:5000
-      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
-    ports:
-      - "3001:3001"
-    depends_on:
-      backend:
-        condition: service_started
-    networks:
-      - ssvm-network
-
-  # ─────────────────────────────────────────────────────────────────────
-  # 5. TEACHER PORTAL
-  # ─────────────────────────────────────────────────────────────────────
-  teacher-portal:
-    build:
-      context: ./teacher-portal
-      dockerfile: Dockerfile
-      args:
-        BACKEND_URL: http://backend:5000
-    container_name: ssvm-teacher-portal
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3002
-      BACKEND_URL: http://backend:5000
-      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
-    ports:
-      - "3002:3002"
-    depends_on:
-      backend:
-        condition: service_started
-    networks:
-      - ssvm-network
-
-  # ─────────────────────────────────────────────────────────────────────
-  # 5.5 STUDENT PORTAL (NEW - PORT 3003)
-  # ─────────────────────────────────────────────────────────────────────
-  student-portal:
-    build:
-      context: ./student-portal
-      dockerfile: Dockerfile
-    container_name: ssvm-student-portal
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3000
-      NEXT_PUBLIC_API_URL: http://backend:5000
-      NEXT_PUBLIC_RAZORPAY_KEY: ${RAZORPAY_KEY_ID:-}
-    ports:
-      - "3003:3000"
-    depends_on:
-      backend:
-        condition: service_started
-    networks:
-      - ssvm-network
-
-  # ─────────────────────────────────────────────────────────────────────
-  # 6. PARENT PORTAL
-  # ─────────────────────────────────────────────────────────────────────
-  parent-portal:
-    build:
-      context: ./parent-portal
-      dockerfile: Dockerfile
-      args:
-        BACKEND_URL: http://backend:5000
-    container_name: ssvm-parent-portal
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3006
-      BACKEND_URL: http://backend:5000
-      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
-    ports:
-      - "3006:3006"
-    depends_on:
-      backend:
-        condition: service_started
-    networks:
-      - ssvm-network
-
-  # ─────────────────────────────────────────────────────────────────────
-  # 7. PAYMENT PORTAL
-  # ─────────────────────────────────────────────────────────────────────
-  payment-portal:
-    build:
-      context: ./payment-portal
-      dockerfile: Dockerfile
-      args:
-        BACKEND_URL: http://backend:5000
-    container_name: ssvm-payment-portal
-    restart: unless-stopped
-    environment:
-      NODE_ENV: production
-      PORT: 3007
-      BACKEND_URL: http://backend:5000
-      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
-    ports:
-      - "3007:3007"
-    depends_on:
-      backend:
-        condition: service_started
-    networks:
-      - ssvm-network
-
-  # ─────────────────────────────────────────────────────────────────────
-  # 8. GRAFANA ANALYTICS
-  # ─────────────────────────────────────────────────────────────────────
   grafana:
     image: grafana/grafana-enterprise:latest
     container_name: ssvm-grafana
@@ -288,9 +83,6 @@ services:
     networks:
       - ssvm-network
 
-  # ─────────────────────────────────────────────────────────────────────
-  # 9. PROMETHEUS TELEMETRY
-  # ─────────────────────────────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:latest
     container_name: ssvm-prometheus
@@ -301,15 +93,9 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
       - ssvm_prometheus:/prometheus
-    depends_on:
-      backend:
-        condition: service_started
     networks:
       - ssvm-network
 
-  # ─────────────────────────────────────────────────────────────────────
-  # 9.5 PROMETHEUS ALERTMANAGER (GAP A14)
-  # ─────────────────────────────────────────────────────────────────────
   alertmanager:
     image: prom/alertmanager:latest
     container_name: ssvm-alertmanager
@@ -324,9 +110,171 @@ services:
     networks:
       - ssvm-network
 
-  # ─────────────────────────────────────────────────────────────────────
-  # 10. SAAS FRONTEND
-  # ─────────────────────────────────────────────────────────────────────
+  # Backend API
+  backend:
+    build:
+      context: ./ssvm-backend
+      dockerfile: Dockerfile
+    container_name: ssvm-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@pgbouncer:6432/${POSTGRES_DB:-ssvm_platform}?pgbouncer=true
+      DIRECT_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-ssvm_platform}
+      PORT: 5000
+      REDIS_URL: redis://redis:6379
+      UPLOAD_DIR: /app/uploads
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+    env_file:
+      - ./ssvm-backend/.env
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    volumes:
+      - ssvm_uploads:/app/uploads
+    networks:
+      - ssvm-network
+    depends_on:
+      database:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Portals
+  erp-admin:
+    build:
+      context: ./erp-admin
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-erp-admin
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3000:3000"
+    networks:
+      - ssvm-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  super-admin:
+    build:
+      context: ./super-admin
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-super-admin
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3001:3001"
+    networks:
+      - ssvm-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  teacher-portal:
+    build:
+      context: ./teacher-portal
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-teacher-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3002:3002"
+    networks:
+      - ssvm-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  student-portal:
+    build:
+      context: ./student-portal
+      dockerfile: Dockerfile
+    container_name: ssvm-student-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://backend:5000
+      NEXT_PUBLIC_RAZORPAY_KEY: ${RAZORPAY_KEY_ID:-}
+    ports:
+      - "3003:3000"
+    networks:
+      - ssvm-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  parent-portal:
+    build:
+      context: ./parent-portal
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-parent-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3006:3006"
+    networks:
+      - ssvm-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  payment-portal:
+    build:
+      context: ./payment-portal
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-payment-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3007:3007"
+    networks:
+      - ssvm-network
+    depends_on:
+      backend:
+        condition: service_healthy
+
   saas-frontend:
     build:
       context: ./saas-frontend
@@ -341,27 +289,19 @@ services:
       BACKEND_URL: http://backend:5000
     ports:
       - "3008:3008"
-    depends_on:
-      backend:
-        condition: service_started
     networks:
       - ssvm-network
+    depends_on:
+      backend:
+        condition: service_healthy
 
-# ─────────────────────────────────────────────────────────────────────
-# Network & Volumes
-# ─────────────────────────────────────────────────────────────────────
 networks:
   ssvm-network:
     driver: bridge
 
 volumes:
   ssvm_database:
-    driver: local
-  ssvm_uploads:
-    driver: local
   ssvm_grafana:
-    driver: local
   ssvm_redis:
-    driver: local
   ssvm_prometheus:
-    driver: local
+  ssvm_uploads:

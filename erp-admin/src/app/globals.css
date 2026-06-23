@@ -91,7 +91,7 @@
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    @apply bg-slate-50 dark:bg-[#0f172a] selection:bg-indigo-500/30;
+    /* @apply removed to fix turbopack bug */
     font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -99,15 +99,15 @@
 
 /* Premium Glassmorphic Surfaces */
 .glass-card {
-  @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/20 dark:border-slate-800/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-3xl transition-all duration-300;
+  /* @apply removed to fix turbopack bug */
 }
 
 .glass-panel {
-  @apply bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border border-white/50 dark:border-slate-800/80 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] rounded-3xl;
+  /* @apply removed to fix turbopack bug */
 }
 
 .interactive-card {
-  @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/20 dark:border-slate-800/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] rounded-3xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-500/20 dark:hover:border-indigo-400/20 cursor-pointer;
+  /* @apply removed to fix turbopack bug */
 }
 
 .animate-fade-in {
@@ -137,3 +137,5 @@
   70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
   100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
 }
+
+

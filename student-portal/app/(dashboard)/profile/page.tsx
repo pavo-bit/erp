@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useMyProfile, apiCall } from '@/lib/student-api-hooks';
 
-export default function ProfilePage() {
+function ProfileContent() {
   const searchParams = useSearchParams();
   const forceChange = searchParams?.get('forceChange') === 'true';
   const { data: profile } = useMyProfile();
@@ -211,3 +211,14 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+
+
+export default function ProfilePage() {
+  return (
+    <React.Suspense fallback={<div>Loading profile...</div>}>
+      <ProfileContent />
+    </React.Suspense>
+  );
+}
+

@@ -1,0 +1,127 @@
+services:
+  erp-admin:
+    build:
+      context: ./erp-admin
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-erp-admin
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3000:3000"
+    networks:
+      - ssvm-network
+
+  super-admin:
+    build:
+      context: ./super-admin
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-super-admin
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3001:3001"
+    networks:
+      - ssvm-network
+
+  teacher-portal:
+    build:
+      context: ./teacher-portal
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-teacher-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3002:3002"
+    networks:
+      - ssvm-network
+
+  student-portal:
+    build:
+      context: ./student-portal
+      dockerfile: Dockerfile
+    container_name: ssvm-student-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://backend:5000
+      NEXT_PUBLIC_RAZORPAY_KEY: ${RAZORPAY_KEY_ID:-}
+    ports:
+      - "3003:3000"
+    networks:
+      - ssvm-network
+
+  parent-portal:
+    build:
+      context: ./parent-portal
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-parent-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3006
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3006:3006"
+    networks:
+      - ssvm-network
+
+  payment-portal:
+    build:
+      context: ./payment-portal
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-payment-portal
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3007
+      BACKEND_URL: http://backend:5000
+      ACCESS_TOKEN_PUBLIC_KEY: ${ACCESS_TOKEN_PUBLIC_KEY:-}
+    ports:
+      - "3007:3007"
+    networks:
+      - ssvm-network
+
+  saas-frontend:
+    build:
+      context: ./saas-frontend
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:5000
+    container_name: ssvm-saas-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3008
+      BACKEND_URL: http://backend:5000
+    ports:
+      - "3008:3008"
+    networks:
+      - ssvm-network
+
+networks:
+  ssvm-network:
+    external: true
