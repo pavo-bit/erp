@@ -265,7 +265,7 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
 
     // Issue tokens using standard process
     await issueTokenPair(res, {
-      id: student.id,
+      id: student.userId,
       email: student.admissionNo || "",
       role: "STUDENT",
       name: student.name,

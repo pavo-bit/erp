@@ -16,6 +16,41 @@ async function main() {
   const rawPassword = "password123";
   const hashedPassword = await bcrypt.hash(rawPassword, 10);
   const admissionNo = "DEMO-1001";
+  const student = await prisma.student.findUnique({ where: { admissionNo } });
+
+  if (student) {
+    console.log(`Demo student ${admissionNo} already exists.`);
+    console.log(`Current userId: ${student.userId}`);
+    
+    // Update password hash to argon2
+    await prisma.student.update({
+        where: { admissionNo: admissionNo },
+        data: { password: hashedPassword }
+    });
+    console.log(`Updated password hash for demo student ${admissionNo}`);
+    
+    if (!student.userId) {
+      console.log("No user account found. Creating one...");
+      const studentUser = await prisma.user.create({
+        data: {
+          email: `${admissionNo.toLowerCase()}@demo.ssvm.edu`,
+          passwordHash: hashedPassword,
+          name: `Demo Student (${admissionNo})`,
+          role: "STUDENT",
+          schoolId: student.schoolId,
+          isActive: true,
+        },
+      });
+      await prisma.student.update({
+          where: { admissionNo: admissionNo },
+          data: { userId: studentUser.id }
+      });
+      console.log("Created user account and linked it.");
+    }
+    
+    return;
+  }
+
   const studentEmail = "demo.student@example.com";
 
   // 3. Create Student User
@@ -41,6 +76,7 @@ async function main() {
       schoolId: school.id,
       name: studentUser.name,
       admissionNo: admissionNo,
+      password: hashedPassword,
       dob: new Date("2010-05-15"),
       gender: "Male",
       rollNo: "1",

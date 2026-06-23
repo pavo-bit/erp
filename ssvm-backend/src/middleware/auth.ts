@@ -181,7 +181,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
     if (payload.role === "STUDENT") {
       const student = await prisma.student.findUnique({
-        where: { id: userId },
+        where: { userId: userId },
         select: {
           id: true, admissionNo: true, name: true,
           isActive: true, schoolId: true

@@ -3877,7 +3877,7 @@ model FailedWebhook {
 model AppConfiguration {
   id          String   @id @default(cuid())
   key         String   @unique
-  value       String   // Stored as string, can be JSON or scalar
+  value       String // Stored as string, can be JSON or scalar
   type        String   @default("STRING") // STRING, BOOLEAN, NUMBER, JSON
   description String?
   isSecret    Boolean  @default(false)
@@ -3885,7 +3885,8 @@ model AppConfiguration {
   updatedAt   DateTime @updatedAt
   updatedBy   String?
 
-  history     ConfigHistory[]
+  history ConfigHistory[]
+
   @@map("app_configurations")
 }
 
@@ -3898,8 +3899,8 @@ model ConfigHistory {
   changedBy       String?
   reason          String?
 
-  configuration   AppConfiguration @relation(fields: [configurationId], references: [id], onDelete: Cascade)
+  configuration AppConfiguration @relation(fields: [configurationId], references: [id], onDelete: Cascade)
+
   @@index([configurationId])
   @@map("config_history")
 }
-
