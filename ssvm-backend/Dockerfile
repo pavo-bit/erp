@@ -1,5 +1,5 @@
 # Stage 1: Build Environment
-FROM node:18-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -11,7 +11,7 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies (including devDependencies for tsc)
-RUN rm -rf node_modules package-lock.json && npm install
+RUN npm install
 
 # Copy application source code
 COPY . .
@@ -21,7 +21,7 @@ RUN npx prisma generate
 RUN npm run build
 
 # Stage 2: Production Runtime
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 

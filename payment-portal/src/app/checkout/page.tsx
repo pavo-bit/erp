@@ -7,12 +7,18 @@ import { useAuth } from "@/lib/auth-context";
 import { LogOut, ShieldCheck, CreditCard, CheckCircle } from "lucide-react";
 
 export default function Checkout() {
-  const { student, logout } = useAuth();
+  const { student, loading: authLoading, logout } = useAuth();
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!student) {
+      window.location.href = "/login";
+      return;
+    }
+
     async function loadFees() {
       // For this isolated portal, we fetch all invoices linked to this authenticated student token
       setLoading(true);

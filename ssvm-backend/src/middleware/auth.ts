@@ -176,14 +176,40 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     }
 
     const userId = "userId" in payload ? payload.userId : (payload as AccessTokenPayload).userId;
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true, email: true, name: true, role: true,
-        isActive: true, avatar: true, phone: true,
-        schoolId: true, branchId: true,
-      },
-    });
+    
+    let user: any = null;
+
+    if (payload.role === "STUDENT") {
+      const student = await prisma.student.findUnique({
+        where: { id: userId },
+        select: {
+          id: true, admissionNo: true, name: true,
+          isActive: true, schoolId: true
+        }
+      });
+      if (student) {
+        user = {
+          id: student.id,
+          email: student.admissionNo || "",
+          name: student.name,
+          role: "STUDENT",
+          isActive: student.isActive,
+          schoolId: student.schoolId,
+          avatar: null,
+          phone: null,
+          branchId: null
+        };
+      }
+    } else {
+      user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true, email: true, name: true, role: true,
+          isActive: true, avatar: true, phone: true,
+          schoolId: true, branchId: true,
+        },
+      });
+    }
 
     if (!user || !user.isActive) {
       res.status(401).json({ success: false, error: "Account not found or deactivated" });
@@ -195,6 +221,8 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       where: { id: userId },
       select: { mustChangePassword: true }
     });
+
+    console.log("DEBUG AUTH:", { payloadSchoolId: payload.schoolId, userSchoolId: user.schoolId, userRole: user.role, payloadRole: payload.role });
 
     if (payload.schoolId && payload.schoolId !== user.schoolId && user.role !== "SUPER_ADMIN") {
       res.status(403).json({ success: false, error: "Token schoolId mismatch. Invalid token." });

@@ -681,6 +681,20 @@ router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSc
 
 router.get("/me", authenticate, injectCsrfToken, async (req: AuthRequest, res: Response) => {
   try {
+    if (req.user!.role === "STUDENT") {
+      const student = await prisma.student.findUnique({
+        where: { id: req.user!.id },
+        select: {
+          id: true, admissionNo: true, name: true,
+          isActive: true, createdAt: true,
+          schoolId: true
+        }
+      });
+      if (!student) { res.status(404).json({ success: false, error: "Student not found" }); return; }
+      res.json({ success: true, data: { ...student, role: "STUDENT" } });
+      return;
+    }
+
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
       select: {
