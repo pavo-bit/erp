@@ -2,15 +2,27 @@
 
 import useSWR, { mutate as globalMutate } from "swr";
 
+async function fetchWithCsrf(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (typeof window !== "undefined") {
+    const token = window.sessionStorage.getItem("csrfToken");
+    if (token && !["GET", "HEAD", "OPTIONS"].includes((init.method || "GET").toUpperCase())) headers.set("X-CSRF-Token", token);
+  }
+  const response = await fetch(input, { ...init, headers });
+  const token = response.headers.get("X-CSRF-Token");
+  if (token && typeof window !== "undefined") window.sessionStorage.setItem("csrfToken", token);
+  return response;
+}
+
 // Fetcher with credentials for cookie-based auth
 const fetcher = async (url: string) => {
-  let res = await fetch(url, { credentials: "include" });
+  let res = await fetchWithCsrf(url, { credentials: "include" });
   
   // Refresh token rotation on 401
   if (res.status === 401) {
-    const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+    const refreshRes = await fetchWithCsrf("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
     if (refreshRes.ok) {
-      res = await fetch(url, { credentials: "include" });
+      res = await fetchWithCsrf(url, { credentials: "include" });
     }
   }
 
@@ -32,13 +44,13 @@ export async function apiCall(url: string, method: "GET" | "POST" | "PUT" | "DEL
 
   let res: Response;
   try {
-    res = await fetch(url, opts);
+    res = await fetchWithCsrf(url, opts);
     
     // Refresh token rotation on 401
     if (res.status === 401) {
-      const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+      const refreshRes = await fetchWithCsrf("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
       if (refreshRes.ok) {
-        res = await fetch(url, opts);
+        res = await fetchWithCsrf(url, opts);
       }
     }
   } catch {

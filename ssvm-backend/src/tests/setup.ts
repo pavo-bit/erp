@@ -99,8 +99,17 @@ vi.mock('@bull-board/api/bullMQAdapter', () => ({
   }
 }));
 
-// Use test database URL
-process.env.DATABASE_URL = process.env.DATABASE_URL_TEST || 'postgresql://postgres:postgres@localhost:5432/ssvm_test?schema=public';
+// Destructive test fixtures may only run against an explicitly configured test DB.
+// Never silently truncate a developer, shared, or production database.
+const testDatabaseUrl = process.env.DATABASE_URL_TEST;
+if (!testDatabaseUrl) {
+  throw new Error('DATABASE_URL_TEST must be explicitly set to an isolated test database before running tests.');
+}
+const testDatabaseName = decodeURIComponent(new URL(testDatabaseUrl).pathname.slice(1));
+if (!/(^|[_-])test($|[_-])/i.test(testDatabaseName)) {
+  throw new Error('DATABASE_URL_TEST database name must clearly identify an isolated test database.');
+}
+process.env.DATABASE_URL = testDatabaseUrl;
 
 // Generate real RSA keys for testing so jsonwebtoken doesn't complain about invalid format
 import crypto from 'crypto';
@@ -115,6 +124,9 @@ process.env.ACCESS_TOKEN_PUBLIC_KEY = publicKey;
 process.env.REFRESH_TOKEN_PRIVATE_KEY = privateKey;
 process.env.REFRESH_TOKEN_PUBLIC_KEY = publicKey;
 process.env.FIELD_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+process.env.RAZORPAY_KEY_ID = 'rzp_test_codex';
+process.env.RAZORPAY_KEY_SECRET = crypto.randomBytes(32).toString('hex');
+process.env.RAZORPAY_WEBHOOK_SECRET = crypto.randomBytes(32).toString('hex');
 
 beforeAll(async () => {
   try {

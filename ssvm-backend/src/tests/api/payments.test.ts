@@ -7,7 +7,7 @@ import { Role } from '@prisma/client';
 
 const app = createTestApp();
 const prisma = getTestPrisma();
-const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret';
+const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET!;
 
 describe('Payments & Finance APIs', () => {
   let schoolId: string;

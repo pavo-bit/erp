@@ -2,12 +2,24 @@
 
 import useSWR from "swr";
 
+async function fetchWithCsrf(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (typeof window !== "undefined") {
+    const token = window.sessionStorage.getItem("csrfToken");
+    if (token && !["GET", "HEAD", "OPTIONS"].includes((init.method || "GET").toUpperCase())) headers.set("X-CSRF-Token", token);
+  }
+  const response = await fetch(input, { ...init, headers });
+  const token = response.headers.get("X-CSRF-Token");
+  if (token && typeof window !== "undefined") window.sessionStorage.setItem("csrfToken", token);
+  return response;
+}
+
 const fetcher = async (url: string) => {
-  let res = await fetch(url, { credentials: "include" });
+  let res = await fetchWithCsrf(url, { credentials: "include" });
   
   if (res.status === 401) {
-    const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
-    if (refreshRes.ok) res = await fetch(url, { credentials: "include" });
+    const refreshRes = await fetchWithCsrf("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+    if (refreshRes.ok) res = await fetchWithCsrf(url, { credentials: "include" });
   }
 
   if (!res.ok) throw new Error("Request failed");
@@ -16,16 +28,16 @@ const fetcher = async (url: string) => {
 };
 
 export async function apiCall(url: string, method: "POST" | "PUT" | "DELETE" = "POST", body?: unknown) {
-  let res = await fetch(url, {
+  let res = await fetchWithCsrf(url, {
     method, credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: body ? JSON.stringify(body) : undefined,
   });
 
   if (res.status === 401) {
-    const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+    const refreshRes = await fetchWithCsrf("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
     if (refreshRes.ok) {
-      res = await fetch(url, {
+      res = await fetchWithCsrf(url, {
         method, credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: body ? JSON.stringify(body) : undefined,

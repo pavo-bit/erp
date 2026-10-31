@@ -10,22 +10,24 @@ const {
   generateCsrfToken, // Generates the token to be sent in headers
   doubleCsrfProtection, // Middleware to protect routes
 } = doubleCsrf({
-  getSecret: () => env.ACCESS_TOKEN_PRIVATE_KEY || "fallback_secret", // Needs a strong secret, the private key works perfectly
-  cookieName: "__Host-ps.x-csrf-token", // Using __Host prefix for enhanced security if HTTPS
+  // Never silently fall back to a known or weak key. Startup environment validation
+  // already requires this key; use it only as CSRF signing material.
+  getSecret: () => env.ACCESS_TOKEN_PRIVATE_KEY,
+  cookieName: env.NODE_ENV === "production" ? "__Host-ps.x-csrf-token" : "csrf-token",
   cookieOptions: {
     sameSite: "lax",
     path: "/",
-    secure: env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false),
+    secure: env.NODE_ENV === "production",
   },
   size: 64,
   ignoredMethods: ["GET", "HEAD", "OPTIONS"],
   getCsrfTokenFromRequest: (req) => {
     return req.headers["x-csrf-token"] as string;
   },
-  getSessionIdentifier: (req) => {
-    // If you don't have a specific session ID, fallback to returning something predictable 
-    // per user/request or just "default" if you aren't doing strict session tracking
-    return "default";
+  getSessionIdentifier: () => {
+    // CSRF runs before route-level authentication, so its stable browser token
+    // context must not depend on req.user (which is unavailable at this point).
+    return "browser";
   }
 });
 
@@ -38,20 +40,18 @@ export function injectCsrfToken(req: Request, res: Response, next: NextFunction)
 
 // Wrapper for doubleCsrfProtection that includes route exclusions
 export function csrfProtection(req: Request, res: Response, next: NextFunction) {
-  // TEMP: Disable CSRF globally because the frontend (erp-admin) currently does not extract 
-  // or inject the X-CSRF-Token header in its apiCall hook, causing all POST/PUT/DELETE requests to fail.
-  return next();
-
   // Excluded routes where CSRF validation is disabled:
   const excludedRoutes = [
     { method: "POST", path: "/api/payments/webhook" },
     { method: "POST", path: "/api/auth/login" },
     { method: "POST", path: "/api/auth/student/login" },
+    { method: "POST", path: "/api/auth/verify-2fa" },
     { method: "POST", path: "/api/auth/alumni/register" },
     // Aliases mapped under /api/v1/
     { method: "POST", path: "/api/v1/payments/webhook" },
     { method: "POST", path: "/api/v1/auth/login" },
     { method: "POST", path: "/api/v1/auth/student/login" },
+    { method: "POST", path: "/api/v1/auth/verify-2fa" },
     { method: "POST", path: "/api/v1/auth/alumni/register" },
   ];
 
@@ -61,6 +61,26 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
   });
 
   if (isExcluded) {
+    return next();
+  }
+
+  const hasAuthCookie = Boolean(req.cookies?.access_token || req.cookies?.auth_token || req.cookies?.refresh_token);
+  const origin = req.get("origin");
+  if (hasAuthCookie && origin) {
+    let allowedOrigin: string;
+    try {
+      allowedOrigin = new URL(env.FRONTEND_URL).origin;
+    } catch {
+      return res.status(500).json({ success: false, error: "csrf_origin_configuration_error" });
+    }
+    if (origin !== allowedOrigin) {
+      return res.status(403).json({ success: false, error: "invalid_origin", message: "Request origin is not allowed" });
+    }
+  }
+
+  // A bearer token is supplied explicitly by the caller and is not ambient browser
+  // credential state. Cookie-authenticated requests remain subject to CSRF checks.
+  if (req.headers.authorization?.startsWith("Bearer ") && !hasAuthCookie) {
     return next();
   }
 

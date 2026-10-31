@@ -4,26 +4,34 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
+  if (process.env.NODE_ENV === 'production' || process.env.ALLOW_DEMO_SEED !== 'true') {
+    throw new Error('Demo seeding is disabled. Set ALLOW_DEMO_SEED=true in a non-production environment to proceed.');
+  }
+  const adminEmail = process.env.SEED_SUPER_ADMIN_EMAIL?.trim();
+  const adminPassword = process.env.SEED_SUPER_ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword || adminPassword.length < 16) {
+    throw new Error('Set SEED_SUPER_ADMIN_EMAIL and a unique SEED_SUPER_ADMIN_PASSWORD of at least 16 characters.');
+  }
   console.log("🌱 Commencing SSVM Enterprise DB Seed Protocol...");
 
   // 1. Flush existing mock data (optional based on ENV)
   // For safety in production, we skip aggressive wiping unless specified
   
   // 2. Setup Super Admin
-  const hashedPassword = await bcrypt.hash('admin123', 10);
+  const hashedPassword = await bcrypt.hash(adminPassword, 10);
   
   const superAdmin = await prisma.user.upsert({
-    where: { email: 'superadmin@ssvmerp.com' },
+    where: { email: adminEmail },
     update: {},
     create: {
-      email: 'superadmin@ssvmerp.com',
+      email: adminEmail,
       passwordHash: hashedPassword,
       name: 'System SuperAdmin',
       role: 'SUPER_ADMIN',
       isActive: true,
     },
   });
-  console.log('✅ SuperAdmin provisioned:', superAdmin.email);
+  console.log('✅ SuperAdmin provisioned');
 
   // 3. Setup Primary Tenant School
   const school = await prisma.school.upsert({

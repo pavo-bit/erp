@@ -4,6 +4,7 @@
 
 # ─── Environment Variables (NEVER commit secrets) ─────────
 .env
+.env.backup
 .env.local
 .env.production
 .env.*.local

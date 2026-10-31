@@ -1,12 +1,24 @@
 import useSWR from 'swr';
 
+async function fetchWithCsrf(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (typeof window !== 'undefined') {
+    const token = window.sessionStorage.getItem('csrfToken');
+    if (token && !['GET', 'HEAD', 'OPTIONS'].includes((init.method || 'GET').toUpperCase())) headers.set('X-CSRF-Token', token);
+  }
+  const response = await fetch(input, { ...init, headers });
+  const token = response.headers.get('X-CSRF-Token');
+  if (token && typeof window !== 'undefined') window.sessionStorage.setItem('csrfToken', token);
+  return response;
+}
+
 const fetcher = (url: string) =>
-  fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
+  fetchWithCsrf(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
     credentials: 'include', // sends httpOnly cookies
   }).then(res => res.json());
 
 export const apiCall = async (url: string, method: string, body?: object) => {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
+  const res = await fetchWithCsrf(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
     method,
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,5 @@
 # Stage 1: Build Environment
-FROM node:22-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -43,7 +43,7 @@ RUN chown -R ssvmuser:ssvmgroup /app
 USER ssvmuser
 
 # Expose backend API port
-EXPOSE 4000
+EXPOSE 5000
 
 # Start command
 CMD ["npm", "start"]

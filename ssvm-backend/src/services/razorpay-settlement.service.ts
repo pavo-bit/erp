@@ -1,16 +1,25 @@
 import Razorpay from "razorpay";
 import logger from "../lib/logger";
 
+type RazorpaySettlementClient = {
+  settlements: {
+    all(options: { from: number; to: number; count: number; skip: number }): Promise<{ items?: RazorpaySettlement[] }>;
+    reports(options: { settlement_id: string; count: number; skip: number }): Promise<{ items?: RazorpaySettlementItem[] }>;
+  };
+}
+
 /**
  * Razorpay Settlement Service
  * Fetches settlement data from Razorpay's API for reconciliation.
  * Uses the Razorpay Node SDK with platform-level credentials.
  */
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_placeholder",
-  key_secret: process.env.RAZORPAY_KEY_SECRET || "placeholder_secret",
-});
+function getRazorpayClient(): RazorpaySettlementClient {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  if (!keyId || !keySecret) throw new Error("Razorpay settlement credentials are not configured");
+  return new Razorpay({ key_id: keyId, key_secret: keySecret }) as unknown as RazorpaySettlementClient;
+}
 
 export interface RazorpaySettlement {
   id: string;
@@ -48,7 +57,7 @@ export class RazorpaySettlementService {
 
     try {
       while (true) {
-        const response = await (razorpay as any).settlements.all({
+        const response = await getRazorpayClient().settlements.all({
           from: Math.floor(from.getTime() / 1000),
           to: Math.floor(to.getTime() / 1000),
           count,
@@ -82,7 +91,7 @@ export class RazorpaySettlementService {
     try {
       while (true) {
         // Razorpay SDK: settlements.fetchTransfersBySettlement or use raw API
-        const response = await (razorpay as any).settlements.reports({
+        const response = await getRazorpayClient().settlements.reports({
           settlement_id: settlementId,
           count,
           skip,

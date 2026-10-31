@@ -2,19 +2,16 @@
 
 > **Modern, Full-Featured School Management System with Gallery**
 
-[![Status](https://img.shields.io/badge/Status-Ready%20to%20Deploy-success)]()
 [![Docker](https://img.shields.io/badge/Docker-Enabled-blue)]()
 [![Gallery](https://img.shields.io/badge/Gallery-16%20Demo%20Images-orange)]()
 
 ---
 
-## 🚀 Quick Start
+## Current status
 
-### **3 Steps to Launch:**
+The repository is under active security, tenant-isolation, finance and release-readiness remediation. It has not passed a clean-install, full-suite or production-readiness review. Do not use it with real school data or live financial operations until the release gates in `docs/PRODUCTION_DEPLOYMENT_CHECKLIST.md` are complete.
 
-1. **Start Docker Desktop** (wait for green icon)
-2. **Run:** `start-docker.bat`
-3. **Access:** http://localhost:3000
+For local development prerequisites and current limitations, see `docs/CLEAN_INSTALLATION_GUIDE.md`.
 
 ---
 
@@ -32,14 +29,9 @@ This file contains everything:
 
 ---
 
-## 🔑 Quick Login
+## 🔐 Initial access
 
-```
-Admin:   admin@ssvm-cuttack.org   / admin123
-Student: student@ssvm-cuttack.org / student123
-Parent:  parent@ssvm-cuttack.org  / parent123
-Alumni:  alumni@ssvm-cuttack.org  / alumni123
-```
+This repository does not provide default production-capable login credentials. Provision accounts through the documented local bootstrap and use unique credentials in a controlled development database. See `docs/CLEAN_INSTALLATION_GUIDE.md`; it currently documents prerequisites and is not yet a fully verified bootstrap.
 
 ---
 

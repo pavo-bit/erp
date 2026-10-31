@@ -30,7 +30,7 @@ import { deprecated } from "./middleware/versioning";
 import { addResponseHeaders } from "./lib/response";
 import { defaultLimiter, authLimiter, strictLimiter, uploadLimiter, bulkLimiter, webhookLimiter, paymentCreateLimiter, paymentVerifyLimiter, crmLimiter, otpLimiter, passwordResetLimiter } from "./middleware/rateLimiter";
 import { bruteForceCheck } from "./middleware/brute-force.middleware";
-import { csrfProtection } from "./middleware/csrf";
+import { csrfProtection, injectCsrfToken } from "./middleware/csrf";
 import { schoolContextMiddleware } from "./middleware/school-context.middleware";
 import { startTokenCleanupScheduler, stopTokenCleanupScheduler } from "./jobs/cleanupTokens";
 import { startWorkers } from "./jobs/worker";
@@ -226,6 +226,7 @@ app.use(metricsMiddleware);
 app.use(cors({
   origin: env.FRONTEND_URL,
   credentials: true,
+  exposedHeaders: ["X-CSRF-Token"],
 }));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -233,6 +234,10 @@ app.use(cookieParser());
 
 // Apply CSRF Protection (state-changing methods are validated, safe ones ignored)
 app.use(csrfProtection);
+app.use((req, res, next) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return injectCsrfToken(req, res, next);
+  next();
+});
 
 // Add X-Request-ID and X-API-Version to every response
 app.use(addResponseHeaders());
@@ -246,7 +251,9 @@ app.use((req, _res, next) => {
   next();
 });
 
-// Serve uploaded files
+// Public media may be served from the upload root, but private documents are only
+// available through the authenticated document download route.
+app.use("/uploads/documents", (_req, res) => res.status(404).end());
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 // ═══════════════════════════════════════════

@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetch("/api/v1/auth/me", { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
+      .then(r => { const token = r.headers.get("X-CSRF-Token"); if (token) window.sessionStorage.setItem("csrfToken", token); return r.ok ? r.json() : null; })
       .then(data => {
         if (data?.data?.role === "TEACHER") setUser(data.data);
         else { setUser(null); router.push("/login"); }
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" });
+    fetch("/api/v1/auth/logout", { method: "POST", credentials: "include", headers: { "X-CSRF-Token": window.sessionStorage.getItem("csrfToken") || "" } });
     setUser(null);
     router.push("/login");
   };

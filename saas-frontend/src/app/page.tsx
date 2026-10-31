@@ -138,11 +138,23 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  const fetchWithCsrf = async (url: string, init: RequestInit = {}) => {
+    const headers = new Headers(init.headers);
+    const token = window.sessionStorage.getItem("csrfToken");
+    if (token && !["GET", "HEAD", "OPTIONS"].includes((init.method || "GET").toUpperCase())) headers.set("X-CSRF-Token", token);
+    const response = await fetch(url, { ...init, headers, credentials: "include" });
+    const responseToken = response.headers.get("X-CSRF-Token");
+    if (responseToken) window.sessionStorage.setItem("csrfToken", responseToken);
+    return response;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/api/v1/saas/request", {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      await fetchWithCsrf(`${apiBase}/api/v1/health`, { method: "GET" });
+      const res = await fetchWithCsrf(`${apiBase}/api/v1/saas/request`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)

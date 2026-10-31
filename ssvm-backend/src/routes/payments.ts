@@ -3,7 +3,7 @@ import Razorpay from "razorpay";
 import crypto from "crypto";
 import { PrismaClient, Prisma } from "@prisma/client";
 const prisma = new PrismaClient();
-import { AuthRequest, authenticate } from "../middleware/auth";
+import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
 import { getEnv } from "../config/env";
 import { LedgerService } from "../services/ledger.service";
 import { paymentIdempotencyMiddleware, computePaymentIdempotencyKey } from "../middleware/idempotency";
@@ -16,10 +16,9 @@ const router = Router();
 const env = getEnv();
 
 // Make sure you have RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in .env
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID || "rzp_test_placeholder",
-  key_secret: process.env.RAZORPAY_KEY_SECRET || "placeholder_secret",
-});
+const razorpay = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
+  ? new Razorpay({ key_id: env.RAZORPAY_KEY_ID, key_secret: env.RAZORPAY_KEY_SECRET })
+  : null;
 
 // ═══════════════════════════════════════════
 // POST /api/payments/create-order
@@ -27,6 +26,10 @@ const razorpay = new Razorpay({
 router.post("/create-order", authenticate, async (req: AuthRequest, res: Response) => {
   try {
     const { feeId } = req.body;
+    if (!razorpay) {
+      res.status(503).json({ success: false, error: "Payment gateway is not configured" });
+      return;
+    }
     if (!feeId) {
       res.status(400).json({ success: false, error: "Fee ID is required" });
       return;
@@ -56,8 +59,8 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
     let order;
     try {
       order = await razorpayCircuitBreaker.fire(() => razorpay.orders.create(options));
-    } catch (cbError: any) {
-      if (cbError.message.includes("OPEN")) {
+    } catch (cbError: unknown) {
+      if (cbError instanceof Error && cbError.message.includes("OPEN")) {
         res.status(503).json({ success: false, error: "Payment gateway is currently unavailable. Please try again later." });
         return;
       }
@@ -100,14 +103,20 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
     }
 
     // Verify signature
-    const secret = process.env.RAZORPAY_KEY_SECRET || "placeholder_secret";
+    const secret = env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      res.status(503).json({ success: false, error: "Payment gateway is not configured" });
+      return;
+    }
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto
       .createHmac("sha256", secret)
       .update(body.toString())
       .digest("hex");
 
-    const isAuthentic = expectedSignature === razorpay_signature;
+    const expectedBytes = Buffer.from(expectedSignature, "hex");
+    const suppliedBytes = Buffer.from(razorpay_signature, "hex");
+    const isAuthentic = expectedBytes.length === suppliedBytes.length && expectedBytes.length > 0 && crypto.timingSafeEqual(expectedBytes, suppliedBytes);
 
     if (!isAuthentic) {
       await prisma.paymentTransaction.update({
@@ -211,11 +220,18 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
 // ═══════════════════════════════════════════
 // POST /api/payments/trigger-late-fines
 // ═══════════════════════════════════════════
-// This should ideally be protected by a CRON_SECRET or Admin auth
-router.post("/trigger-late-fines", async (req: AuthRequest, res: Response) => {
+// Manual execution is restricted to school finance administrators and is scoped to
+// their authenticated school. Cross-school jobs belong in an explicitly authorized worker.
+router.post("/trigger-late-fines", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN", "ACCOUNTANT"), async (req: AuthRequest, res: Response) => {
   try {
+    const schoolId = req.user?.role === "SUPER_ADMIN" ? req.body.schoolId : req.user?.schoolId;
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School scope is required" });
+      return;
+    }
     const overdueFees = await prisma.invoice.findMany({
       where: {
+        schoolId,
         status: "PENDING",
         dueDate: { lt: new Date() },
       },
@@ -226,7 +242,7 @@ router.post("/trigger-late-fines", async (req: AuthRequest, res: Response) => {
     for (const fee of overdueFees) {
       if (fee.fineAmount === 0) {
         await prisma.invoice.update({
-          where: { id: fee.id },
+          where: { id: fee.id, schoolId, fineAmount: 0 },
           data: {
             fineAmount: 50,
             status: "OVERDUE",
@@ -254,14 +270,20 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
     const webhookBody = req.body;
 
     // ── 1. HMAC Signature Validation ──
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_KEY_SECRET || "placeholder_secret";
+    const secret = env.RAZORPAY_WEBHOOK_SECRET || env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      res.status(503).json({ success: false, error: "Payment webhook is not configured" });
+      return;
+    }
     const payloadString = JSON.stringify(webhookBody);
     const expectedSignature = crypto
       .createHmac("sha256", secret)
       .update(payloadString)
       .digest("hex");
 
-    if (expectedSignature !== signature) {
+    const expectedBytes = Buffer.from(expectedSignature, "hex");
+    const suppliedBytes = Buffer.from(signature || "", "hex");
+    if (!expectedBytes.length || expectedBytes.length !== suppliedBytes.length || !crypto.timingSafeEqual(expectedBytes, suppliedBytes)) {
       await logSecurityEvent({
         userId: "SYSTEM",
         eventType: "WEBHOOK_TAMPERING",
@@ -470,9 +492,11 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
           res.status(200).json({ success: true, message: "Already processed" });
           return;
         }
-      } catch (txError: any) {
+      } catch (txError: unknown) {
         // Serialization failure → tell Razorpay to retry
-        if (txError.code === "P2034" || txError.message?.includes("serialization")) {
+        const txErrorCode = txError && typeof txError === "object" && "code" in txError ? txError.code : undefined;
+        const txErrorMessage = txError instanceof Error ? txError.message : "";
+        if (txErrorCode === "P2034" || txErrorMessage.includes("serialization")) {
           logger.warn({ err: txError, gatewayPaymentId }, "Serialization conflict in webhook — Razorpay will retry");
           await IdempotencyService.releaseLock("system", idempotencyKey);
           res.status(500).json({ success: false, error: "Concurrency error, retry later" });
@@ -480,7 +504,7 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
         }
 
         // Unique constraint violation → duplicate (race condition handled gracefully)
-        if (txError.code === "P2002") {
+        if (txErrorCode === "P2002") {
           logger.info({ gatewayPaymentId }, "Duplicate caught by unique constraint");
           res.status(200).json({ success: true, message: "Already processed" });
           return;

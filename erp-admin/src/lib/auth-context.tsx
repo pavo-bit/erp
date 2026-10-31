@@ -49,6 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
         signal: controller.signal,
       });
+      const csrfToken = res.headers.get("X-CSRF-Token");
+      if (csrfToken) window.sessionStorage.setItem("csrfToken", csrfToken);
       clearTimeout(timeoutId);
 
       if (res.ok) {
@@ -72,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" });
+      await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include", headers: { "X-CSRF-Token": window.sessionStorage.getItem("csrfToken") || "" } });
     } catch { /* ignore */ }
     setUser(null);
     router.push("/");
