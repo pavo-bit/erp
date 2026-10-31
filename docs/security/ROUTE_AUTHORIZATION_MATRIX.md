@@ -1,6 +1,6 @@
 # Route Authorization Matrix (Generated Inventory)
 
-Updated: 2026-10-31
+Updated: 2026-11-01
 
 This inventory is mechanically extracted from route declarations and mounts. Middleware names are shown as clues only. Inline checks, inherited router middleware, ownership constraints, tenant scope, input validation and audit behavior have not been semantically verified. All rows remain **REVIEW_REQUIRED** until individually inspected and tested. Dynamic route strings and nested router mounts may require manual completion.
 
@@ -156,7 +156,7 @@ This inventory is mechanically extracted from route declarations and mounts. Mid
 | GET | `/api/v1/documents/:id` | `documents.ts` | `authenticate` | REVIEW_REQUIRED |
 | GET | `/api/v1/documents/:id/download` | `documents.ts` | `authenticate` | REVIEW_REQUIRED |
 | PUT | `/api/v1/documents/:id/verify` | `documents.ts` | `authenticate, requireRole` | REVIEW_REQUIRED |
-| POST | `/api/v1/documents/upload` | `documents.ts` | `authenticate, upload.single` | REVIEW_REQUIRED |
+| POST | `/api/v1/documents/upload` | `documents.ts` | `authenticate, requireRole, upload.single` | REVIEW_REQUIRED |
 | GET | `/api/v1/events` | `events.ts` | (inline/inherited) | REVIEW_REQUIRED |
 | POST | `/api/v1/events` | `events.ts` | `authenticate, requireContentAdmin` | REVIEW_REQUIRED |
 | DELETE | `/api/v1/events/:id` | `events.ts` | `authenticate, requireContentAdmin` | REVIEW_REQUIRED |

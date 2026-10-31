@@ -1,136 +1,165 @@
-import { Router, Request, Response, NextFunction } from "express";
+import { Router, Response } from "express";
+import { randomUUID } from "crypto";
 import prisma from "../lib/prisma";
 import { Prisma } from "@prisma/client";
+import { AuthRequest, authenticate, requireOperationsAdmin, requireRole } from "../middleware/auth";
+import { z } from "zod";
 
 const router = Router();
+router.use(authenticate);
 
-// Create Purchase Request
-router.post("/requests", async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+const purchaseRequestSchema = z.object({
+  schoolId: z.string().optional(),
+  departmentId: z.string().optional().nullable(),
+  justification: z.string().optional().nullable(),
+  items: z.array(z.object({
+    itemId: z.string().min(1).optional(),
+    description: z.string().trim().min(1),
+    quantity: z.number().int().positive().max(2147483647),
+    estimatedPrice: z.number().finite().nonnegative().refine((price) => Number.isSafeInteger(Math.round(price * 100)) && Math.abs(price * 100 - Math.round(price * 100)) < 1e-7, "Price must have at most two decimal places"),
+  })).min(1),
+});
+
+function resolveSchoolId(req: AuthRequest, requestedSchoolId?: unknown): string | null {
+  const schoolId = req.user?.role === "SUPER_ADMIN" ? requestedSchoolId : req.user?.schoolId;
+  return typeof schoolId === "string" && schoolId.trim() ? schoolId : null;
+}
+
+router.post("/requests", requireRole("SUPER_ADMIN", "ERP_ADMIN", "ASSET_MANAGER", "ACCOUNTANT", "HR", "TEACHER", "RECEPTIONIST"), async (req: AuthRequest, res: Response): Promise<void> => {
+  const parsed = purchaseRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ success: false, error: "Purchase request data is invalid" });
+    return;
+  }
+  const { departmentId, justification, items } = parsed.data;
+  const schoolId = resolveSchoolId(req, parsed.data.schoolId);
+  if (!schoolId) {
+    res.status(400).json({ success: false, error: "School scope is required" });
+    return;
+  }
   try {
-    const { schoolId, requesterId, departmentId, justification, items } = req.body;
+    if (departmentId) {
+      const department = await prisma.department.findFirst({ where: { id: departmentId, schoolId }, select: { id: true } });
+      if (!department) {
+        res.status(404).json({ success: false, error: "Department not found" });
+        return;
+      }
+    }
+    const inventoryItemIds = [...new Set(items.map((item: { itemId?: string }) => item.itemId).filter(Boolean))] as string[];
+    if (inventoryItemIds.length) {
+      const matchingItems = await prisma.inventoryItem.findMany({ where: { id: { in: inventoryItemIds }, schoolId }, select: { id: true } });
+      if (matchingItems.length !== inventoryItemIds.length) {
+        res.status(400).json({ success: false, error: "Purchase request references an item outside this school" });
+        return;
+      }
+    }
 
-    const requestNumber = `PR-${schoolId}-${Date.now()}`;
-    const totalEstAmount = items.reduce((acc: number, item: any) => acc + item.quantity * item.estimatedPrice, 0);
-
+    const totalInMinorUnits = items.reduce((sum, item) => sum + Math.round(item.quantity * item.estimatedPrice * 100), 0);
+    if (!Number.isSafeInteger(totalInMinorUnits)) {
+      res.status(400).json({ success: false, error: "Purchase request total is invalid" });
+      return;
+    }
+    const totalEstAmount = totalInMinorUnits / 100;
     const pr = await prisma.purchaseRequest.create({
       data: {
         schoolId,
-        requestNumber,
-        requesterId,
-        departmentId,
-        justification,
+        requestNumber: `PR-${randomUUID()}`,
+        requesterId: req.user!.id,
+        departmentId: typeof departmentId === "string" ? departmentId : null,
+        justification: typeof justification === "string" ? justification : null,
         totalEstAmount,
         status: "PENDING_APPROVAL",
         items: {
-          create: items.map((i: any) => ({
-            itemId: i.itemId,
-            description: i.description,
-            quantity: i.quantity,
-            estimatedPrice: i.estimatedPrice
-          }))
-        }
+          create: items.map((item) => ({
+            itemId: item.itemId || null,
+            description: item.description.trim(),
+            quantity: item.quantity,
+            estimatedPrice: item.estimatedPrice,
+          })),
+        },
       },
-      include: { items: true }
+      include: { items: true },
     });
-
     res.status(201).json({ success: true, data: pr });
-  } catch (error) {
-    next(error);
+  } catch {
+    res.status(500).json({ success: false, error: "Unable to create purchase request" });
   }
 });
 
-// Approve Purchase Request and Generate PO
-router.post("/requests/:id/approve", async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post("/requests/:id/approve", requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response): Promise<void> => {
+  const schoolId = resolveSchoolId(req, req.body?.schoolId);
+  if (!schoolId) {
+    res.status(400).json({ success: false, error: "School scope is required" });
+    return;
+  }
   try {
-    const id = req.params.id as string;
-    const { vendorId } = req.body; // Assign a vendor when approving to PO
-
     const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const pr = await tx.purchaseRequest.update({
-        where: { id },
-        data: { status: "APPROVED" },
-        include: { items: true }
+      const purchaseRequest = await tx.purchaseRequest.findFirst({
+        where: { id: req.params.id as string, schoolId, status: "PENDING_APPROVAL" },
+        include: { items: true },
       });
+      if (!purchaseRequest) return null;
 
+      const vendorId = req.body?.vendorId;
+      if (vendorId !== undefined && typeof vendorId !== "string") throw new Error("Vendor ID is invalid");
       if (!vendorId) {
-          return pr; // Just approved, no PO generated yet
+        const updated = await tx.purchaseRequest.updateMany({
+          where: { id: purchaseRequest.id, schoolId, status: "PENDING_APPROVAL" },
+          data: { status: "APPROVED" },
+        });
+        return updated.count === 1 ? { purchaseRequest: { ...purchaseRequest, status: "APPROVED" } } : null;
       }
 
-      const poNumber = `PO-${pr.schoolId}-${Date.now()}`;
-      const po = await tx.purchaseOrder.create({
-        data: {
-          schoolId: pr.schoolId,
-          vendorId: vendorId,
-          poNumber,
-          purchaseRequestId: pr.id,
-          status: "ISSUED",
-          totalAmount: pr.totalEstAmount,
-          createdBy: pr.requesterId, // Assuming requester is creating the PO for now, or use system/admin ID
-          items: {
-            create: pr.items.map((i: any) => ({
-              itemId: i.itemId,
-              description: i.description,
-              quantity: i.quantity,
-              unitPrice: i.estimatedPrice,
-              totalPrice: i.quantity * i.estimatedPrice,
-              status: "PENDING"
-            }))
-          }
-        },
-        include: { items: true }
+      const vendor = await tx.vendor.findFirst({ where: { id: vendorId, schoolId }, select: { id: true } });
+      if (!vendor) throw new Error("Vendor not found in this school");
+      const updated = await tx.purchaseRequest.updateMany({
+        where: { id: purchaseRequest.id, schoolId, status: "PENDING_APPROVAL" },
+        data: { status: "APPROVED" },
       });
+      if (updated.count !== 1) return null;
 
-      return { pr, po };
-    });
+      const purchaseOrder = await tx.purchaseOrder.create({
+        data: {
+          schoolId,
+          vendorId,
+          poNumber: `PO-${randomUUID()}`,
+          purchaseRequestId: purchaseRequest.id,
+          status: "ISSUED",
+          totalAmount: purchaseRequest.totalEstAmount,
+          createdBy: req.user!.id,
+          items: {
+            create: purchaseRequest.items.map((item) => ({
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.estimatedPrice,
+              totalPrice: item.quantity * item.estimatedPrice,
+              status: "PENDING",
+            })),
+          },
+        },
+        include: { items: true },
+      });
+      return { purchaseRequest: { ...purchaseRequest, status: "APPROVED" }, purchaseOrder };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
 
+    if (!result) {
+      res.status(404).json({ success: false, error: "Pending purchase request not found in this school" });
+      return;
+    }
     res.json({ success: true, data: result });
   } catch (error) {
-    next(error);
+    const message = error instanceof Error ? error.message : "Unable to approve purchase request";
+    const status = message.includes("not found") ? 404 : message.includes("invalid") ? 400 : 500;
+    res.status(status).json({ success: false, error: message });
   }
 });
 
-// Goods Receipt (Receiving items)
-router.post("/orders/:id/receive", async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-        const id = req.params.id as string;
-        const { receivedById, remarks, itemsReceived } = req.body; 
-        // itemsReceived: Array of { purchaseOrderItemId, quantity }
-
-        const gr = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-            const po = await tx.purchaseOrder.findUniqueOrThrow({ where: { id } });
-
-            const grNumber = `GR-${po.schoolId}-${Date.now()}`;
-            const goodsReceipt = await tx.goodsReceipt.create({
-                data: {
-                    schoolId: po.schoolId,
-                    grNumber,
-                    purchaseOrderId: po.id,
-                    receivedById,
-                    remarks
-                }
-            });
-
-            for (const item of itemsReceived) {
-                await tx.purchaseOrderItem.update({
-                    where: { id: item.purchaseOrderItemId },
-                    data: {
-                        status: "RECEIVED"
-                    }
-                });
-            }
-
-            await tx.purchaseOrder.update({
-                where: { id },
-                data: { status: "PARTIAL_RECEIPT" } // In a real system, compute if FULFILLED based on quantities
-            });
-
-            return goodsReceipt;
-        });
-
-        res.json({ success: true, data: gr });
-    } catch(error) {
-        next(error);
-    }
+router.post("/orders/:id/receive", requireOperationsAdmin("ASSET_MANAGER"), async (_req: AuthRequest, res: Response): Promise<void> => {
+  res.status(501).json({
+    success: false,
+    error: "Goods receipt is unavailable until received quantities can be recorded per purchase-order line",
+    code: "GOODS_RECEIPT_UNAVAILABLE",
+  });
 });
 
 export default router;

@@ -1,8 +1,8 @@
 # SSVM ERP Security Inventory (Initial)
 
-Updated: 2026-10-31
+Updated: 2026-11-01
 
-This is an inventory of route registrations observed in `ssvm-backend/src/app.ts`, not a claim that each router's internal access policy has been verified. **UNREVIEWED** means route-level handlers still require inspection. The generated method/endpoint list is `security/ROUTE_AUTHORIZATION_MATRIX.md` (364 mounted declarations) and can be regenerated with `ssvm-backend/scripts/build-route-authorization-inventory.cjs`. Four corrected paths are noted separately.
+This is an inventory of route registrations observed in `ssvm-backend/src/app.ts`, not a claim that each router's internal access policy has been verified. **UNREVIEWED** means route-level handlers still require inspection. The generated method/endpoint list is `security/ROUTE_AUTHORIZATION_MATRIX.md` (365 mounted declarations) and can be regenerated with `ssvm-backend/scripts/build-route-authorization-inventory.cjs`. Targeted route corrections are noted separately.
 
 ## Global middleware and non-router surfaces
 
@@ -13,7 +13,7 @@ This is an inventory of route registrations observed in `ssvm-backend/src/app.ts
 | Request parsing | JSON limit 10 MB; URL-encoded parser enabled. |
 | Rate limits | Global default limiter and selected auth/upload/bulk/webhook/module limiters. Per-route coverage unreviewed. |
 | CSRF | Token validation enabled globally for unsafe requests; frontend propagation implemented but untested. |
-| Tenant context | `schoolContextMiddleware` runs before route-level authentication; Phase 2 audit required. |
+| Tenant context | Middleware creates provisional request context; successful authentication populates it before route handlers. Prisma coverage and RLS remain incomplete. |
 | Static uploads | `/uploads` serves public media; `/uploads/documents` now denied. Other upload subdirectories require classification. |
 | Health / metrics / docs | `/health`, `/api/health`, `/api/v1/health`, `/metrics`, `/api/docs/spec.json`; exposure/access policy requires production review. |
 | Background workers | Token cleanup, queue workers and backup service startup are present; job context and authorization require audit. |
@@ -34,8 +34,8 @@ All routers below are mounted. This table records scope and inspection status, n
 | `/api/v1/alumni`, `/api/v1/admissions`, `/api/v1/certificates`, `/api/v1/reports`, `/api/v1/stats`, `/api/v1/search`, `/api/v1/activity`, `/api/v1/cms` | Public-facing and reporting features | UNREVIEWED |
 | `/api/v1/library`, `/api/v1/assets`, `/api/v1/reception`, `/api/v1/transport`, `/api/v1/discipline`, `/api/v1/ancillary` | School operations | UNREVIEWED |
 | `/api/v1/storage`, `/api/v1/documents` | File/document access | Public static document path denied; authenticated document download and school/student scope added. Upload signature validation and all operations require further review. |
-| `/api/v1/crm` | CRM | UNREVIEWED |
-| `/api/v1/procurement-ops`, `/api/v1/inventory` | Procurement/inventory operations | UNREVIEWED |
+| `/api/v1/crm` | CRM | Router requires admissions/admin role; school/lead/campaign/stage ownership checks added; DB tests pending. |
+| `/api/v1/procurement-ops`, `/api/v1/inventory` | Procurement/inventory operations | Procurement UNREVIEWED; inventory route auth/school/actor checks added; transfer unsupported, DB tests pending. |
 | `/api/v1/governance`, `/api/v1/admin/governance-workflows` | Governance/retention | Workflow router now authenticated and role-gated; retention preview, bounded deletion and audit summary remain. |
 | `/api/v1/saas`, `/api/v1/saas/settings`, `/api/v1/saas/security`, `/api/v1/saas/governance`, `/api/v1/saas/export`, `/api/v1/saas/mdm` | Platform administration/export | UNREVIEWED |
 | `/api/v1/webhooks` | External callbacks | Signature and replay policy require route-specific review. |
@@ -48,5 +48,9 @@ All routers below are mounted. This table records scope and inspection status, n
 - `/api/v1/admin/governance-workflows/retention-policies/execute`: super-admin only.
 - `/api/v1/payments/trigger-late-fines`: authenticated finance/admin role and school scope.
 - Private document downloads: authenticated and school/owner-scoped.
+- `/api/v1/finance/governance/periods/:id/close`: finance-admin auth; school and closer derived from authenticated user; validation failures are not reported as success.
+- `/api/v1/finance/governance/reconcile`: finance-admin auth; placeholder persistence removed and returns 501 until real matching is implemented.
+- CRM router: admissions/admin authentication, server-derived school and interaction actor, cross-school lead/campaign/stage checks.
+- Inventory router: operations-admin authentication, server-derived school/actor, school-owned item/location checks, serializable movement transaction; transfer denied until destination data is supported.
 
 This inventory is incomplete for route methods, individual permissions, ownership, audit requirements, scheduled jobs, raw SQL and feature-specific download/export paths.

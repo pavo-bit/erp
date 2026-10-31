@@ -1,6 +1,6 @@
 # Prisma Model Inventory
 
-Updated: 2026-10-31
+Updated: 2026-11-01
 
 Generated from the Prisma schema. Direct schoolId presence is syntactic evidence only. Each model still requires a business ownership classification and an enforcement decision. No model is marked tenant-safe by this inventory.
 

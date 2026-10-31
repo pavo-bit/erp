@@ -1,87 +1,45 @@
-import { Router, Request, Response, NextFunction } from "express";
-import prisma from "../lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Router, Response } from "express";
 import { FinancialCloseService } from "../services/FinancialCloseService";
+import { AuthRequest, authenticate, requireFinanceAdmin } from "../middleware/auth";
+import logger from "../lib/logger";
 
 const router = Router();
 
 // 1. Month-End Close (Lock Accounting Period)
-router.post("/periods/:id/close", async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+router.post("/periods/:id/close", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+    const periodId = req.params.id as string;
     try {
-        const periodId = req.params.id as string;
-        const { schoolId, closedById } = req.body;
+        const user = req.user!;
+        const requestedSchoolId = req.body?.schoolId;
+        const schoolId = user.role === "SUPER_ADMIN" ? requestedSchoolId : user.schoolId;
+        if (typeof schoolId !== "string" || !schoolId.trim()) {
+            res.status(400).json({ success: false, error: "School scope is required" });
+            return;
+        }
 
-        await FinancialCloseService.closePeriod(schoolId, periodId, closedById);
+        const result = await FinancialCloseService.closePeriod(schoolId, periodId, user.id);
+        if (!result.success) {
+            res.status(409).json({ success: false, error: "Accounting period could not be closed", data: result });
+            return;
+        }
 
-        res.json({ success: true, message: "Accounting Period successfully closed and locked." });
+        res.json({ success: true, message: "Accounting Period successfully closed and locked.", data: result });
     } catch (error) {
-        next(error);
+        logger.error({ err: error, periodId, userId: req.user?.id }, "Financial period close failed");
+        res.status(500).json({ success: false, error: "Unable to close accounting period" });
     }
 });
 
-// 2. Bank Reconciliation Engine
-router.post("/reconcile", async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-        const { schoolId, accountId, statementDate, statementBalance, lines } = req.body;
-        // lines: Array of { date, amount, description, reference }
-
-        const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-            
-            // Create the parent reconciliation record
-            const recon = await tx.bankReconciliation.create({
-                data: {
-                    schoolId,
-                    accountId,
-                    statementDate: new Date(statementDate),
-                    statementBalance: new Prisma.Decimal(statementBalance),
-                    ledgerBalance: new Prisma.Decimal(0), // Would normally be calculated from LedgerEntries
-                    isMatched: false
-                }
-            });
-
-            let matchedCount = 0;
-            let unmatchedCount = 0;
-
-            // Simple Reconciliation Engine algorithm
-            for (const line of lines) {
-                // Find potential matches on exact amount and approx date
-                const potentialMatch = await tx.ledgerTransaction.findFirst({
-                    where: {
-                        schoolId,
-                        status: "POSTED",
-                        // Needs to map through LedgerEntry to get the amount in a real query, 
-                        // but assuming amount is recorded natively or we just search.
-                        // For demonstration, we just update a status string.
-                        // (Real implementation requires querying LedgerEntry)
-                    }
-                });
-
-                if (potentialMatch) {
-                    matchedCount++;
-                    // In a real system, you'd map a reconciliation link or entry
-                    // await tx.ledgerTransaction.update({
-                    //    where: { id: potentialMatch.id },
-                    //    data: { eventPublished: true } // Mock flag
-                    // });
-                } else {
-                    unmatchedCount++;
-                }
-            }
-
-            const updatedRecon = await tx.bankReconciliation.update({
-                where: { id: recon.id },
-                data: {
-                    isMatched: unmatchedCount === 0
-                }
-            });
-
-            return updatedRecon;
-        });
-
-        res.status(201).json({ success: true, data: result });
-    } catch(error) {
-        next(error);
-    }
+// Bank reconciliation is intentionally unavailable until statement lines can
+// be persisted and matched to posted ledger entries with auditable rules. The
+// former handler stored a zero ledger balance and reported a reconciliation
+// record without performing a match.
+router.post("/reconcile", authenticate, requireFinanceAdmin(), async (_req: AuthRequest, res: Response): Promise<void> => {
+    res.status(501).json({
+        success: false,
+        error: "Bank reconciliation is not implemented; no reconciliation was created",
+        code: "BANK_RECONCILIATION_UNAVAILABLE",
+    });
 });
 
 export default router;
