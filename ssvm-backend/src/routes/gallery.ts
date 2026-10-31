@@ -8,7 +8,11 @@ import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireRole, requireContentAdmin } from "../middleware/auth";
 
 const uploadDir = path.join(process.cwd(), "uploads", "gallery");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+} catch (err) {
+  logger.warn({ err }, "Could not initialize gallery directory synchronously");
+}
 
 // Multer stores to temp first, then we process with sharp
 const storage = multer.diskStorage({

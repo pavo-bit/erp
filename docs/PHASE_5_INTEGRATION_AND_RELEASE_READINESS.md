@@ -18,7 +18,7 @@ Updated: 2026-11-01
 ## Build and test evidence
 
 - `npm ci --no-audit --no-fund` completed in the backend and all seven portals; backend postinstall generates Prisma Client.
-- Backend `npm run type-check`, `npm run build`, `npx prisma validate`, and isolated CSRF/retention tests (6 tests) passed.
+- Backend `npm run type-check`, `npm run build`, `npx prisma validate`, and isolated CSRF/retention/tenant-context tests (9 tests) passed.
 - All seven portal builds and standalone TypeScript checks passed. Portal lint has configuration gaps in three apps and existing lint errors in the others.
 - Focused ESLint on changed security/payment files passed. Full backend lint failed with 567 existing problems (566 errors, 1 warning).
 - Database-backed tests, Prisma migrations, hosted CI and Playwright were not executed.

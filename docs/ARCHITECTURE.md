@@ -16,11 +16,11 @@ Status: Descriptive baseline; tenant and production behavior not verified.
 
 `helmet → global rate limit → metrics/CORS/body parsing/cookies → CSRF → schoolContextMiddleware → compatibility rewrite → route mounts`.
 
-Route-level authentication occurs inside mounted routers, after `schoolContextMiddleware`. The context middleware therefore generally sees no authenticated `req.user`; the Prisma extension treats a missing school context as no school filter. This is a critical fail-open risk requiring Phase 2 redesign and regression tests.
+Route-level authentication occurs inside mounted routers, after `schoolContextMiddleware`. The initial context is provisional; successful `authenticate` now replaces it with the active database-backed user's school and role. Isolated tests verify context handoff and concurrent request isolation. Requests that never authenticate keep a null context, which still means the Prisma extension applies no school filter.
 
 ## Data isolation observations
 
-The Prisma extension has a hard-coded subset of model names, conditionally injects `schoolId` only when a context exists, converts some unique lookups to first lookups, and does not visibly enforce every nested/raw SQL/indirect relation path. PostgreSQL RLS migrations and database role privileges need separate verification. No isolation guarantee is claimed.
+The Prisma extension has a hard-coded subset of model names, conditionally injects `schoolId` only when a context exists, converts some unique lookups to first lookups, and does not visibly enforce every nested/raw SQL/indirect relation path. The existing PostgreSQL RLS policy explicitly permits all rows when its tenant setting is unset, and the request path does not set that transaction-local value. PostgreSQL RLS migrations and database role privileges need separate verification. No isolation guarantee is claimed.
 
 ## Current assurance status
 

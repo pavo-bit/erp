@@ -1,6 +1,5 @@
 import { AsyncLocalStorage } from "async_hooks";
 import { Request, Response, NextFunction } from "express";
-import logger from "../lib/logger";
 
 // ═══════════════════════════════════════════
 // School Context Middleware (GAP 3)
@@ -23,11 +22,11 @@ interface SchoolContext {
 const schoolContextStorage = new AsyncLocalStorage<SchoolContext>();
 
 /**
- * Express middleware: extract schoolId from authenticated user and store in AsyncLocalStorage.
- * Must run AFTER authentication middleware.
+ * Starts a request-local context before route mounts. Router authentication
+ * updates this context after it verifies the database-backed identity.
  */
 export function schoolContextMiddleware(req: Request, _res: Response, next: NextFunction): void {
-  const user = (req as any).user;
+  const user = (req as Request & { user?: { id: string; schoolId: string | null; role: string; impersonated?: boolean; originalUserId?: string } }).user;
 
   const context: SchoolContext = {
     schoolId: user?.schoolId || null,
@@ -59,6 +58,34 @@ export function getCurrentSchoolId(): string | null {
   if (!context) return null;
   if (context.isSuperAdmin) return null; // Super admins bypass RLS
   return context.schoolId;
+}
+
+/**
+ * Replace the provisional request context with the identity loaded by
+ * authenticate(). This is called only after token, active-account and
+ * token-school checks have succeeded.
+ */
+export function setAuthenticatedSchoolContext(user: {
+  id: string;
+  schoolId: string | null;
+  role: string;
+  impersonated?: boolean;
+  originalUserId?: string;
+}): void {
+  const context = schoolContextStorage.getStore();
+  const authenticatedContext: SchoolContext = {
+    schoolId: user.schoolId,
+    userId: user.id,
+    role: user.role,
+    isSuperAdmin: user.role === "SUPER_ADMIN",
+    impersonatedBy: user.impersonated ? user.originalUserId : null,
+  };
+
+  if (context) {
+    Object.assign(context, authenticatedContext);
+  } else {
+    schoolContextStorage.enterWith(authenticatedContext);
+  }
 }
 
 /**

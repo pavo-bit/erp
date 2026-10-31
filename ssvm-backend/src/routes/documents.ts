@@ -9,7 +9,11 @@ import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
 
 const uploadDir = path.join(process.cwd(), "uploads", "documents");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+try {
+  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+} catch (err) {
+  logger.warn({ err }, "Could not initialize documents directory synchronously");
+}
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),

@@ -37,7 +37,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
 
-# Add a non-root user for security
+# Create uploads directory structure and non-root user for security
+RUN mkdir -p /app/uploads/gallery /app/uploads/documents /app/uploads/temp /app/backups
 RUN addgroup -S ssvmgroup && adduser -S ssvmuser -G ssvmgroup
 RUN chown -R ssvmuser:ssvmgroup /app
 USER ssvmuser

@@ -19,6 +19,6 @@ Updated: 2026-11-01
 | Whitespace/diff validation | PASS | `git diff --check` completed without errors. |
 | Known production fallback scan | PASS | Checked backend source and Prisma seed files for the confirmed CSRF/payment/admin fallback strings; none remain. |
 
-| Isolated security suite | PASS | 6 tests passed: 3 CSRF middleware cases and 3 retention behavior cases. |
+| Isolated security and tenant-context suite | PASS | 9 tests passed: 3 CSRF cases, 3 retention cases and 3 tenant-context cases. |
 
 The backend test setup now refuses to truncate tables unless an explicitly set `DATABASE_URL_TEST` has a test-marked database name. Do not weaken this guard to make local tests convenient.

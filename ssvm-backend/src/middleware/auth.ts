@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import bcrypt from "bcryptjs";
 import * as argon2 from "argon2";
+import { Role } from "@prisma/client";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { verifyAccessToken, isTokenExpiredError, AccessTokenPayload } from "../lib/tokens";
 import { jwtVerificationTotal } from "./metrics";
+import { setAuthenticatedSchoolContext } from "./school-context.middleware";
 
 // ═══════════════════════════════════════════
 // Types
@@ -49,8 +51,8 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 export async function verifyPassword(password: string, hashed: string, userMeta?: { id: string; type: "USER" | "STUDENT" }): Promise<boolean> {
-  let isValid = false;
-  let needsRehash = false;
+  let isValid: boolean;
+  let needsRehash: boolean;
 
   // Detect legacy bcrypt hash
   if (hashed.startsWith("$2a$") || hashed.startsWith("$2b$") || hashed.startsWith("$2y$")) {
@@ -177,7 +179,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
     const userId = "userId" in payload ? payload.userId : (payload as AccessTokenPayload).userId;
     
-    let user: any = null;
+    let user: AuthRequest["user"] | null = null;
 
     if (payload.role === "STUDENT") {
       const student = await prisma.student.findUnique({
@@ -222,8 +224,6 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       select: { mustChangePassword: true }
     });
 
-    console.log("DEBUG AUTH:", { payloadSchoolId: payload.schoolId, userSchoolId: user.schoolId, userRole: user.role, payloadRole: payload.role });
-
     if (payload.schoolId && payload.schoolId !== user.schoolId && user.role !== "SUPER_ADMIN") {
       res.status(403).json({ success: false, error: "Token schoolId mismatch. Invalid token." });
       return;
@@ -247,11 +247,19 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       req.user = {
         ...user,
         impersonated: true,
-        originalUserId: (payload as any).originalUserId
+        originalUserId: payload.originalUserId
       };
     } else {
       req.user = user;
     }
+
+    setAuthenticatedSchoolContext({
+      id: user.id,
+      schoolId: user.schoolId,
+      role: user.role,
+      impersonated: req.user?.impersonated,
+      originalUserId: req.user?.originalUserId,
+    });
     
     next();
   } catch (err) {
@@ -284,7 +292,7 @@ export function requireRole(...roles: string[]) {
           delegateeId: req.user.id,
           isActive: true,
           endDate: { gt: new Date() }, // Just-In-Time Expiration Check
-          role: { in: roles as any[] } // Check if delegated role matches required roles
+          role: { in: roles as Role[] } // Check if delegated role matches required roles
         }
       });
 

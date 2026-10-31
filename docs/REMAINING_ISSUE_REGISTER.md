@@ -5,7 +5,7 @@ Updated: 2026-11-01
 | Priority | Issue | Status |
 |---|---|---|
 | Critical | Credential rotation for populated credentials in removed tracked `.env.backup`; history/clone/backup exposure review | BLOCKED on credential owners; history not rewritten |
-| Critical | Verify tenant isolation, middleware identity order, Prisma/RLS and raw SQL coverage | NOT_STARTED |
+| Critical | Verify tenant isolation, Prisma/RLS and raw SQL coverage | PARTIAL; verified identity now populates request-local context (3 isolated tests); Prisma allowlist is incomplete and RLS allows all rows when tenant context is NULL; no database verification |
 | Critical | Complete route-by-route authorization/ownership review across sensitive mounted routers | IN_PROGRESS; targeted routes only |
 | Critical | Payment transaction ownership, provider binding, atomic ledger posting, partial payment and idempotency | NOT_STARTED / not verified |
 | High | Add and execute document, governance, finance and tenant regression tests | NOT_STARTED / PARTIAL; isolated CSRF and retention service tests pass, HTTP/DB behavior remains untested |

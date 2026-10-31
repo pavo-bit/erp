@@ -8,6 +8,9 @@ Updated: 2026-11-01
 | SEC-CSRF-02 | Invalid token returns 403 and issued token works | TESTED | Isolated CSRF suite passed. |
 | SEC-CSRF-03 | Login, webhook and bearer-only requests retain intended behavior | NOT_STARTED | Exclusions/exemption are code-reviewed only. |
 | SEC-CSRF-04 | Unsafe cookie-authenticated request from an invalid Origin returns 403 | TESTED | Isolated CSRF suite passed. |
+| TEN-CONTEXT-01 | Verified user identity populates request-local school context | TESTED | Isolated test confirms the provisional context is replaced after authenticated identity is set. |
+| TEN-CONTEXT-02 | Concurrent requests retain their own school context | TESTED | Isolated concurrent request test passed for two school contexts. |
+| TEN-CONTEXT-03 | Super-admin context preserves explicit bypass behavior | TESTED | Isolated test confirms `SUPER_ADMIN` has a null school context. Database RLS bypass remains unverified. |
 | SEC-RET-01 | Dry-run counts eligible data without deleting and writes an audit | TESTED | Isolated retention service suite passed. |
 | SEC-RET-02 | Retention deletes school-scoped data in batches capped at 250 | TESTED | Isolated retention service suite passed. |
 | SEC-RET-03 | Unsupported retention entity is rejected without deletion | TESTED | Isolated retention service suite passed. |
