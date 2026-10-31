@@ -297,8 +297,7 @@ services:
 
 networks:
   ssvm-network:
-    name: ssvm-network
-    driver: bridge
+    external: true
 
 volumes:
   ssvm_database:
