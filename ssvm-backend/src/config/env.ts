@@ -20,11 +20,6 @@ const envSchema = z.object({
   REFRESH_TOKEN_PUBLIC_KEY: z.string().min(1, "REFRESH_TOKEN_PUBLIC_KEY is required"),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default("15m"),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default("30d"),
-  
-  // Legacy HS256 Fallback Secrets (For Zero-Downtime Rollover)
-  ACCESS_TOKEN_SECRET: z.string().optional(),
-  REFRESH_TOKEN_SECRET: z.string().optional(),
-
   // ─── DPDP Compliance (Phase 1) ───
   FIELD_ENCRYPTION_KEY: z.string()
     .length(64, "FIELD_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)")

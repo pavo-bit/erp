@@ -67,17 +67,7 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
     if (payload.type !== "access") return null;
     jwtVerificationTotal.labels({ algorithm: "RS256" }).inc();
     return payload;
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError && env.ACCESS_TOKEN_SECRET) {
-      try {
-        const payload = jwt.verify(token, env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] }) as AccessTokenPayload;
-        if (payload.type !== "access") return null;
-        jwtVerificationTotal.labels({ algorithm: "HS256" }).inc();
-        return payload;
-      } catch {
-        return null;
-      }
-    }
+  } catch {
     return null;
   }
 }
@@ -93,14 +83,6 @@ export function isTokenExpiredError(token: string): boolean {
     return false;
   } catch (err) {
     if (err instanceof jwt.TokenExpiredError) return true;
-    if (err instanceof jwt.JsonWebTokenError && env.ACCESS_TOKEN_SECRET) {
-      try {
-        jwt.verify(token, env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] });
-        return false;
-      } catch (fallbackErr) {
-        return fallbackErr instanceof jwt.TokenExpiredError;
-      }
-    }
     return false;
   }
 }
@@ -127,17 +109,7 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload | null {
     if (payload.type !== "refresh") return null;
     jwtVerificationTotal.labels({ algorithm: "RS256" }).inc();
     return payload;
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError && env.REFRESH_TOKEN_SECRET) {
-      try {
-        const payload = jwt.verify(token, env.REFRESH_TOKEN_SECRET, { algorithms: ["HS256"] }) as RefreshTokenPayload;
-        if (payload.type !== "refresh") return null;
-        jwtVerificationTotal.labels({ algorithm: "HS256" }).inc();
-        return payload;
-      } catch {
-        return null;
-      }
-    }
+  } catch {
     return null;
   }
 }
@@ -162,17 +134,7 @@ export function verify2FAPendingToken(token: string): PendingTwoFactorPayload | 
     if (payload.type !== "2fa_pending") return null;
     jwtVerificationTotal.labels({ algorithm: "RS256" }).inc();
     return payload;
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError && env.ACCESS_TOKEN_SECRET) {
-      try {
-        const payload = jwt.verify(token, env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] }) as PendingTwoFactorPayload;
-        if (payload.type !== "2fa_pending") return null;
-        jwtVerificationTotal.labels({ algorithm: "HS256" }).inc();
-        return payload;
-      } catch {
-        return null;
-      }
-    }
+  } catch {
     return null;
   }
 }
