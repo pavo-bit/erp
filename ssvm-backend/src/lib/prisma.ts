@@ -28,10 +28,29 @@ function buildTenantWhere(modelName: string, schoolId: string): UnknownRecord {
   return scope;
 }
 
+function flattenWhere(where: UnknownRecord): UnknownRecord {
+  const result: UnknownRecord = {};
+  for (const [key, val] of Object.entries(where)) {
+    if (val && typeof val === "object" && !Array.isArray(val) && !(val instanceof Date)) {
+      const keys = Object.keys(val);
+      const isOperator = keys.some((k) =>
+        ["equals", "in", "notIn", "lt", "lte", "gt", "gte", "contains", "startsWith", "endsWith", "mode", "not", "is", "isNot"].includes(k)
+      );
+      if (!isOperator && key.includes("_")) {
+        // Compound unique key like threadId_userId: { threadId, userId }
+        Object.assign(result, val);
+        continue;
+      }
+    }
+    result[key] = val;
+  }
+  return result;
+}
+
 function addTenantWhere(modelName: string, where: unknown, schoolId: string): UnknownRecord {
-  const current = asRecord(where);
+  const current = flattenWhere(asRecord(where) ?? {});
   const tenantWhere = buildTenantWhere(modelName, schoolId);
-  return current && Object.keys(current).length > 0
+  return Object.keys(current).length > 0
     ? { AND: [current, tenantWhere] }
     : tenantWhere;
 }
@@ -152,8 +171,9 @@ const basePrisma = new PrismaClient();
 //   2. RLS context injection (SET LOCAL app.current_school_id)
 //   3. Soft delete interception
 
-const prisma = basePrisma
-  .$extends(encryptionExtension)
+const prismaWithEncryption = basePrisma.$extends(encryptionExtension);
+
+const prisma = prismaWithEncryption
   .$extends({
     query: {
       $allModels: {
@@ -180,53 +200,122 @@ const prisma = basePrisma
           }
 
           // ── Application-Level Tenant Isolation ──
-          // Prisma connection pooling prevents reliable `SET LOCAL` outside of
-          // explicit interactive transactions. To strictly enforce tenant isolation,
-          // we dynamically inject `schoolId` into every query for tenant-scoped models.
           const schoolId = getCurrentSchoolId();
-
           const classification = model ? getTenantClassification(model) : undefined;
-          if (schoolId && classification && classification.classification !== "global") {
-            const mutableArgs = args as unknown as UnknownRecord;
-            const whereOperations = new Set([
-              "findUnique", "findUniqueOrThrow", "findFirst", "findFirstOrThrow", "findMany", "count",
-              "update", "updateMany", "updateManyAndReturn", "delete", "deleteMany", "upsert", "aggregate", "groupBy",
-            ]);
-            const writeDataOperations = new Set(["create", "createMany", "createManyAndReturn", "update", "updateMany", "updateManyAndReturn"]);
+          const softDeleteDelegate = model ? softDeleteDelegates[model] : undefined;
+          const mutableArgs = asRecord(args) ?? {};
+          const where = asRecord(mutableArgs.where) ?? {};
 
-            if (whereOperations.has(operation)) {
-              mutableArgs.where = addTenantWhere(model, mutableArgs.where, schoolId);
-            }
-            if (writeDataOperations.has(operation) && "data" in mutableArgs) {
-              mutableArgs.data = scopeNestedWrite(model, mutableArgs.data, schoolId);
-            }
-            if (operation === "upsert") {
-              mutableArgs.create = scopeNestedWrite(model, mutableArgs.create, schoolId);
-              mutableArgs.update = scopeNestedWrite(model, mutableArgs.update, schoolId);
+          // Apply soft delete filter where applicable
+          if (softDeleteDelegate && (operation === 'findUnique' || operation === 'findUniqueOrThrow' || operation === 'findFirst' || operation === 'findFirstOrThrow' || operation === 'findMany' || operation === 'count')) {
+            if (where.deletedAt === undefined) {
+              mutableArgs.where = { ...where, deletedAt: null };
             }
           }
 
-          // ── Soft Delete Interception ──
-          const softDeleteDelegate = model ? softDeleteDelegates[model] : undefined;
+          if (softDeleteDelegate && operation === 'delete') {
+            if (schoolId && classification && classification.classification !== "global") {
+              const delegate = (prismaWithEncryption as any)[model];
+              if (delegate) {
+                const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
+                const existing = await delegate.findFirst({
+                  where: addTenantWhere(model, flatWhere, schoolId),
+                  select: { id: true },
+                });
+                if (!existing) {
+                  const err = new Error(`An operation failed because it depends on one or more records that were required but not found.`);
+                  (err as any).code = "P2025";
+                  throw err;
+                }
+              }
+            }
+            return softDeleteDelegate.update(asRecord(mutableArgs.where) ?? {}, new Date());
+          }
 
-          if (softDeleteDelegate) {
-            const mutableArgs = asRecord(args) ?? {};
-            const where = asRecord(mutableArgs.where) ?? {};
-            if (operation === 'delete') {
-              return softDeleteDelegate.update(where, new Date());
+          if (softDeleteDelegate && operation === 'deleteMany') {
+            let finalWhere = asRecord(mutableArgs.where) ?? {};
+            if (schoolId && classification && classification.classification !== "global") {
+              finalWhere = addTenantWhere(model, finalWhere, schoolId);
             }
-            if (operation === 'deleteMany') {
-              return softDeleteDelegate.updateMany(where, new Date());
+            return softDeleteDelegate.updateMany(finalWhere, new Date());
+          }
+
+          if (schoolId && classification && classification.classification !== "global") {
+            const delegate = (prismaWithEncryption as any)[model];
+
+            if (operation === "findUnique" || operation === "findUniqueOrThrow") {
+              const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
+              const queryArgs = {
+                ...mutableArgs,
+                where: addTenantWhere(model, flatWhere, schoolId),
+              };
+              if (operation === "findUnique") {
+                return delegate.findFirst(queryArgs);
+              } else {
+                return delegate.findFirstOrThrow(queryArgs);
+              }
             }
-            if (operation === 'findUnique' || operation === 'findFirst' || operation === 'findMany' || operation === 'count') {
-              // Include deleted records only if explicitly requested
-              if (where.deletedAt === undefined) {
-                mutableArgs.where = { ...where, deletedAt: null };
+
+            if (operation === "update" || operation === "delete") {
+              const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
+              const existing = await delegate.findFirst({
+                where: addTenantWhere(model, flatWhere, schoolId),
+                select: { id: true },
+              });
+              if (!existing) {
+                const err = new Error(`An operation failed because it depends on one or more records that were required but not found.`);
+                (err as any).code = "P2025";
+                throw err;
+              }
+              if (operation === "update" && "data" in mutableArgs) {
+                mutableArgs.data = scopeNestedWrite(model, mutableArgs.data, schoolId);
               }
               return query(mutableArgs as typeof args);
             }
+
+            if (operation === "upsert") {
+              const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
+              const existing = await delegate.findFirst({
+                where: addTenantWhere(model, flatWhere, schoolId),
+              });
+              if (existing) {
+                return delegate.update({
+                  where: mutableArgs.where,
+                  data: scopeNestedWrite(model, mutableArgs.update, schoolId),
+                });
+              } else {
+                return delegate.create({
+                  data: scopeNestedWrite(model, mutableArgs.create, schoolId),
+                });
+              }
+            }
+
+            const generalWhereOps = new Set([
+              "findFirst", "findFirstOrThrow", "findMany", "count",
+              "updateMany", "updateManyAndReturn", "deleteMany", "aggregate", "groupBy"
+            ]);
+            if (generalWhereOps.has(operation)) {
+              mutableArgs.where = addTenantWhere(model, mutableArgs.where, schoolId);
+            }
+
+            const writeDataOps = new Set(["create", "createMany", "createManyAndReturn", "updateMany", "updateManyAndReturn"]);
+            if (writeDataOps.has(operation) && "data" in mutableArgs) {
+              mutableArgs.data = scopeNestedWrite(model, mutableArgs.data, schoolId);
+            }
           }
-          return query(args);
+
+          if (softDeleteDelegate && (operation === 'findUnique' || operation === 'findUniqueOrThrow')) {
+            const delegate = (prismaWithEncryption as any)[model];
+            if (delegate) {
+              if (operation === "findUnique") {
+                return delegate.findFirst(mutableArgs);
+              } else {
+                return delegate.findFirstOrThrow(mutableArgs);
+              }
+            }
+          }
+
+          return query(mutableArgs as typeof args);
         },
       },
     },
