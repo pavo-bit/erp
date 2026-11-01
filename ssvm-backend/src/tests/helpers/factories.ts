@@ -38,8 +38,8 @@ export const SchoolFactory = {
       name: `School ${counter}`,
       code: `SCHOOL-${counter}`,
       address: `${counter} Main St`,
-      contactEmail: `contact${counter}@school.com`,
-      contactPhone: `123456789${counter % 10}`,
+      email: `contact${counter}@school.com`,
+      phone: `123456789${counter % 10}`,
       isActive: true,
       ...overrides
     };

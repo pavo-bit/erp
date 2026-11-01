@@ -84,9 +84,6 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
     data: {
       userId: teacherUser.id,
       schoolId: school.id,
-      name: teacherUser.name,
-      email: teacherUser.email,
-      phone: "+910000000000",
       joiningDate: new Date(),
     },
   });
@@ -109,7 +106,7 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
       schoolId: school.id,
       name: studentUser.name,
       admissionNo: `ADM-${suffix}`,
-      dateOfBirth: new Date("2010-01-15"),
+      dob: new Date("2010-01-15"),
       gender: "Male",
     },
   });
