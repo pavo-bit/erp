@@ -86,6 +86,8 @@ jobs:
 
       - name: Create application-test schema without RLS
         run: |
+          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
+            --command 'CREATE EXTENSION IF NOT EXISTS pg_trgm;'
           npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script \
             | psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1
           psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
