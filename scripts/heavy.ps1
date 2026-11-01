@@ -32,7 +32,14 @@ try {
     Write-Host 'Acquired heavy-job slot. Executing the requested command.'
 
     $global:LASTEXITCODE = $null
-    & $Command @ArgumentList
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $Command @ArgumentList
+    }
+    finally {
+        $ErrorActionPreference = $prevEAP
+    }
     if ($null -eq $LASTEXITCODE) {
         # PowerShell-native commands do not set LASTEXITCODE. Reaching this line
         # without a terminating error means the command completed successfully.

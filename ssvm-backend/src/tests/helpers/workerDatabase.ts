@@ -24,8 +24,8 @@ export function getWorkerDatabaseUrl(workerId: string): string {
 
 export function getMaintenanceUrl(): string {
   const adminUrl =
-    process.env.DIRECT_URL ||
     process.env.DATABASE_URL_ADMIN ||
+    process.env.DIRECT_URL ||
     getBaseTestUrl();
   const parsed = new URL(adminUrl);
   parsed.pathname = "/postgres";

@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import { execSync } from 'child_process';
 import prisma from '../lib/prisma';
+import { initRedis } from '../lib/redis';
 import Redis from 'ioredis-mock';
 
 // Mock Redis globally
@@ -130,11 +131,8 @@ process.env.RAZORPAY_WEBHOOK_SECRET = crypto.randomBytes(32).toString('hex');
 
 beforeAll(async () => {
   try {
+    await initRedis();
     console.log('Running Prisma migrations for test DB...');
-    // We try to deploy migrations to the test DB
-    // execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-    // Note: Skipped in this setup file due to environment differences. 
-    // Usually best to run `dotenv -e .env.test -- npx prisma migrate deploy` in a global setup script.
   } catch (e) {
     console.error('Migration failed in setup:', e);
   }

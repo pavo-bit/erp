@@ -435,18 +435,19 @@ app.use(globalErrorHandler);
 // Start Server
 // ═══════════════════════════════════════════
 
-const server = app.listen(parseInt(env.PORT, 10), "0.0.0.0", async () => {
-  await initRedis();
+let server: any;
+if (env.NODE_ENV !== "test" && !process.env.VITEST) {
+  server = app.listen(parseInt(env.PORT, 10), "0.0.0.0", async () => {
+    await initRedis();
 
-  logger.info(`🚀 SSVM ERP Backend running on http://localhost:${env.PORT}`);
-  logger.info(`📡 API v1: http://localhost:${env.PORT}/api/v1`);
-  logger.info(`📡 API (compat): http://localhost:${env.PORT}/api`);
-  logger.info(`🏥 Health: http://localhost:${env.PORT}/api/health`);
-  logger.info(`🔒 Security: helmet ✓ | rate-limit ✓ | cors ✓ | refresh-tokens ✓`);
-  logger.info(`🌍 Environment: ${env.NODE_ENV}`);
+    logger.info(`🚀 SSVM ERP Backend running on http://localhost:${env.PORT}`);
+    logger.info(`📡 API v1: http://localhost:${env.PORT}/api/v1`);
+    logger.info(`📡 API (compat): http://localhost:${env.PORT}/api`);
+    logger.info(`🏥 Health: http://localhost:${env.PORT}/api/health`);
+    logger.info(`🔒 Security: helmet ✓ | rate-limit ✓ | cors ✓ | refresh-tokens ✓`);
+    logger.info(`🌍 Environment: ${env.NODE_ENV}`);
 
-  // Start background jobs
-  if (env.NODE_ENV !== "test") {
+    // Start background jobs
     startTokenCleanupScheduler();
     startWorkers();
 
@@ -458,29 +459,29 @@ const server = app.listen(parseInt(env.PORT, 10), "0.0.0.0", async () => {
         logger.error(`[Scheduler] Daily backup failed: ${err.message}`);
       });
     }, DAILY_MS);
-  }
-});
-
-// ═══════════════════════════════════════════
-// Graceful Shutdown
-// ═══════════════════════════════════════════
-
-async function gracefulShutdown(signal: string): Promise<void> {
-  logger.info(`${signal} received — shutting down gracefully`);
-  stopTokenCleanupScheduler();
-  await closeQueues();
-  server.close(() => {
-    logger.info("Server closed");
-    process.exit(0);
   });
-  // Force close after 10s
-  setTimeout(() => {
-    logger.error("Forced shutdown after timeout");
-    process.exit(1);
-  }, 10000);
-}
 
-process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+  // ═══════════════════════════════════════════
+  // Graceful Shutdown
+  // ═══════════════════════════════════════════
+
+  const gracefulShutdown = async (signal: string): Promise<void> => {
+    logger.info(`${signal} received — shutting down gracefully`);
+    stopTokenCleanupScheduler();
+    await closeQueues();
+    server?.close(() => {
+      logger.info("Server closed");
+      process.exit(0);
+    });
+    // Force close after 10s
+    setTimeout(() => {
+      logger.error("Forced shutdown after timeout");
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+}
 
 export default app;
