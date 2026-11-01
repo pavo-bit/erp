@@ -152,9 +152,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
     e.preventDefault();
     setLoading(true);
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      await fetchWithCsrf(`${apiBase}/api/v1/health`, { method: "GET" });
-      const res = await fetchWithCsrf(`${apiBase}/api/v1/saas/request`, {
+      const res = await fetchWithCsrf("/api/v1/saas/request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form)

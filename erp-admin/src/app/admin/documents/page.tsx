@@ -3,15 +3,13 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { FolderOpen, Upload, FileText, CheckCircle, ShieldCheck } from "lucide-react";
-import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }).then(res => res.json());
+import { useDocuments } from "@/lib/api-hooks";
 
 export default function DocumentsPage() {
-  const { data: documentsData, isLoading } = useSWR("/api/v1/documents", fetcher);
+  const { data: documentsData, isLoading } = useDocuments();
   const [activeTab, setActiveTab] = useState("all");
 
-  const documents = documentsData?.data || [];
+  const documents = Array.isArray(documentsData) ? documentsData : documentsData?.data || [];
 
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">

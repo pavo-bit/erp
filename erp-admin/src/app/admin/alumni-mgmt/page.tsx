@@ -33,9 +33,9 @@ export default function AlumniMgmtPage() {
       <PageHeader 
         title="Alumni Management" 
         subtitle="Manage alumni profiles and featured alumni" 
-        action={
+        action={process.env.NEXT_PUBLIC_ALUMNI_PORTAL_URL ? (
           <a 
-            href="http://localhost:3003" 
+            href={process.env.NEXT_PUBLIC_ALUMNI_PORTAL_URL}
             target="_blank" 
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white border-none cursor-pointer font-[var(--font-heading)] hover:shadow-lg transition-all"
@@ -43,7 +43,7 @@ export default function AlumniMgmtPage() {
           >
             🌐 Open Alumni Portal ↗
           </a>
-        }
+        ) : null}
       />
       <div className="flex gap-4 mb-6 border-b border-border">
         <button

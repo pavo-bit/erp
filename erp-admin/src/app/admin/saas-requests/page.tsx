@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { apiCall } from "@/lib/api-hooks";
 
 interface SaaSRequest {
   id: string;
@@ -28,15 +29,8 @@ export default function SaaSRequestsPage() {
 
   const fetchRequests = async () => {
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
-      const res = await fetch("http://localhost:3001/api/v1/saas/requests", {
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
-      if (!res.ok) throw new Error("Failed to fetch requests");
-      const data = await res.json();
-      setRequests(data.data || []);
+      const data = await apiCall("/api/v1/saas/requests", "GET");
+      setRequests(Array.isArray(data) ? (data as SaaSRequest[]) : []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -49,18 +43,8 @@ export default function SaaSRequestsPage() {
     
     setActionLoading(id);
     try {
-      const token = document.cookie.split('; ').find(row => row.startsWith('access_token='))?.split('=')[1];
-      const res = await fetch(`http://localhost:3001/api/v1/saas/${action}/${id}`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Failed to ${action}`);
-      
-      alert(data.message || `Successfully ${action}d`);
-      fetchRequests();
+      await apiCall(`/api/v1/saas/${action}/${id}`, "POST");
+      await fetchRequests();
     } catch (err: any) {
       alert(err.message);
     } finally {

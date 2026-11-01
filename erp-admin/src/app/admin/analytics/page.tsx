@@ -127,7 +127,9 @@ export default function AnalyticsPage() {
           </div>
           <div className="w-full h-[600px] rounded-xl overflow-hidden border border-border bg-[#f8f9fa]">
             <iframe
-              src="http://localhost:3004/d/erp-overview/erp-executive-overview?orgId=1&kiosk=tv&theme=light"
+              src={process.env.NEXT_PUBLIC_GRAFANA_URL
+                ? `${process.env.NEXT_PUBLIC_GRAFANA_URL.replace(/\/$/, "")}/d/erp-overview/erp-executive-overview?orgId=1&kiosk=tv&theme=light`
+                : undefined}
               width="100%"
               height="100%"
               frameBorder="0"

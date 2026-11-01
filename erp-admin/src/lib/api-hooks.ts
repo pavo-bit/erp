@@ -85,6 +85,7 @@ export function useEvents(params?: string) { return useSWR(`/api/v1/events${para
 export function useStudents(params?: string) { return useSWR(`/api/v1/students${params ? `?${params}` : ""}`, fetcher); }
 export function useTeachers(params?: string) { return useSWR(`/api/v1/teachers${params ? `?${params}` : ""}`, fetcher); }
 export function useInvoices(params?: string) { return useSWR(`/api/v1/invoices${params ? `?${params}` : ""}`, fetcher); }
+export function useDocuments() { return useSWR("/api/v1/documents", fetcher); }
 export function useResults(params?: string) { return useSWR(`/api/v1/results${params ? `?${params}` : ""}`, fetcher); }
 export function useAttendance(params?: string) { return useSWR(`/api/v1/attendance${params ? `?${params}` : ""}`, fetcher); }
 export function useTeacherAttendance(params?: string) { return useSWR(`/api/v1/attendance/teachers${params ? `?${params}` : ""}`, fetcher); }

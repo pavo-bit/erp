@@ -33,8 +33,8 @@ export default function FeesModule() {
   const paidInvoices = invoices.filter(inv => inv.status === "PAID");
 
   const handleGoToPaymentPortal = () => {
-    // Redirect securely to the dedicated payment portal
-    window.open("http://localhost:3007", "_blank");
+    const paymentPortalUrl = process.env.NEXT_PUBLIC_PAYMENT_PORTAL_URL;
+    if (paymentPortalUrl) window.open(paymentPortalUrl, "_blank", "noopener,noreferrer");
   };
 
   return (
@@ -63,6 +63,7 @@ export default function FeesModule() {
                
                <button
                   onClick={handleGoToPaymentPortal}
+                  disabled={!process.env.NEXT_PUBLIC_PAYMENT_PORTAL_URL}
                   className="flex items-center gap-2 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-500 hover:to-emerald-500 text-white font-bold py-3.5 px-8 rounded-xl shadow-lg shadow-teal-500/30 transform transition-all active:scale-[0.98] w-full md:w-auto shrink-0"
                 >
                   Go to Secure Payment Portal

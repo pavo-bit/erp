@@ -76,7 +76,21 @@ function LoginContent() {
     } else {
       setSuccess(true);
       if (result.role === "ALUMNI") {
-        window.location.href = `http://localhost:3003/login?token=${encodeURIComponent(result.token || "")}`;
+        const alumniPortalUrl = process.env.NEXT_PUBLIC_ALUMNI_PORTAL_URL;
+        if (!alumniPortalUrl) {
+          setSuccess(false);
+          setError("The alumni portal is not configured. Contact your administrator.");
+          setIsLoading(false);
+          return;
+        }
+        const alumniLoginUrl = new URL("/login", alumniPortalUrl);
+        if (alumniLoginUrl.hostname !== window.location.hostname || alumniLoginUrl.protocol !== window.location.protocol) {
+          setSuccess(false);
+          setError("The alumni portal must share this hostname for secure cookie sign-in.");
+          setIsLoading(false);
+          return;
+        }
+        window.location.assign(alumniLoginUrl.toString());
       } else {
         setTimeout(() => {
           const targetRole = result.role?.toLowerCase() === "super_admin" || result.role?.toLowerCase() === "erp_admin" 

@@ -13,12 +13,12 @@ async function fetchWithCsrf(input: RequestInfo | URL, init: RequestInit = {}) {
 }
 
 const fetcher = (url: string) =>
-  fetchWithCsrf(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
+  fetchWithCsrf(url, {
     credentials: 'include', // sends httpOnly cookies
   }).then(res => res.json());
 
 export const apiCall = async (url: string, method: string, body?: object) => {
-  const res = await fetchWithCsrf(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
+  const res = await fetchWithCsrf(url, {
     method,
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
