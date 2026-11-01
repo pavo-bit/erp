@@ -10,14 +10,17 @@ Updated: 2026-11-01
 - Retention now has an entity allowlist, dry-run, 250-row bounded deletes and an audit summary. Three isolated service tests pass; database-backed behavior remains unverified.
 - Payment order ownership, provider transaction binding, partial payment accounting, atomic ledger posting, decimal representation and financial close have not been fully audited or verified. The settlement service and webhook placeholder fallbacks were removed; backend build/type checks pass, but finance behavior is not covered by integration tests.
 - Multi-tenant context ordering, Prisma coverage and PostgreSQL RLS have not been verified.
-- Backend clean install, build, type check, Prisma schema validation and the isolated CSRF/retention/tenant-context suite (9 tests) have passed. All seven portal clean installs, builds and standalone type checks have passed. Database tests and E2E have not run.
+- Compose separates the PostgreSQL bootstrap owner from app and migration credentials. Its init script runs only for a fresh data directory; existing volumes need a reviewed role/grant/ownership migration. Compose configuration validates, but the script and privileges were not run against PostgreSQL. The RLS NULL-context policy remains fail-open and tenant transaction context is not set.
+- CRM, inventory, finance-governance and procurement route boundaries received targeted server-side authorization/scope fixes. PostgreSQL ownership, stock concurrency, payment and financial integration tests remain unrun.
+- Bank reconciliation and goods receipt are deliberately unavailable (HTTP 501) until their missing statement/movement line data is modeled; the former code reported placeholder success.
+- Backend clean install, build, type check, Prisma schema validation and the isolated security/workflow suite (fresh run 2026-11-01: 6 files, 21 tests passed) have passed. All seven portal clean installs, builds and standalone type checks have passed. Database behavior tests and E2E have not run in this execution.
 - A tracked `ssvm-backend/.env.backup` containing populated database, JWT and Razorpay webhook credential fields was removed from the active tree. Git history was not rewritten; rotate the PostgreSQL credentials referenced by `DATABASE_URL`/`DIRECT_URL`, the JWT signing secret, and the Razorpay webhook secret, and review backups/clones. Rotation has not been performed.
 - The tracked legacy `seed-admin.js` and backup `prisma/seed.ts.bak` were removed. The active demo seed now refuses production and requires `ALLOW_DEMO_SEED=true` plus a supplied admin email and password of at least 16 characters.
 - Payment routes no longer construct Razorpay with placeholder credentials and signature comparison uses constant-time byte comparison. Full transaction ownership and accounting integrity remain unverified.
 
 ## Medium
 
-- CI now includes `student-portal`, uses `npm ci` without a fallback and defines `DATABASE_URL` and `DIRECT_URL` for backend migrations. The workflow has not run. Backend ESLint reports 567 repository violations; portal lint either lacks a flat config or reports existing errors.
+- CI now includes `student-portal`, uses `npm ci` without a fallback and defines `DATABASE_URL` and `DIRECT_URL` for backend migrations. The workflow has not run. Backend ESLint reports 549 repository violations; portal lint either lacks a flat config or reports existing errors.
 - Production deployment readiness, monitoring exposure, secret rotation, database-backed testing and full E2E workflows remain unverified.
 
 ## External operational requirements

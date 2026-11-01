@@ -8,12 +8,12 @@ This tracker records verified repository work against the five-phase remediation
 
 | Phase | Scope | Status | Evidence / remaining work |
 |---|---|---|---|
-| 0 Baseline/scope/hygiene | Source-of-truth docs, inventory, install and baseline | IN_PROGRESS | Fetched `origin/main`; it matched local HEAD `8ae14656…` and the working tree was clean at baseline. Regenerated 365 route declarations and 205 model inventory (124 direct `schoolId` fields). Semantic review, full feature approval and DB baseline remain incomplete. |
-| 1 Security containment | Route inventory, auth boundaries, CSRF, documents, governance, secrets, configuration | IN_PROGRESS | CSRF/document fixes remain; finance-governance and CRM/inventory routes now require authenticated roles and derive school/actor from server identity. 365 endpoint rows remain REVIEW_REQUIRED. Exposed-secret rotation, full route review and PostgreSQL RLS fail-open behavior remain open. |
+| 0 Baseline/scope/hygiene | Source-of-truth docs, inventory, install and baseline | IN_PROGRESS | Fetched `origin/main`; it matched local HEAD `8ae14656…` and the working tree was clean at baseline. Baseline inventory had 364 route declarations; the current matrix has 365 after adding the finance-period list. Prisma inventory has 205 models (124 direct `schoolId` fields). Semantic review, full feature approval and DB baseline remain incomplete. |
+| 1 Security containment | Route inventory, auth boundaries, CSRF, documents, governance, secrets, configuration | IN_PROGRESS | CSRF/document fixes remain; finance-governance, CRM, inventory and procurement routes now require authenticated roles and derive school/actor from server identity. 365 endpoint rows remain REVIEW_REQUIRED. Exposed-secret rotation, full route review and PostgreSQL RLS fail-open behavior remain open. |
 | 2 Multi-tenancy and RBAC | Identity, tenant context, Prisma enforcement, RLS, model inventory, ownership tests | IN_PROGRESS | Successful route authentication now updates request-local school context; isolated tests verify propagation and concurrent request isolation (3/3). This activates the existing Prisma tenant filter for its limited allowlist. RLS remains fail-open when no tenant is set, model coverage is incomplete, and database-backed isolation is not verified. |
-| 3 Finance and accounting | Payment verification, invoices, ledger, decimals, reconciliation, close and fines | IN_PROGRESS | Late-fine HTTP trigger is authenticated and school scoped; removed Razorpay placeholder credentials and made signatures timing-safe. Remaining payment and accounting requirements have not been verified. |
-| 4 Application workflows | Seven portals, API contract matrix, student/parent/teacher/admin, inventory/procurement, reports | NOT_STARTED | No comprehensive portal or API inventory performed. |
-| 5 Integration and release readiness | Compose, CI, isolated tests, E2E, monitoring, docs and production checks | IN_PROGRESS | Clean installs, builds and standalone type checks pass for all seven portals. Backend build/type-check and isolated CSRF, retention and tenant-context tests pass. Backend and frontend lint remain failing overall. DB integration and E2E were not run. User edits to Dockerfile and upload-directory initialization remain preserved. |
+| 3 Finance and accounting | Payment verification, invoices, ledger, decimals, reconciliation, close and fines | IN_PROGRESS | Finance close route now enforces role/school/actor and propagates validation failures; fake reconciliation returns 501. Late-fine trigger is secured. Payment, precision, ledger and DB workflows remain unverified. |
+| 4 Application workflows | Seven portals, API contract matrix, student/parent/teacher/admin, inventory/procurement, reports | IN_PROGRESS | CRM, inventory and procurement route guards/scope validation added; unsupported transfer/receipt paths fail closed. Complete portal API/workflow mapping and DB tests remain. |
+| 5 Integration and release readiness | Compose, CI, isolated tests, E2E, monitoring, docs and production checks | IN_PROGRESS | Clean installs, builds and standalone type checks pass for all seven portals. Backend build/type-check, ERP Admin type check, Prisma validation and 20 isolated security/workflow tests pass. Backend and frontend lint remain failing overall. DB integration and E2E were not run. Existing Docker Compose edits were preserved. |
 
 ## Requirement-level changes this turn
 
@@ -32,6 +32,8 @@ This tracker records verified repository work against the five-phase remediation
 | P1-FIN-REC-01 | Prevent false-positive bank reconciliation | IMPLEMENTED | Replaced placeholder zero-balance record creation with authenticated 501 response; real statement-line persistence/matching remains unimplemented. |
 | P1-CRM-AUTH-01 | Protect CRM operations and scope leads/campaigns/stages by school | IMPLEMENTED | Router now requires admissions/admin role; non-super-admin school scope and interaction actor come from authenticated identity; no DB-backed ownership test yet. |
 | P1-INV-AUTH-01 | Protect inventory reads/movements and scope referenced entities | IMPLEMENTED | Router requires operations-admin role; server derives school/actor; item and location are checked in school; transfer explicitly rejected until destination workflow exists. DB-backed movement test remains. |
+| P1-PROC-AUTH-01 | Protect procurement requests, approvals and receipts | IMPLEMENTED | Authenticated staff request roles, server-derived requester/PO creator, school-scoped approval and vendor checks; receipt fails closed because per-line quantities are not modeled. |
+| P4-FIN-API-01 | Align ERP Admin financial-close consumer with protected backend routes | TESTED | Added school-scoped authenticated `GET /periods`, updated portal hook and close action to `/periods/:id/close`; backend and ERP Admin type checks pass. |
 
 ## Executed verification
 
@@ -41,10 +43,10 @@ This tracker records verified repository work against the five-phase remediation
 | `npm run type-check` | PASS |
 | `npm run build` | PASS |
 | `npx prisma validate` | PASS |
-| Isolated security and tenant-context suite | PASS; 15 tests across CSRF, retention, tenant-context, finance authorization and governance route cases |
+| Isolated security and tenant-context suite | PASS; fresh run 2026-11-01, 6 files and 21 tests across CSRF, retention, tenant-context, finance, CRM, inventory and procurement route cases |
 | Portal installs/builds/type checks | PASS; all seven portals |
 | Focused ESLint on modified backend security/payment files | PASS |
-| Full backend ESLint | FAIL; 567 problems (566 errors, 1 warning) |
+| Full backend ESLint | FAIL; 549 problems (548 errors, 1 warning) |
 | Portal lint | FAIL / PARTIAL; missing flat configs in three portals and existing lint errors in the others |
 | Database-backed tests | NOT RUN; no PostgreSQL listener, Docker daemon unavailable |
 

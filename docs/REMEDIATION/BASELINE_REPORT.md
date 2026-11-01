@@ -12,7 +12,7 @@ Baseline captured 2026-10-31 22:11:41 UTC (2026-11-01 03:41:41 Asia/Kolkata).
 
 ## Inventories
 
-- Route generator extracted 365 mounted endpoint declarations. It does not prove authorization correctness; the generated matrix keeps every row `REVIEW_REQUIRED`.
+- Baseline route generator extracted 364 mounted endpoint declarations. The current matrix contains 365 after the authenticated finance-period list route was added. It does not prove authorization correctness; every row remains `REVIEW_REQUIRED`.
 - Prisma inventory: 205 models, 124 with a direct `schoolId` field. Indirect ownership and policy coverage still require semantic classification.
 - Seven Next.js portals are documented. Prior evidence reports successful clean installs, builds and standalone type checks; these were not repeated during this baseline turn.
 
@@ -31,8 +31,9 @@ Baseline captured 2026-10-31 22:11:41 UTC (2026-11-01 03:41:41 Asia/Kolkata).
 
 ## Environment and verification limits
 
-- No PostgreSQL integration database was available during prior work; Docker Desktop engine access was denied. No RLS, migration, finance transaction or tenant-isolation integration test is claimed.
-- The focused security suite currently passes 16 tests across five files. Backend type-check, build and Prisma validation passed during this execution. Full backend lint still fails with repository-wide violations.
+- Ground-truth correction: the RLS migration applies cleanly to an empty database and configures 23 tables. Its defects are incomplete tenant-policy coverage and NULL-context fail-open behavior, not migration ordering. This correction was supplied by the repository owner; no database run or transcript was produced in this execution.
+- No PostgreSQL integration database was available during this execution; Docker Desktop engine access was denied. RLS policy behavior, role grants, finance transactions and tenant-isolation behavior were not tested here.
+- Fresh focused security suite run on 2026-11-01 passed 6 files and 21 tests. Fresh backend type check passed with TypeScript 5.9.3. Backend build, Prisma validation and ERP Admin type check passed during earlier work. Full backend lint still fails with repository-wide violations.
 - Hosted CI, Playwright, backup/restore, and production deployment were not run.
 
 See `VERIFIED_ISSUE_REGISTER.md`, `TEST_EVIDENCE.md`, and `BLOCKER_REGISTER.md` for current statuses.

@@ -1,6 +1,6 @@
 # Route Authorization Matrix (Generated Inventory)
 
-Updated: 2026-11-01
+Updated: 2026-10-31
 
 This inventory is mechanically extracted from route declarations and mounts. Middleware names are shown as clues only. Inline checks, inherited router middleware, ownership constraints, tenant scope, input validation and audit behavior have not been semantically verified. All rows remain **REVIEW_REQUIRED** until individually inspected and tested. Dynamic route strings and nested router mounts may require manual completion.
 
@@ -169,8 +169,9 @@ This inventory is mechanically extracted from route declarations and mounts. Mid
 | POST | `/api/v1/exams/:id/marks` | `exams.ts` | `authenticate, requireTeacherOrAdmin` | REVIEW_REQUIRED |
 | GET | `/api/v1/finance/defaulters` | `finance.ts` | `authenticate, requireFinanceAdmin` | REVIEW_REQUIRED |
 | POST | `/api/v1/finance/generate-monthly-fees` | `finance.ts` | `authenticate, requireFinanceAdmin` | REVIEW_REQUIRED |
-| POST | `/api/v1/finance/governance/periods/:id/close` | `finance-governance.ts` | (inline/inherited) | REVIEW_REQUIRED |
-| POST | `/api/v1/finance/governance/reconcile` | `finance-governance.ts` | (inline/inherited) | REVIEW_REQUIRED |
+| GET | `/api/v1/finance/governance/periods` | `finance-governance.ts` | `authenticate, requireFinanceAdmin` | REVIEW_REQUIRED |
+| POST | `/api/v1/finance/governance/periods/:id/close` | `finance-governance.ts` | `authenticate, requireFinanceAdmin` | REVIEW_REQUIRED |
+| POST | `/api/v1/finance/governance/reconcile` | `finance-governance.ts` | `authenticate, requireFinanceAdmin` | REVIEW_REQUIRED |
 | GET | `/api/v1/finance/ledger/profit-loss` | `finance.ts` | `authenticate, requireFinanceAdmin` | REVIEW_REQUIRED |
 | GET | `/api/v1/finance/ledger/trial-balance` | `finance.ts` | `authenticate, requireFinanceAdmin` | REVIEW_REQUIRED |
 | GET | `/api/v1/finance/reconciliation` | `finance-reconciliation.ts` | (inline/inherited) | REVIEW_REQUIRED |
@@ -246,9 +247,9 @@ This inventory is mechanically extracted from route declarations and mounts. Mid
 | PUT | `/api/v1/preferences` | `preferences.ts` | (inline/inherited) | REVIEW_REQUIRED |
 | GET | `/api/v1/preferences/consent` | `preferences.ts` | (inline/inherited) | REVIEW_REQUIRED |
 | POST | `/api/v1/preferences/consent` | `preferences.ts` | (inline/inherited) | REVIEW_REQUIRED |
-| POST | `/api/v1/procurement-ops/orders/:id/receive` | `procurement.ts` | (inline/inherited) | REVIEW_REQUIRED |
-| POST | `/api/v1/procurement-ops/requests` | `procurement.ts` | (inline/inherited) | REVIEW_REQUIRED |
-| POST | `/api/v1/procurement-ops/requests/:id/approve` | `procurement.ts` | (inline/inherited) | REVIEW_REQUIRED |
+| POST | `/api/v1/procurement-ops/orders/:id/receive` | `procurement.ts` | `requireOperationsAdmin` | REVIEW_REQUIRED |
+| POST | `/api/v1/procurement-ops/requests` | `procurement.ts` | `requireRole` | REVIEW_REQUIRED |
+| POST | `/api/v1/procurement-ops/requests/:id/approve` | `procurement.ts` | `requireOperationsAdmin` | REVIEW_REQUIRED |
 | GET | `/api/v1/reception/calls` | `reception.ts` | `authenticate, requireOperationsAdmin` | REVIEW_REQUIRED |
 | POST | `/api/v1/reception/calls` | `reception.ts` | `authenticate, requireOperationsAdmin, validate` | REVIEW_REQUIRED |
 | PUT | `/api/v1/reception/calls/:id` | `reception.ts` | `authenticate, requireOperationsAdmin` | REVIEW_REQUIRED |
@@ -371,4 +372,4 @@ This inventory is mechanically extracted from route declarations and mounts. Mid
 | DELETE | `/api/v1/webhooks/:id` | `webhooks.ts` | `authenticate, requireSchoolAccess, requireRole` | REVIEW_REQUIRED |
 | POST | `/api/v1/webhooks/razorpay` | `webhooks.ts` | (inline/inherited) | REVIEW_REQUIRED |
 
-Extracted declarations: 364. This is an inventory aid, not evidence of route security.
+Extracted declarations: 365. This is an inventory aid, not evidence of route security.

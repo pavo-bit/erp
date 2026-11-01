@@ -10,7 +10,7 @@ The tenant architecture has not received the complete audit required by the impl
 
 `src/app.ts` mounts `schoolContextMiddleware` before route-level `authenticate` middleware. Authentication now updates the existing AsyncLocalStorage context only after token, active-account and token-school checks succeed. Isolated tests verify context propagation and concurrent request isolation (3/3). The existing Prisma extension can therefore apply its school filter to the limited model allowlist after authentication.
 
-This does not close tenant isolation. The Prisma model allowlist is incomplete and unique/read-write operations, nested queries, raw SQL and background jobs are not comprehensively covered. PostgreSQL context is not set in a transaction. The current RLS policy treats a missing tenant as unrestricted access (`current_tenant_id() IS NULL OR ...`), so an unset context is fail-open at the database layer. No PostgreSQL test database was available to inspect applied migrations or role grants.
+This does not close tenant isolation. The Prisma model allowlist is incomplete and unique/read-write operations, nested queries, raw SQL and background jobs are not comprehensively covered. PostgreSQL context is not set in a transaction. The current RLS policy treats a missing tenant as unrestricted access (`current_tenant_id() IS NULL OR ...`), so an unset context is fail-open at the database layer. Owner correction: the RLS migration applies cleanly on an empty database and configures 23 tables; the defect is coverage and fail-open behavior, not migration ordering. PostgreSQL policy behavior and role grants were not tested in this execution.
 
 ### Required remaining work
 

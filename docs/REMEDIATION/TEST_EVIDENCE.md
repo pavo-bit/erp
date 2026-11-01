@@ -8,12 +8,17 @@ Updated: 2026-11-01
 | Inventory | `node ssvm-backend/scripts/build-route-authorization-inventory.cjs` | PASS; 365 declarations | Mechanical inventory only; all rows remain review-required. |
 | Inventory | `node ssvm-backend/scripts/build-model-inventory.cjs` | PASS; 205 models, 124 direct school fields | Does not classify indirect ownership or enforcement. |
 | Backend type check | `npm run type-check` in `ssvm-backend` | PASS | Does not verify runtime database behavior. |
+| Backend type check (fresh rerun) | `npx tsc --version` then `npm run type-check` (2026-11-01) | PASS; TypeScript 5.9.3 | `tsconfig` was not changed. |
 | Backend build | `npm run build` in `ssvm-backend` | PASS | Does not prove production readiness. |
 | Prisma schema | `npx prisma validate` | PASS | No migration was run against PostgreSQL. |
-| Focused lint | `npx eslint src/routes/finance-governance.ts src/routes/crm.ts src/routes/inventory.ts src/routes/procurement.ts src/tests/security/finance-governance*.test.ts` | PASS | Full repository lint still fails. |
-| Focused security suite | `npx vitest run --config vitest.security.config.ts --pool=threads` | PASS; 5 files, 16 tests | Uses isolated middleware/service mocks; not a DB integration suite. Executed with loopback access. |
+| Focused lint | `npx eslint src/routes/finance-governance.ts src/routes/crm.ts src/routes/inventory.ts src/routes/procurement.ts src/tests/security/business-route-boundaries.test.ts src/tests/security/finance-governance-auth.test.ts src/tests/security/finance-governance.test.ts` | PASS | Full repository lint still fails. |
+| Focused security suite | `npx vitest run --config vitest.security.config.ts --pool=threads` (fresh run, 2026-11-01 14:07:53 local) | PASS; 6 files, 21 tests | Uses isolated middleware/service mocks; not a DB integration suite. Sandbox attempt first failed at localhost with `EACCES`; the same command passed with loopback access. |
 | Full backend lint | `npm run lint` | FAIL; 548 errors, 1 warning | Repository-wide pre-existing and outstanding quality debt. |
 | PostgreSQL integration | Not run | BLOCKED | No controlled PostgreSQL test database available in this execution. |
 | Docker/CI/E2E | Not run | NOT VERIFIED | Docker engine/hosted CI/controlled full-stack environment not available. |
 
 Historical portal evidence remains in `docs/BUILD_AND_TEST_REPORT.md`; seven portal builds/type checks passed in the earlier execution and were not repeated here.
+
+Ground-truth correction from the repository owner: the RLS migration applies cleanly on an empty database and configures 23 tables. This is not a fresh database execution by the agent in this turn; it corrects prior documentation that implied migration-ordering failure. The verified defects remain incomplete RLS coverage and the fail-open NULL-tenant policy.
+
+Fresh local evidence on 2026-11-01: `npx vitest run --config vitest.security.config.ts --pool=threads` passed 6 files and 21 tests; `npx tsc --version` reported 5.9.3 and `npm run type-check` passed. No `tsconfig` file was changed.

@@ -11,6 +11,15 @@ Updated: 2026-11-01
 | TEN-CONTEXT-01 | Verified user identity populates request-local school context | TESTED | Isolated test confirms the provisional context is replaced after authenticated identity is set. |
 | TEN-CONTEXT-02 | Concurrent requests retain their own school context | TESTED | Isolated concurrent request test passed for two school contexts. |
 | TEN-CONTEXT-03 | Super-admin context preserves explicit bypass behavior | TESTED | Isolated test confirms `SUPER_ADMIN` has a null school context. Database RLS bypass remains unverified. |
+| FIN-GOV-AUTH-01 | Period list, close and reconciliation reject anonymous requests | TESTED | Route suite verifies 401 on protected endpoints. |
+| FIN-GOV-ACTOR-01 | Close uses authenticated school/actor and returns validation failures | TESTED | Isolated route test mocks the close service and asserts school/user arguments plus 409 response. |
+| FIN-GOV-LIST-01 | Finance period listing ignores non-super-admin caller school override | TESTED | Isolated route test mocks Prisma and asserts the authenticated school filter. |
+| FIN-REC-PLACEHOLDER-01 | Reconciliation does not create fake zero-balance success | TESTED | Isolated route test expects 501; database matching remains unavailable. |
+| CRM-BOUNDARY-01 | CRM routes require auth and ignore caller tenant/actor values | TESTED | Anonymous requests return 401; mocked route tests assert authenticated school and interaction actor. |
+| INV-BOUNDARY-01 | Inventory route derives tenant/actor, validates references and rejects unsupported transfer | TESTED | Mocked Prisma route test verifies scope/actor and confirms transfer does not start a transaction; PostgreSQL test remains open. |
+| PROC-BOUNDARY-01 | Procurement routes require auth and derive requester identity | TESTED | Anonymous request/approval/receipt return 401; mocked route test verifies request tenant/actor. |
+| PROC-RECEIPT-01 | Goods receipt does not claim success without per-line quantities | TESTED | Authenticated route test returns 501; schema/migration work remains. |
+| FIN-API-01 | ERP Admin financial-close API paths align with authenticated backend routes | TESTED | ERP Admin type check passes; backend period-list route test enforces school scope. Browser test remains open. |
 | SEC-RET-01 | Dry-run counts eligible data without deleting and writes an audit | TESTED | Isolated retention service suite passed. |
 | SEC-RET-02 | Retention deletes school-scoped data in batches capped at 250 | TESTED | Isolated retention service suite passed. |
 | SEC-RET-03 | Unsupported retention entity is rejected without deletion | TESTED | Isolated retention service suite passed. |

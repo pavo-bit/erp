@@ -35,7 +35,7 @@ All routers below are mounted. This table records scope and inspection status, n
 | `/api/v1/library`, `/api/v1/assets`, `/api/v1/reception`, `/api/v1/transport`, `/api/v1/discipline`, `/api/v1/ancillary` | School operations | UNREVIEWED |
 | `/api/v1/storage`, `/api/v1/documents` | File/document access | Public static document path denied; authenticated document download and school/student scope added. Upload signature validation and all operations require further review. |
 | `/api/v1/crm` | CRM | Router requires admissions/admin role; school/lead/campaign/stage ownership checks added; DB tests pending. |
-| `/api/v1/procurement-ops`, `/api/v1/inventory` | Procurement/inventory operations | Procurement UNREVIEWED; inventory route auth/school/actor checks added; transfer unsupported, DB tests pending. |
+| `/api/v1/procurement-ops`, `/api/v1/inventory` | Procurement/inventory operations | Procurement request/approval routes require authentication and school scope; receipt unsupported until line quantities are modeled. Inventory route auth/school/actor checks added; transfer unsupported; DB tests pending. |
 | `/api/v1/governance`, `/api/v1/admin/governance-workflows` | Governance/retention | Workflow router now authenticated and role-gated; retention preview, bounded deletion and audit summary remain. |
 | `/api/v1/saas`, `/api/v1/saas/settings`, `/api/v1/saas/security`, `/api/v1/saas/governance`, `/api/v1/saas/export`, `/api/v1/saas/mdm` | Platform administration/export | UNREVIEWED |
 | `/api/v1/webhooks` | External callbacks | Signature and replay policy require route-specific review. |
