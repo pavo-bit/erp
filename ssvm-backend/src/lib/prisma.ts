@@ -1,7 +1,110 @@
 import { PrismaClient } from "@prisma/client";
 import { encryptionExtension } from "./prismaEncryptionMiddleware";
 import { getCurrentSchoolId, getSchoolContext } from "../middleware/school-context.middleware";
-import logger from "./logger";
+import { TENANT_CLASSIFICATION } from "../generated/tenantClassification";
+
+type UnknownRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): UnknownRecord | undefined {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as UnknownRecord
+    : undefined;
+}
+
+function getTenantClassification(modelName: string) {
+  return TENANT_CLASSIFICATION[modelName as keyof typeof TENANT_CLASSIFICATION];
+}
+
+function buildTenantWhere(modelName: string, schoolId: string): UnknownRecord {
+  const classification = getTenantClassification(modelName);
+  if (!classification || classification.classification === "global") return {};
+
+  let scope: UnknownRecord = { schoolId };
+  for (const relation of [...classification.path].reverse()) {
+    scope = {
+      [relation.relation]: { is: scope },
+    };
+  }
+  return scope;
+}
+
+function addTenantWhere(modelName: string, where: unknown, schoolId: string): UnknownRecord {
+  const current = asRecord(where);
+  const tenantWhere = buildTenantWhere(modelName, schoolId);
+  return current && Object.keys(current).length > 0
+    ? { AND: [current, tenantWhere] }
+    : tenantWhere;
+}
+
+function scopeNestedWrite(modelName: string, value: unknown, schoolId: string, depth = 0): unknown {
+  if (depth > 24) throw new Error("Tenant-scoped nested write exceeds the supported relation depth.");
+  if (Array.isArray(value)) return value.map((item) => scopeNestedWrite(modelName, item, schoolId, depth + 1));
+
+  const input = asRecord(value);
+  const classification = getTenantClassification(modelName);
+  if (!input || !classification || classification.classification === "global") return value;
+
+  const scoped: UnknownRecord = { ...input };
+  if (classification.classification === "direct") scoped.schoolId = schoolId;
+
+  for (const relation of classification.relations) {
+    const childClassification = getTenantClassification(relation.relatedModel);
+    if (!childClassification || childClassification.classification === "global") continue;
+    const nestedInput = asRecord(scoped[relation.relation]);
+    if (!nestedInput) continue;
+
+    const nested: UnknownRecord = { ...nestedInput };
+    for (const [action, actionValue] of Object.entries(nestedInput)) {
+      const payload = asRecord(actionValue);
+      if (action === "create") {
+        nested[action] = scopeNestedWrite(relation.relatedModel, actionValue, schoolId, depth + 1);
+      } else if (action === "createMany" && payload) {
+        nested[action] = {
+          ...payload,
+          data: scopeNestedWrite(relation.relatedModel, payload.data, schoolId, depth + 1),
+        };
+      } else if (action === "connect" || action === "set" || action === "disconnect" || action === "delete" || action === "deleteMany") {
+        if (typeof actionValue === "boolean" && relation.cardinality === "one") {
+          nested[action] = actionValue;
+          continue;
+        }
+        nested[action] = Array.isArray(actionValue)
+          ? actionValue.map((where) => addTenantWhere(relation.relatedModel, where, schoolId))
+          : addTenantWhere(relation.relatedModel, actionValue, schoolId);
+      } else if (action === "connectOrCreate" && payload) {
+        const entries = Array.isArray(actionValue) ? actionValue : [actionValue];
+        const scopedEntries = entries.map((entry) => {
+          const connectOrCreate = asRecord(entry) ?? {};
+          return {
+            ...connectOrCreate,
+            where: addTenantWhere(relation.relatedModel, connectOrCreate.where, schoolId),
+            create: scopeNestedWrite(relation.relatedModel, connectOrCreate.create, schoolId, depth + 1),
+          };
+        });
+        nested[action] = Array.isArray(actionValue) ? scopedEntries : scopedEntries[0];
+      } else if ((action === "update" || action === "updateMany" || action === "upsert") && payload) {
+        if (action === "update" && relation.cardinality === "one" && !("where" in payload) && !("data" in payload)) {
+          nested[action] = scopeNestedWrite(relation.relatedModel, actionValue, schoolId, depth + 1);
+          continue;
+        }
+        const entries = Array.isArray(actionValue) ? actionValue : [actionValue];
+        const scopedEntries = entries.map((entry) => {
+          const write = asRecord(entry) ?? {};
+          const result: UnknownRecord = { ...write };
+          if ("where" in write) result.where = addTenantWhere(relation.relatedModel, write.where, schoolId);
+          if ("data" in write) result.data = scopeNestedWrite(relation.relatedModel, write.data, schoolId, depth + 1);
+          if ("create" in write) result.create = scopeNestedWrite(relation.relatedModel, write.create, schoolId, depth + 1);
+          if ("update" in write) result.update = scopeNestedWrite(relation.relatedModel, write.update, schoolId, depth + 1);
+          return result;
+        });
+        nested[action] = Array.isArray(actionValue) ? scopedEntries : scopedEntries[0];
+      }
+    }
+    scoped[relation.relation] = nested;
+  }
+
+  return scoped;
+}
 
 const basePrisma = new PrismaClient();
 
@@ -41,37 +144,24 @@ const prisma = basePrisma
           // we dynamically inject `schoolId` into every query for tenant-scoped models.
           const schoolId = getCurrentSchoolId();
 
-          const tenantScopedModels = [
-            'Student', 'Teacher', 'Invoice', 'PaymentTransaction', 'FeeCategory',
-            'FeeStructure', 'FineRule', 'Attendance', 'Event', 'Assignment',
-            'StudyMaterial', 'Admission', 'Salary', 'Notification', 'AuditLog',
-            'ActivityLog', 'Document', 'Book', 'LedgerTransaction', 'SystemLog',
-            'SchoolFeature', 'SubscriptionPayment', 'UnifiedTemplate', 'UsageMetric',
-            'Vendor', 'VisitorLog', 'WebhookEndpoint'
-          ];
+          const classification = model ? getTenantClassification(model) : undefined;
+          if (schoolId && classification && classification.classification !== "global") {
+            const mutableArgs = args as unknown as UnknownRecord;
+            const whereOperations = new Set([
+              "findUnique", "findUniqueOrThrow", "findFirst", "findFirstOrThrow", "findMany", "count",
+              "update", "updateMany", "updateManyAndReturn", "delete", "deleteMany", "upsert", "aggregate", "groupBy",
+            ]);
+            const writeDataOperations = new Set(["create", "createMany", "createManyAndReturn", "update", "updateMany", "updateManyAndReturn"]);
 
-          if (schoolId && tenantScopedModels.includes(model as string)) {
-            // Inject schoolId into WHERE clauses
-            if (['findUnique', 'findFirst', 'findMany', 'count', 'update', 'updateMany', 'delete', 'deleteMany', 'aggregate', 'groupBy'].includes(operation)) {
-              // Convert findUnique to findFirst if we're injecting a non-unique WHERE clause
-              if (operation === 'findUnique') {
-                operation = 'findFirst';
-              }
-              (args as any).where = { ...(args as any).where, schoolId };
+            if (whereOperations.has(operation)) {
+              mutableArgs.where = addTenantWhere(model, mutableArgs.where, schoolId);
             }
-            // Inject schoolId into CREATE payloads
-            else if (operation === 'create') {
-              (args as any).data = { ...(args as any).data, schoolId };
-            } else if (operation === 'createMany') {
-              if (Array.isArray((args as any).data)) {
-                (args as any).data = (args as any).data.map((d: any) => ({ ...d, schoolId }));
-              } else {
-                (args as any).data = { ...(args as any).data, schoolId };
-              }
-            } else if (operation === 'upsert') {
-              (args as any).where = { ...(args as any).where, schoolId };
-              (args as any).create = { ...(args as any).create, schoolId };
-              (args as any).update = { ...(args as any).update, schoolId }; // Though update might not strictly need it if where has it
+            if (writeDataOperations.has(operation) && "data" in mutableArgs) {
+              mutableArgs.data = scopeNestedWrite(model, mutableArgs.data, schoolId);
+            }
+            if (operation === "upsert") {
+              mutableArgs.create = scopeNestedWrite(model, mutableArgs.create, schoolId);
+              mutableArgs.update = scopeNestedWrite(model, mutableArgs.update, schoolId);
             }
           }
 

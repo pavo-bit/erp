@@ -30,4 +30,18 @@ Tenant isolation phase evidence: `npm run type-check` and `npx eslint vitest.rls
 
 PostgreSQL gate policy: mocked/unit route checks are not DB evidence. Isolation and RLS tests must connect to a real PostgreSQL instance and assert `rolsuper = false` and `rolbypassrls = false` in setup; fail the suite if either assertion is false. Until that gate passes, each DB-dependent item remains UNVERIFIED and scores 0.
 
-GitHub handoff: `git push -u origin remediation/80pct` succeeded, but no PR is open and no GitHub Actions run link/results exist yet. `gh auth status` reported an invalid token, blocking PR creation through the CLI. Runtime role separation commit `161b591` was reverted as `a7bd17f` pending real PostgreSQL verification.
+GitHub handoff: PR [#1](https://github.com/pavo-bit/erp/pull/1) is open for `remediation/80pct`. GitHub Actions run link/results could not be retrieved: `gh pr checks 1 --watch --interval 10` failed to connect to `api.github.com`, and the connected Code Review diagnostics tool returned that the GitHub connection is unavailable. Runtime role separation commit `161b591` was reverted as `a7bd17f` pending real PostgreSQL verification.
+
+## Phase 2 authoring update — 2026-11-01
+
+| Command/check | Result | Limits |
+|---|---|---|
+| `npm run db:tenant-classification` | PASS; generated 205 model entries: 124 direct, 50 indirect, 31 global | Heuristic schema classification; all entries remain UNVERIFIED (score 0). 61 tenant models intersect migration CREATE TABLE inventory; 113 have no migration table. |
+| `npm run db:tenant-classification:check` | PASS; generated JSON, TypeScript model map and RLS migration are current | Structural freshness check only; no semantic review or DB gate. |
+| `npm run type-check` | PASS; fresh rerun after correcting indirect to-one relation filter | Does not validate Prisma runtime or generated SQL behavior. |
+| `npx eslint vitest.config.ts vitest.rls.config.ts src/lib/prisma.ts src/tests/db/setup.ts src/tests/db/tenant-rls.test.ts` | FAIL; 13 errors, 0 warnings in `src/lib/prisma.ts` | Existing explicit `any`/`@ts-ignore` patterns and unused logger in touched file; no rules suppressed. |
+| `git diff --check` | PASS | Whitespace check only. |
+| `npm run test:rls` | UNVERIFIED (score 0); NOT RUN | No reachable real PostgreSQL. Missing-tenant case is expected RED against baseline fail-open policy. New generated per-model coverage assertions also fail for missing migration models and uncovered RLS policies. Setup asserts `rolsuper=false` and `rolbypassrls=false`. |
+| PR CI (`migrate`, `lint`, `type-check`, `tests`, `test:rls`) | UNVERIFIED (score 0); no run results retrieved | PR #1 is open; GitHub connection/API unavailable from this execution. |
+
+The Phase 2 implementation is incomplete and uncommitted. No score is awarded for classification, extension, migration, or RLS authoring until semantic review and real PostgreSQL evidence pass. Per-request transaction context and a trustworthy audited super-admin path are not implemented. Runtime-role commit `161b591` remains reverted and unverified.
