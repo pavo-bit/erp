@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { encryptionExtension } from "./prismaEncryptionMiddleware";
 import { getCurrentSchoolId, getSchoolContext } from "../middleware/school-context.middleware";
 import { TENANT_CLASSIFICATION } from "../generated/tenantClassification";
@@ -106,6 +106,42 @@ function scopeNestedWrite(modelName: string, value: unknown, schoolId: string, d
   return scoped;
 }
 
+type SoftDeleteDelegate = {
+  update(where: UnknownRecord, deletedAt: Date): Promise<unknown>;
+  updateMany(where: UnknownRecord, deletedAt: Date): Promise<unknown>;
+};
+
+const softDeleteDelegates: Record<string, SoftDeleteDelegate> = {
+  School: {
+    update: (where, deletedAt) => basePrisma.school.update({ where: where as unknown as Prisma.SchoolWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => basePrisma.school.updateMany({ where: where as unknown as Prisma.SchoolWhereInput, data: { deletedAt } }),
+  },
+  User: {
+    update: (where, deletedAt) => basePrisma.user.update({ where: where as unknown as Prisma.UserWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => basePrisma.user.updateMany({ where: where as unknown as Prisma.UserWhereInput, data: { deletedAt } }),
+  },
+  Student: {
+    update: (where, deletedAt) => basePrisma.student.update({ where: where as unknown as Prisma.StudentWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => basePrisma.student.updateMany({ where: where as unknown as Prisma.StudentWhereInput, data: { deletedAt } }),
+  },
+  Teacher: {
+    update: (where, deletedAt) => basePrisma.teacher.update({ where: where as unknown as Prisma.TeacherWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => basePrisma.teacher.updateMany({ where: where as unknown as Prisma.TeacherWhereInput, data: { deletedAt } }),
+  },
+  Invoice: {
+    update: (where, deletedAt) => basePrisma.invoice.update({ where: where as unknown as Prisma.InvoiceWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => basePrisma.invoice.updateMany({ where: where as unknown as Prisma.InvoiceWhereInput, data: { deletedAt } }),
+  },
+  Admission: {
+    update: (where, deletedAt) => basePrisma.admission.update({ where: where as unknown as Prisma.AdmissionWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => basePrisma.admission.updateMany({ where: where as unknown as Prisma.AdmissionWhereInput, data: { deletedAt } }),
+  },
+  PaymentTransaction: {
+    update: (where, deletedAt) => basePrisma.paymentTransaction.update({ where: where as unknown as Prisma.PaymentTransactionWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => basePrisma.paymentTransaction.updateMany({ where: where as unknown as Prisma.PaymentTransactionWhereInput, data: { deletedAt } }),
+  },
+};
+
 const basePrisma = new PrismaClient();
 
 // ═══════════════════════════════════════════
@@ -126,14 +162,19 @@ const prisma = basePrisma
           if (model === 'AuditLog' && (operation === 'create' || operation === 'createMany')) {
             const context = getSchoolContext();
             if (context?.impersonatedBy) {
+              const mutableArgs = asRecord(args);
+              const data = mutableArgs?.data;
               if (operation === 'create') {
-                (args as any).data.impersonatedBy = context.impersonatedBy;
-              } else if (operation === 'createMany') {
-                if (Array.isArray((args as any).data)) {
-                  (args as any).data = (args as any).data.map((d: any) => ({ ...d, impersonatedBy: context.impersonatedBy }));
-                } else {
-                  (args as any).data.impersonatedBy = context.impersonatedBy;
-                }
+                const record = asRecord(data);
+                if (record && mutableArgs) mutableArgs.data = { ...record, impersonatedBy: context.impersonatedBy };
+              } else if (mutableArgs && Array.isArray(data)) {
+                mutableArgs.data = data.map((entry) => {
+                  const record = asRecord(entry);
+                  return record ? { ...record, impersonatedBy: context.impersonatedBy } : entry;
+                });
+              } else if (mutableArgs) {
+                const record = asRecord(data);
+                if (record) mutableArgs.data = { ...record, impersonatedBy: context.impersonatedBy };
               }
             }
           }
@@ -166,31 +207,23 @@ const prisma = basePrisma
           }
 
           // ── Soft Delete Interception ──
-          const softDeleteModels = ['School', 'User', 'Student', 'Teacher', 'Invoice', 'Admission', 'PaymentTransaction'];
-          
-          if (softDeleteModels.includes(model as string)) {
+          const softDeleteDelegate = model ? softDeleteDelegates[model] : undefined;
+
+          if (softDeleteDelegate) {
+            const mutableArgs = asRecord(args) ?? {};
+            const where = asRecord(mutableArgs.where) ?? {};
             if (operation === 'delete') {
-              // @ts-ignore
-              return basePrisma[model.charAt(0).toLowerCase() + model.slice(1)].update({
-                where: (args as any).where,
-                data: { deletedAt: new Date() },
-              });
+              return softDeleteDelegate.update(where, new Date());
             }
             if (operation === 'deleteMany') {
-              // @ts-ignore
-              return basePrisma[model.charAt(0).toLowerCase() + model.slice(1)].updateMany({
-                where: (args as any).where,
-                data: { deletedAt: new Date() },
-              });
+              return softDeleteDelegate.updateMany(where, new Date());
             }
             if (operation === 'findUnique' || operation === 'findFirst' || operation === 'findMany' || operation === 'count') {
               // Include deleted records only if explicitly requested
-              // @ts-ignore
-              if (args.where?.deletedAt === undefined) {
-                // @ts-ignore
-                args.where = { ...args.where, deletedAt: null };
+              if (where.deletedAt === undefined) {
+                mutableArgs.where = { ...where, deletedAt: null };
               }
-              return query(args);
+              return query(mutableArgs as typeof args);
             }
           }
           return query(args);
