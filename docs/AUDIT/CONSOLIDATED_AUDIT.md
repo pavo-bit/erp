@@ -1,7 +1,7 @@
 # SSVM ERP Consolidated Audit
 
-Generated: 2026-11-01T12:17:06.608Z
-Repository commit: `91adacd37cc3e6aa4312896c83619ce4b7a3405b`
+Generated: 2026-11-01T12:24:47.465Z
+Repository commit: `93b3ed8087c2d842400113ba9f988c05bdbc6b28`
 Verdict: **FAIL** — overall **0%** (score is floored, never rounded up).
 
 ## Thresholds
@@ -62,11 +62,28 @@ Verdict: **FAIL** — overall **0%** (score is floored, never rounded up).
 
 ### Lane E
 
-- Status: **UNVERIFIED**
-- Commit: UNVERIFIED
-- CI run: UNVERIFIED
-- Evidence file missing: `docs/AUDIT/evidence/E.json`
-- Jobs: UNVERIFIED
+- Status: **RECORDED**
+- Commit: `93b3ed8087c2d842400113ba9f988c05bdbc6b28`
+- CI run: [https://github.com/pavo-bit/erp/actions/runs/41305764290](https://github.com/pavo-bit/erp/actions/runs/41305764290)
+- Jobs:
+  - security-scan: **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701584) — npm audit --audit-level=high failed: 89 findings (2 low, 54 moderate, 31 high, 2 critical); Trivy was skipped.
+  - frontend-build (saas-frontend): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701680)
+  - backend-type-check: **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701719)
+  - backend-test (lane f): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701725) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - backend-test (lane e): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701738) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - frontend-build (super-admin): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701746)
+  - Migrate and RLS Tests (restricted role): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701756)
+  - backend-test (lane d): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701776) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - backend-test (lane b): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701788) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - frontend-build (student-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701795)
+  - backend-test (lane a): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701802) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - backend-test (lane c): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701826) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - frontend-build (payment-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701829)
+  - backend-lint: **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701830) — ESLint reported 520 problems (519 errors, 1 warning).
+  - frontend-build (teacher-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701831)
+  - frontend-build (parent-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701885)
+  - backend-test (lane g): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701935) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - frontend-build (erp-admin): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701946)
 
 ### Lane F
 
@@ -94,7 +111,6 @@ Missing lane evidence files:
 - Lane B: `docs/AUDIT/evidence/B.json` (UNVERIFIED)
 - Lane C: `docs/AUDIT/evidence/C.json` (UNVERIFIED)
 - Lane D: `docs/AUDIT/evidence/D.json` (UNVERIFIED)
-- Lane E: `docs/AUDIT/evidence/E.json` (UNVERIFIED)
 - Lane F: `docs/AUDIT/evidence/F.json` (UNVERIFIED)
 - Lane G: `docs/AUDIT/evidence/G.json` (UNVERIFIED)
 
@@ -117,7 +133,7 @@ Missing lane evidence files:
 - `FIN-003` — Lane B — UNVERIFIED: Webhook signatures use raw bytes, constant-time comparison, mandatory secrets, and duplicate-delivery protection in all environments.
 - `FIN-004` — Lane B — UNVERIFIED: Payment state and ledger posting are atomic; ledger failure is surfaced and no parallel inconsistent ledger engine remains.
 - `FIN-005` — Lane B — UNVERIFIED: Ledger entries balance per posted transaction and posted rows reject UPDATE/DELETE, with database tests.
-- `QA-001` — Lane E — UNVERIFIED: The full backend suite passes without skipped tests, weakened assertions, or suite-setup cascades.
+- `QA-001` — Lane E — FAIL: The full backend suite passes without skipped tests, weakened assertions, or suite-setup cascades.
 - `QA-002` — Lane E — UNVERIFIED: CI provides isolated PostgreSQL and Redis resources per lane, with RLS tests asserting a non-superuser, non-BYPASSRLS role.
 - `QA-005` — Lane G — UNVERIFIED: An independent clean-clone audit re-runs required gates and confirms evidence provenance and lane claims.
 - `OPS-001` — Lane C — UNVERIFIED: Production database, Redis, dashboards, metrics, and container images have reviewed access and deployment configuration.
@@ -186,8 +202,8 @@ None.
 | FIN-006 | finance_payments | B | UNVERIFIED | baseline_audit.4: Ground-truth defect 4: 71 monetary fields are Float and late fine is hard-coded to 50. | UNVERIFIED: no lane claim |
 | BE-001 | backend_features | B | UNVERIFIED | baseline_audit.6: Ground-truth defect 6: bank reconciliation and goods receipt return return 501 because schema fields are missing. | UNVERIFIED: no lane claim |
 | PORT-001 | portals | D | UNVERIFIED | baseline_audit.8: Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage. | UNVERIFIED: no lane claim |
-| QA-001 | tests_ci_e2e | E | UNVERIFIED | baseline_audit.9: Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change.; followup.skipped_tests.5: Owner clarification: explain 57 skipped tests, fix School.code fixtures, and rerun the suite. | UNVERIFIED: no lane claim |
-| QA-002 | tests_ci_e2e | E | UNVERIFIED | orchestration.isolated_lane_services: Orchestration instruction: each lane gets a unique PostgreSQL database, Redis DB index, and ports.; orchestration.rls_role_assertion: Orchestration instruction: RLS tests run under non-superuser, non-BYPASSRLS role and assert these role flags. | UNVERIFIED: no lane claim |
+| QA-001 | tests_ci_e2e | E | FAIL | baseline_audit.9: Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change.; followup.skipped_tests.5: Owner clarification: explain 57 skipped tests, fix School.code fixtures, and rerun the suite. | 93b3ed8087c2d842400113ba9f988c05bdbc6b28; npm run test:ci; CI backend-test (lane a), backend-test (lane b), backend-test (lane c), backend-test (lane d), backend-test (lane e), backend-test (lane f), backend-test (lane g) |
+| QA-002 | tests_ci_e2e | E | UNVERIFIED | orchestration.isolated_lane_services: Orchestration instruction: each lane gets a unique PostgreSQL database, Redis DB index, and ports.; orchestration.rls_role_assertion: Orchestration instruction: RLS tests run under non-superuser, non-BYPASSRLS role and assert these role flags. | 93b3ed8087c2d842400113ba9f988c05bdbc6b28; CI job-provisioned PostgreSQL and Redis lane matrix A-G; npm run test:rls; CI backend-test (lane a), backend-test (lane b), backend-test (lane c), backend-test (lane d), backend-test (lane e), backend-test (lane f), backend-test (lane g), Migrate and RLS Tests (restricted role) |
 | QA-003 | tests_ci_e2e | D | UNVERIFIED | baseline_audit.9: Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change. | UNVERIFIED: no lane claim |
 | QA-004 | tests_ci_e2e | F | UNVERIFIED | baseline_audit.9: Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change.; ground_truth_corrections.typescript_5_9: Owner correction: tsc passes with TypeScript 5.9.3; do not change tsconfig. | UNVERIFIED: no lane claim |
 | QA-005 | tests_ci_e2e | G | UNVERIFIED | orchestration.lane_g_clean_clone_audit: Orchestration instruction: lane G reruns everything from a clean clone and may downgrade lane claims. | UNVERIFIED: no lane claim |
