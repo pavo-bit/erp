@@ -22,11 +22,11 @@ Baseline captured 2026-10-31 22:11:41 UTC (2026-11-01 03:41:41 Asia/Kolkata).
 |---|---|---|---|
 | TEN-RLS-01 | RLS predicate explicitly allows all rows when `current_tenant_id()` is NULL. | OPEN | `ssvm-backend/prisma/migrations/20260617_add_rls_policies/migration.sql` |
 | TEN-CTX-01 | Authentication context handoff has a focused isolated test, but database RLS context is not set transaction-locally. | PARTIAL | `auth.ts`, `school-context.middleware.ts`, `prisma.ts` |
-| FIN-GOV-01 | Period-close and reconciliation handlers lacked authentication. Period close trusted body actor/school and ignored unsuccessful close results. | FIXED IN THIS EXECUTION | `routes/finance-governance.ts` and focused tests |
+| FIN-GOV-01 | Period-close and reconciliation handlers lacked authentication. Period close trusted body actor/school and ignored unsuccessful close results. | CODE CHANGED; DB ACCEPTANCE UNVERIFIED (score 0) | `routes/finance-governance.ts`; mock/unit tests do not verify PostgreSQL behavior |
 | FIN-REC-01 | Reconciliation wrote a zero ledger balance and made placeholder matches without statement-line persistence. | MITIGATED, FEATURE INCOMPLETE | Placeholder now returns authenticated HTTP 501; real reconciliation remains open. |
-| CRM-AUTH-01 | CRM router lacked authentication and relied on caller-provided tenant/actor values. | FIXED IN THIS EXECUTION, DB TEST OPEN | `routes/crm.ts` |
-| INV-AUTH-01 | Inventory router lacked authentication and accepted caller-provided tenant/actor values; transfer did not update source/destination stocks. | PARTIALLY FIXED | Auth/scope checks and serializable movements added; transfer is rejected; PostgreSQL verification remains. |
-| PROC-AUTH-01 | Procurement routes lacked authentication and trusted caller identity; receipt lacked per-line quantities in the schema. | PARTIALLY FIXED | Request/approval boundaries secured; fake receipt now returns authenticated HTTP 501. |
+| CRM-AUTH-01 | CRM router lacked authentication and relied on caller-provided tenant/actor values. | CODE CHANGED; DB ACCEPTANCE UNVERIFIED (score 0) | `routes/crm.ts`; mock/unit tests do not verify persisted ownership |
+| INV-AUTH-01 | Inventory router lacked authentication and accepted caller-provided tenant/actor values; transfer did not update source/destination stocks. | CODE CHANGED; DB ACCEPTANCE UNVERIFIED (score 0) | Auth/scope checks and serializable movements added; transfer is rejected; PostgreSQL verification remains. |
+| PROC-AUTH-01 | Procurement routes lacked authentication and trusted caller identity; receipt lacked per-line quantities in the schema. | CODE CHANGED; DB ACCEPTANCE UNVERIFIED (score 0) | Request/approval boundaries added; fake receipt now returns authenticated HTTP 501; no DB gate passed. |
 | FIN-PRECISION-01 | Purchase request/PO monetary columns use `Float`; broader finance calculations include JavaScript number arithmetic. | OPEN | Prisma schema and financial services require full precision audit. |
 
 ## Environment and verification limits
