@@ -111,12 +111,13 @@ describe('Payments & Finance APIs', () => {
       });
 
       // Create initial PaymentTransaction since our webhook expects it
-      await prisma.paymentTransaction.create({
+      const paymentTransaction = await prisma.paymentTransaction.create({
         data: {
           invoiceId: invoice.id,
           transactionId: 'order_123',
           amountPaid: 500,
-          status: 'CREATED'
+          status: 'CREATED',
+          schoolId,
         }
       });
 
@@ -149,6 +150,49 @@ describe('Payments & Finance APIs', () => {
       
       expect(successfulTxs.length).toBe(1);
       expect(successfulTxs[0].gatewayPaymentId).toBe('pay_concurrent_123');
+      const updatedInvoice = await prisma.invoice.findUnique({ where: { id: invoice.id } });
+      expect(updatedInvoice?.status).toBe('PAID');
+      expect(updatedInvoice?.amountPaid).toBe(500);
+      const ledgerRows = await prisma.ledgerTransaction.findMany({
+        where: { referenceType: 'PAYMENT', referenceId: paymentTransaction.id },
+        include: { LedgerEntry: true },
+      });
+      expect(ledgerRows).toHaveLength(1);
+      const debits = ledgerRows[0].LedgerEntry.reduce((sum, entry) => sum + Number(entry.debitAmount), 0);
+      const credits = ledgerRows[0].LedgerEntry.reduce((sum, entry) => sum + Number(entry.creditAmount), 0);
+      expect(debits).toBe(500);
+      expect(credits).toBe(500);
+    });
+
+    it('keeps a captured partial payment partial and records only the captured amount', async () => {
+      const invoice = await prisma.invoice.create({
+        data: InvoiceFactory.build({ schoolId, studentId, amount: 1000 })
+      });
+      await prisma.paymentTransaction.create({
+        data: {
+          invoiceId: invoice.id,
+          transactionId: 'order_partial_123',
+          amountPaid: 500,
+          status: 'CREATED',
+          schoolId,
+        }
+      });
+      const payload = createPaymentCapturedPayload(invoice.id, 50000);
+      if (payload.payload?.payment?.entity) {
+        payload.payload.payment.entity.order_id = 'order_partial_123';
+        payload.payload.payment.entity.id = 'pay_partial_123';
+      }
+
+      const response = await request(app)
+        .post('/api/v1/payments/webhook')
+        .set('x-razorpay-signature', generateWebhookSignature(payload, RAZORPAY_SECRET))
+        .send(payload);
+
+      expect(response.status).toBe(200);
+      const updated = await prisma.invoice.findUnique({ where: { id: invoice.id } });
+      expect(updated?.status).toBe('PARTIAL');
+      expect(updated?.amountPaid).toBe(500);
+      expect(updated?.remainingAmount).toBe(500);
     });
 
     it('returns 400 for missing signature', async () => {
