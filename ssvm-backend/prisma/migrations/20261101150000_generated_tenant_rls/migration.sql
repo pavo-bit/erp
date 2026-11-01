@@ -1,6 +1,11 @@
 -- Generated from docs/DATABASE/TENANT_CLASSIFICATION.json; do not edit manually.
 -- No NULL-tenant wildcard: missing tenant context denies access.
 -- The audited super-admin path must use its separate privileged connection.
+CREATE OR REPLACE FUNCTION current_tenant_id() RETURNS TEXT
+LANGUAGE sql STABLE
+AS $current_tenant$
+  SELECT NULLIF(current_setting('app.current_school_id', true), '')
+$current_tenant$;
 DO $tenant_rls$
 BEGIN
   IF to_regclass(format('%I.%I', 'public', 'academic_sessions')) IS NULL THEN

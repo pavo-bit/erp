@@ -41,7 +41,7 @@ export const TENANT_CLASSIFICATION = {
   "AccessReview": {
     "model": "AccessReview",
     "table": "access_reviews",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -87,7 +87,7 @@ export const TENANT_CLASSIFICATION = {
   "AccountingPeriod": {
     "model": "AccountingPeriod",
     "table": "AccountingPeriod",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -202,7 +202,7 @@ export const TENANT_CLASSIFICATION = {
   "AdmissionEnquiry": {
     "model": "AdmissionEnquiry",
     "table": "admission_enquiries",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -336,7 +336,7 @@ export const TENANT_CLASSIFICATION = {
   "AppConfiguration": {
     "model": "AppConfiguration",
     "table": "app_configurations",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -356,7 +356,7 @@ export const TENANT_CLASSIFICATION = {
   "AppVersion": {
     "model": "AppVersion",
     "table": "app_versions",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -368,7 +368,7 @@ export const TENANT_CLASSIFICATION = {
   "ArchiveJobLog": {
     "model": "ArchiveJobLog",
     "table": "archive_job_logs",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -392,7 +392,7 @@ export const TENANT_CLASSIFICATION = {
   "Asset": {
     "model": "Asset",
     "table": "assets",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -477,7 +477,7 @@ export const TENANT_CLASSIFICATION = {
   "AssetAssignment": {
     "model": "AssetAssignment",
     "table": "asset_assignments",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -536,7 +536,7 @@ export const TENANT_CLASSIFICATION = {
   "AssetCategory": {
     "model": "AssetCategory",
     "table": "asset_categories",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -567,7 +567,7 @@ export const TENANT_CLASSIFICATION = {
   "AssetDepreciation": {
     "model": "AssetDepreciation",
     "table": "asset_depreciations",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -604,7 +604,7 @@ export const TENANT_CLASSIFICATION = {
   "AssetTransfer": {
     "model": "AssetTransfer",
     "table": "asset_transfers",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -911,7 +911,7 @@ export const TENANT_CLASSIFICATION = {
   "auth_events": {
     "model": "auth_events",
     "table": "auth_events",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -923,7 +923,7 @@ export const TENANT_CLASSIFICATION = {
   "BackupValidation": {
     "model": "BackupValidation",
     "table": "backup_validations",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -935,7 +935,7 @@ export const TENANT_CLASSIFICATION = {
   "BankReconciliation": {
     "model": "BankReconciliation",
     "table": "BankReconciliation",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1123,7 +1123,7 @@ export const TENANT_CLASSIFICATION = {
   "BrandSettings": {
     "model": "BrandSettings",
     "table": "brand_settings",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1147,7 +1147,7 @@ export const TENANT_CLASSIFICATION = {
   "Budget": {
     "model": "Budget",
     "table": "Budget",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1178,7 +1178,7 @@ export const TENANT_CLASSIFICATION = {
   "BudgetLine": {
     "model": "BudgetLine",
     "table": "BudgetLine",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -1250,7 +1250,7 @@ export const TENANT_CLASSIFICATION = {
   "CertificateTemplate": {
     "model": "CertificateTemplate",
     "table": "certificate_templates",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1502,7 +1502,7 @@ export const TENANT_CLASSIFICATION = {
   "ConfigHistory": {
     "model": "ConfigHistory",
     "table": "config_history",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -1526,7 +1526,7 @@ export const TENANT_CLASSIFICATION = {
   "ConsentRecord": {
     "model": "ConsentRecord",
     "table": "consent_records",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1561,7 +1561,7 @@ export const TENANT_CLASSIFICATION = {
   "ConsolidationJournal": {
     "model": "ConsolidationJournal",
     "table": "ConsolidationJournal",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -1585,7 +1585,7 @@ export const TENANT_CLASSIFICATION = {
   "Contract": {
     "model": "Contract",
     "table": "contracts",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1658,7 +1658,7 @@ export const TENANT_CLASSIFICATION = {
   "Currency": {
     "model": "Currency",
     "table": "Currency",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -1670,7 +1670,7 @@ export const TENANT_CLASSIFICATION = {
   "CustomDomain": {
     "model": "CustomDomain",
     "table": "custom_domains",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1694,7 +1694,7 @@ export const TENANT_CLASSIFICATION = {
   "CustomWorkflow": {
     "model": "CustomWorkflow",
     "table": "CustomWorkflow",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1714,7 +1714,7 @@ export const TENANT_CLASSIFICATION = {
   "DailyRevenueProjection": {
     "model": "DailyRevenueProjection",
     "table": "DailyRevenueProjection",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1738,7 +1738,7 @@ export const TENANT_CLASSIFICATION = {
   "DataClassification": {
     "model": "DataClassification",
     "table": "data_classifications",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1762,7 +1762,7 @@ export const TENANT_CLASSIFICATION = {
   "DataRetentionPolicy": {
     "model": "DataRetentionPolicy",
     "table": "DataRetentionPolicy",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1774,7 +1774,7 @@ export const TENANT_CLASSIFICATION = {
   "DeferredRevenueSchedule": {
     "model": "DeferredRevenueSchedule",
     "table": "DeferredRevenueSchedule",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -1909,7 +1909,7 @@ export const TENANT_CLASSIFICATION = {
   "DocumentVersion": {
     "model": "DocumentVersion",
     "table": "DocumentVersion",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -1946,7 +1946,7 @@ export const TENANT_CLASSIFICATION = {
   "DomainEvent": {
     "model": "DomainEvent",
     "table": "DomainEvent",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2120,7 +2120,7 @@ export const TENANT_CLASSIFICATION = {
   "FailedJob": {
     "model": "FailedJob",
     "table": "failed_jobs",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -2132,7 +2132,7 @@ export const TENANT_CLASSIFICATION = {
   "FailedWebhook": {
     "model": "FailedWebhook",
     "table": "FailedWebhook",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -2169,7 +2169,7 @@ export const TENANT_CLASSIFICATION = {
   "FeatureFlag": {
     "model": "FeatureFlag",
     "table": "feature_flags",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -2189,7 +2189,7 @@ export const TENANT_CLASSIFICATION = {
   "FederatedUser": {
     "model": "FederatedUser",
     "table": "FederatedUser",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -2314,7 +2314,7 @@ export const TENANT_CLASSIFICATION = {
   "FinancialApprovalPolicy": {
     "model": "FinancialApprovalPolicy",
     "table": "FinancialApprovalPolicy",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2338,7 +2338,7 @@ export const TENANT_CLASSIFICATION = {
   "FinancialAudit": {
     "model": "FinancialAudit",
     "table": "FinancialAudit",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2373,7 +2373,7 @@ export const TENANT_CLASSIFICATION = {
   "FinancialClose": {
     "model": "FinancialClose",
     "table": "FinancialClose",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2408,7 +2408,7 @@ export const TENANT_CLASSIFICATION = {
   "FinancialDimension": {
     "model": "FinancialDimension",
     "table": "FinancialDimension",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2439,7 +2439,7 @@ export const TENANT_CLASSIFICATION = {
   "FinancialDimensionValue": {
     "model": "FinancialDimensionValue",
     "table": "FinancialDimensionValue",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -2483,7 +2483,7 @@ export const TENANT_CLASSIFICATION = {
   "FinancialPeriod": {
     "model": "FinancialPeriod",
     "table": "financial_periods",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2518,7 +2518,7 @@ export const TENANT_CLASSIFICATION = {
   "FinancialReportCache": {
     "model": "FinancialReportCache",
     "table": "FinancialReportCache",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2566,7 +2566,7 @@ export const TENANT_CLASSIFICATION = {
   "FiscalYear": {
     "model": "FiscalYear",
     "table": "FiscalYear",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2621,7 +2621,7 @@ export const TENANT_CLASSIFICATION = {
   "GoodsReceipt": {
     "model": "GoodsReceipt",
     "table": "GoodsReceipt",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2683,7 +2683,7 @@ export const TENANT_CLASSIFICATION = {
   "HelpdeskTicket": {
     "model": "HelpdeskTicket",
     "table": "helpdesk_tickets",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2729,7 +2729,7 @@ export const TENANT_CLASSIFICATION = {
   "HostelAllocation": {
     "model": "HostelAllocation",
     "table": "hostel_allocations",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2775,7 +2775,7 @@ export const TENANT_CLASSIFICATION = {
   "HostelRoom": {
     "model": "HostelRoom",
     "table": "hostel_rooms",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2818,7 +2818,7 @@ export const TENANT_CLASSIFICATION = {
   "IdentityProvider": {
     "model": "IdentityProvider",
     "table": "IdentityProvider",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -2845,7 +2845,7 @@ export const TENANT_CLASSIFICATION = {
   "IncidentReport": {
     "model": "IncidentReport",
     "table": "incident_reports",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2891,7 +2891,7 @@ export const TENANT_CLASSIFICATION = {
   "IntegrationApp": {
     "model": "IntegrationApp",
     "table": "IntegrationApp",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -2911,7 +2911,7 @@ export const TENANT_CLASSIFICATION = {
   "InterCompanyTransaction": {
     "model": "InterCompanyTransaction",
     "table": "InterCompanyTransaction",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -2946,7 +2946,7 @@ export const TENANT_CLASSIFICATION = {
   "InventoryItem": {
     "model": "InventoryItem",
     "table": "InventoryItem",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2966,7 +2966,7 @@ export const TENANT_CLASSIFICATION = {
   "InventoryLocation": {
     "model": "InventoryLocation",
     "table": "InventoryLocation",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -2986,7 +2986,7 @@ export const TENANT_CLASSIFICATION = {
   "InventoryStock": {
     "model": "InventoryStock",
     "table": "InventoryStock",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3081,7 +3081,7 @@ export const TENANT_CLASSIFICATION = {
   "IssuedCertificate": {
     "model": "IssuedCertificate",
     "table": "issued_certificates",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3140,7 +3140,7 @@ export const TENANT_CLASSIFICATION = {
   "JournalTemplate": {
     "model": "JournalTemplate",
     "table": "JournalTemplate",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3171,7 +3171,7 @@ export const TENANT_CLASSIFICATION = {
   "JournalTemplateLine": {
     "model": "JournalTemplateLine",
     "table": "JournalTemplateLine",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3219,7 +3219,7 @@ export const TENANT_CLASSIFICATION = {
   "LeadInteraction": {
     "model": "LeadInteraction",
     "table": "LeadInteraction",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3293,7 +3293,7 @@ export const TENANT_CLASSIFICATION = {
   "LedgerAccount": {
     "model": "LedgerAccount",
     "table": "LedgerAccount",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3377,7 +3377,7 @@ export const TENANT_CLASSIFICATION = {
   "LedgerEntry": {
     "model": "LedgerEntry",
     "table": "LedgerEntry",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3436,7 +3436,7 @@ export const TENANT_CLASSIFICATION = {
   "LedgerEvent": {
     "model": "LedgerEvent",
     "table": "LedgerEvent",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3471,7 +3471,7 @@ export const TENANT_CLASSIFICATION = {
   "LedgerIntegrityReport": {
     "model": "LedgerIntegrityReport",
     "table": "LedgerIntegrityReport",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3495,7 +3495,7 @@ export const TENANT_CLASSIFICATION = {
   "LedgerMerkleRoot": {
     "model": "LedgerMerkleRoot",
     "table": "LedgerMerkleRoot",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3519,7 +3519,7 @@ export const TENANT_CLASSIFICATION = {
   "LedgerSnapshot": {
     "model": "LedgerSnapshot",
     "table": "LedgerSnapshot",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3554,7 +3554,7 @@ export const TENANT_CLASSIFICATION = {
   "LedgerTransaction": {
     "model": "LedgerTransaction",
     "table": "LedgerTransaction",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3639,7 +3639,7 @@ export const TENANT_CLASSIFICATION = {
   "LegalHold": {
     "model": "LegalHold",
     "table": "legal_holds",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3685,7 +3685,7 @@ export const TENANT_CLASSIFICATION = {
   "MaintenanceRecord": {
     "model": "MaintenanceRecord",
     "table": "maintenance_records",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3722,7 +3722,7 @@ export const TENANT_CLASSIFICATION = {
   "MarketingCampaign": {
     "model": "MarketingCampaign",
     "table": "MarketingCampaign",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -3742,7 +3742,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterCategory": {
     "model": "MasterCategory",
     "table": "mdm_categories",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3754,7 +3754,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterCity": {
     "model": "MasterCity",
     "table": "mdm_cities",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3778,7 +3778,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterCountry": {
     "model": "MasterCountry",
     "table": "mdm_countries",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3798,7 +3798,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterDataRegistry": {
     "model": "MasterDataRegistry",
     "table": "MasterDataRegistry",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3825,7 +3825,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterDepartment": {
     "model": "MasterDepartment",
     "table": "mdm_departments",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3837,7 +3837,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterRecordAlias": {
     "model": "MasterRecordAlias",
     "table": "MasterRecordAlias",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3861,7 +3861,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterRecordMerge": {
     "model": "MasterRecordMerge",
     "table": "MasterRecordMerge",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3885,7 +3885,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterReligion": {
     "model": "MasterReligion",
     "table": "mdm_religions",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3897,7 +3897,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterState": {
     "model": "MasterState",
     "table": "mdm_states",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3928,7 +3928,7 @@ export const TENANT_CLASSIFICATION = {
   "MasterSubject": {
     "model": "MasterSubject",
     "table": "mdm_subjects",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -3940,7 +3940,7 @@ export const TENANT_CLASSIFICATION = {
   "Message": {
     "model": "Message",
     "table": "messages",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4002,7 +4002,7 @@ export const TENANT_CLASSIFICATION = {
   "MessageAttachment": {
     "model": "MessageAttachment",
     "table": "message_attachments",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4051,7 +4051,7 @@ export const TENANT_CLASSIFICATION = {
   "MessageParticipant": {
     "model": "MessageParticipant",
     "table": "message_participants",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4099,7 +4099,7 @@ export const TENANT_CLASSIFICATION = {
   "MessageReadReceipt": {
     "model": "MessageReadReceipt",
     "table": "message_read_receipts",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4172,7 +4172,7 @@ export const TENANT_CLASSIFICATION = {
   "MessageThread": {
     "model": "MessageThread",
     "table": "message_threads",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -4287,7 +4287,7 @@ export const TENANT_CLASSIFICATION = {
   "NotificationDelivery": {
     "model": "NotificationDelivery",
     "table": "notification_deliveries",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -4333,7 +4333,7 @@ export const TENANT_CLASSIFICATION = {
   "NotificationPreference": {
     "model": "NotificationPreference",
     "table": "notification_preferences",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4430,7 +4430,7 @@ export const TENANT_CLASSIFICATION = {
   "OutboxMessage": {
     "model": "OutboxMessage",
     "table": "OutboxMessage",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4518,7 +4518,7 @@ export const TENANT_CLASSIFICATION = {
   "PermissionGroup": {
     "model": "PermissionGroup",
     "table": "permission_groups",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -4549,7 +4549,7 @@ export const TENANT_CLASSIFICATION = {
   "PipelineStage": {
     "model": "PipelineStage",
     "table": "PipelineStage",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -4569,7 +4569,7 @@ export const TENANT_CLASSIFICATION = {
   "PolicyDefinition": {
     "model": "PolicyDefinition",
     "table": "PolicyDefinition",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -4600,7 +4600,7 @@ export const TENANT_CLASSIFICATION = {
   "PolicyEvaluationLog": {
     "model": "PolicyEvaluationLog",
     "table": "PolicyEvaluationLog",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4649,7 +4649,7 @@ export const TENANT_CLASSIFICATION = {
   "PolicyVersion": {
     "model": "PolicyVersion",
     "table": "PolicyVersion",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4693,7 +4693,7 @@ export const TENANT_CLASSIFICATION = {
   "PostingRule": {
     "model": "PostingRule",
     "table": "PostingRule",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -4724,7 +4724,7 @@ export const TENANT_CLASSIFICATION = {
   "PostingRuleLine": {
     "model": "PostingRuleLine",
     "table": "PostingRuleLine",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4772,7 +4772,7 @@ export const TENANT_CLASSIFICATION = {
   "PurchaseOrder": {
     "model": "PurchaseOrder",
     "table": "purchase_orders",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -4850,7 +4850,7 @@ export const TENANT_CLASSIFICATION = {
   "PurchaseOrderItem": {
     "model": "PurchaseOrderItem",
     "table": "purchase_order_items",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4894,7 +4894,7 @@ export const TENANT_CLASSIFICATION = {
   "PurchaseRequest": {
     "model": "PurchaseRequest",
     "table": "PurchaseRequest",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -4921,7 +4921,7 @@ export const TENANT_CLASSIFICATION = {
   "PurchaseRequestItem": {
     "model": "PurchaseRequestItem",
     "table": "PurchaseRequestItem",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -4958,7 +4958,7 @@ export const TENANT_CLASSIFICATION = {
   "RazorpayReconciliation": {
     "model": "RazorpayReconciliation",
     "table": "razorpay_reconciliations",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -4982,7 +4982,7 @@ export const TENANT_CLASSIFICATION = {
   "ReceptionCallLog": {
     "model": "ReceptionCallLog",
     "table": "reception_call_logs",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -5006,7 +5006,7 @@ export const TENANT_CLASSIFICATION = {
   "ReceptionComplaint": {
     "model": "ReceptionComplaint",
     "table": "reception_complaints",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -5091,7 +5091,7 @@ export const TENANT_CLASSIFICATION = {
   "RevenueRecognitionEntry": {
     "model": "RevenueRecognitionEntry",
     "table": "RevenueRecognitionEntry",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -5198,7 +5198,7 @@ export const TENANT_CLASSIFICATION = {
   "ScheduledJob": {
     "model": "ScheduledJob",
     "table": "scheduled_jobs",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -6068,7 +6068,7 @@ export const TENANT_CLASSIFICATION = {
   "SchoolArchive": {
     "model": "SchoolArchive",
     "table": "school_archives",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6103,7 +6103,7 @@ export const TENANT_CLASSIFICATION = {
   "SchoolFeature": {
     "model": "SchoolFeature",
     "table": "school_features",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6138,7 +6138,7 @@ export const TENANT_CLASSIFICATION = {
   "SchoolGroup": {
     "model": "SchoolGroup",
     "table": "SchoolGroup",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -6165,7 +6165,7 @@ export const TENANT_CLASSIFICATION = {
   "SchoolIntegration": {
     "model": "SchoolIntegration",
     "table": "SchoolIntegration",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6200,7 +6200,7 @@ export const TENANT_CLASSIFICATION = {
   "SchoolRegistrationRequest": {
     "model": "SchoolRegistrationRequest",
     "table": "school_registration_requests",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "global",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -6212,7 +6212,7 @@ export const TENANT_CLASSIFICATION = {
   "SchoolSettings": {
     "model": "SchoolSettings",
     "table": "school_settings",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6236,7 +6236,7 @@ export const TENANT_CLASSIFICATION = {
   "SchoolSettingsHistory": {
     "model": "SchoolSettingsHistory",
     "table": "school_settings_history",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6343,7 +6343,7 @@ export const TENANT_CLASSIFICATION = {
   "SequenceCounter": {
     "model": "SequenceCounter",
     "table": "SequenceCounter",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6391,7 +6391,7 @@ export const TENANT_CLASSIFICATION = {
   "SSOConfiguration": {
     "model": "SSOConfiguration",
     "table": "SSOConfiguration",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6426,7 +6426,7 @@ export const TENANT_CLASSIFICATION = {
   "StockLedger": {
     "model": "StockLedger",
     "table": "StockLedger",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6438,7 +6438,7 @@ export const TENANT_CLASSIFICATION = {
   "StorageObject": {
     "model": "StorageObject",
     "table": "storage_objects",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6618,7 +6618,7 @@ export const TENANT_CLASSIFICATION = {
   "StudentFinancialProjection": {
     "model": "StudentFinancialProjection",
     "table": "StudentFinancialProjection",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6929,7 +6929,7 @@ export const TENANT_CLASSIFICATION = {
   "SupportMessage": {
     "model": "SupportMessage",
     "table": "support_messages",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -6977,7 +6977,7 @@ export const TENANT_CLASSIFICATION = {
   "SupportTicket": {
     "model": "SupportTicket",
     "table": "support_tickets",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -7031,7 +7031,7 @@ export const TENANT_CLASSIFICATION = {
   "SystemLog": {
     "model": "SystemLog",
     "table": "system_logs",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -7477,7 +7477,7 @@ export const TENANT_CLASSIFICATION = {
   "TransportAllocation": {
     "model": "TransportAllocation",
     "table": "transport_allocations",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -7523,7 +7523,7 @@ export const TENANT_CLASSIFICATION = {
   "TransportRoute": {
     "model": "TransportRoute",
     "table": "transport_routes",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -7565,7 +7565,7 @@ export const TENANT_CLASSIFICATION = {
   "TransportStop": {
     "model": "TransportStop",
     "table": "transport_stops",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -7609,7 +7609,7 @@ export const TENANT_CLASSIFICATION = {
   "TransportVehicle": {
     "model": "TransportVehicle",
     "table": "transport_vehicles",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -7651,7 +7651,7 @@ export const TENANT_CLASSIFICATION = {
   "UsageMetric": {
     "model": "UsageMetric",
     "table": "usage_metrics",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -7968,7 +7968,7 @@ export const TENANT_CLASSIFICATION = {
   "UserConsent": {
     "model": "UserConsent",
     "table": "user_consents",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -8003,7 +8003,7 @@ export const TENANT_CLASSIFICATION = {
   "UserDelegation": {
     "model": "UserDelegation",
     "table": "user_delegations",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -8060,7 +8060,7 @@ export const TENANT_CLASSIFICATION = {
   "UserDevice": {
     "model": "UserDevice",
     "table": "user_devices",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -8097,7 +8097,7 @@ export const TENANT_CLASSIFICATION = {
   "UserSession": {
     "model": "UserSession",
     "table": "user_sessions",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -8134,7 +8134,7 @@ export const TENANT_CLASSIFICATION = {
   "Vendor": {
     "model": "Vendor",
     "table": "vendors",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -8179,7 +8179,7 @@ export const TENANT_CLASSIFICATION = {
   "VendorInvoice": {
     "model": "VendorInvoice",
     "table": "VendorInvoice",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -8214,7 +8214,7 @@ export const TENANT_CLASSIFICATION = {
   "VisitorLog": {
     "model": "VisitorLog",
     "table": "visitor_logs",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -8238,7 +8238,7 @@ export const TENANT_CLASSIFICATION = {
   "WebhookDelivery": {
     "model": "WebhookDelivery",
     "table": "WebhookDelivery",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -8262,7 +8262,7 @@ export const TENANT_CLASSIFICATION = {
   "WebhookEndpoint": {
     "model": "WebhookEndpoint",
     "table": "webhook_endpoints",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -8297,7 +8297,7 @@ export const TENANT_CLASSIFICATION = {
   "WorkflowDefinition": {
     "model": "WorkflowDefinition",
     "table": "WorkflowDefinition",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -8335,7 +8335,7 @@ export const TENANT_CLASSIFICATION = {
   "WorkflowInstance": {
     "model": "WorkflowInstance",
     "table": "WorkflowInstance",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -8379,7 +8379,7 @@ export const TENANT_CLASSIFICATION = {
   "WorkflowNode": {
     "model": "WorkflowNode",
     "table": "WorkflowNode",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -8437,7 +8437,7 @@ export const TENANT_CLASSIFICATION = {
   "WorkflowStep": {
     "model": "WorkflowStep",
     "table": "WorkflowStep",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -8474,7 +8474,7 @@ export const TENANT_CLASSIFICATION = {
   "WorkflowTask": {
     "model": "WorkflowTask",
     "table": "WorkflowTask",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,
@@ -8534,7 +8534,7 @@ export const TENANT_CLASSIFICATION = {
   "WorkflowTransition": {
     "model": "WorkflowTransition",
     "table": "WorkflowTransition",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "indirect",
     "schoolIdField": null,
     "schoolIdColumn": null,

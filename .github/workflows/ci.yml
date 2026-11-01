@@ -43,6 +43,7 @@ jobs:
       DATABASE_URL_TEST: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
       DATABASE_URL: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
       DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_test?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_shadow?schema=public
       REDIS_URL: redis://localhost:6379
 
     steps:
@@ -79,6 +80,8 @@ jobs:
             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_app;
           ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
             GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_app;
+
+          CREATE DATABASE ssvm_shadow;
           SQL
 
       - name: Deploy Prisma Migrations
@@ -86,6 +89,12 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DIRECT_URL }}
           DIRECT_URL: ${{ env.DIRECT_URL }}
+
+      - name: Verify schema matches Prisma datamodel
+        run: npm run db:verify-diff
+
+      - name: Verify all Prisma model tables exist
+        run: npm run db:verify-tables
 
       - name: Run Tests with Coverage
         run: npm run test:ci
