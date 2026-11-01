@@ -106,6 +106,7 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
       schoolId: school.id,
       name: studentUser.name,
       admissionNo: `ADM-${suffix}`,
+      rollNo: `R-${suffix}`,
       dob: new Date("2010-01-15"),
       gender: "Male",
     },
