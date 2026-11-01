@@ -29,7 +29,7 @@ Scratch probe steps and results:
 ```
 
 Expected `visibleFeeCategories=0`; actual was `1` (**FAIL**).
-5. As postgres, `fee_categories` catalog state in both `ssvm_test_template` and the scratch clone was `relrowsecurity=false`, `relforcerowsecurity=true`, with one policy. Policies existing in `pg_policy` do not prove RLS is enabled. Lane A must diagnose the migration/template state. The scratch DB remains temporarily present until this evidence/request is recorded, after which only this exact scratch DB will be dropped.
+5. As postgres, `fee_categories` catalog state in both `ssvm_test_template` and the scratch clone was `relrowsecurity=false`, `relforcerowsecurity=true`, with one policy. Policies existing in `pg_policy` do not prove RLS is enabled. Lane A must diagnose the migration/template state. After the evidence/request was committed, only `ssvm_test_w0_probe_f4bc3a8e` was dropped. The exact database name was re-queried before `dropdb`; a post-drop query returned count `0`. The template and source test DB were left intact.
 
 This also explains how the earlier 173-test run could pass without an authenticated tenant wrapper: the test template had 174 policy records, but RLS was disabled on `fee_categories`, so the restricted app query could still see the seeded row. The separate API identity test will assert the request's DB user, but it cannot turn the failed RLS probe into a pass.
 
@@ -48,7 +48,7 @@ The Wave 0 normal run must use Vitest's default parallel behavior, with no `--no
 - CI role/policy logging, coverage thresholds, and config excludes are requested from Lane E in `docs/AUDIT/requests/W0-to-E.md`; no response/CI result yet.
 - Student login must not create users. Existing Student→User backfill and user creation semantics are requested from Lane A in `docs/AUDIT/requests/W0-to-A.md`.
 - A owns `src/lib/prisma.ts`; flattenWhere compound-unique/relation-filter changes are requested there, not implemented in Wave 0 pending owner response.
-- CSRF refresh comment/cross-origin test remains open pending review of the cookie refresh exclusion.
+- CSRF refresh comment/cross-origin test remains open pending Lane C ownership review; request recorded in `docs/AUDIT/requests/W0-to-C.md`.
 - PR #2 CI per-job results remain unavailable: `gh pr view 2` failed DNS resolution for `api.github.com`. Do not claim CI results without the run/job links.
 
 ## Environment
