@@ -1,7 +1,7 @@
 # SSVM ERP Consolidated Audit
 
-Generated: 2026-11-01T12:06:26.741Z
-Repository commit: `709b4840cb65fc7f54198d6a85b55728c325dd6b`
+Generated: 2026-11-01T12:17:06.608Z
+Repository commit: `91adacd37cc3e6aa4312896c83619ce4b7a3405b`
 Verdict: **FAIL** — overall **0%** (score is floored, never rounded up).
 
 ## Thresholds
