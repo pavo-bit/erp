@@ -61,6 +61,17 @@ The Phase 2 implementation is incomplete. Its classification, extension, migrati
 | `npm run db:tenant-classification:check` | PASS; 205 models current | Structural freshness only; generated classifications remain UNVERIFIED. |
 | `rg -l 'new PrismaClient\\s*\\(' . -g '!node_modules' -g '!dist'` | PASS; only `src/lib/prisma.ts` remains | Before this turn: 36 files outside the central module; exact list is in `PRISMA_CLIENT_INVENTORY.md`. The migration/DB gates remain unverified. |
 | `git diff --check` | PASS | Whitespace check only. |
-| PR #1 CI job results | UNAVAILABLE | GitHub diagnostics reports the connected account is unavailable; prior push attempt failed DNS resolution for `github.com`. No migrate/lint/type-check/tests/test:rls job statuses were retrieved. |
+| PR #1 hosted CI run | FAIL; [Actions run 41294194583](https://github.com/pavo-bit/erp/actions/runs/41294194583) | Real PostgreSQL and Redis services started. Job-level details follow. |
+
+| PR #1 job / step | Result | Evidence |
+|---|---|---|
+| `migrate` / `Deploy Prisma Migrations` | FAIL on real PostgreSQL | Migration `20261101150000_generated_tenant_rls` raised `Classified tenant table public.access_reviews is missing; apply the complete baseline schema before tenant RLS.` This confirms the partial migration history does not build the classified schema. |
+| `lint` / `backend-lint` | FAIL; 519 errors, 1 warning | Repository-wide debt; `src/lib/prisma.ts` focused lint is PASS with 0 errors. |
+| `type-check` / `backend-type-check` | PASS | CI job completed successfully. |
+| `tests` / `Run Tests with Coverage` | SKIPPED | The backend-test job stopped at migration deploy. |
+| `test:rls` / `Run PostgreSQL RLS tests` | SKIPPED | The backend-test job stopped at migration deploy; no RLS test result is claimed. |
+| `Build & Test Backend` workflow | FAIL during setup | [Actions run 41294194587](https://github.com/pavo-bit/erp/actions/runs/41294194587); `actions/setup-node` could not find a root lockfile. Type-check in the main workflow separately passed. |
+| Frontend portal build jobs | PASS; 7/7 | `erp-admin`, `parent-portal`, `payment-portal`, `saas-frontend`, `student-portal`, `super-admin`, `teacher-portal`. |
+| `security-scan` | FAIL | `npm audit --audit-level=high` reported high and moderate dependency advisories; Trivy was skipped. |
 
 The baseline SQL is a candidate and is not installed in `prisma/migrations`; replacing migration history and asserting all 205 tables on an empty real database remain BLOCKED/UNVERIFIED. The generated tenant RLS migration now raises an exception if any classified tenant table is absent, but it is not to be merged until the baseline and trusted request/pre-auth transaction paths pass end-to-end on PostgreSQL. No per-request transaction wrapper or separate trusted pre-auth/super-admin DB role path was implemented in this environment. `161b591` remains reverted, not verified, and must not be depended on.
