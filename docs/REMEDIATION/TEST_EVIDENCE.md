@@ -44,4 +44,23 @@ GitHub handoff: PR [#1](https://github.com/pavo-bit/erp/pull/1) is open for `rem
 | `npm run test:rls` | UNVERIFIED (score 0); NOT RUN | No reachable real PostgreSQL. Missing-tenant case is expected RED against baseline fail-open policy. New generated per-model coverage assertions also fail for missing migration models and uncovered RLS policies. Setup asserts `rolsuper=false` and `rolbypassrls=false`. |
 | PR CI (`migrate`, `lint`, `type-check`, `tests`, `test:rls`) | UNVERIFIED (score 0); no run results retrieved | PR #1 is open; GitHub connection/API unavailable from this execution. |
 
-The Phase 2 implementation is incomplete and uncommitted. No score is awarded for classification, extension, migration, or RLS authoring until semantic review and real PostgreSQL evidence pass. Per-request transaction context and a trustworthy audited super-admin path are not implemented. Runtime-role commit `161b591` remains reverted and unverified.
+The Phase 2 implementation is incomplete. Its classification, extension, migration, and RLS authoring remain UNVERIFIED (score 0) pending semantic review and real PostgreSQL evidence. Per-request transaction context and a trustworthy audited super-admin path are not implemented. Runtime-role commit `161b591` remains reverted and unverified.
+
+## Phase 1 / Prisma client cleanup update — 2026-11-01
+
+| Command/check | Result | Limits |
+|---|---|---|
+| `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script --output ../docs/DATABASE/BASELINE_CANDIDATE.sql` | PASS; generated an offline candidate with 205 `CREATE TABLE` statements and 44 `CREATE TYPE` statements | Candidate only. Partial migration history has not been replaced; no clean database, migration-history equivalence, or schema equivalence gate ran. |
+| `npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --script` | BLOCKED; Prisma requires `--shadow-database-url` for a migrations-directory diff | No real PostgreSQL/shadow database is reachable. |
+| `docker info --format '{{.ServerVersion}}'` | BLOCKED; Docker Desktop engine pipe returned permission denied | No local Postgres container can be provisioned from this execution. |
+| `npx eslint src/lib/prisma.ts` | PASS; 0 errors, 0 warnings | Changed file only. |
+| `npm run type-check` | PASS | Does not prove runtime DB context. |
+| `npx vitest run --config vitest.security.config.ts --pool=threads` after Prisma lint fix | PASS; 6 files, 21 tests | Fresh run at 15:06:13 local. |
+| Same security command after Prisma singleton batch 1 | PASS; 6 files, 21 tests | Fresh run at 15:07:26 local. |
+| Same security command after Prisma singleton batch 2 | PASS; 6 files, 21 tests | Fresh run at 15:09:34 local. |
+| `npm run db:tenant-classification:check` | PASS; 205 models current | Structural freshness only; generated classifications remain UNVERIFIED. |
+| `rg -l 'new PrismaClient\\s*\\(' . -g '!node_modules' -g '!dist'` | PASS; only `src/lib/prisma.ts` remains | Before this turn: 36 files outside the central module; exact list is in `PRISMA_CLIENT_INVENTORY.md`. The migration/DB gates remain unverified. |
+| `git diff --check` | PASS | Whitespace check only. |
+| PR #1 CI job results | UNAVAILABLE | GitHub diagnostics reports the connected account is unavailable; prior push attempt failed DNS resolution for `github.com`. No migrate/lint/type-check/tests/test:rls job statuses were retrieved. |
+
+The baseline SQL is a candidate and is not installed in `prisma/migrations`; replacing migration history and asserting all 205 tables on an empty real database remain BLOCKED/UNVERIFIED. The generated tenant RLS migration now raises an exception if any classified tenant table is absent, but it is not to be merged until the baseline and trusted request/pre-auth transaction paths pass end-to-end on PostgreSQL. No per-request transaction wrapper or separate trusted pre-auth/super-admin DB role path was implemented in this environment. `161b591` remains reverted, not verified, and must not be depended on.
