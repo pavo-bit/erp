@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../src/app";
 import prisma from "../src/lib/prisma";
-import jwt from "jsonwebtoken";
+import { generateAccessToken } from "../src/lib/tokens";
 
 describe("Messaging API E2E", () => {
   let server: any;
@@ -53,8 +53,27 @@ describe("Messaging API E2E", () => {
     parentUserId = parentUser.id;
 
     // Generate Tokens
-    teacherToken = jwt.sign({ userId: teacherUser.id, role: teacherUser.role, schoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
-    parentToken = jwt.sign({ userId: parentUser.id, role: parentUser.role, schoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
+    teacherToken = generateAccessToken({
+      userId: teacherUser.id,
+      email: teacherUser.email,
+      name: teacherUser.name,
+      role: teacherUser.role,
+      schoolId,
+      branchId: null,
+      sid: "mock-session-teacher",
+      impersonated: false,
+    }).token;
+
+    parentToken = generateAccessToken({
+      userId: parentUser.id,
+      email: parentUser.email,
+      name: parentUser.name,
+      role: parentUser.role,
+      schoolId,
+      branchId: null,
+      sid: "mock-session-parent",
+      impersonated: false,
+    }).token;
   });
 
   afterAll(async () => {
@@ -135,7 +154,16 @@ describe("Messaging API E2E", () => {
     const randomUser = await prisma.user.create({
       data: { email: `random.${Date.now()}@msg.test.com`, name: "Random", passwordHash: "pwd", role: "PARENT", schoolId }
     });
-    const randomToken = jwt.sign({ userId: randomUser.id, role: randomUser.role, schoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
+    const randomToken = generateAccessToken({
+      userId: randomUser.id,
+      email: randomUser.email,
+      name: randomUser.name,
+      role: randomUser.role,
+      schoolId,
+      branchId: null,
+      sid: "mock-session-random",
+      impersonated: false,
+    }).token;
 
     const res = await request(server)
       .get(`/api/v1/messages/${threadId}`)
