@@ -25,5 +25,11 @@ Next: design and validate transaction-scoped RLS context in an isolated PostgreS
 ### Ground-truth and fresh test correction
 
 - Owner correction: the RLS migration applies cleanly on an empty DB and configures 23 tables. Migration ordering is not the defect; coverage and NULL-context fail-open behavior are.
-- Fresh rerun: `npx vitest run --config vitest.security.config.ts --pool=threads` — PASS, 6 files, 21 tests (2026-11-01 14:07:53 local time). A prior sandboxed attempt was blocked by loopback `EACCES`; it is not counted as a test result.
+- Fresh rerun: `npx vitest run --config vitest.security.config.ts --pool=threads` — PASS, 6 files, 21 tests (2026-11-01 14:23:33 local time). This non-DB suite excludes the RLS integration tests.
 - Fresh type check: `npx tsc --version` reported TypeScript 5.9.3; `npm run type-check` passed. No `tsconfig` change was made.
+
+### Phase 2 tenant isolation — OPEN, UNVERIFIED (score 0)
+
+- Added `npm run test:rls` with a real PostgreSQL suite that asserts the connected role has `rolsuper = false` and `rolbypassrls = false`, then checks absent-tenant reads, tenant-scoped reads and cross-tenant writes against `fee_categories`.
+- `npm run type-check` and focused ESLint on the new RLS config/tests passed. The RLS integration suite was not run because PostgreSQL is unreachable. No RLS behavior is claimed as passed; the suite is expected to expose the current NULL-context fail-open policy.
+- Fresh non-DB focused security suite: 6 files, 21 tests passed. This count excludes the RLS suite.
