@@ -186,19 +186,32 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
       res.status(503).json({ success: false, error: "Payment gateway is not configured" });
       return;
     }
-    if (!feeId) {
+    if (typeof feeId !== "string" || !feeId) {
       res.status(400).json({ success: false, error: "Fee ID is required" });
       return;
     }
 
-    const fee = await prisma.invoice.findUnique({ where: { id: feeId } });
+    const user = req.user!;
+    const fee = user.role === "SUPER_ADMIN"
+      ? await runWithTrustedDatabaseTransaction({
+        purpose: "super_admin",
+        requestId: crypto.randomUUID(),
+        actorUserId: user.id,
+        route: "POST /api/v1/payments/create-order",
+      }, async () => prisma.invoice.findUnique({ where: { id: feeId } }))
+      : user.schoolId
+        ? await runWithTenantDatabaseTransaction(user.schoolId, async () => {
+          const candidate = await prisma.invoice.findUnique({ where: { id: feeId } });
+          return candidate && await mayPayInvoice(user, candidate) ? candidate : null;
+        })
+        : null;
 
     if (!fee) {
       res.status(404).json({ success: false, error: "Fee not found" });
       return;
     }
 
-    if (!(await mayPayInvoice(req.user!, fee))) {
+    if (user.role === "SUPER_ADMIN" && !(await mayPayInvoice(user, fee))) {
       res.status(404).json({ success: false, error: "Fee not found" });
       return;
     }
@@ -234,7 +247,7 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
     }
 
     // Save transaction to DB
-    const transaction = await prisma.paymentTransaction.create({
+    const transaction = await runWithTenantDatabaseTransaction(fee.schoolId, async () => prisma.paymentTransaction.create({
       data: {
         invoiceId: fee.id,
         transactionId: order.id,
@@ -242,7 +255,7 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
         status: "CREATED",
         schoolId: fee.schoolId,
       },
-    });
+    }));
 
     res.json({ success: true, order, transactionId: transaction.id });
   } catch (error) {
@@ -284,11 +297,25 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
       return;
     }
 
-    const paymentTransaction = await prisma.paymentTransaction.findFirst({
-      where: { id: transactionId, transactionId: razorpay_order_id },
-      include: { invoice: true },
-    });
-    if (!paymentTransaction || !(await mayPayInvoice(req.user!, paymentTransaction.invoice))) {
+    const user = req.user!;
+    const loadAndAuthorizeOrder = async () => {
+      const candidate = await prisma.paymentTransaction.findFirst({
+        where: { id: transactionId, transactionId: razorpay_order_id },
+        include: { invoice: true },
+      });
+      return candidate && await mayPayInvoice(user, candidate.invoice) ? candidate : null;
+    };
+    const paymentTransaction = user.role === "SUPER_ADMIN"
+      ? await runWithTrustedDatabaseTransaction({
+        purpose: "super_admin",
+        requestId: crypto.randomUUID(),
+        actorUserId: user.id,
+        route: "POST /api/v1/payments/verify",
+      }, loadAndAuthorizeOrder)
+      : user.schoolId
+        ? await runWithTenantDatabaseTransaction(user.schoolId, loadAndAuthorizeOrder)
+        : null;
+    if (!paymentTransaction) {
       res.status(404).json({ success: false, error: "Payment transaction not found" });
       return;
     }
@@ -319,17 +346,17 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
     }
 
     const idempotencyKey = computePaymentIdempotencyKey(razorpay_order_id, razorpay_payment_id);
-    const result = await prisma.$transaction(async (tx) => {
-      return applyCapturedPayment(tx, {
+    const result = await runWithTenantDatabaseTransaction(paymentTransaction.invoice.schoolId, async () =>
+      prisma.$transaction(async (tx) => applyCapturedPayment(tx, {
         orderId: razorpay_order_id,
         gatewayPaymentId: razorpay_payment_id,
         signature: razorpay_signature,
         idempotencyKey,
-        actorId: req.user?.id || "SYSTEM",
-      });
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    });
+        actorId: user.id,
+      }), {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      })
+    );
 
     if (result.alreadyProcessed) {
       res.json({ success: true, message: "Payment already verified" });
@@ -355,33 +382,36 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
 // their authenticated school. Cross-school jobs belong in an explicitly authorized worker.
 router.post("/trigger-late-fines", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN", "ACCOUNTANT"), async (req: AuthRequest, res: Response) => {
   try {
-    const schoolId = req.user?.role === "SUPER_ADMIN" ? req.body.schoolId : req.user?.schoolId;
+    const user = req.user!;
+    const schoolId = user.role === "SUPER_ADMIN" ? req.body.schoolId : user.schoolId;
     if (!schoolId) {
       res.status(400).json({ success: false, error: "School scope is required" });
       return;
     }
-    const overdueFees = await prisma.invoice.findMany({
-      where: {
-        schoolId,
-        status: "PENDING",
-        dueDate: { lt: new Date() },
-      },
-    });
-
-    let updatedCount = 0;
-
-    for (const fee of overdueFees) {
-      if (fee.fineAmount === 0) {
-        await prisma.invoice.update({
+    const updateOverdueFees = async () => {
+      const overdueFees = await prisma.invoice.findMany({
+        where: { schoolId, status: "PENDING", dueDate: { lt: new Date() } },
+        select: { id: true },
+      });
+      let updatedCount = 0;
+      for (const fee of overdueFees) {
+        const updated = await prisma.invoice.updateMany({
           where: { id: fee.id, schoolId, fineAmount: 0 },
-          data: {
-            fineAmount: 50,
-            status: "OVERDUE",
-          },
+          data: { fineAmount: 50, status: "OVERDUE" },
         });
-        updatedCount++;
+        updatedCount += updated.count;
       }
-    }
+      return updatedCount;
+    };
+    const updatedCount = user.role === "SUPER_ADMIN"
+      ? await runWithTrustedDatabaseTransaction({
+        purpose: "super_admin",
+        requestId: crypto.randomUUID(),
+        actorUserId: user.id,
+        route: "POST /api/v1/payments/trigger-late-fines",
+        reason: "Apply late fines for the explicitly selected school.",
+      }, updateOverdueFees)
+      : await runWithTenantDatabaseTransaction(schoolId, updateOverdueFees);
 
     res.json({ success: true, message: `Updated ${updatedCount} overdue fees with late fines.` });
   } catch (error) {
