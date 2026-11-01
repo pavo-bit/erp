@@ -2,9 +2,9 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../src/app";
 import prisma from "../src/lib/prisma";
-import jwt from "jsonwebtoken";
 import { vi } from "vitest";
 import { BackupService } from "../src/services/backup.service";
+import { generateAccessToken } from "../src/lib/tokens";
 
 describe("Architecture & Phase A E2E", () => {
   let server: any;
@@ -35,7 +35,14 @@ describe("Architecture & Phase A E2E", () => {
     });
     superAdminUserId = superAdmin.id;
 
-    superAdminToken = jwt.sign({ userId: superAdmin.id, role: superAdmin.role, schoolId: testSchoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
+    superAdminToken = generateAccessToken({
+      userId: superAdmin.id,
+      email: superAdmin.email,
+      role: superAdmin.role,
+      name: superAdmin.name,
+      schoolId: testSchoolId,
+      sid: "architecture-test-session",
+    }).token;
 
     // Mock an active UserSession for this user
     const session = await prisma.userSession.create({

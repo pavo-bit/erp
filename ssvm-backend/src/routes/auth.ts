@@ -1,5 +1,6 @@
-import { Router, Response } from "express";
+import { Router, RequestHandler, Response } from "express";
 import prisma from "../lib/prisma";
+import { runWithTrustedDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireRole, hashPassword, verifyPassword, signToken } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -24,6 +25,16 @@ import { incrementFailedLogins, resetFailedLogins } from "../lib/redis";
 import { enqueueNotification } from "../jobs/queue";
 
 const router = Router();
+
+function trustedAuthentication(handler: RequestHandler): RequestHandler {
+  return (req, res, next) => {
+    void runWithTrustedDatabaseTransaction({
+      purpose: "authentication",
+      requestId: res.getHeader("X-Request-ID")?.toString(),
+      route: `${req.method} ${req.originalUrl}`,
+    }, () => Promise.resolve(handler(req, res, next))).catch(next);
+  };
+}
 
 // ═══════════════════════════════════════════
 // Helper: Issue token pair and set cookies
@@ -143,7 +154,7 @@ export async function issueTokenPair(
 // POST /api/v1/auth/login
 // ═══════════════════════════════════════════
 
-router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Response) => {
+router.post("/login", validate(loginSchema), trustedAuthentication(async (req: AuthRequest, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -219,13 +230,13 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
     logger.error({ err: e }, "Login error");
     res.status(500).json({ success: false, error: "Server error" });
   }
-});
+}));
 
 // ═══════════════════════════════════════════
 // POST /api/v1/auth/student/login
 // ═══════════════════════════════════════════
 
-router.post("/student/login", async (req: AuthRequest, res: Response) => {
+router.post("/student/login", trustedAuthentication(async (req: AuthRequest, res: Response) => {
   try {
     const { admissionNo, password } = req.body;
 
@@ -281,13 +292,13 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
     logger.error({ err: e }, "Student login error");
     res.status(500).json({ success: false, error: "Server error" });
   }
-});
+}));
 
 // ═══════════════════════════════════════════
 // POST /api/v1/auth/refresh — Token Rotation
 // ═══════════════════════════════════════════
 
-router.post("/refresh", async (req: AuthRequest, res: Response) => {
+router.post("/refresh", trustedAuthentication(async (req: AuthRequest, res: Response) => {
   try {
     const refreshTokenCookie = req.cookies?.refresh_token;
 
@@ -376,13 +387,13 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
     logger.error({ err: e }, "Token refresh error");
     res.status(500).json({ success: false, error: "Server error" });
   }
-});
+}));
 
 // ═══════════════════════════════════════════
 // POST /api/v1/auth/logout — Server-Side Revocation
 // ═══════════════════════════════════════════
 
-router.post("/logout", async (req: AuthRequest, res: Response) => {
+router.post("/logout", trustedAuthentication(async (req: AuthRequest, res: Response) => {
   try {
     const refreshTokenCookie = req.cookies?.refresh_token;
     const accessTokenCookie = req.cookies?.access_token;
@@ -457,7 +468,7 @@ router.post("/logout", async (req: AuthRequest, res: Response) => {
     res.clearCookie("auth_token", { ...clearOptions, path: "/" });
     res.json({ success: true, data: { message: "Logged out" } });
   }
-});
+}));
 
 // ═══════════════════════════════════════════
 // POST /api/auth/logout/all — Revoke All Sessions
@@ -575,7 +586,7 @@ router.post("/revoke-session", authenticate, requireRole("SUPER_ADMIN", "ERP_ADM
 // POST /api/auth/alumni/register (public)
 // ═══════════════════════════════════════════
 
-router.post("/alumni/register", alumniRegisterLimiter, verifyTurnstile, spamQualityValidation, async (req: PublicFormRequest, res: Response) => {
+router.post("/alumni/register", alumniRegisterLimiter, verifyTurnstile, spamQualityValidation, trustedAuthentication(async (req: PublicFormRequest, res: Response) => {
   try {
     if (req.spamSuspected) {
       return res.status(201).json({ success: true, message: "Registration successful" });
@@ -621,7 +632,7 @@ router.post("/alumni/register", alumniRegisterLimiter, verifyTurnstile, spamQual
     logger.error({ err: e }, "Alumni register error");
     res.status(500).json({ success: false, error: "Server error" });
   }
-});
+}));
 
 // ═══════════════════════════════════════════
 // POST /api/auth/register (admin only)

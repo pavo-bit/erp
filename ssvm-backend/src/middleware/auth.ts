@@ -6,7 +6,8 @@ import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { verifyAccessToken, isTokenExpiredError, AccessTokenPayload } from "../lib/tokens";
 import { jwtVerificationTotal } from "./metrics";
-import { setAuthenticatedSchoolContext } from "./school-context.middleware";
+import { runWithTrustedDatabaseTransaction } from "../lib/prisma";
+import { runAuthenticatedTenantRequest } from "./school-context.middleware";
 
 // ═══════════════════════════════════════════
 // Types
@@ -100,16 +101,7 @@ export function verifyToken(token: string): TokenPayload | null {
     const payload = jwt.verify(token, env.ACCESS_TOKEN_PUBLIC_KEY, { algorithms: ["RS256"] }) as TokenPayload;
     jwtVerificationTotal.labels({ algorithm: "RS256" }).inc();
     return payload;
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError && env.ACCESS_TOKEN_SECRET) {
-      try {
-        const payload = jwt.verify(token, env.ACCESS_TOKEN_SECRET, { algorithms: ["HS256"] }) as TokenPayload;
-        jwtVerificationTotal.labels({ algorithm: "HS256" }).inc();
-        return payload;
-      } catch {
-        return null;
-      }
-    }
+  } catch {
     return null;
   }
 }
@@ -179,39 +171,47 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
     const userId = "userId" in payload ? payload.userId : (payload as AccessTokenPayload).userId;
     
-    let user: AuthRequest["user"] | null = null;
-
-    if (payload.role === "STUDENT") {
-      const student = await prisma.student.findUnique({
-        where: { userId: userId },
-        select: {
-          id: true, admissionNo: true, name: true,
-          isActive: true, schoolId: true
+    const { user, userWithPasswordPolicy } = await runWithTrustedDatabaseTransaction({
+      purpose: "authentication",
+      requestId: res.getHeader("X-Request-ID")?.toString(),
+      route: `${req.method} ${req.originalUrl}`,
+    }, async () => {
+      let authenticatedUser: AuthRequest["user"] | null = null;
+      if (payload.role === "STUDENT") {
+        const student = await prisma.student.findUnique({
+          where: { userId },
+          select: { id: true, admissionNo: true, name: true, isActive: true, schoolId: true },
+        });
+        if (student) {
+          authenticatedUser = {
+            id: student.id,
+            email: student.admissionNo || "",
+            name: student.name,
+            role: "STUDENT",
+            isActive: student.isActive,
+            schoolId: student.schoolId,
+            avatar: null,
+            phone: null,
+            branchId: null,
+          };
         }
-      });
-      if (student) {
-        user = {
-          id: student.id,
-          email: student.admissionNo || "",
-          name: student.name,
-          role: "STUDENT",
-          isActive: student.isActive,
-          schoolId: student.schoolId,
-          avatar: null,
-          phone: null,
-          branchId: null
-        };
+      } else {
+        authenticatedUser = await prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            id: true, email: true, name: true, role: true,
+            isActive: true, avatar: true, phone: true,
+            schoolId: true, branchId: true,
+          },
+        });
       }
-    } else {
-      user = await prisma.user.findUnique({
+
+      const passwordPolicy = await prisma.user.findUnique({
         where: { id: userId },
-        select: {
-          id: true, email: true, name: true, role: true,
-          isActive: true, avatar: true, phone: true,
-          schoolId: true, branchId: true,
-        },
+        select: { mustChangePassword: true },
       });
-    }
+      return { user: authenticatedUser, userWithPasswordPolicy: passwordPolicy };
+    });
 
     if (!user || !user.isActive) {
       res.status(401).json({ success: false, error: "Account not found or deactivated" });
@@ -219,11 +219,6 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     }
 
     // Phase 2C: Enforce mustChangePassword
-    const userWithPasswordPolicy = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { mustChangePassword: true }
-    });
-
     if (payload.schoolId && payload.schoolId !== user.schoolId && user.role !== "SUPER_ADMIN") {
       res.status(403).json({ success: false, error: "Token schoolId mismatch. Invalid token." });
       return;
@@ -253,15 +248,13 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       req.user = user;
     }
 
-    setAuthenticatedSchoolContext({
+    await runAuthenticatedTenantRequest(req, res, next, {
       id: user.id,
       schoolId: user.schoolId,
       role: user.role,
       impersonated: req.user?.impersonated,
       originalUserId: req.user?.originalUserId,
     });
-    
-    next();
   } catch (err) {
     logger.error({ err }, "Auth middleware DB error");
     res.status(500).json({ success: false, error: "Auth check failed" });
@@ -383,7 +376,7 @@ export function requireSchoolAccess() {
 // Optional Auth
 // ═══════════════════════════════════════════
 
-export async function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction): Promise<void> {
+export async function optionalAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const accessTokenCookie = req.cookies?.access_token;
   const legacyTokenCookie = req.cookies?.auth_token;
   const authHeader = req.headers.authorization;
@@ -404,15 +397,23 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
 
   try {
     const userId = "userId" in payload ? payload.userId : (payload as AccessTokenPayload).userId;
-    const user = await prisma.user.findUnique({
+    const user = await runWithTrustedDatabaseTransaction({
+      purpose: "authentication",
+      requestId: res.getHeader("X-Request-ID")?.toString(),
+      route: `${req.method} ${req.originalUrl}`,
+    }, () => prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true, email: true, name: true, role: true,
         isActive: true, avatar: true, phone: true,
         schoolId: true, branchId: true,
       },
-    });
-    if (user && user.isActive) req.user = user;
+    }));
+    if (user && user.isActive) {
+      req.user = user;
+      await runAuthenticatedTenantRequest(req, res, next, user);
+      return;
+    }
   } catch (err) {
     logger.warn({ err }, "Optional auth DB error — continuing without user");
   }
@@ -426,11 +427,15 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
 
 export function requireAllowedIp() {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const clientIp = req.ip || req.headers["x-forwarded-for"]?.toString() || "";
+    const clientIp = req.ip;
     const allowedIps = (process.env.SUPER_ADMIN_ALLOWED_IPS || "").split(",").map(ip => ip.trim()).filter(Boolean);
 
     if (allowedIps.length === 0) {
-      next(); // Fail open if not configured
+      if (getEnv().NODE_ENV === "production") {
+        res.status(403).json({ success: false, error: "Super-admin IP allowlist is not configured" });
+        return;
+      }
+      next();
       return;
     }
 
