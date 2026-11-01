@@ -74,6 +74,29 @@ describe("Messaging API E2E", () => {
       sid: "mock-session-parent",
       impersonated: false,
     }).token;
+
+    // Pre-create initial thread and message so tests can run in any sequence under shuffle
+    const initialThread = await prisma.messageThread.create({
+      data: {
+        schoolId,
+        subject: "Welcome to Class",
+        participants: {
+          create: [
+            { userId: teacherUserId },
+            { userId: parentUserId }
+          ]
+        },
+        messages: {
+          create: [
+            {
+              senderId: teacherUserId,
+              content: "Hello Parent, how are you?"
+            }
+          ]
+        }
+      }
+    });
+    threadId = initialThread.id;
   });
 
   afterAll(async () => {
@@ -92,14 +115,13 @@ describe("Messaging API E2E", () => {
       .post("/api/v1/messages/threads")
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({
-        subject: "Welcome to Class",
+        subject: "New Topic Thread",
         participantIds: [parentUserId]
       });
       
     expect([200, 201]).toContain(res.status);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.subject).toBe("Welcome to Class");
-    threadId = res.body.data.id;
+    expect(res.body.data.subject).toBe("New Topic Thread");
   });
 
   it("should fail to start a thread without participants", async () => {

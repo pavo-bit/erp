@@ -133,6 +133,12 @@ describe("Architecture & Phase A E2E", () => {
 
   describe("2. Session Management API", () => {
     it("should fetch active sessions", async () => {
+      // Ensure the test session is active regardless of shuffled test execution order
+      await prisma.userSession.update({
+        where: { id: testSessionId },
+        data: { isActive: true },
+      });
+
       const res = await request(server)
         .get("/api/v1/sessions")
         .set("Authorization", `Bearer ${superAdminToken}`);
