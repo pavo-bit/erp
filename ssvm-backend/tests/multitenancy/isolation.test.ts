@@ -1,6 +1,6 @@
 import { describe, expect, it, beforeAll, afterAll } from '@jest/globals';
 import request from 'supertest';
-import { app } from '../../src/index'; // Assumes exported app
+import { app } from '../../src/app';
 
 // Note: In a real test environment, this would mock or hit a test database.
 // This test asserts the cryptographic boundaries of multi-tenancy.

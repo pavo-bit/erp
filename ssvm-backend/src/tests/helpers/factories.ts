@@ -36,6 +36,7 @@ export const SchoolFactory = {
     counter++;
     return {
       name: `School ${counter}`,
+      code: `SCHOOL-${counter}`,
       address: `${counter} Main St`,
       contactEmail: `contact${counter}@school.com`,
       contactPhone: `123456789${counter % 10}`,
