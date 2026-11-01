@@ -11,7 +11,6 @@ const RAZORPAY_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET!;
 
 describe('Payments & Finance APIs', () => {
   let schoolId: string;
-  let adminCookie: string;
   let adminToken: string;
   let studentId: string;
 
@@ -39,7 +38,6 @@ describe('Payments & Finance APIs', () => {
     });
     
     const admin = await createTestUser(Role.ERP_ADMIN, schoolId);
-    adminCookie = admin.cookie;
     adminToken = admin.token;
 
     const session = await prisma.academicSession.create({ data: { name: '2026-2027', startDate: new Date(), endDate: new Date(), schoolId } });
@@ -274,7 +272,7 @@ describe('Payments & Finance APIs', () => {
       // First generation
       const res1 = await request(app)
         .post('/api/v1/finance/generate-monthly')
-        .set('Cookie', [adminCookie])
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({ month: 6, year: 2026 });
       
       // Whether it is 201 or 200 depending on framework standard
@@ -283,7 +281,7 @@ describe('Payments & Finance APIs', () => {
       // Second generation
       const res2 = await request(app)
         .post('/api/v1/finance/generate-monthly')
-        .set('Cookie', [adminCookie])
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({ month: 6, year: 2026 });
       
       expect(res2.status).toBe(200);
