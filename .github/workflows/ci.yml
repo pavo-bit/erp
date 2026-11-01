@@ -84,25 +84,17 @@ jobs:
           CREATE DATABASE ssvm_shadow;
           SQL
 
-      - name: Deploy Prisma Migrations
-        id: deploy-migrations
-        run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: ${{ env.DIRECT_URL }}
-          DIRECT_URL: ${{ env.DIRECT_URL }}
-
-      - name: Verify schema matches Prisma datamodel
-        run: npm run db:verify-diff
-
-      - name: Verify all Prisma model tables exist
-        run: npm run db:verify-tables
+      - name: Create application-test schema without RLS
+        run: |
+          npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script \
+            | psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1
+          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
+            --file prisma/migrations/20261101140000_full_text_search_indexes/migration.sql
+          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
+            --file prisma/migrations/20261101145000_ledger_integrity/migration.sql
 
       - name: Run Tests with Coverage
         run: npm run test:ci
-
-      - name: Run PostgreSQL RLS tests
-        if: always() && steps.deploy-migrations.outcome == 'success'
-        run: npm run test:rls
 
       - name: Upload backend test report
         if: always()
@@ -118,6 +110,73 @@ jobs:
           directory: ./ssvm-backend/coverage/
           fail_ci_if_error: true
           flags: backend
+
+  database-rls:
+    name: Migrate and RLS Tests (restricted role)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ github.run_id }}-postgres-ci
+          POSTGRES_DB: ssvm_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: ./ssvm-backend
+    env:
+      APP_DB_PASSWORD: ${{ github.run_id }}-app-ci
+      PGPASSWORD: ${{ github.run_id }}-postgres-ci
+      DATABASE_URL_TEST: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
+      DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_test?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_shadow?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './ssvm-backend/package-lock.json'
+      - run: npm ci
+      - name: Check tenant classification
+        run: npm run db:tenant-classification:check
+      - name: Provision restricted RLS test role
+        run: |
+          psql --host localhost --username postgres --dbname ssvm_test \
+            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" <<'SQL'
+          SELECT format(
+            'CREATE ROLE ssvm_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
+            :'app_password'
+          )
+          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_app')
+          \gexec
+          GRANT CONNECT ON DATABASE ssvm_test TO ssvm_app;
+          GRANT USAGE ON SCHEMA public TO ssvm_app;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_app;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_app;
+          CREATE DATABASE ssvm_shadow;
+          SQL
+      - name: Deploy full schema and RLS migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DIRECT_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
+      - name: Verify schema matches Prisma datamodel
+        run: npm run db:verify-diff
+      - name: Verify all model tables and payment unique index
+        run: npm run db:verify-tables
+      - name: Run PostgreSQL RLS and ledger invariant tests
+        run: npm run test:rls
 
   backend-type-check:
     runs-on: ubuntu-latest
