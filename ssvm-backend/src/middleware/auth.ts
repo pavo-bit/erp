@@ -218,6 +218,11 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
+    if (user.role !== "SUPER_ADMIN" && !user.schoolId) {
+      res.status(403).json({ success: false, error: "No school assigned to your account" });
+      return;
+    }
+
     // Phase 2C: Enforce mustChangePassword
     if (payload.schoolId && payload.schoolId !== user.schoolId && user.role !== "SUPER_ADMIN") {
       res.status(403).json({ success: false, error: "Token schoolId mismatch. Invalid token." });
