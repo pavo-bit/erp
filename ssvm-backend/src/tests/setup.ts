@@ -44,20 +44,17 @@ vi.mock('bullmq', async (importOriginal) => {
   };
 });
 
-// Mock Razorpay
-vi.mock('razorpay', () => {
+// Mock Razorpay with realistic order/payment entity fields consumed by routes.
+vi.mock('razorpay', async () => {
+  const { createRazorpayFake } = await import('./helpers/razorpay');
   return {
     default: class RazorpayMock {
-      orders = {
-        create: vi.fn().mockResolvedValue({ id: 'order_mock123', amount: 1000, status: 'created' }),
-      };
-      payments = {
-        fetch: vi.fn().mockResolvedValue({ id: 'pay_mock123', status: 'captured' }),
-      };
+      orders = createRazorpayFake().orders;
+      payments = createRazorpayFake().payments;
       static utils = {
         verifyWebhookSignature: vi.fn().mockReturnValue(true),
       };
-    }
+    },
   };
 });
 
