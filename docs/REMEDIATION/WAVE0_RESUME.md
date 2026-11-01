@@ -1,33 +1,60 @@
-# Wave 0 Resume Note
+# Wave 0 Evidence and Resume Note
 
-## Status: INCOMPLETE — do not merge
+## Status: INCOMPLETE — RLS probe FAILED; do not merge
 
-The earlier `PASSED` status in this file was unsupported and is withdrawn. No PR #2 per-job CI result is currently available from this worktree; `gh` cannot reach `api.github.com`. The W0 branch has not passed the newly requested probe/code-task gate.
+The earlier `PASSED` statement in this file was inaccurate. This note replaces it. A test-only scratch-database probe found a visible tenant row when the app role had no tenant context. The new API-current-user test is authored but not run.
 
-## Evidence currently found (not bound to this W0 commit)
+## RLS probe (real test-only Postgres)
 
-Untracked logs in the main `remediation/80pct` worktree report:
+Configuration was read from the main worktree's `.env.test` without printing URLs or passwords. URL preflight showed app role `ssvm_app` and fixture role `ssvm_fixture`, both pointing to localhost port 5433 and a DB name containing `test`; Redis URL used localhost port 6379. Live read-only role query against that configured DB returned:
 
-- `test-run-heavy-normal.txt`: 25 files, 173 tests passed. The transcript does not record an exit code or identify the exact W0 commit.
-- `test-run-heavy-shuffled.txt`: 10 files failed, 15 passed; 1 failed test, 81 passed, 91 skipped. Failures include a messaging order assertion and fixture/setup errors, including a restricted-role permission error when terminating a backend process.
+```json
+[
+  {"source":"DATABASE_URL_TEST","configured":true,"currentUser":"ssvm_app","databaseName":"ssvm_test","isSuperuser":false,"bypassRls":false,"policyCount":174},
+  {"source":"DATABASE_URL_TEST_FIXTURE","configured":true,"currentUser":"ssvm_fixture","databaseName":"ssvm_test","isSuperuser":false,"bypassRls":true,"policyCount":174}
+]
+```
 
-These logs are not Wave 0 gate evidence: they were produced in the dirty main worktree, not on a clean W0 checkout, and the shuffled run fails. Do not use them to claim 173/173 twice.
+The source database `ssvm_test` was not modified by the probe. The fixture connection was not used for the app-role read.
 
-## Required gates still open
+Scratch probe steps and results:
 
-1. **RLS probe:** No recorded scratch-database clone/probe that seeds `school` and `fee_category` as postgres, then proves `ssvm_app` gets zero fee-category rows with no tenant context. No API response currently records `current_user=ssvm_app`. A role/policy-count query alone does not prove fail-closed behavior.
-2. **CI roles:** No PR #2 backend-test log is available here showing both restricted app and trusted fixture roles, `current_user`, and policy count. CI workflow ownership remains with Lane E; a written request is needed for any workflow changes.
-3. **Code tasks:** Student login/user creation and two-school test; `flattenWhere` unique/relation filters; CSRF comment plus cross-origin refresh test; coverage thresholds; and Vitest/TypeScript excludes require separate commits and passing tests. Their status must be verified from the W0 branch, not inferred from uncommitted files in the main worktree. Student backfill requires a written request to Lane A.
-4. **Suite runs:** Required commands are one default parallel run (no `--no-file-parallelism`) and one shuffled run. Both need exit code 0, with file/test passed, failed, and skipped counts captured. Current shuffled evidence is failing.
-5. **PR #2:** Per-job results are unavailable. `gh pr view 2` failed because this host could not resolve `api.github.com`.
+1. `docker exec ssvm-database psql -U postgres -d postgres -Atc "SELECT current_user, EXISTS (SELECT 1 FROM pg_database WHERE datname = 'ssvm_test_template') AS template_exists, EXISTS (SELECT 1 FROM pg_database WHERE datname = 'ssvm_test') AS app_test_db_exists;"` returned `postgres|t|t`.
+2. `docker exec ssvm-database createdb -U postgres --template=ssvm_test_template ssvm_test_w0_probe_f4bc3a8e` succeeded (exit 0).
+3. As postgres, inserted one school and one fee_category in a transaction. Output: `BEGIN`, `INSERT 0 1`, `INSERT 0 1`, `COMMIT`.
+4. As `ssvm_app`, with no tenant setting, queried current role, db, tenant setting, role flags, visible fee categories, and policy count. Result:
 
-## Environment blockers
+```json
+{"currentUser":"ssvm_app","databaseName":"ssvm_test_w0_probe_f4bc3a8e","tenantSetting":null,"isSuperuser":false,"bypassRls":false,"visibleFeeCategories":1,"policyCount":174}
+```
 
-- `ssvm-backend/node_modules` is available in the main worktree but is a junction; its presence does not provide a database or service.
-- `.env.test` in the main worktree contains test database/Redis connection variables, but no values are recorded here. The configured PostgreSQL port is 5433 and Redis port is 6379; both were unreachable on this host.
-- Environment variables `DATABASE_URL_TEST`, `DATABASE_URL_TEST_FIXTURE`, and `REDIS_URL_TEST` were not exported in the current shell.
-- Never fall back to the developer DB or run tests as `postgres`. The requested postgres seed step must be separate setup; the actual RLS assertion must connect as the restricted app role.
+Expected `visibleFeeCategories=0`; actual was `1` (**FAIL**).
+5. As postgres, `fee_categories` catalog state in both `ssvm_test_template` and the scratch clone was `relrowsecurity=false`, `relforcerowsecurity=true`, with one policy. Policies existing in `pg_policy` do not prove RLS is enabled. Lane A must diagnose the migration/template state. The scratch DB remains temporarily present until this evidence/request is recorded, after which only this exact scratch DB will be dropped.
+
+This also explains how the earlier 173-test run could pass without an authenticated tenant wrapper: the test template had 174 policy records, but RLS was disabled on `fee_categories`, so the restricted app query could still see the seeded row. The separate API identity test will assert the request's DB user, but it cannot turn the failed RLS probe into a pass.
+
+## Test transcript reconciliation
+
+The main worktree's untracked logs are not bound to this clean W0 commit and do not record command exit codes:
+
+- `test-run-heavy-normal.txt`: 25 files, 173 tests passed. Not accepted as Wave 0 gate evidence because the commit and process exit code are absent.
+- `test-run-heavy-shuffled.txt`: 10 files failed, 15 passed; 1 test failed, 81 passed, 91 skipped. Not accepted; shuffled gate is **FAIL**.
+
+The Wave 0 normal run must use Vitest's default parallel behavior, with no `--no-file-parallelism`; the shuffled run must also have a recorded command, exit code, file and test counts, and zero skips. Neither current log meets both requirements.
+
+## Remaining Wave 0 work
+
+- Add a backend API test returning `current_user=ssvm_app`, role flags, and policy count. The test has been authored at `src/tests/api/current-user.test.ts`; it has not run.
+- CI role/policy logging, coverage thresholds, and config excludes are requested from Lane E in `docs/AUDIT/requests/W0-to-E.md`; no response/CI result yet.
+- Student login must not create users. Existing Student→User backfill and user creation semantics are requested from Lane A in `docs/AUDIT/requests/W0-to-A.md`.
+- A owns `src/lib/prisma.ts`; flattenWhere compound-unique/relation-filter changes are requested there, not implemented in Wave 0 pending owner response.
+- CSRF refresh comment/cross-origin test remains open pending review of the cookie refresh exclusion.
+- PR #2 CI per-job results remain unavailable: `gh pr view 2` failed DNS resolution for `api.github.com`. Do not claim CI results without the run/job links.
+
+## Environment
+
+Local dependency binaries exist via a node_modules junction, and elevated reachability checks confirmed the test-only Postgres port 5433 and Redis port 6379. Do not use ports 5432 or 5434. The W0 worktree's own `.env.test` has only a DATABASE_URL_TEST with an unexpected role, and lacks fixture/Redis URLs; the main worktree has separate checked app/fixture URLs. Do not copy its secrets into W0. Tests require the restricted app role; postgres is only allowed for scratch DB creation/seeding.
 
 ## Resume criteria
 
-Resume after a reachable isolated PostgreSQL template/scratch database and Redis are available, CI access for PR #2 works, and Lane E has accepted any workflow request. Keep the backend suite blocked until the probe, API current-user assertion, code tasks, and both fresh suite runs pass with exit codes and counts. Do not merge or claim points before then.
+Resume after Lane A has fixed RLS enablement and the scratch probe returns zero rows; Lane E has configured the backend job with restricted/trusted roles and log diagnostics; student backfill/API and Prisma owner requests are resolved; the CSRF and coverage/exclude tasks are complete; and full parallel plus shuffled suites pass with process exit codes and zero failed/skipped tests. PR #2 jobs must then be reviewed individually. No merge or score credit before these gates pass.
