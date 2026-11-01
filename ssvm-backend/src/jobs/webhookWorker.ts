@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import { runWithTrustedDatabaseTransaction } from '../lib/prisma';
 import { Worker, Job } from "bullmq";
 
 import { getEnv } from "../config/env";
@@ -62,7 +63,12 @@ export function startWebhookWorker() {
     // DLQ: Route failed webhooks to FailedWebhook table if retries are exhausted
     if (job && job.attemptsMade >= (job.opts.attempts || 1)) {
       try {
-        await prisma.failedWebhook.create({
+        await runWithTrustedDatabaseTransaction({
+          purpose: "worker",
+          requestId: job.id,
+          route: "worker:webhook-delivery:dead-letter",
+          reason: "Record exhausted outbound webhook delivery retries",
+        }, () => prisma.failedWebhook.create({
           data: {
             payload: job.data,
             errorMessage: err.message,
@@ -70,7 +76,7 @@ export function startWebhookWorker() {
             // paymentId is optional, extract if it's an inbound payment webhook
             paymentId: job.data?.payload?.payment?.entity?.id || undefined,
           }
-        });
+        }));
         logger.info({ jobId: job.id }, "Webhook routed to DLQ (FailedWebhook)");
       } catch (dlqErr) {
         logger.error({ err: dlqErr }, "Failed to write to DLQ");

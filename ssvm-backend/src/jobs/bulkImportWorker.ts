@@ -2,6 +2,7 @@ import { Worker, Job } from "bullmq";
 import { getEnv } from "../config/env";
 import logger from "../lib/logger";
 import prisma from "../lib/prisma";
+import { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import Papa from "papaparse";
 // We don't fetch directly from S3, we assume file is local or we download it. 
 // For simplicity we simulate processing or we can fetch from S3 buffer.
@@ -43,12 +44,15 @@ export function startImportWorker() {
     "importQueue",
     async (job: Job) => {
       const { jobId, fileKey, schoolId, type } = job.data;
+      if (typeof schoolId !== "string" || schoolId.length === 0) {
+        throw new Error("Bulk import job requires an explicit schoolId.");
+      }
       logger.info({ jobId, type, schoolId }, "Starting bulk import job");
 
-      await prisma.bulkJob.update({
+      await runWithTenantDatabaseTransaction(schoolId, () => prisma.bulkJob.update({
         where: { id: jobId },
         data: { status: "PROCESSING", progress: 0 },
-      });
+      }));
 
       try {
         await job.updateProgress(5);
@@ -71,10 +75,10 @@ export function startImportWorker() {
         let failedRows = 0;
         const errorLogs: any[] = [];
 
-        await prisma.bulkJob.update({
+        await runWithTenantDatabaseTransaction(schoolId, () => prisma.bulkJob.update({
           where: { id: jobId },
           data: { totalRows },
-        });
+        }));
 
         // Process rows in batches to avoid overwhelming DB/memory
         for (let i = 0; i < data.length; i++) {
@@ -101,10 +105,10 @@ export function startImportWorker() {
           if (i % 10 === 0 || i === data.length - 1) {
             const progress = Math.round(((i + 1) / totalRows) * 80) + 10; // Reserve 0-10 for setup, 90-100 for finishing
             await job.updateProgress(progress);
-            await prisma.bulkJob.update({
+            await runWithTenantDatabaseTransaction(schoolId, () => prisma.bulkJob.update({
               where: { id: jobId },
               data: { progress },
-            });
+            }));
           }
         }
 
@@ -122,7 +126,7 @@ export function startImportWorker() {
 
         // Complete job
         await job.updateProgress(100);
-        await prisma.bulkJob.update({
+        await runWithTenantDatabaseTransaction(schoolId, () => prisma.bulkJob.update({
           where: { id: jobId },
           data: {
             status: failedRows === totalRows ? "FAILED" : "COMPLETED",
@@ -131,15 +135,15 @@ export function startImportWorker() {
             errorFile: errorFileUrl,
             progress: 100,
           },
-        });
+        }));
 
         logger.info({ jobId, successRows, failedRows }, "Bulk import job completed");
       } catch (error: any) {
         logger.error({ err: error, jobId }, "Bulk import job failed catastrophically");
-        await prisma.bulkJob.update({
+        await runWithTenantDatabaseTransaction(schoolId, () => prisma.bulkJob.update({
           where: { id: jobId },
           data: { status: "FAILED", errorFile: error.message },
-        });
+        }));
       }
     },
     { connection, concurrency: 1 } // Process one import at a time to prevent DB lock

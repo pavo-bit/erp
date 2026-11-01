@@ -1,6 +1,7 @@
 import { Worker, Job } from "bullmq";
 import { getEnv } from "../config/env";
 import prisma from "../lib/prisma";
+import { runWithTenantDatabaseTransaction, runWithTrustedDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 
 const env = getEnv();
@@ -30,28 +31,44 @@ export function startScanWorker() {
       
       logger.info({ documentId }, "Starting virus scan");
 
-      await prisma.storageObject.update({
+      const storageObject = await runWithTrustedDatabaseTransaction({
+        purpose: "worker",
+        requestId: job.id,
+        route: "worker:scan-document:tenant-discovery",
+      }, () => prisma.storageObject.findUnique({
+        where: { id: documentId },
+        select: { schoolId: true },
+      }));
+      if (!storageObject?.schoolId) {
+        throw new Error("Document scan requires a document assigned to a school.");
+      }
+
+      await runWithTenantDatabaseTransaction(storageObject.schoolId, () => prisma.storageObject.update({
         where: { id: documentId },
         data: { scanStatus: "IN_PROGRESS" }
-      });
+      }));
 
       const scanResult = await simulateVirusScan(fileUrl);
 
-      await prisma.storageObject.update({
+      await runWithTenantDatabaseTransaction(storageObject.schoolId, () => prisma.storageObject.update({
         where: { id: documentId },
         data: {
           scanStatus: scanResult
         }
-      });
+      }));
 
       if (scanResult === "QUARANTINED") {
         logger.warn({ documentId }, "Document quarantined by virus scanner");
         const { logSecurityEvent } = await import("../lib/audit");
-        await logSecurityEvent({
+        await runWithTrustedDatabaseTransaction({
+          purpose: "worker",
+          requestId: job.id,
+          route: "worker:scan-document:security-audit",
+        }, () => logSecurityEvent({
           eventType: "DOCUMENT_QUARANTINED",
           severity: "HIGH",
           metadata: { documentId, fileUrl }
-        });
+        }));
       } else {
         logger.info({ documentId }, "Document scan complete — CLEAN");
       }

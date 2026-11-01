@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import { runWithTrustedDatabaseTransaction } from '../lib/prisma';
 import { Worker, Job } from "bullmq";
 
 import { exec } from "child_process";
@@ -14,6 +15,14 @@ import { enqueueNotification } from "./queue";
 
 const execAsync = promisify(exec);
 const env = getEnv();
+
+function runTrustedWorkerQuery<T>(route: string, query: () => Promise<T>): Promise<T> {
+  return runWithTrustedDatabaseTransaction({
+    purpose: "worker",
+    route: `worker:${route}`,
+    reason: "Scheduled maintenance operation across tenant records",
+  }, query);
+}
 
 // ═══════════════════════════════════════════
 // Maintenance Worker (GAP 1 — Idempotency Cleanup)
@@ -80,13 +89,13 @@ async function cleanupExpiredIdempotencyRecords(): Promise<void> {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     // Find expired records in batches
-    const expiredRecords = await (prisma as any).idempotencyRecord.findMany({
+    const expiredRecords = await runTrustedWorkerQuery("cleanup-idempotency:select", () => (prisma as any).idempotencyRecord.findMany({
       where: {
         expiresAt: { lt: now },
       },
       take: BATCH_SIZE,
       select: { id: true, key: true },
-    });
+    }));
 
     if (expiredRecords.length === 0) {
       break; // No more expired records
@@ -95,9 +104,9 @@ async function cleanupExpiredIdempotencyRecords(): Promise<void> {
     const idsToDelete = expiredRecords.map((r: any) => r.id);
 
     // Delete from DB
-    const deleteResult = await (prisma as any).idempotencyRecord.deleteMany({
+    const deleteResult = await runTrustedWorkerQuery("cleanup-idempotency:delete", () => (prisma as any).idempotencyRecord.deleteMany({
       where: { id: { in: idsToDelete } },
-    });
+    }));
 
     totalDeleted += deleteResult.count;
 
@@ -133,9 +142,9 @@ async function cleanupOldBackups(): Promise<void> {
 
   logger.info({ cutoffDate }, "Starting SystemBackup retention cleanup");
 
-  const oldBackups = await prisma.systemBackup.findMany({
+  const oldBackups = await runTrustedWorkerQuery("backup-retention:select", () => prisma.systemBackup.findMany({
     where: { createdAt: { lt: cutoffDate } }
-  });
+  }));
 
   if (oldBackups.length === 0) {
     logger.info("No old backups to clean up");
@@ -165,7 +174,7 @@ async function cleanupOldBackups(): Promise<void> {
         }
       }
     }
-    await prisma.systemBackup.delete({ where: { id: backup.id } });
+    await runTrustedWorkerQuery("backup-retention:delete", () => prisma.systemBackup.delete({ where: { id: backup.id } }));
   }
 
   logger.info({ deletedCount }, "SystemBackup retention cleanup completed");
@@ -178,10 +187,10 @@ async function validateBackupRestore(): Promise<void> {
   logger.info("Starting weekly backup restore validation...");
 
   // 1. Fetch the most recent PASSED backup
-  const latestBackup = await prisma.systemBackup.findFirst({
+  const latestBackup = await runTrustedWorkerQuery("backup-validation:select", () => prisma.systemBackup.findFirst({
     where: { status: "PASSED" },
     orderBy: { createdAt: "desc" },
-  });
+  }));
 
   if (!latestBackup) {
     logger.warn("No PASSED backup found for validation.");
@@ -273,9 +282,9 @@ async function validateBackupRestore(): Promise<void> {
     };
 
     const prodCounts = {
-      students: await prisma.student.count(),
-      invoices: await prisma.invoice.count(),
-      payments: await prisma.paymentTransaction.count(),
+      students: await runTrustedWorkerQuery("backup-validation:count-students", () => prisma.student.count()),
+      invoices: await runTrustedWorkerQuery("backup-validation:count-invoices", () => prisma.invoice.count()),
+      payments: await runTrustedWorkerQuery("backup-validation:count-payments", () => prisma.paymentTransaction.count()),
     };
 
     const isWithinVariance = (prod: number, val: number) => {
@@ -299,14 +308,14 @@ async function validateBackupRestore(): Promise<void> {
 
     if (passed) {
       logger.info("Backup validation PASSED.");
-      await prisma.systemBackup.update({
+      await runTrustedWorkerQuery("backup-validation:mark-passed", () => prisma.systemBackup.update({
         where: { id: latestBackup.id },
         data: {
           lastValidatedAt: new Date(),
           validationStatus: "PASSED",
           validationDetails: JSON.stringify(validationDetails),
         },
-      });
+      }));
     } else {
       logger.error({ validationDetails }, "Backup validation FAILED due to variance threshold exceeded.");
       await markBackupValidationFailed(latestBackup.id, "Variance threshold exceeded", validationDetails);
@@ -323,16 +332,16 @@ async function validateBackupRestore(): Promise<void> {
 }
 
 async function markBackupValidationFailed(backupId: string, reason: string, details?: any) {
-  await prisma.systemBackup.update({
+  await runTrustedWorkerQuery("backup-validation:mark-failed", () => prisma.systemBackup.update({
     where: { id: backupId },
     data: {
       lastValidatedAt: new Date(),
       validationStatus: "FAILED",
       validationDetails: details ? JSON.stringify({ reason, ...details }) : JSON.stringify({ reason }),
     },
-  });
+  }));
 
-  const superAdmin = await prisma.user.findFirst({ where: { role: "SUPER_ADMIN", isActive: true } });
+  const superAdmin = await runTrustedWorkerQuery("backup-validation:find-admin", () => prisma.user.findFirst({ where: { role: "SUPER_ADMIN", isActive: true } }));
   if (superAdmin) {
     await enqueueNotification({
       logId: backupId,

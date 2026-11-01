@@ -1,4 +1,5 @@
 import prisma from "../lib/prisma";
+import { runWithTrustedDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 
 // ═══════════════════════════════════════════
@@ -11,14 +12,18 @@ import logger from "../lib/logger";
  */
 export async function cleanupExpiredTokens(): Promise<void> {
   try {
-    const result = await prisma.refreshToken.deleteMany({
+    const result = await runWithTrustedDatabaseTransaction({
+      purpose: "worker",
+      route: "worker:cleanup-expired-refresh-tokens",
+      reason: "Remove expired and revoked refresh-token records",
+    }, () => prisma.refreshToken.deleteMany({
       where: {
         OR: [
           { expiresAt: { lt: new Date() } },
           { revokedAt: { not: null }, createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
         ],
       },
-    });
+    }));
 
     if (result.count > 0) {
       logger.info({ deleted: result.count }, "Cleaned up expired/revoked refresh tokens");
@@ -33,14 +38,18 @@ export async function cleanupExpiredTokens(): Promise<void> {
  */
 export async function cleanupExpiredOTPs(): Promise<void> {
   try {
-    const result = await prisma.oTP.deleteMany({
+    const result = await runWithTrustedDatabaseTransaction({
+      purpose: "worker",
+      route: "worker:cleanup-expired-otps",
+      reason: "Remove expired and used OTP records",
+    }, () => prisma.oTP.deleteMany({
       where: {
         OR: [
           { expiresAt: { lt: new Date() }, createdAt: { lt: new Date(Date.now() - 60 * 60 * 1000) } },
           { verified: true, createdAt: { lt: new Date(Date.now() - 60 * 60 * 1000) } },
         ],
       },
-    });
+    }));
 
     if (result.count > 0) {
       logger.info({ deleted: result.count }, "Cleaned up expired/verified OTPs");

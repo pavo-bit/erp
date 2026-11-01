@@ -1,5 +1,6 @@
 import { Worker, Job } from "bullmq";
 import prisma from "../lib/prisma";
+import { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 import { parse } from "json2csv";
 import { storageService } from "../services/storage.service";
@@ -24,12 +25,17 @@ export function startExportWorker() {
     logger.info({ jobId: job.id, entity, schoolId }, "Starting export job");
 
     try {
-      let data: any[] = [];
+      if (typeof schoolId !== "string" || schoolId.length === 0) {
+        throw new Error("Export job requires an explicit schoolId.");
+      }
+
+      await job.updateProgress(10);
+      const data = await runWithTenantDatabaseTransaction(schoolId, async () => {
+      let rows: any[] = [];
 
       // 1. Fetch Data Based on Entity
-      await job.updateProgress(10);
       if (entity === "STUDENTS") {
-        data = await prisma.student.findMany({
+        rows = await prisma.student.findMany({
           where: { schoolId, ...filters },
           select: {
             id: true,
@@ -41,7 +47,7 @@ export function startExportWorker() {
           }
         });
       } else if (entity === "TEACHERS") {
-        data = await prisma.teacher.findMany({
+        rows = await prisma.teacher.findMany({
           where: { schoolId, ...filters },
           select: {
             id: true,
@@ -52,7 +58,7 @@ export function startExportWorker() {
           }
         });
       } else if (entity === "USERS") {
-        data = await prisma.user.findMany({
+        rows = await prisma.user.findMany({
           where: { schoolId, ...filters },
           select: {
             id: true,
@@ -63,7 +69,7 @@ export function startExportWorker() {
           }
         });
       } else if (entity === "INVOICES") {
-        data = await prisma.invoice.findMany({
+        rows = await prisma.invoice.findMany({
           where: { schoolId, ...filters },
           select: {
             id: true,
@@ -75,7 +81,7 @@ export function startExportWorker() {
           }
         });
       } else if (entity === "ATTENDANCE") {
-        data = await prisma.attendance.findMany({
+        rows = await prisma.attendance.findMany({
           where: { schoolId, ...filters },
           select: {
             id: true,
@@ -85,7 +91,7 @@ export function startExportWorker() {
           }
         });
       } else if (entity === "AUDIT_LOGS") {
-        data = await prisma.auditLog.findMany({
+        rows = await prisma.auditLog.findMany({
           where: { schoolId, ...filters },
           select: {
             id: true,
@@ -105,6 +111,8 @@ export function startExportWorker() {
       } else {
         throw new Error(`Unsupported entity for export: ${entity}`);
       }
+      return rows;
+      });
 
       await job.updateProgress(40);
 
@@ -135,7 +143,7 @@ export function startExportWorker() {
       const downloadUrl = await storageService.generateSignedUrl(fileKey, 86400); // 24 hours
 
       // 4. Log completion
-      await prisma.systemLog.create({
+      await runWithTenantDatabaseTransaction(schoolId, () => prisma.systemLog.create({
         data: {
           level: "INFO",
           module: "DATA_EXPORT",
@@ -144,13 +152,13 @@ export function startExportWorker() {
           schoolId,
           userId
         }
-      });
+      }));
 
       // 5. Notify user via email
       if (userEmail) {
         // We'll create a dummy commLog for the notification or bypass.
         // Actually, let's just create a CommunicationLog to satisfy logId
-        const commLog = await prisma.communicationLog.create({
+        const commLog = await runWithTenantDatabaseTransaction(schoolId, () => prisma.communicationLog.create({
           data: {
             schoolId,
             recipientNum: userEmail,
@@ -159,7 +167,7 @@ export function startExportWorker() {
             content: `Your data export is complete.`,
             status: "QUEUED"
           }
-        });
+        }));
 
         await enqueueNotification({
           logId: commLog.id,
@@ -178,7 +186,7 @@ export function startExportWorker() {
       
       // Notify failure
       if (userEmail) {
-        const commLog = await prisma.communicationLog.create({
+        const commLog = await runWithTenantDatabaseTransaction(schoolId, () => prisma.communicationLog.create({
           data: {
             schoolId,
             recipientNum: userEmail,
@@ -187,7 +195,7 @@ export function startExportWorker() {
             content: `Your data export failed.`,
             status: "QUEUED"
           }
-        });
+        }));
 
         await enqueueNotification({
           logId: commLog.id,
