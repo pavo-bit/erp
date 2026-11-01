@@ -9,19 +9,6 @@ import { nodeProfilingIntegration } from "@sentry/profiling-node";
 
 import { getEnv } from "./config/env";
 import { initSentry } from "./lib/sentry";
-import client from "prom-client";
-
-// Initialize Prometheus Metrics
-const collectDefaultMetrics = client.collectDefaultMetrics;
-collectDefaultMetrics({ prefix: 'ssvm_' });
-
-const httpRequestDurationMicroseconds = new client.Histogram({
-  name: 'ssvm_http_request_duration_seconds',
-  help: 'Duration of HTTP requests in seconds',
-  labelNames: ['method', 'route', 'code'],
-  buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10]
-});
-
 initSentry();
 
 import logger from "./lib/logger";
@@ -124,6 +111,7 @@ import resultsRoutes from "./routes/results";
 import { metricsMiddleware, getMetrics } from "./middleware/metrics";
 import swaggerUi from "swagger-ui-express";
 import { generateSpec } from "./openapi/generate";
+import { requireAllowedIp } from "./middleware/auth";
 
 // ─── Validate environment on startup ───
 const env = getEnv();
@@ -140,29 +128,11 @@ Sentry.init({
 
 // ─── Initialize Express App ───
 export const app = express();
+app.set("trust proxy", 1);
 
 // ═══════════════════════════════════════════
 // Security Middleware
 // ═══════════════════════════════════════════
-
-// Prometheus Metrics Middleware
-app.use((req, res, next) => {
-  const end = httpRequestDurationMicroseconds.startTimer();
-  res.on('finish', () => {
-    end({ method: req.method, route: req.route ? req.route.path : req.path, code: res.statusCode });
-  });
-  next();
-});
-
-// Expose Metrics Endpoint for Prometheus Scraper
-app.get('/metrics', async (req, res) => {
-  try {
-    res.set('Content-Type', client.register.contentType);
-    res.end(await client.register.metrics());
-  } catch (ex) {
-    res.status(500).end(ex);
-  }
-});
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
@@ -408,8 +378,8 @@ app.get("/api/docs/spec.json", (req, res) => {
   res.json(generateSpec());
 });
 
-// Prometheus Metrics Endpoint
-app.get("/metrics", getMetrics);
+// Prometheus metrics are private to explicitly allowlisted monitoring clients.
+app.get("/metrics", requireAllowedIp(), getMetrics);
 
 // Admin Routes
 app.use("/api/v1/admin/queues", bullBoardRoutes);

@@ -27,8 +27,8 @@ function generateKeyPairs() {
   console.log(`REFRESH_TOKEN_PRIVATE_KEY="${refreshPrivate.replace(/\n/g, '\\n')}"\n`);
   console.log(`REFRESH_TOKEN_PUBLIC_KEY="${refreshPublic.replace(/\n/g, '\\n')}"\n`);
   
-  console.log("\nNote: Keep your existing ACCESS_TOKEN_SECRET and REFRESH_TOKEN_SECRET in the .env file");
-  console.log("during the rollover window to allow active sessions to be verified using the fallback logic.");
+  console.log("Store private keys only in a secret manager or protected environment file.");
+  console.log("HS256 tokens are rejected; affected users must sign in again after deployment.");
 }
 
 generateKeyPairs();
