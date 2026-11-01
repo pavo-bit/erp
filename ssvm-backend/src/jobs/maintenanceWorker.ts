@@ -89,7 +89,7 @@ async function cleanupExpiredIdempotencyRecords(): Promise<void> {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     // Find expired records in batches
-    const expiredRecords = await runTrustedWorkerQuery("cleanup-idempotency:select", () => (prisma as any).idempotencyRecord.findMany({
+    const expiredRecords = await runTrustedWorkerQuery("cleanup-idempotency:select", () => prisma.idempotencyRecord.findMany({
       where: {
         expiresAt: { lt: now },
       },
@@ -101,10 +101,10 @@ async function cleanupExpiredIdempotencyRecords(): Promise<void> {
       break; // No more expired records
     }
 
-    const idsToDelete = expiredRecords.map((r: any) => r.id);
+    const idsToDelete = expiredRecords.map((record) => record.id);
 
     // Delete from DB
-    const deleteResult = await runTrustedWorkerQuery("cleanup-idempotency:delete", () => (prisma as any).idempotencyRecord.deleteMany({
+    const deleteResult = await runTrustedWorkerQuery("cleanup-idempotency:delete", () => prisma.idempotencyRecord.deleteMany({
       where: { id: { in: idsToDelete } },
     }));
 
@@ -114,7 +114,7 @@ async function cleanupExpiredIdempotencyRecords(): Promise<void> {
     if (isRedisAvailable()) {
       const redis = getRedisClient();
       if (redis) {
-        const redisKeys = expiredRecords.map((r: any) => `idempotency:system:${r.key}`);
+        const redisKeys = expiredRecords.map((record) => `idempotency:system:${record.key}`);
         try {
           await redis.del(...redisKeys);
         } catch (err) {

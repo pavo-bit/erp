@@ -432,7 +432,7 @@ export async function optionalAuth(req: AuthRequest, res: Response, next: NextFu
 
 export function requireAllowedIp() {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const clientIp = req.ip;
+    const clientIp = req.ip ?? "";
     const allowedIps = (process.env.SUPER_ADMIN_ALLOWED_IPS || "").split(",").map(ip => ip.trim()).filter(Boolean);
 
     if (allowedIps.length === 0) {
