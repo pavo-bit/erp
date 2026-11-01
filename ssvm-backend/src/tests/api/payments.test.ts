@@ -172,6 +172,38 @@ describe('Payments & Finance APIs', () => {
     });
   });
 
+  describe('POST /api/v1/payments/verify', () => {
+    it('does not mark a payment failed when the signature is invalid', async () => {
+      const invoice = await prisma.invoice.create({
+        data: InvoiceFactory.build({ schoolId, studentId, amount: 500 })
+      });
+      const transaction = await prisma.paymentTransaction.create({
+        data: {
+          invoiceId: invoice.id,
+          transactionId: 'order_invalid_signature',
+          amountPaid: 500,
+          status: 'CREATED',
+          schoolId,
+        }
+      });
+
+      const response = await request(app)
+        .post('/api/v1/payments/verify')
+        .set('Cookie', [adminCookie])
+        .send({
+          razorpay_order_id: 'order_invalid_signature',
+          razorpay_payment_id: 'pay_attacker',
+          razorpay_signature: '0'.repeat(64),
+          transactionId: transaction.id,
+        });
+
+      expect(response.status).toBe(400);
+      const unchanged = await prisma.paymentTransaction.findUnique({ where: { id: transaction.id } });
+      expect(unchanged?.status).toBe('CREATED');
+      expect(unchanged?.gatewayPaymentId).toBeNull();
+    });
+  });
+
   describe('POST /api/v1/finance/generate-monthly', () => {
     it('generates invoices idempotently', async () => {
       // First generation

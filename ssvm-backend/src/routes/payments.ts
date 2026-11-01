@@ -2,7 +2,7 @@ import prisma from '../lib/prisma';
 import { Router, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import { Prisma } from "@prisma/client";
+import { InvoiceStatus, Prisma } from "@prisma/client";
 import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
 import { getEnv } from "../config/env";
 import { LedgerService } from "../services/ledger.service";
@@ -20,6 +20,157 @@ const razorpay = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
   ? new Razorpay({ key_id: env.RAZORPAY_KEY_ID, key_secret: env.RAZORPAY_KEY_SECRET })
   : null;
 
+const PAYMENT_ADMIN_ROLES = new Set(["ERP_ADMIN", "ACCOUNTANT"]);
+
+function amountToPaise(amount: number): number {
+  if (!Number.isFinite(amount) || amount < 0) {
+    throw new Error("Payment amount must be a finite non-negative INR amount.");
+  }
+  return Math.round(amount * 100);
+}
+
+function outstandingAmountPaise(invoice: {
+  amount: number;
+  amountPaid: number;
+  fineAmount: number;
+}): number {
+  return amountToPaise(invoice.amount + invoice.fineAmount - invoice.amountPaid);
+}
+
+async function mayPayInvoice(user: NonNullable<AuthRequest["user"]>, invoice: {
+  schoolId: string;
+  studentId: string;
+}): Promise<boolean> {
+  if (user.role === "SUPER_ADMIN") return true;
+  if (!user.schoolId || user.schoolId !== invoice.schoolId) return false;
+  if (PAYMENT_ADMIN_ROLES.has(user.role)) return true;
+  if (user.role === "STUDENT") return user.id === invoice.studentId;
+  if (user.role === "PARENT") {
+    const guardian = await prisma.guardian.findFirst({
+      where: {
+        userId: user.id,
+        schoolId: invoice.schoolId,
+        students: { some: { id: invoice.studentId, schoolId: invoice.schoolId } },
+      },
+      select: { id: true },
+    });
+    return guardian !== null;
+  }
+  return false;
+}
+
+function verifyHmacSignature(payload: Buffer, signature: unknown, secret: string): boolean {
+  if (typeof signature !== "string" || !/^[a-f0-9]{64}$/i.test(signature)) return false;
+  const expected = crypto.createHmac("sha256", secret).update(payload).digest();
+  const supplied = Buffer.from(signature, "hex");
+  return supplied.length === expected.length && crypto.timingSafeEqual(expected, supplied);
+}
+
+async function postPaymentLedgerEntry(
+  tx: Prisma.TransactionClient,
+  invoice: { id: string; schoolId: string },
+  transaction: { id: string; amountPaid: number },
+  actorId: string,
+) {
+  const bankAccount = await tx.ledgerAccount.findUnique({
+    where: { schoolId_code: { schoolId: invoice.schoolId, code: "1010-BANK" } },
+  });
+  const revenueAccount = await tx.ledgerAccount.findUnique({
+    where: { schoolId_code: { schoolId: invoice.schoolId, code: "4000-TUIT" } },
+  });
+  if (!bankAccount || !revenueAccount) {
+    throw new Error(`Required payment ledger accounts are not configured for school ${invoice.schoolId}.`);
+  }
+
+  return LedgerService.postTransaction({
+    schoolId: invoice.schoolId,
+    referenceType: "PAYMENT",
+    referenceId: transaction.id,
+    sourceModule: "FEES",
+    description: `Payment received for Invoice ${invoice.id}`,
+    postingDate: new Date(),
+    createdBy: actorId,
+    entries: [
+      { accountId: bankAccount.id, debitAmount: transaction.amountPaid, creditAmount: 0 },
+      { accountId: revenueAccount.id, debitAmount: 0, creditAmount: transaction.amountPaid },
+    ],
+  }, tx);
+}
+
+interface CapturePaymentInput {
+  orderId: string;
+  gatewayPaymentId: string;
+  signature?: string;
+  idempotencyKey: string;
+  actorId: string;
+}
+
+async function applyCapturedPayment(
+  tx: Prisma.TransactionClient,
+  input: CapturePaymentInput,
+): Promise<{ alreadyProcessed: boolean; receiptNo: string | null }> {
+  const existingByGateway = await tx.paymentTransaction.findUnique({
+    where: { gatewayPaymentId: input.gatewayPaymentId },
+  });
+  if (existingByGateway) {
+    if (existingByGateway.transactionId === input.orderId && existingByGateway.status === "SUCCESS") {
+      return { alreadyProcessed: true, receiptNo: null };
+    }
+    throw new Error("Gateway payment is already bound to another transaction.");
+  }
+
+  const transaction = await tx.paymentTransaction.findFirst({
+    where: { transactionId: input.orderId },
+    include: { invoice: true },
+  });
+  if (!transaction) throw new Error("Payment order was not found.");
+  if (transaction.status === "SUCCESS") {
+    if (transaction.gatewayPaymentId === input.gatewayPaymentId) {
+      return { alreadyProcessed: true, receiptNo: transaction.invoice.receiptNo };
+    }
+    throw new Error("Payment transaction was already processed with another payment.");
+  }
+  if (transaction.status !== "CREATED") throw new Error("Payment transaction is not payable.");
+
+  const invoice = await tx.invoice.findUnique({ where: { id: transaction.invoiceId } });
+  if (!invoice || invoice.isVoided) throw new Error("Invoice is not payable.");
+  const paymentPaise = amountToPaise(transaction.amountPaid);
+  const balancePaise = outstandingAmountPaise(invoice);
+  if (paymentPaise <= 0 || paymentPaise > balancePaise) {
+    throw new Error("Stored order amount exceeds the current invoice balance.");
+  }
+  const nextBalancePaise = balancePaise - paymentPaise;
+  const paidAt = new Date();
+  const receiptNo = nextBalancePaise === 0 ? `REC-${crypto.randomUUID()}` : null;
+
+  const transition = await tx.paymentTransaction.updateMany({
+    where: { id: transaction.id, status: "CREATED", transactionId: input.orderId },
+    data: {
+      gatewayPaymentId: input.gatewayPaymentId,
+      razorpaySignature: input.signature,
+      status: "SUCCESS",
+      paidAt,
+      processedAt: paidAt,
+      idempotencyKey: input.idempotencyKey,
+    },
+  });
+  if (transition.count !== 1) throw new Error("Payment transaction changed while being processed.");
+
+  await tx.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      status: nextBalancePaise === 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIAL,
+      paidDate: nextBalancePaise === 0 ? paidAt : null,
+      receiptNo,
+      amountPaid: { increment: paymentPaise / 100 },
+      remainingAmount: nextBalancePaise / 100,
+    },
+  });
+  await postPaymentLedgerEntry(tx, invoice, transaction, input.actorId);
+
+  return { alreadyProcessed: false, receiptNo };
+}
+
 // ═══════════════════════════════════════════
 // POST /api/payments/create-order
 // ═══════════════════════════════════════════
@@ -35,23 +186,28 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
       return;
     }
 
-    const fee = await prisma.invoice.findUnique({
-      where: { id: feeId },
-      include: { student: true }
-    });
+    const fee = await prisma.invoice.findUnique({ where: { id: feeId } });
 
     if (!fee) {
       res.status(404).json({ success: false, error: "Fee not found" });
       return;
     }
 
-    // Optional: Add parent/student authorization check here
+    if (!(await mayPayInvoice(req.user!, fee))) {
+      res.status(404).json({ success: false, error: "Fee not found" });
+      return;
+    }
 
-    const totalAmount = fee.amount + fee.fineAmount;
+    const totalAmountPaise = outstandingAmountPaise(fee);
+    if (totalAmountPaise <= 0 || fee.status === InvoiceStatus.PAID || fee.isVoided) {
+      res.status(409).json({ success: false, error: "Invoice has no payable balance" });
+      return;
+    }
+    const totalAmount = totalAmountPaise / 100;
 
     // Create Razorpay Order with Circuit Breaker protection
     const options = {
-      amount: totalAmount * 100, // Razorpay expects amount in paise
+      amount: totalAmountPaise,
       currency: "INR",
       receipt: `rcpt_${fee.id.substring(0, 8)}`,
     };
@@ -97,75 +253,75 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, transactionId } = req.body;
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !transactionId) {
+    if (
+      typeof razorpay_order_id !== "string" ||
+      typeof razorpay_payment_id !== "string" ||
+      typeof razorpay_signature !== "string" ||
+      typeof transactionId !== "string"
+    ) {
       res.status(400).json({ success: false, error: "Missing payment details" });
       return;
     }
 
-    // Verify signature
     const secret = env.RAZORPAY_KEY_SECRET;
     if (!secret) {
       res.status(503).json({ success: false, error: "Payment gateway is not configured" });
       return;
     }
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = crypto
-      .createHmac("sha256", secret)
-      .update(body.toString())
-      .digest("hex");
-
-    const expectedBytes = Buffer.from(expectedSignature, "hex");
-    const suppliedBytes = Buffer.from(razorpay_signature, "hex");
-    const isAuthentic = expectedBytes.length === suppliedBytes.length && expectedBytes.length > 0 && crypto.timingSafeEqual(expectedBytes, suppliedBytes);
-
-    if (!isAuthentic) {
-      await prisma.paymentTransaction.update({
-        where: { id: transactionId },
-        data: { status: "FAILED" },
-      });
+    const signaturePayload = Buffer.from(`${razorpay_order_id}|${razorpay_payment_id}`, "utf8");
+    if (!verifyHmacSignature(signaturePayload, razorpay_signature, secret)) {
       res.status(400).json({ success: false, error: "Invalid signature" });
       return;
     }
 
-    // Compute idempotency key for DB-level dedup
-    const idempotencyKey = computePaymentIdempotencyKey(razorpay_order_id, razorpay_payment_id);
+    if (!razorpay) {
+      res.status(503).json({ success: false, error: "Payment gateway is not configured" });
+      return;
+    }
 
-    // ── Atomic transaction: update payment + invoice + ledger ──
-    const result = await prisma.$transaction(async (tx) => {
-      // Check if already processed by gatewayPaymentId (idempotency guard)
-      const existingByGateway = await tx.paymentTransaction.findUnique({
-        where: { gatewayPaymentId: razorpay_payment_id },
-      });
+    const paymentTransaction = await prisma.paymentTransaction.findFirst({
+      where: { id: transactionId, transactionId: razorpay_order_id },
+      include: { invoice: true },
+    });
+    if (!paymentTransaction || !(await mayPayInvoice(req.user!, paymentTransaction.invoice))) {
+      res.status(404).json({ success: false, error: "Payment transaction not found" });
+      return;
+    }
 
-      if (existingByGateway && existingByGateway.status === "SUCCESS") {
-        return { alreadyProcessed: true, receiptNo: null };
+    if (paymentTransaction.status === "SUCCESS") {
+      if (paymentTransaction.gatewayPaymentId === razorpay_payment_id) {
+        res.json({ success: true, message: "Payment already verified" });
+      } else {
+        res.status(409).json({ success: false, error: "Payment transaction has already been processed" });
       }
+      return;
+    }
+    if (paymentTransaction.status !== "CREATED") {
+      res.status(409).json({ success: false, error: "Payment transaction is not payable" });
+      return;
+    }
 
-      // Update transaction status
-      const transaction = await tx.paymentTransaction.update({
-        where: { id: transactionId },
-        data: {
-          gatewayPaymentId: razorpay_payment_id,
-          razorpaySignature: razorpay_signature,
-          status: "SUCCESS",
-          paidAt: new Date(),
-          idempotencyKey,
-        },
+    const gatewayPayment = await razorpay.payments.fetch(razorpay_payment_id);
+    if (
+      gatewayPayment.order_id !== razorpay_order_id ||
+      gatewayPayment.amount !== amountToPaise(paymentTransaction.amountPaid) ||
+      gatewayPayment.currency !== "INR" ||
+      gatewayPayment.status !== "captured" ||
+      gatewayPayment.captured !== true
+    ) {
+      res.status(400).json({ success: false, error: "Payment does not match the stored order" });
+      return;
+    }
+
+    const idempotencyKey = computePaymentIdempotencyKey(razorpay_order_id, razorpay_payment_id);
+    const result = await prisma.$transaction(async (tx) => {
+      return applyCapturedPayment(tx, {
+        orderId: razorpay_order_id,
+        gatewayPaymentId: razorpay_payment_id,
+        signature: razorpay_signature,
+        idempotencyKey,
+        actorId: req.user?.id || "SYSTEM",
       });
-
-      // Update Invoice status
-      const receiptNo = `REC-${Date.now()}`;
-      await tx.invoice.update({
-        where: { id: transaction.invoiceId },
-        data: {
-          status: "PAID",
-          paidDate: new Date(),
-          receiptNo,
-          amountPaid: { increment: transaction.amountPaid },
-        },
-      });
-
-      return { alreadyProcessed: false, receiptNo, transaction };
     }, {
       isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
@@ -175,44 +331,14 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
       return;
     }
 
-    // ── Ledger posting (outside main transaction to avoid holding serializable lock) ──
-    if (result.transaction) {
-      const feeRecord = await prisma.invoice.findUnique({ where: { id: result.transaction.invoiceId } });
-
-      if (feeRecord) {
-        const bankAcc = await prisma.ledgerAccount.findUnique({
-          where: { schoolId_code: { schoolId: feeRecord.schoolId, code: "1010-BANK" } },
-        });
-        const revAcc = await prisma.ledgerAccount.findUnique({
-          where: { schoolId_code: { schoolId: feeRecord.schoolId, code: "4000-TUIT" } },
-        });
-
-        if (bankAcc && revAcc) {
-          try {
-            await LedgerService.postTransaction({
-              schoolId: feeRecord.schoolId,
-              referenceType: "PAYMENT",
-              referenceId: result.transaction.id,
-              sourceModule: "FEES",
-              description: `Payment verified for Invoice ${feeRecord.id}`,
-              postingDate: new Date(),
-              createdBy: req.user?.id || "SYSTEM",
-              entries: [
-                { accountId: bankAcc.id, debitAmount: result.transaction.amountPaid, creditAmount: 0 },
-                { accountId: revAcc.id, debitAmount: 0, creditAmount: result.transaction.amountPaid },
-              ],
-            });
-            logger.info({ transactionId: result.transaction.id }, "[Ledger] Payment posted to Immutable Ledger");
-          } catch (ledgerError) {
-            logger.error({ err: ledgerError, transactionId: result.transaction.id }, "[Ledger] Failed to post payment");
-          }
-        }
-      }
-    }
-
     res.json({ success: true, message: "Payment verified successfully", receiptNo: result.receiptNo });
   } catch (error) {
     console.error("Razorpay Verify Error:", error);
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("already bound") || message.includes("already processed") || message.includes("not payable") || message.includes("current invoice balance")) {
+      res.status(409).json({ success: false, error: "Payment cannot be applied to the current invoice balance" });
+      return;
+    }
     res.status(500).json({ success: false, error: "Server error verifying payment" });
   }
 });
