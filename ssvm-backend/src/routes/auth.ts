@@ -269,33 +269,16 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    // Ensure student has a linked User record for tokens and sessions
-    let studentUserId = student.userId;
-    if (!studentUserId) {
-      const studentEmail = `${(student.admissionNo || "std").toLowerCase().replace(/[^a-z0-9]/g, '')}@student.school`;
-      let userRecord = await prisma.user.findFirst({ where: { email: studentEmail } });
-      if (!userRecord) {
-        userRecord = await prisma.user.create({
-          data: {
-            email: studentEmail,
-            name: student.name,
-            passwordHash: student.password || "",
-            role: "STUDENT",
-            schoolId: student.schoolId,
-            isActive: true,
-          }
-        });
-      }
-      studentUserId = userRecord.id;
-      await prisma.student.update({
-        where: { id: student.id },
-        data: { userId: studentUserId },
-      });
+    // Student must have an existing linked User record created at enrollment
+    if (!student.userId) {
+      logger.warn({ studentId: student.id, admissionNo }, "Student account not linked to an active user");
+      res.status(401).json({ success: false, error: "Student account not linked to an active user" });
+      return;
     }
 
     // Issue tokens using standard process
     await issueTokenPair(res, {
-      id: studentUserId,
+      id: student.userId,
       email: student.admissionNo || "",
       role: "STUDENT",
       name: student.name,
