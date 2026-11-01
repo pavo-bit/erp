@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "lane": "D",
+  "commit": "c638c410bed9bc547bc7f2e16d43dfd85cecc9a9",
+  "ci": {
+    "runUrl": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-d-portals"
+  },
+  "jobs": [
+    {
+      "name": "frontend-builds (all seven portals)",
+      "status": "UNVERIFIED",
+      "url": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-d-portals",
+      "commit": "c638c410bed9bc547bc7f2e16d43dfd85cecc9a9",
+      "detail": "No hosted run exists for this D commit. Local npm run build in erp-admin stopped before build because next was not installed; node_modules/.bin/next is absent from all seven portals."
+    },
+    {
+      "name": "portal-e2e (lane D)",
+      "status": "UNVERIFIED",
+      "url": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-d-portals",
+      "commit": "c638c410bed9bc547bc7f2e16d43dfd85cecc9a9",
+      "detail": "No hosted D E2E job exists on the branch base. npm test stopped before collection because Playwright was not installed; npm ci --offline was blocked because undici-types@7.24.6 is not cached. No test ran."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "PORT-001",
+      "status": "UNVERIFIED",
+      "commands": [
+        "npm run build (erp-admin): BLOCKED before build; next executable not installed",
+        "Check node_modules/.bin/next exists for erp-admin, super-admin, teacher-portal, parent-portal, payment-portal, student-portal, saas-frontend: all false"
+      ],
+      "ciJobs": ["frontend-builds (all seven portals)"],
+      "detail": "All seven portal builds passed on an earlier E commit, not on D commit c638c41."
+    },
+    {
+      "id": "QA-003",
+      "status": "UNVERIFIED",
+      "commands": [
+        "npm test (e2e-tests): BLOCKED before collection; playwright executable not recognized",
+        "npm ci --offline (e2e-tests): BLOCKED; undici-types@7.24.6 is not present in the local npm cache"
+      ],
+      "ciJobs": ["portal-e2e (lane D)"],
+      "detail": "The test and clean isolated lane-D prerequisites are authored, but there is no hosted E2E job or real service run. Invoice workflow remains UNVERIFIED pending the written B request for a student-scoped invoice operation."
+    },
+    {
+      "id": "PORT-014",
+      "status": "PASS",
+      "commands": [
+        "git diff --check HEAD~2..HEAD (PASS)",
+        "rg -n 'http://(localhost|127\\.0\\.0\\.1)|localStorage\\.(getItem|setItem)\\([^\\n]*(token|accessToken|refreshToken)' erp-admin super-admin teacher-portal parent-portal payment-portal student-portal saas-frontend -g '*.{ts,tsx,js,jsx}' -g '!**/node_modules/**' (no matches; expected rg exit code 1)",
+        "rg -n 'test\\.skip|describe\\.skip|it\\.skip' e2e-tests (no matches; expected rg exit code 1)"
+      ],
+      "ciJobs": [],
+      "detail": "A source scan and diff check pass locally: no hard-coded localhost API/portal endpoints or localStorage token operations remain in portal source. Portal builds and hosted verification remain UNVERIFIED."
+    },
+    {
+      "id": "PORT-002",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Procurement workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-003",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Inventory workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-004",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Ledger workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-005",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Payroll workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-006",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "CRM workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-007",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Scholarships workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-008",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Certificates workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-009",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Messages workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-010",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Branches workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-011",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Billing workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-012",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Reconciliation workflow not implemented or verified by Lane D."
+    },
+    {
+      "id": "PORT-013",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "Reporting workflow not implemented or verified by Lane D."
+    }
+  ]
+}
