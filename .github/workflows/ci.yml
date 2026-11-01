@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - 'remediation/**'
 
 jobs:
   backend-test:
@@ -39,10 +40,13 @@ jobs:
 
     env:
       APP_DB_PASSWORD: ${{ github.run_id }}-app-ci
+      FIXTURE_DB_PASSWORD: ${{ github.run_id }}-fixture-ci
       PGPASSWORD: ${{ github.run_id }}-postgres-ci
       DATABASE_URL_TEST: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_TEST_FIXTURE: postgresql://ssvm_fixture:${{ github.run_id }}-fixture-ci@localhost:5432/ssvm_test?schema=public
       DATABASE_URL: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
       DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_ADMIN: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/postgres
       SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_shadow?schema=public
       REDIS_URL: redis://localhost:6379
 
@@ -66,7 +70,7 @@ jobs:
       - name: Provision restricted test role
         run: |
           psql --host localhost --username postgres --dbname ssvm_test \
-            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" <<'SQL'
+            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" --set=fixture_password="$FIXTURE_DB_PASSWORD" <<'SQL'
           SELECT format(
             'CREATE ROLE ssvm_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
             :'app_password'
@@ -80,6 +84,20 @@ jobs:
             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_app;
           ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
             GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_app;
+
+          SELECT format(
+            'CREATE ROLE ssvm_fixture WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION BYPASSRLS PASSWORD %L',
+            :'fixture_password'
+          )
+          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_fixture')
+          \gexec
+
+          GRANT CONNECT ON DATABASE ssvm_test TO ssvm_fixture;
+          GRANT USAGE ON SCHEMA public TO ssvm_fixture;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_fixture;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_fixture;
 
           CREATE DATABASE ssvm_shadow;
           SQL
@@ -98,7 +116,15 @@ jobs:
           GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
             ON ALL TABLES IN SCHEMA public TO ssvm_app;
           GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ssvm_app;
+          GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+            ON ALL TABLES IN SCHEMA public TO ssvm_fixture;
+          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ssvm_fixture;
           SQL
+
+      - name: Show database identity and policy count
+        run: |
+          psql "$DATABASE_URL_TEST" \
+            --command 'SELECT current_user, r.rolsuper, r.rolbypassrls, (SELECT count(*) FROM pg_policy) AS policy_count FROM pg_roles r WHERE r.rolname = current_user;'
 
       - name: Run Tests with Coverage
         run: npm run test:ci
