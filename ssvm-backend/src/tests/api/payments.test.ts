@@ -7,11 +7,12 @@ import { LedgerAccountType, LedgerCategory, Role } from '@prisma/client';
 
 const app = createTestApp();
 const prisma = getTestPrisma();
-const RAZORPAY_SECRET = process.env.RAZORPAY_KEY_SECRET!;
+const RAZORPAY_SECRET = process.env.RAZORPAY_WEBHOOK_SECRET!;
 
 describe('Payments & Finance APIs', () => {
   let schoolId: string;
   let adminCookie: string;
+  let adminToken: string;
   let studentId: string;
 
   beforeEach(async () => {
@@ -39,6 +40,7 @@ describe('Payments & Finance APIs', () => {
     
     const admin = await createTestUser(Role.ERP_ADMIN, schoolId);
     adminCookie = admin.cookie;
+    adminToken = admin.token;
 
     const session = await prisma.academicSession.create({ data: { name: '2026-2027', startDate: new Date(), endDate: new Date(), schoolId } });
     const classRecord = await prisma.class.create({ data: { name: 'Class 1', schoolId, sessionId: session.id } });
@@ -252,7 +254,7 @@ describe('Payments & Finance APIs', () => {
 
       const response = await request(app)
         .post('/api/v1/payments/verify')
-        .set('Cookie', [adminCookie])
+        .set('Authorization', `Bearer ${adminToken}`)
         .send({
           razorpay_order_id: 'order_invalid_signature',
           razorpay_payment_id: 'pay_attacker',
