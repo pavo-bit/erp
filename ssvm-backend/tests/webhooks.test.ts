@@ -16,13 +16,14 @@ describe("Webhook & Security API E2E", () => {
     process.env.RAZORPAY_WEBHOOK_SECRET = webhookSecret;
     server = app.listen(0);
 
+    const uid = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     // Create a school
     const school = await prisma.school.create({
       data: {
         name: "Test Webhook School",
-        code: "WH-SCH-1",
+        code: `WH-${uid}`,
         address: "Test Address",
-        email: "webhook@test.com",
+        email: `webhook_${uid}@test.com`,
         phone: "1234567890"
       }
     });
@@ -31,7 +32,7 @@ describe("Webhook & Security API E2E", () => {
     // Create a student
     const student = await prisma.student.create({
       data: {
-        admissionNo: "WH-101",
+        admissionNo: `WH-${uid}`,
         name: "Webhook Student",
         schoolId,
         password: "pwd",
@@ -46,7 +47,7 @@ describe("Webhook & Security API E2E", () => {
       data: {
         schoolId,
         studentId,
-        receiptNo: "INV-WH-001",
+        receiptNo: `INV-WH-${uid}`,
         amount: 5000,
         remainingAmount: 5000,
         status: "PENDING",
@@ -57,12 +58,14 @@ describe("Webhook & Security API E2E", () => {
   });
 
   afterAll(async () => {
-    await prisma.paymentTransaction.deleteMany({ where: { schoolId } });
-    await prisma.invoice.deleteMany({ where: { schoolId } });
-    await prisma.student.deleteMany({ where: { schoolId } });
-    await prisma.school.delete({ where: { id: schoolId } });
+    if (schoolId) {
+      await prisma.paymentTransaction.deleteMany({ where: { schoolId } });
+      await prisma.invoice.deleteMany({ where: { schoolId } });
+      await prisma.student.deleteMany({ where: { schoolId } });
+      await prisma.school.delete({ where: { id: schoolId } });
+    }
 
-    server.close();
+    server?.close();
     await prisma.$disconnect();
   });
 

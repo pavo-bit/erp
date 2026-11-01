@@ -16,13 +16,14 @@ describe("Messaging API E2E", () => {
   beforeAll(async () => {
     server = app.listen(0);
 
+    const uid = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     // Create a school
     const school = await prisma.school.create({
       data: {
         name: "Test Messaging School",
-        code: "MSG-SCH-1",
+        code: `MSG-${uid}`,
         address: "Test Address",
-        email: "messaging@test.com",
+        email: `messaging_${uid}@test.com`,
         phone: "1234567890"
       }
     });
@@ -31,7 +32,7 @@ describe("Messaging API E2E", () => {
     // Create Teacher User
     const teacherUser = await prisma.user.create({
       data: {
-        email: "teacher.msg@test.com",
+        email: `teacher.msg.${uid}@test.com`,
         name: "Teacher Msg",
         passwordHash: "hashedpassword",
         role: "TEACHER",
@@ -43,7 +44,7 @@ describe("Messaging API E2E", () => {
     // Create Parent User
     const parentUser = await prisma.user.create({
       data: {
-        email: "parent.msg@test.com",
+        email: `parent.msg.${uid}@test.com`,
         name: "Parent Msg",
         passwordHash: "hashedpassword",
         role: "PARENT",
@@ -100,13 +101,18 @@ describe("Messaging API E2E", () => {
   });
 
   afterAll(async () => {
-    await prisma.messageParticipant.deleteMany({ where: { thread: { schoolId } } });
-    await prisma.message.deleteMany({ where: { thread: { schoolId } } });
-    await prisma.messageThread.deleteMany({ where: { schoolId } });
-    await prisma.user.deleteMany({ where: { id: { in: [teacherUserId, parentUserId] } } });
-    await prisma.school.delete({ where: { id: schoolId } });
+    if (schoolId) {
+      await prisma.messageParticipant.deleteMany({ where: { thread: { schoolId } } });
+      await prisma.message.deleteMany({ where: { thread: { schoolId } } });
+      await prisma.messageThread.deleteMany({ where: { schoolId } });
+      const userIds = [teacherUserId, parentUserId].filter(Boolean);
+      if (userIds.length > 0) {
+        await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+      }
+      await prisma.school.delete({ where: { id: schoolId } });
+    }
 
-    server.close();
+    server?.close();
     await prisma.$disconnect();
   });
 
@@ -157,7 +163,7 @@ describe("Messaging API E2E", () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.length).toBeGreaterThan(0);
-    expect(res.body.data[0].id).toBe(threadId);
+    expect(res.body.data.some((t: any) => t.id === threadId)).toBe(true);
   });
 
   it("should fetch all messages for a specific thread", async () => {

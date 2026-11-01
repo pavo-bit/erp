@@ -49,7 +49,7 @@ describe('Payments & Finance APIs', () => {
       await prisma.paymentTransaction.create({
         data: {
           invoiceId: invoice.id,
-          transactionId: 'txn_123',
+          transactionId: `txn_partial_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
           amountPaid: 500,
           status: 'SUCCESS',
         }
@@ -71,7 +71,7 @@ describe('Payments & Finance APIs', () => {
       await prisma.paymentTransaction.create({
         data: {
           invoiceId: invoice.id,
-          transactionId: 'txn_456',
+          transactionId: `txn_paid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
           amountPaid: 1000,
           status: 'SUCCESS',
         }
@@ -93,11 +93,14 @@ describe('Payments & Finance APIs', () => {
         data: InvoiceFactory.build({ schoolId, studentId, amount: 500 })
       });
 
+      const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const paymentId = `pay_concurrent_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
       // Create initial PaymentTransaction since our webhook expects it
       await prisma.paymentTransaction.create({
         data: {
           invoiceId: invoice.id,
-          transactionId: 'order_123',
+          transactionId: orderId,
           amountPaid: 500,
           status: 'CREATED'
         }
@@ -106,17 +109,18 @@ describe('Payments & Finance APIs', () => {
       const payload = createPaymentCapturedPayload(invoice.id, 50000); // 500 INR in paise
       // Mock the order_id in the payload for the test
       if (payload.payload?.payment?.entity) {
-        payload.payload.payment.entity.order_id = 'order_123';
-        payload.payload.payment.entity.id = 'pay_concurrent_123';
+        payload.payload.payment.entity.order_id = orderId;
+        payload.payload.payment.entity.id = paymentId;
       }
       
+      const eventId = `evt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
       const signature = generateWebhookSignature(payload, RAZORPAY_SECRET);
 
       // We use Promise.all to hit the endpoint concurrently, simulating Razorpay sending duplicates simultaneously
       const responses = await Promise.all([
-        request(app).post('/api/v1/payments/webhook').set('x-razorpay-signature', signature).set('x-razorpay-event-id', 'evt_123').send(payload),
-        request(app).post('/api/v1/payments/webhook').set('x-razorpay-signature', signature).set('x-razorpay-event-id', 'evt_123').send(payload),
-        request(app).post('/api/v1/payments/webhook').set('x-razorpay-signature', signature).set('x-razorpay-event-id', 'evt_123').send(payload)
+        request(app).post('/api/v1/payments/webhook').set('x-razorpay-signature', signature).set('x-razorpay-event-id', eventId).send(payload),
+        request(app).post('/api/v1/payments/webhook').set('x-razorpay-signature', signature).set('x-razorpay-event-id', eventId).send(payload),
+        request(app).post('/api/v1/payments/webhook').set('x-razorpay-signature', signature).set('x-razorpay-event-id', eventId).send(payload)
       ]);
       
       // All responses should be 200/500 (one processes, others either return 200 'already processed' or 500 'concurrency error')
@@ -127,11 +131,11 @@ describe('Payments & Finance APIs', () => {
 
       // Check DB - there must still only be exactly 1 payment transaction marked as SUCCESS
       const successfulTxs = await prisma.paymentTransaction.findMany({
-        where: { transactionId: 'order_123', status: 'SUCCESS' }
+        where: { transactionId: orderId, status: 'SUCCESS' }
       });
       
       expect(successfulTxs.length).toBe(1);
-      expect(successfulTxs[0].gatewayPaymentId).toBe('pay_concurrent_123');
+      expect(successfulTxs[0].gatewayPaymentId).toBe(paymentId);
     });
 
     it('returns 400 for missing signature', async () => {

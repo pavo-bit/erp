@@ -1,6 +1,6 @@
 import { Role, InvoiceStatus } from '@prisma/client';
 
-let counter = 0;
+let counter = Math.floor(Math.random() * 1000000);
 
 export const UserFactory = {
   build: (overrides?: any) => {
