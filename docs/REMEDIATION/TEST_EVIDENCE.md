@@ -76,6 +76,56 @@ The Phase 2 implementation is incomplete. Its classification, extension, migrati
 
 The initial hosted CI run at commit `cffcd24` predated the baseline replacement and failed at missing `public.access_reviews`. The current hosted PostgreSQL run verifies the replacement baseline and schema. The generated fail-closed RLS migration passes the dedicated RLS test suite, but it must not be merged until the per-request and trusted pre-auth transaction paths also work end-to-end. Those paths are still unimplemented. Existing deployed databases need a controlled migration-history adoption plan. `161b591` remains reverted, not verified, and must not be depended on.
 
+## Payment, search, ledger, and test-fixture remediation — 2026-11-01
+
+The baseline already contains `@@unique([invoiceId, transactionId])` and creates
+`payment_transactions_invoiceId_transactionId_key`; the DB census script now also
+asserts that this index exists, is unique, and has the expected columns. This new
+assertion has not yet run against a clean database, so this incremental verification
+remains UNVERIFIED. The prior hosted baseline run applied the baseline on an empty
+PostgreSQL database and confirmed schema diff and all 205 tables, but it predates this
+index assertion.
+
+| Command/check | Result | Notes |
+|---|---|---|
+| `npm run type-check` | PASS | Fresh local run after current edits. |
+| `npx prisma validate` | PASS | Fresh local run. |
+| `npm run db:tenant-classification:check` | PASS | Fresh local run; 205 models (124 direct, 50 indirect, 31 global); 174 tenant models with migration tables. Structural check only. |
+| `npx eslint tests/fts_rls.test.ts tests/architecture.test.ts tests/auth.test.ts tests/health.test.ts tests/messaging.test.ts tests/multitenancy/isolation.test.ts tests/tenant.test.ts tests/webhooks.test.ts src/tests/helpers/factories.ts src/tests/db/ledger-integrity.test.ts scripts/verify-database-schema.ts` | FAIL; 20 errors, 0 warnings | Existing `any` errors in several edited test files/factories and unused bindings in `tests/multitenancy/isolation.test.ts`. |
+| `git diff --check` | PASS | Whitespace validation only. |
+| `npm run test:ci` | FAIL before test collection; 41 failed suites, 0 tests | Vitest could not rename temporary cache files (Windows sandbox `EPERM`). Not a test pass/fail count. |
+| `$env:TEMP=(Resolve-Path .vitest-temp).Path; $env:TMP=$env:TEMP; npm run test:ci -- --exclude 'dist/**'` | FAIL before collection; 25 failed suites, 0 tests | A real isolated `DATABASE_URL_TEST` is not configured locally. This is not a DB gate and reports no skipped tests. `dist/**` was excluded to avoid double-counting compiled copies. |
+| `npm audit --audit-level=high` | BLOCKED | npm registry DNS lookup failed (`ENOTFOUND registry.npmjs.org`); current advisory list cannot be refreshed here. Previous hosted CI reported high advisories but its package-level details were not available in this run. |
+| Clean PostgreSQL baseline + composite-index assertion | UNVERIFIED (score 0) | Requires hosted CI or another reachable real PostgreSQL database. |
+| Search route + trigram indexes | UNVERIFIED (score 0) | Test asserts student/document matches and four trigram indexes. Route behavior and migration were not executed against PostgreSQL here. |
+| Ledger balance and posted-row immutability | UNVERIFIED (score 0) | Migration and three DB tests authored; no PostgreSQL execution. |
+| Authenticated request tenant transaction and trusted role paths | NOT IMPLEMENTED | The current AsyncLocalStorage context and Prisma query extension do not wrap the whole request in a transaction. Pre-auth, webhook, worker, and audited super-admin connections are not yet separated. The RLS migration remains isolated in the `database-rls` CI job and must not be merged until authenticated API tests pass. |
+| Existing database adoption | DOCUMENTED; NOT EXECUTED | See `docs/DATABASE/EXISTING_DATABASE_ADOPTION.md`. The plan requires a backup, staging equivalence review, and explicit DBA approval before `migrate resolve --applied`. |
+
+The previous hosted test artifact reported 178 tests: 36 passed, 85 failed, 57
+skipped, 0 errors. The 57 were Vitest hook/setup cascades, not explicit `.skip`
+tests: suites importing the server bootstrap instead of the exported Express app
+failed setup, and other suites could not seed tenant rows while RLS had no tenant
+context. The current branch changes affected imports to `src/app`, adds required
+`School.code` to the shared factory, and keeps the RLS migration outside the main
+test job. This local run cannot confirm whether those fixes clear the cascades because
+the local DB gate is unavailable. A fresh CI artifact is required for a new total.
+
+| Area | Weight | Current verified score for this change set |
+|---|---:|---:|
+| DB & migrations | 15 | 0 for new DB assertions (UNVERIFIED) |
+| Security/authz | 15 | 0 for request transaction/trusted-connection requirements (NOT IMPLEMENTED) |
+| Tenant isolation | 15 | 0 for request-bound transaction behavior (NOT IMPLEMENTED; RLS suite remains separately gated) |
+| Finance/payments | 15 | 0 for new clean-DB index assertion and ledger invariants (UNVERIFIED) |
+| Backend features | 10 | 0 for new search behavior (UNVERIFIED) |
+| Portals | 15 | No new portal gate run; prior evidence unchanged |
+| Tests/CI/E2E | 10 | 0 for this fresh local full-suite attempt (blocked before test collection) |
+| Ops/docs | 5 | 1 for the authored adoption plan and corrected deployment lockfile path; deploy CI not rerun |
+
+This is a per-change evidence table, not a replacement for the overall readiness
+score. No new overall percentage is claimed until the required full gates produce
+fresh evidence. This evidence is recorded in `docs/REMEDIATION/TEST_EVIDENCE.md`.
+
 ### Fresh baseline CI run — commit `61ae0c6`
 
 Run: [41294950758](https://github.com/pavo-bit/erp/actions/runs/41294950758), on real PostgreSQL 16 and Redis 7 services, commit `cbf1479`.
