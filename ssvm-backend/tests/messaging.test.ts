@@ -33,7 +33,7 @@ describe("Messaging API E2E", () => {
       data: {
         email: "teacher.msg@test.com",
         name: "Teacher Msg",
-        password: "hashedpassword",
+        passwordHash: "hashedpassword",
         role: "TEACHER",
         schoolId,
       }
@@ -45,7 +45,7 @@ describe("Messaging API E2E", () => {
       data: {
         email: "parent.msg@test.com",
         name: "Parent Msg",
-        password: "hashedpassword",
+        passwordHash: "hashedpassword",
         role: "PARENT",
         schoolId,
       }
@@ -133,7 +133,7 @@ describe("Messaging API E2E", () => {
   it("should prevent unauthorized user from viewing thread", async () => {
     // We create a random user
     const randomUser = await prisma.user.create({
-      data: { email: "random.msg@test.com", name: "Random", password: "pwd", role: "PARENT", schoolId }
+      data: { email: `random.${Date.now()}@msg.test.com`, name: "Random", passwordHash: "pwd", role: "PARENT", schoolId }
     });
     const randomToken = jwt.sign({ userId: randomUser.id, role: randomUser.role, schoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
 

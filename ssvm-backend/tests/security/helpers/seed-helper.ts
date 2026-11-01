@@ -61,7 +61,7 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
   const adminUser = await prisma.user.create({
     data: {
       email: `admin-${suffix}@${prefix}.test`,
-      password: "$2a$12$test.hash.placeholder.for.security.tests",
+      passwordHash: "$2a$12$test.hash.placeholder.for.security.tests",
       name: `Admin ${suffix}`,
       role: "ERP_ADMIN",
       schoolId: school.id,
@@ -73,7 +73,7 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
   const teacherUser = await prisma.user.create({
     data: {
       email: `teacher-${suffix}@${prefix}.test`,
-      password: "$2a$12$test.hash.placeholder.for.security.tests",
+      passwordHash: "$2a$12$test.hash.placeholder.for.security.tests",
       name: `Teacher ${suffix}`,
       role: "TEACHER",
       schoolId: school.id,
@@ -96,7 +96,7 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
   const studentUser = await prisma.user.create({
     data: {
       email: `student-${suffix}@${prefix}.test`,
-      password: "$2a$12$test.hash.placeholder.for.security.tests",
+      passwordHash: "$2a$12$test.hash.placeholder.for.security.tests",
       name: `Student ${suffix}`,
       role: "STUDENT",
       schoolId: school.id,

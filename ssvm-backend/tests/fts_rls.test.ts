@@ -28,7 +28,7 @@ describe("FTS and Search API E2E", () => {
       data: {
         email: "admin.fts@test.com",
         name: "Admin FTS",
-        password: "pwd",
+        passwordHash: "pwd",
         role: "ERP_ADMIN",
         schoolId,
       }

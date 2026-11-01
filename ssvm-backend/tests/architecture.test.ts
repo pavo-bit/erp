@@ -28,7 +28,7 @@ describe("Architecture & Phase A E2E", () => {
       data: {
         email: `superadmin.arch${Date.now()}@test.com`,
         name: "Super Admin",
-        password: "hashedpassword",
+        passwordHash: "hashedpassword",
         role: "SUPER_ADMIN",
         schoolId: testSchoolId,
       }
