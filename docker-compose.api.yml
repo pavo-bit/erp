@@ -7,8 +7,8 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: development
-      DATABASE_URL: postgresql://${POSTGRES_APP_USER:-ssvm_app}:${POSTGRES_APP_PASSWORD:?Set POSTGRES_APP_PASSWORD in the root .env file}@pgbouncer:6432/${POSTGRES_DB:-ssvm_platform}?pgbouncer=true
-      DIRECT_URL: postgresql://${POSTGRES_MIGRATOR_USER:-ssvm_migrator}:${POSTGRES_MIGRATOR_PASSWORD:?Set POSTGRES_MIGRATOR_PASSWORD in the root .env file}@database:5432/${POSTGRES_DB:-ssvm_platform}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-ssvm_platform}
+      DIRECT_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-ssvm_platform}
       PORT: 5000
       REDIS_URL: redis://redis:6379
       UPLOAD_DIR: /app/uploads
