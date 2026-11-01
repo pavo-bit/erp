@@ -26,7 +26,7 @@ import { enqueueNotification } from "../jobs/queue";
 
 const router = Router();
 
-function trustedAuthentication(handler: RequestHandler): RequestHandler {
+export function trustedAuthentication(handler: RequestHandler): RequestHandler {
   return (req, res, next) => {
     void runWithTrustedDatabaseTransaction({
       purpose: "authentication",

@@ -130,9 +130,9 @@ const validateLoginSchema = z.object({
 });
 
 import { verify2FAPendingToken } from "../lib/tokens";
-import { issueTokenPair } from "./auth";
+import { issueTokenPair, trustedAuthentication } from "./auth";
 
-router.post("/validate", validate(validateLoginSchema), async (req: Request, res: Response) => {
+router.post("/validate", validate(validateLoginSchema), trustedAuthentication(async (req: Request, res: Response) => {
   try {
     const { pendingToken, token } = req.body;
 
@@ -208,6 +208,6 @@ router.post("/validate", validate(validateLoginSchema), async (req: Request, res
     logger.error({ err: e }, "Validate 2FA error");
     res.status(500).json({ success: false, error: "Server error" });
   }
-});
+}));
 
 export default router;
