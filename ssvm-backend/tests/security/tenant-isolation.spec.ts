@@ -304,12 +304,12 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
 
     it("D2 — Teacher cannot access ERP_ADMIN settings", async () => {
       const res = await request(API_BASE)
-        .get("/api/v1/school-settings")
+        .get("/api/v1/admin/saas-settings/settings")
         .set("Authorization", `Bearer ${tenantATeacherToken}`);
 
       // Teachers may have limited read access, but should not be able to modify
       const writeRes = await request(API_BASE)
-        .put("/api/v1/school-settings")
+        .put("/api/v1/admin/saas-settings/settings")
         .set("Authorization", `Bearer ${tenantATeacherToken}`)
         .send({ timezone: "America/New_York" });
 
@@ -318,7 +318,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
 
     it("D3 — ERP_ADMIN cannot access SUPER_ADMIN endpoints", async () => {
       const res = await request(API_BASE)
-        .get("/api/v1/admin/schools")
+        .get("/api/v1/admin/backups")
         .set("Authorization", `Bearer ${tenantAAdminToken}`);
 
       expect([403, 401]).toContain(res.status);
