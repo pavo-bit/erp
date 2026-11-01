@@ -54,14 +54,17 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
       return res.status(400).json({ success: false, error: "No school found to associate with" });
     }
 
+    const clsName = className || "Class 1";
+    const secName = section || "A";
+
     // Find or create class/section
     let sectionRec = await prisma.section.findFirst({
-      where: { name: section, class: { name: className, schoolId } },
+      where: { name: secName, class: { name: clsName, schoolId } },
       include: { class: true }
     });
 
     if (!sectionRec) {
-      let classRec = await prisma.class.findFirst({ where: { name: className, schoolId } });
+      let classRec = await prisma.class.findFirst({ where: { name: clsName, schoolId } });
       if (!classRec) {
         // Find session
         let sessionRec = await prisma.academicSession.findFirst({ where: { name: session || "2025-26", schoolId } });
@@ -70,9 +73,9 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
             data: { schoolId, name: session || "2025-26", startDate: new Date("2025-04-01"), endDate: new Date("2026-03-31") }
           });
         }
-        classRec = await prisma.class.create({ data: { schoolId, name: className, sessionId: sessionRec.id } });
+        classRec = await prisma.class.create({ data: { schoolId, name: clsName, sessionId: sessionRec.id } });
       }
-      sectionRec = await prisma.section.create({ data: { classId: classRec.id, name: section }, include: { class: true } });
+      sectionRec = await prisma.section.create({ data: { classId: classRec.id, name: secName }, include: { class: true } });
     }
 
     let guardian = null;

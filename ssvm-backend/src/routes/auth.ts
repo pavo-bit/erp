@@ -20,7 +20,7 @@ import { injectCsrfToken } from "../middleware/csrf";
 import { logAuthEvent } from "../lib/authEventLogger";
 import { alumniRegisterLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
-import { incrementFailedLogins, resetFailedLogins } from "../lib/redis";
+import { incrementFailedLogins, resetFailedLogins, getFailedLogins } from "../lib/redis";
 import { enqueueNotification } from "../jobs/queue";
 
 const router = Router();
@@ -163,6 +163,12 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
       return; 
     }
 
+    const priorFailedAttempts = await getFailedLogins(email);
+    if (priorFailedAttempts >= 5) {
+      res.status(429).json({ success: false, error: "Too many failed login attempts. Please try again later." });
+      return;
+    }
+
     const valid = await verifyPassword(password, (user as any).passwordHash, { id: user.id, type: "USER" });
     if (!valid) {
       logger.warn({ email }, "Failed login attempt");
@@ -263,9 +269,33 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
       return;
     }
 
+    // Ensure student has a linked User record for tokens and sessions
+    let studentUserId = student.userId;
+    if (!studentUserId) {
+      const studentEmail = `${(student.admissionNo || "std").toLowerCase().replace(/[^a-z0-9]/g, '')}@student.school`;
+      let userRecord = await prisma.user.findFirst({ where: { email: studentEmail } });
+      if (!userRecord) {
+        userRecord = await prisma.user.create({
+          data: {
+            email: studentEmail,
+            name: student.name,
+            passwordHash: student.password || "",
+            role: "STUDENT",
+            schoolId: student.schoolId,
+            isActive: true,
+          }
+        });
+      }
+      studentUserId = userRecord.id;
+      await prisma.student.update({
+        where: { id: student.id },
+        data: { userId: studentUserId },
+      });
+    }
+
     // Issue tokens using standard process
     await issueTokenPair(res, {
-      id: student.userId,
+      id: studentUserId,
       email: student.admissionNo || "",
       role: "STUDENT",
       name: student.name,

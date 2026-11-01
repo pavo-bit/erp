@@ -108,7 +108,7 @@ export async function logSecurityEvent(data: {
         message: data.eventType,
         metadata: JSON.stringify({ ip: data.ipAddress, ...data.metadata }),
         schoolId: data.schoolId,
-        userId: data.userId
+        userId: data.userId && data.userId !== "SYSTEM" ? data.userId : undefined
       },
     });
 

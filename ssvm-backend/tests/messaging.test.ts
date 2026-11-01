@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../src/app";
 import prisma from "../src/lib/prisma";
-import jwt from "jsonwebtoken";
+import { generateAccessToken } from "../src/lib/tokens";
 
 describe("Messaging API E2E", () => {
   let server: any;
@@ -16,13 +16,14 @@ describe("Messaging API E2E", () => {
   beforeAll(async () => {
     server = app.listen(0);
 
+    const uid = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     // Create a school
     const school = await prisma.school.create({
       data: {
         name: "Test Messaging School",
-        code: "MSG-SCH-1",
+        code: `MSG-${uid}`,
         address: "Test Address",
-        email: "messaging@test.com",
+        email: `messaging_${uid}@test.com`,
         phone: "1234567890"
       }
     });
@@ -31,7 +32,7 @@ describe("Messaging API E2E", () => {
     // Create Teacher User
     const teacherUser = await prisma.user.create({
       data: {
-        email: "teacher.msg@test.com",
+        email: `teacher.msg.${uid}@test.com`,
         name: "Teacher Msg",
         passwordHash: "hashedpassword",
         role: "TEACHER",
@@ -43,7 +44,7 @@ describe("Messaging API E2E", () => {
     // Create Parent User
     const parentUser = await prisma.user.create({
       data: {
-        email: "parent.msg@test.com",
+        email: `parent.msg.${uid}@test.com`,
         name: "Parent Msg",
         passwordHash: "hashedpassword",
         role: "PARENT",
@@ -53,18 +54,65 @@ describe("Messaging API E2E", () => {
     parentUserId = parentUser.id;
 
     // Generate Tokens
-    teacherToken = jwt.sign({ userId: teacherUser.id, role: teacherUser.role, schoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
-    parentToken = jwt.sign({ userId: parentUser.id, role: parentUser.role, schoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
+    teacherToken = generateAccessToken({
+      userId: teacherUser.id,
+      email: teacherUser.email,
+      name: teacherUser.name,
+      role: teacherUser.role,
+      schoolId,
+      branchId: null,
+      sid: "mock-session-teacher",
+      impersonated: false,
+    }).token;
+
+    parentToken = generateAccessToken({
+      userId: parentUser.id,
+      email: parentUser.email,
+      name: parentUser.name,
+      role: parentUser.role,
+      schoolId,
+      branchId: null,
+      sid: "mock-session-parent",
+      impersonated: false,
+    }).token;
+
+    // Pre-create initial thread and message so tests can run in any sequence under shuffle
+    const initialThread = await prisma.messageThread.create({
+      data: {
+        schoolId,
+        subject: "Welcome to Class",
+        participants: {
+          create: [
+            { userId: teacherUserId },
+            { userId: parentUserId }
+          ]
+        },
+        messages: {
+          create: [
+            {
+              senderId: teacherUserId,
+              content: "Hello Parent, how are you?"
+            }
+          ]
+        }
+      }
+    });
+    threadId = initialThread.id;
   });
 
   afterAll(async () => {
-    await prisma.messageParticipant.deleteMany({ where: { thread: { schoolId } } });
-    await prisma.message.deleteMany({ where: { thread: { schoolId } } });
-    await prisma.messageThread.deleteMany({ where: { schoolId } });
-    await prisma.user.deleteMany({ where: { id: { in: [teacherUserId, parentUserId] } } });
-    await prisma.school.delete({ where: { id: schoolId } });
+    if (schoolId) {
+      await prisma.messageParticipant.deleteMany({ where: { thread: { schoolId } } });
+      await prisma.message.deleteMany({ where: { thread: { schoolId } } });
+      await prisma.messageThread.deleteMany({ where: { schoolId } });
+      const userIds = [teacherUserId, parentUserId].filter(Boolean);
+      if (userIds.length > 0) {
+        await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+      }
+      await prisma.school.delete({ where: { id: schoolId } });
+    }
 
-    server.close();
+    server?.close();
     await prisma.$disconnect();
   });
 
@@ -73,14 +121,13 @@ describe("Messaging API E2E", () => {
       .post("/api/v1/messages/threads")
       .set("Authorization", `Bearer ${teacherToken}`)
       .send({
-        subject: "Welcome to Class",
+        subject: "New Topic Thread",
         participantIds: [parentUserId]
       });
       
     expect([200, 201]).toContain(res.status);
     expect(res.body.success).toBe(true);
-    expect(res.body.data.subject).toBe("Welcome to Class");
-    threadId = res.body.data.id;
+    expect(res.body.data.subject).toBe("New Topic Thread");
   });
 
   it("should fail to start a thread without participants", async () => {
@@ -116,7 +163,7 @@ describe("Messaging API E2E", () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.data.length).toBeGreaterThan(0);
-    expect(res.body.data[0].id).toBe(threadId);
+    expect(res.body.data.some((t: any) => t.id === threadId)).toBe(true);
   });
 
   it("should fetch all messages for a specific thread", async () => {
@@ -135,7 +182,16 @@ describe("Messaging API E2E", () => {
     const randomUser = await prisma.user.create({
       data: { email: `random.${Date.now()}@msg.test.com`, name: "Random", passwordHash: "pwd", role: "PARENT", schoolId }
     });
-    const randomToken = jwt.sign({ userId: randomUser.id, role: randomUser.role, schoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
+    const randomToken = generateAccessToken({
+      userId: randomUser.id,
+      email: randomUser.email,
+      name: randomUser.name,
+      role: randomUser.role,
+      schoolId,
+      branchId: null,
+      sid: "mock-session-random",
+      impersonated: false,
+    }).token;
 
     const res = await request(server)
       .get(`/api/v1/messages/${threadId}`)

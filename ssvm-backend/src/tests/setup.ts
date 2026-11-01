@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, afterAll, vi } from 'vitest';
 import { execSync } from 'child_process';
 import prisma from '../lib/prisma';
+import { initRedis } from '../lib/redis';
 import Redis from 'ioredis-mock';
 
 // Mock Redis globally
@@ -130,35 +131,17 @@ process.env.RAZORPAY_WEBHOOK_SECRET = crypto.randomBytes(32).toString('hex');
 
 beforeAll(async () => {
   try {
+    await initRedis();
     console.log('Running Prisma migrations for test DB...');
-    // We try to deploy migrations to the test DB
-    // execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-    // Note: Skipped in this setup file due to environment differences. 
-    // Usually best to run `dotenv -e .env.test -- npx prisma migrate deploy` in a global setup script.
   } catch (e) {
     console.error('Migration failed in setup:', e);
   }
 });
 
 beforeEach(async () => {
-  if (process.env.SKIP_TRUNCATE) return;
-
-  // Truncate all tables for a clean slate
-  const tablenames = await prisma.$queryRaw<
-    Array<{ tablename: string }>
-  >`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ('_prisma_migrations');`;
-
-  const tables = tablenames
-    .map(({ tablename }) => '"' + tablename + '"')
-    .join(', ');
-
-  try {
-    if (tables !== '') {
-      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
-    }
-  } catch (error) {
-    console.log({ error });
-  }
+  // Global TRUNCATE has been replaced by per-worker databases cloned from a template
+  // (see src/tests/workerDbSetup.ts and src/tests/helpers/workerDatabase.ts).
+  // This preserves suite beforeAll fixtures while maintaining worker isolation.
 });
 
 afterAll(async () => {

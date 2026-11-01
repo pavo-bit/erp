@@ -4,7 +4,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    setupFiles: ['./src/tests/setup.ts'],
+    pool: 'forks',
+    setupFiles: ['./src/tests/workerDbSetup.ts', './src/tests/setup.ts'],
     exclude: [...configDefaults.exclude, 'src/tests/db/**/*.test.ts'],
     coverage: {
       provider: 'v8',
@@ -12,5 +13,6 @@ export default defineConfig({
       thresholds: { lines: 80, functions: 80, branches: 70 }
     },
     testTimeout: 30000,
+    hookTimeout: 60000,
   }
 });

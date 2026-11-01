@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
+import { app } from "../../src/app";
 import {
   createTestTenant,
   cleanupTestTenant,
@@ -30,7 +31,7 @@ import {
 //   - Test database must be available
 //   - Set environment variables for test JWT keys
 
-const API_BASE = process.env.TEST_API_URL || "http://localhost:5000";
+let server: any;
 
 let tenantA: TestTenantData;
 let tenantB: TestTenantData;
@@ -44,6 +45,7 @@ let invoiceB: string;
 
 describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
   beforeAll(async () => {
+    server = app.listen(0);
     // Set test JWT keys in environment
     process.env.ACCESS_TOKEN_PUBLIC_KEY = TEST_KEYS.ACCESS_TOKEN_PUBLIC_KEY;
     process.env.ACCESS_TOKEN_PRIVATE_KEY = TEST_KEYS.ACCESS_TOKEN_PRIVATE_KEY;
@@ -101,6 +103,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
   }, 60000); // 60s timeout for setup
 
   afterAll(async () => {
+    server?.close();
     await cleanupTestTenant(tenantA.school.id);
     await cleanupTestTenant(tenantB.school.id);
     await prisma.$disconnect();
@@ -112,7 +115,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
 
   describe("A. Cross-Tenant Data Read", () => {
     it("A1 — Admin from School A cannot list School B's students", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get("/api/v1/students")
         .set("Authorization", `Bearer ${tenantAAdminToken}`)
         .query({ schoolId: tenantB.school.id });
@@ -128,7 +131,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     });
 
     it("A2 — Admin from School A cannot read School B's invoice by ID", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get(`/api/v1/invoices/${invoiceB}`)
         .set("Authorization", `Bearer ${tenantAAdminToken}`);
 
@@ -141,7 +144,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     });
 
     it("A3 — Student from School A cannot view School B student's attendance", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get("/api/v1/attendance")
         .set("Authorization", `Bearer ${tenantAStudentToken}`)
         .query({ schoolId: tenantB.school.id });
@@ -156,7 +159,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     });
 
     it("A4 — Teacher from School A cannot fetch School B's teacher list", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get("/api/v1/teachers")
         .set("Authorization", `Bearer ${tenantATeacherToken}`)
         .query({ schoolId: tenantB.school.id });
@@ -177,7 +180,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
 
   describe("B. Cross-Tenant Data Write", () => {
     it("B1 — Admin from School A cannot create a student in School B", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .post("/api/v1/students")
         .set("Authorization", `Bearer ${tenantAAdminToken}`)
         .send({
@@ -198,7 +201,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     });
 
     it("B2 — Admin from School A cannot update School B's invoice", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .put(`/api/v1/invoices/${invoiceB}`)
         .set("Authorization", `Bearer ${tenantAAdminToken}`)
         .send({ status: "PAID", remarks: "Cross-tenant attack" });
@@ -212,7 +215,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     });
 
     it("B3 — Admin from School A cannot delete School B's student", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .delete(`/api/v1/students/${tenantB.student.id}`)
         .set("Authorization", `Bearer ${tenantAAdminToken}`);
 
@@ -238,7 +241,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
         schoolId: tenantA.school.id,
       });
 
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get("/api/v1/students")
         .set("Authorization", `Bearer ${attackerToken}`);
 
@@ -257,7 +260,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
       // Wait briefly to ensure expiration
       await new Promise((resolve) => setTimeout(resolve, 1100));
 
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get("/api/v1/students")
         .set("Authorization", `Bearer ${expiredToken}`);
 
@@ -273,7 +276,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
       parts[1] = Buffer.from(JSON.stringify(payload)).toString("base64url");
       const tamperedToken = parts.join(".");
 
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get("/api/v1/students")
         .set("Authorization", `Bearer ${tamperedToken}`);
 
@@ -281,7 +284,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     });
 
     it("C4 — Completely malformed token is rejected", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get("/api/v1/students")
         .set("Authorization", "Bearer not.a.real.token.at.all");
 
@@ -295,7 +298,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
 
   describe("D. Privilege Escalation", () => {
     it("D1 — Student cannot access admin-only endpoints", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get("/api/v1/users")
         .set("Authorization", `Bearer ${tenantAStudentToken}`);
 
@@ -303,13 +306,13 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     });
 
     it("D2 — Teacher cannot access ERP_ADMIN settings", async () => {
-      const res = await request(API_BASE)
-        .get("/api/v1/school-settings")
+      const res = await request(server)
+        .get("/api/v1/admin/saas-settings/settings")
         .set("Authorization", `Bearer ${tenantATeacherToken}`);
 
       // Teachers may have limited read access, but should not be able to modify
-      const writeRes = await request(API_BASE)
-        .put("/api/v1/school-settings")
+      const writeRes = await request(server)
+        .put("/api/v1/admin/saas-settings/settings")
         .set("Authorization", `Bearer ${tenantATeacherToken}`)
         .send({ timezone: "America/New_York" });
 
@@ -317,8 +320,8 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     });
 
     it("D3 — ERP_ADMIN cannot access SUPER_ADMIN endpoints", async () => {
-      const res = await request(API_BASE)
-        .get("/api/v1/admin/schools")
+      const res = await request(server)
+        .get("/api/v1/admin/backups")
         .set("Authorization", `Bearer ${tenantAAdminToken}`);
 
       expect([403, 401]).toContain(res.status);
@@ -333,7 +336,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     it("E1 — Non-existent school ID returns 404, not different error for existent vs non-existent", async () => {
       const fakeSchoolId = "clxxxxxxxxxxxxxxxxxxxxxxxxx";
 
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get("/api/v1/students")
         .set("Authorization", `Bearer ${tenantAAdminToken}`)
         .query({ schoolId: fakeSchoolId });
@@ -341,7 +344,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
       // Should return 403 (forbidden) or 404 — NOT 200 with empty data
       // The key assertion: response should be indistinguishable from a real school ID that
       // the user doesn't have access to
-      const resRealSchool = await request(API_BASE)
+      const resRealSchool = await request(server)
         .get("/api/v1/students")
         .set("Authorization", `Bearer ${tenantAAdminToken}`)
         .query({ schoolId: tenantB.school.id });
@@ -351,7 +354,7 @@ describe("Multi-Tenant Security — Penetration Test Suite (GAP 2)", () => {
     });
 
     it("E2 — Unauthenticated requests cannot enumerate school existence", async () => {
-      const res = await request(API_BASE)
+      const res = await request(server)
         .get(`/api/v1/schools/${tenantA.school.id}`)
         .set("Authorization", "");
 

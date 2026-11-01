@@ -287,18 +287,21 @@ export function requireRole(...roles: string[]) {
 
     // Phase 3: JIT Access Delegation Check
     try {
-      const activeDelegation = await prisma.userDelegation.findFirst({
-        where: {
-          delegateeId: req.user.id,
-          isActive: true,
-          endDate: { gt: new Date() }, // Just-In-Time Expiration Check
-          role: { in: roles as Role[] } // Check if delegated role matches required roles
-        }
-      });
+      const validRoles = roles.filter((r) => Object.values(Role).includes(r as Role)) as Role[];
+      if (validRoles.length > 0) {
+        const activeDelegation = await prisma.userDelegation.findFirst({
+          where: {
+            delegateeId: req.user.id,
+            isActive: true,
+            endDate: { gt: new Date() }, // Just-In-Time Expiration Check
+            role: { in: validRoles } // Check if delegated role matches required roles
+          }
+        });
 
-      if (activeDelegation) {
-        next();
-        return;
+        if (activeDelegation) {
+          next();
+          return;
+        }
       }
     } catch (err) {
       logger.error({ err }, "Error checking user delegations");
