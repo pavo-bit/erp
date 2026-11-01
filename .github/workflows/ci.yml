@@ -1,24 +1,61 @@
 name: Continuous Integration
 
 on:
+  push:
+    branches:
+      - 'remediation/lane-*'
   pull_request:
     branches:
       - main
       - develop
       - remediation/80pct
+  workflow_dispatch:
 
 jobs:
   backend-test:
+    name: backend-test (lane ${{ matrix.lane }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: a
+            pgPort: 5541
+            redisPort: 6391
+            redisDb: 1
+          - lane: b
+            pgPort: 5542
+            redisPort: 6392
+            redisDb: 2
+          - lane: c
+            pgPort: 5543
+            redisPort: 6393
+            redisDb: 3
+          - lane: d
+            pgPort: 5544
+            redisPort: 6394
+            redisDb: 4
+          - lane: e
+            pgPort: 5545
+            redisPort: 6395
+            redisDb: 5
+          - lane: f
+            pgPort: 5546
+            redisPort: 6396
+            redisDb: 6
+          - lane: g
+            pgPort: 5547
+            redisPort: 6397
+            redisDb: 7
     services:
       postgres:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: ${{ github.run_id }}-postgres-ci
-          POSTGRES_DB: ssvm_test_lane_e
+          POSTGRES_DB: ssvm_test_lane_${{ matrix.lane }}
         ports:
-          - 5545:5432
+          - ${{ matrix.pgPort }}:5432
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -27,7 +64,7 @@ jobs:
       redis:
         image: redis:7-alpine
         ports:
-          - 6395:6379
+          - ${{ matrix.redisPort }}:6379
         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
@@ -40,9 +77,15 @@ jobs:
 
     env:
       PGPASSWORD: ${{ github.run_id }}-postgres-ci
-      DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5545/ssvm_test_lane_e?schema=public
-      SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5545/ssvm_shadow_lane_e?schema=public
-      REDIS_URL: redis://localhost:6395/5
+      PG_PORT: ${{ matrix.pgPort }}
+      APP_DB_ROLE: ssvm_app_lane_${{ matrix.lane }}
+      TRUSTED_DB_ROLE: ssvm_trusted_lane_${{ matrix.lane }}
+      APP_DB_NAME: ssvm_test_lane_${{ matrix.lane }}
+      SHADOW_DB_NAME: ssvm_shadow_lane_${{ matrix.lane }}
+      DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:${{ matrix.pgPort }}/ssvm_test_lane_${{ matrix.lane }}?schema=public
+      SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:${{ matrix.pgPort }}/ssvm_shadow_lane_${{ matrix.lane }}?schema=public
+      REDIS_URL: redis://localhost:${{ matrix.redisPort }}/${{ matrix.redisDb }}
+      REQUIRE_TRUSTED_DATABASE_URL: "true"
 
     steps:
       - name: Checkout Code
@@ -58,14 +101,18 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Generate isolated Lane E app credential
+      - name: Generate isolated lane app credential
         run: |
           app_password="$(openssl rand -hex 32)"
+          trusted_password="$(openssl rand -hex 32)"
           echo "::add-mask::$app_password"
+          echo "::add-mask::$trusted_password"
           {
             echo "APP_DB_PASSWORD=$app_password"
-            echo "DATABASE_URL_TEST=postgresql://ssvm_app_lane_e:$app_password@localhost:5545/ssvm_test_lane_e?schema=public"
-            echo "DATABASE_URL=postgresql://ssvm_app_lane_e:$app_password@localhost:5545/ssvm_test_lane_e?schema=public"
+            echo "TRUSTED_DB_PASSWORD=$trusted_password"
+            echo "DATABASE_URL_TEST=postgresql://$APP_DB_ROLE:$app_password@localhost:$PG_PORT/$APP_DB_NAME?schema=public"
+            echo "DATABASE_URL=postgresql://$APP_DB_ROLE:$app_password@localhost:$PG_PORT/$APP_DB_NAME?schema=public"
+            echo "TRUSTED_DATABASE_URL=postgresql://$TRUSTED_DB_ROLE:$trusted_password@localhost:$PG_PORT/$APP_DB_NAME?schema=public"
           } >> "$GITHUB_ENV"
 
       - name: Check tenant classification
@@ -73,39 +120,58 @@ jobs:
 
       - name: Provision restricted test role
         run: |
-          psql --host localhost --port 5545 --username postgres --dbname ssvm_test_lane_e \
-            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" <<'SQL'
+          psql --host localhost --port "$PG_PORT" --username postgres --dbname "$APP_DB_NAME" \
+            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" \
+            --set=trusted_password="$TRUSTED_DB_PASSWORD" \
+            --set=app_db_role="$APP_DB_ROLE" --set=app_db_name="$APP_DB_NAME" \
+            --set=trusted_db_role="$TRUSTED_DB_ROLE" --set=shadow_db_name="$SHADOW_DB_NAME" <<'SQL'
           SELECT format(
-            'CREATE ROLE ssvm_app_lane_e WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
-            :'app_password'
+            'CREATE ROLE %I WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
+            :'app_db_role', :'app_password'
           )
-          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_app_lane_e')
+          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'app_db_role')
+          \gexec
+          SELECT format(
+            'CREATE ROLE %I WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION BYPASSRLS PASSWORD %L',
+            :'trusted_db_role', :'trusted_password'
+          )
+          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = :'trusted_db_role')
           \gexec
 
-          GRANT CONNECT ON DATABASE ssvm_test_lane_e TO ssvm_app_lane_e;
-          GRANT USAGE ON SCHEMA public TO ssvm_app_lane_e;
+          SELECT format('GRANT CONNECT ON DATABASE %I TO %I', :'app_db_name', :'app_db_role') \gexec
+          SELECT format('GRANT CONNECT ON DATABASE %I TO %I', :'app_db_name', :'trusted_db_role') \gexec
+          GRANT USAGE ON SCHEMA public TO :"app_db_role";
+          GRANT USAGE ON SCHEMA public TO :"trusted_db_role";
           ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_app_lane_e;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"app_db_role";
           ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_app_lane_e;
+            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO :"app_db_role";
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO :"trusted_db_role";
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO :"trusted_db_role";
 
-          CREATE DATABASE ssvm_shadow_lane_e;
+          SELECT format('CREATE DATABASE %I', :'shadow_db_name') \gexec
           SQL
 
       - name: Create application-test schema without RLS
         run: |
-          psql --host localhost --port 5545 --username postgres --dbname ssvm_test_lane_e --set=ON_ERROR_STOP=1 \
+          psql --host localhost --port "$PG_PORT" --username postgres --dbname "$APP_DB_NAME" --set=ON_ERROR_STOP=1 \
             --command 'CREATE EXTENSION IF NOT EXISTS pg_trgm;'
           npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script \
-            | psql --host localhost --port 5545 --username postgres --dbname ssvm_test_lane_e --set=ON_ERROR_STOP=1
-          psql --host localhost --port 5545 --username postgres --dbname ssvm_test_lane_e --set=ON_ERROR_STOP=1 \
+            | psql --host localhost --port "$PG_PORT" --username postgres --dbname "$APP_DB_NAME" --set=ON_ERROR_STOP=1
+          psql --host localhost --port "$PG_PORT" --username postgres --dbname "$APP_DB_NAME" --set=ON_ERROR_STOP=1 \
             --file prisma/migrations/20261101140000_full_text_search_indexes/migration.sql
-          psql --host localhost --port 5545 --username postgres --dbname ssvm_test_lane_e --set=ON_ERROR_STOP=1 \
+          psql --host localhost --port "$PG_PORT" --username postgres --dbname "$APP_DB_NAME" --set=ON_ERROR_STOP=1 \
             --file prisma/migrations/20261101145000_ledger_integrity/migration.sql
-          psql --host localhost --port 5545 --username postgres --dbname ssvm_test_lane_e --set=ON_ERROR_STOP=1 <<'SQL'
+          psql --host localhost --port "$PG_PORT" --username postgres --dbname "$APP_DB_NAME" --set=ON_ERROR_STOP=1 \
+            --set=app_db_role="$APP_DB_ROLE" --set=trusted_db_role="$TRUSTED_DB_ROLE" <<'SQL'
           GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
-            ON ALL TABLES IN SCHEMA public TO ssvm_app_lane_e;
-          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ssvm_app_lane_e;
+            ON ALL TABLES IN SCHEMA public TO :"app_db_role";
+          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO :"app_db_role";
+          GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+            ON ALL TABLES IN SCHEMA public TO :"trusted_db_role";
+          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO :"trusted_db_role";
           SQL
 
       - name: Run Tests with Coverage
@@ -115,7 +181,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-test-results
+          name: backend-test-results-${{ matrix.lane }}
           path: ./ssvm-backend/test-results.xml
           if-no-files-found: warn
 
@@ -234,8 +300,6 @@ jobs:
             ON ALL TABLES IN SCHEMA public TO ssvm_trusted_lane_a;
           GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ssvm_trusted_lane_a;
           SQL
-      - name: Run request transaction helper tests (not the authenticated API gate)
-        run: npm run test:rls -- src/tests/db/request-transaction.test.ts
       - name: Run PostgreSQL RLS and ledger invariant tests (Lane A, separate gate)
         run: npm run test:rls
 
