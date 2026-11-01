@@ -1,31 +1,52 @@
 {
   "schemaVersion": 1,
   "lane": "B",
-  "commit": "9d0419492f2c7a874adead4c6431c5b945e09b16",
+  "commit": "645b07054f6971458684b47e4ed620db36590887",
   "ci": {
-    "runUrl": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-b-finance"
+    "runUrl": "https://github.com/pavo-bit/erp/actions/runs/41309469548"
   },
   "jobs": [
     {
       "name": "backend-test (lane b)",
-      "status": "UNVERIFIED",
-      "url": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-b-finance",
-      "commit": "9d0419492f2c7a874adead4c6431c5b945e09b16",
-      "detail": "No hosted run is available yet. Lane E has authored the intended isolated DB/Redis row, but its workflow is not on this branch. Local API tests stopped before test collection because DATABASE_URL_TEST is unset; 0 tests ran."
+      "status": "FAIL",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41309469548/job/124856631109",
+      "commit": "645b07054f6971458684b47e4ed620db36590887",
+      "detail": "Real isolated PostgreSQL/Redis job completed. JUnit: 174 tests, 101 passed, 73 failed, 0 skipped; 25 files, 12 passed and 13 failed. The complete finance payments API file passed 10/10 tests. The full backend suite gate remains failed because other backend test files fail."
     },
     {
-      "name": "type-check",
-      "status": "UNVERIFIED",
-      "url": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-b-finance",
-      "commit": "9d0419492f2c7a874adead4c6431c5b945e09b16",
-      "detail": "Local npm run type-check passed; CI has not run."
+      "name": "backend-test (lane b) previous run 41308520748",
+      "status": "FAIL",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41308520748/job/124853829062",
+      "commit": "6a04111d4b9087e9cf9b93191bbe2a9edfd962c0",
+      "detail": "Superseded by run 41309469548. The prior JUnit run had 174 tests, 100 passed, 74 failed, 0 skipped; the finance payments API file had 9 passed and 1 failed due to the stale generate-monthly endpoint and response expectation."
     },
     {
-      "name": "lint",
-      "status": "UNVERIFIED",
-      "url": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-b-finance",
-      "commit": "9d0419492f2c7a874adead4c6431c5b945e09b16",
-      "detail": "Scoped ESLint for the changed payment route, ledger service, and payment API tests passed locally. Full backend lint remains a repository-wide failing baseline; CI has not run."
+      "name": "backend-type-check",
+      "status": "PASS",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41309469548/job/124856630821",
+      "commit": "645b07054f6971458684b47e4ed620db36590887",
+      "detail": "Hosted TypeScript check passed."
+    },
+    {
+      "name": "backend-lint",
+      "status": "FAIL",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41309469548/job/124856631097",
+      "commit": "645b07054f6971458684b47e4ed620db36590887",
+      "detail": "Repository-wide lint remains red. Scoped ESLint for Lane B's payments route, ledger service, and payment API test files passes locally."
+    },
+    {
+      "name": "security-scan",
+      "status": "FAIL",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41309469548/job/124856631012",
+      "commit": "645b07054f6971458684b47e4ed620db36590887",
+      "detail": "npm audit reported 89 advisories: 2 low, 54 moderate, 31 high, and 2 critical. Dependency remediation is outside Lane B ownership."
+    },
+    {
+      "name": "Migrate and RLS Tests (restricted role)",
+      "status": "PASS",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41309469548/job/124856631019",
+      "commit": "645b07054f6971458684b47e4ed620db36590887",
+      "detail": "Separate Lane A migration and restricted-role RLS job passed; this does not change Lane B's failed test job status."
     }
   ],
   "requirements": [
@@ -33,48 +54,47 @@
       "id": "FIN-001",
       "status": "UNVERIFIED",
       "commands": [
-        "npm run type-check (PASS)",
-        "npx eslint src/routes/payments.ts src/services/ledger.service.ts src/tests/api/payments.test.ts --max-warnings 0 (PASS)",
-        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+        "CI run 41309469548, backend-test (lane b): JUnit 174 tests, 101 passed, 73 failed, 0 skipped",
+        "CI run 41309469548, src/tests/api/payments.test.ts: 10 tests passed, 0 failed"
       ],
       "ciJobs": ["backend-test (lane b)"],
-      "detail": "Authorization and order/capture checks are authored; DB-backed verification is pending."
+      "detail": "Payment ownership, provider-order binding, amount/currency checks, and outstanding balance code is authored. The lane's overall backend test job is red; retain UNVERIFIED."
     },
     {
       "id": "FIN-002",
       "status": "UNVERIFIED",
       "commands": [
-        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+        "CI run 41309469548, src/tests/api/payments.test.ts: invalid-signature no-mutation and partial-payment cases passed within the 10 passing tests"
       ],
       "ciJobs": ["backend-test (lane b)"],
-      "detail": "Invalid-signature no-mutation and partial-payment regression tests are authored but have not run against PostgreSQL."
+      "detail": "Relevant DB-backed cases passed, but the complete Lane B backend test job failed on other test files."
     },
     {
       "id": "FIN-003",
       "status": "UNVERIFIED",
       "commands": [
-        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+        "CI run 41309469548, src/tests/api/payments.test.ts: webhook signature, valid capture, duplicate concurrency, and failed-event cases passed within the 10 passing tests"
       ],
       "ciJobs": ["backend-test (lane b)"],
-      "detail": "Raw-body HMAC, mandatory webhook secret, and DB-state duplicate protection are authored but require the lane trusted PostgreSQL integration run."
+      "detail": "Raw-body verification, mandatory webhook secret, and idempotent capture behavior are implemented. Full backend test gate remains red."
     },
     {
       "id": "FIN-004",
       "status": "UNVERIFIED",
       "commands": [
-        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+        "CI run 41309469548, src/tests/api/payments.test.ts: atomic capture and balanced single-ledger assertions passed within the 10 passing tests"
       ],
       "ciJobs": ["backend-test (lane b)"],
-      "detail": "Payment, invoice, ledger, audit, and event writes share one tenant transaction; missing account or ledger failures should roll back. DB behavior is unverified."
+      "detail": "Payment, invoice, and ledger capture path is exercised on PostgreSQL, but full suite gate is red and rollback-on-ledger-failure coverage remains incomplete."
     },
     {
       "id": "FIN-005",
       "status": "UNVERIFIED",
       "commands": [
-        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+        "CI run 41309469548 does not include src/tests/db ledger immutability tests in the main backend test config"
       ],
       "ciJobs": ["backend-test (lane b)"],
-      "detail": "A balanced single ledger posting assertion is authored; the PostgreSQL ledger invariant and immutability suite has not run."
+      "detail": "The Lane B payment test verifies one balanced ledger posting. Database tests for update/delete immutability have not been run in the Lane B job."
     },
     {
       "id": "FIN-006",
@@ -83,7 +103,7 @@
         "Review docs/FINANCE/PAYMENT_POLICY_DECISIONS.md"
       ],
       "ciJobs": [],
-      "detail": "Safest defaults are documented as UNAPPROVED. Exact Decimal schema work is outside Lane B ownership and remains unverified."
+      "detail": "Exact Decimal schema work is outside Lane B ownership. Safest payment defaults are documented as UNAPPROVED and require owner review."
     }
   ]
 }
