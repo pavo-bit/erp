@@ -16,6 +16,7 @@
     "test:unit": "vitest run src/tests/unit/",
     "test:rls": "vitest run --config vitest.rls.config.ts --pool=threads",
     "test:ci": "vitest run --coverage --reporter=default --reporter=junit --outputFile=test-results.xml --no-file-parallelism",
+    "audit:combine": "node scripts/combine-audit.cjs",
     "lint": "eslint src/ --max-warnings 0",
     "type-check": "tsc --noEmit",
     "db:generate": "prisma generate",

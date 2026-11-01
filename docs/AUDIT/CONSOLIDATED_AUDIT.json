@@ -1,0 +1,1401 @@
+{
+  "generatedAt": "2026-11-01T12:06:26.741Z",
+  "repositoryCommit": "709b4840cb65fc7f54198d6a85b55728c325dd6b",
+  "scoring": {
+    "method": "verified canonical requirements per area; weighted by configured area weight",
+    "rounding": "floor to two decimal places; never round up",
+    "overallPct": 0,
+    "denominatorStatus": "GROUNDED",
+    "thresholds": {
+      "overallAtLeast80": false,
+      "everyAreaAtLeast70": false,
+      "zeroOpenCritical": false
+    },
+    "verdict": "FAIL"
+  },
+  "scoreTable": [
+    {
+      "id": "db_migrations",
+      "area": "DB & migrations",
+      "weight": 15,
+      "verified": 0,
+      "total": 4,
+      "denominatorStatus": "GROUNDED",
+      "scorePct": 0,
+      "weightedContribution": 0
+    },
+    {
+      "id": "security_authz",
+      "area": "Security/authz",
+      "weight": 15,
+      "verified": 0,
+      "total": 4,
+      "denominatorStatus": "GROUNDED",
+      "scorePct": 0,
+      "weightedContribution": 0
+    },
+    {
+      "id": "tenant_isolation",
+      "area": "Tenant isolation",
+      "weight": 15,
+      "verified": 0,
+      "total": 6,
+      "denominatorStatus": "GROUNDED",
+      "scorePct": 0,
+      "weightedContribution": 0
+    },
+    {
+      "id": "finance_payments",
+      "area": "Finance/payments",
+      "weight": 15,
+      "verified": 0,
+      "total": 6,
+      "denominatorStatus": "GROUNDED",
+      "scorePct": 0,
+      "weightedContribution": 0
+    },
+    {
+      "id": "backend_features",
+      "area": "Backend features",
+      "weight": 10,
+      "verified": 0,
+      "total": 1,
+      "denominatorStatus": "GROUNDED",
+      "scorePct": 0,
+      "weightedContribution": 0
+    },
+    {
+      "id": "portals",
+      "area": "Portals",
+      "weight": 15,
+      "verified": 0,
+      "total": 14,
+      "denominatorStatus": "GROUNDED",
+      "scorePct": 0,
+      "weightedContribution": 0
+    },
+    {
+      "id": "tests_ci_e2e",
+      "area": "Tests/CI/E2E",
+      "weight": 10,
+      "verified": 0,
+      "total": 5,
+      "denominatorStatus": "GROUNDED",
+      "scorePct": 0,
+      "weightedContribution": 0
+    },
+    {
+      "id": "ops_docs",
+      "area": "Ops/docs",
+      "weight": 5,
+      "verified": 0,
+      "total": 2,
+      "denominatorStatus": "GROUNDED",
+      "scorePct": 0,
+      "weightedContribution": 0
+    }
+  ],
+  "laneEvidence": {
+    "A": {
+      "status": "UNVERIFIED",
+      "commit": null,
+      "ciRunUrl": null,
+      "jobs": [],
+      "missingEvidenceFile": "docs/AUDIT/evidence/A.json"
+    },
+    "B": {
+      "status": "UNVERIFIED",
+      "commit": null,
+      "ciRunUrl": null,
+      "jobs": [],
+      "missingEvidenceFile": "docs/AUDIT/evidence/B.json"
+    },
+    "C": {
+      "status": "UNVERIFIED",
+      "commit": null,
+      "ciRunUrl": null,
+      "jobs": [],
+      "missingEvidenceFile": "docs/AUDIT/evidence/C.json"
+    },
+    "D": {
+      "status": "UNVERIFIED",
+      "commit": null,
+      "ciRunUrl": null,
+      "jobs": [],
+      "missingEvidenceFile": "docs/AUDIT/evidence/D.json"
+    },
+    "E": {
+      "status": "UNVERIFIED",
+      "commit": null,
+      "ciRunUrl": null,
+      "jobs": [],
+      "missingEvidenceFile": "docs/AUDIT/evidence/E.json"
+    },
+    "F": {
+      "status": "UNVERIFIED",
+      "commit": null,
+      "ciRunUrl": null,
+      "jobs": [],
+      "missingEvidenceFile": "docs/AUDIT/evidence/F.json"
+    },
+    "G": {
+      "status": "UNVERIFIED",
+      "commit": null,
+      "ciRunUrl": null,
+      "jobs": [],
+      "missingEvidenceFile": "docs/AUDIT/evidence/G.json"
+    }
+  },
+  "requirementResults": [
+    {
+      "id": "DB-001",
+      "area": "db_migrations",
+      "owner": "A",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.1"
+      ],
+      "summary": "A clean PostgreSQL database is built by the committed migration chain, and all 205 model tables exist.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.1",
+          "statement": "Ground-truth defect 1: only 68/205 Prisma models have migrations; RLS references absent tables; migrate deploy cannot build a working DB."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "DB-002",
+      "area": "db_migrations",
+      "owner": "A",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.1",
+        "followup.payment_unique_constraint.1"
+      ],
+      "summary": "A clean migrated database has an empty Prisma schema diff.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.1",
+          "statement": "Ground-truth defect 1: only 68/205 Prisma models have migrations; RLS references absent tables; migrate deploy cannot build a working DB."
+        },
+        {
+          "id": "followup.payment_unique_constraint.1",
+          "statement": "Owner clarification: restore payment_transactions(invoiceId, transactionId) unique constraint and confirm on clean DB."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "DB-003",
+      "area": "db_migrations",
+      "owner": "A",
+      "severity": "High",
+      "source": [
+        "followup.payment_unique_constraint.1"
+      ],
+      "summary": "The payment_transactions invoiceId/transactionId unique constraint exists after migration.",
+      "sourceDetails": [
+        {
+          "id": "followup.payment_unique_constraint.1",
+          "statement": "Owner clarification: restore payment_transactions(invoiceId, transactionId) unique constraint and confirm on clean DB."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "DB-004",
+      "area": "db_migrations",
+      "owner": "C",
+      "severity": "High",
+      "source": [
+        "followup.existing_database_adoption.6"
+      ],
+      "summary": "Existing database adoption and migration-history reconciliation are documented and reviewed.",
+      "sourceDetails": [
+        {
+          "id": "followup.existing_database_adoption.6",
+          "statement": "Owner clarification: document existing-database adoption using migrate resolve."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "SEC-001",
+      "area": "security_authz",
+      "owner": "C",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.7"
+      ],
+      "summary": "Mounted sensitive endpoints have reviewed authentication, role, tenant, and ownership rules; no route remains REVIEW_REQUIRED.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.7",
+          "statement": "Ground-truth defect 7: 365 endpoints are REVIEW_REQUIRED in ROUTE_AUTHORIZATION_MATRIX.md."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "SEC-002",
+      "area": "security_authz",
+      "owner": "C",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.10"
+      ],
+      "summary": "Token validation uses the approved asymmetric algorithm with no insecure fallback.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.10",
+          "statement": "Ground-truth defect 10: public/duplicate metrics, anonymous Grafana, exposed/default database and Redis, unpinned images, runtime mismatch, HS256 fallback, and repository junk."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "SEC-003",
+      "area": "security_authz",
+      "owner": "C",
+      "severity": "High",
+      "source": [
+        "baseline_audit.10"
+      ],
+      "summary": "Operational endpoints and dashboards require authentication and authorization.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.10",
+          "statement": "Ground-truth defect 10: public/duplicate metrics, anonymous Grafana, exposed/default database and Redis, unpinned images, runtime mismatch, HS256 fallback, and repository junk."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "SEC-004",
+      "area": "security_authz",
+      "owner": "C",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.5"
+      ],
+      "summary": "Credential exposure remediation is complete, including rotation and downstream exposure review.",
+      "humanOnly": true,
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.5",
+          "statement": "Ground-truth defect 5: secrets are present in git history; HUMAN must rotate credentials."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "TEN-001",
+      "area": "tenant_isolation",
+      "owner": "A",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.2",
+        "orchestration.lane_a"
+      ],
+      "summary": "Every Prisma model has a reviewed direct, indirect, or global ownership classification; additions fail CI if unclassified.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.2",
+          "statement": "Ground-truth defect 2: tenant allowlist covers 27 of 124 schoolId models; RLS fails open with NULL tenant; app does not set it; payments.ts constructs a bare client."
+        },
+        {
+          "id": "orchestration.lane_a",
+          "statement": "Orchestration instruction: lane A exclusively owns schema, shared Prisma, and tenant request context; RLS waits for authenticated API gate."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "TEN-002",
+      "area": "tenant_isolation",
+      "owner": "A",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.2",
+        "orchestration.blocked_db_policy"
+      ],
+      "summary": "Tenant RLS covers every classified tenant table and denies access when the tenant setting is absent.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.2",
+          "statement": "Ground-truth defect 2: tenant allowlist covers 27 of 124 schoolId models; RLS fails open with NULL tenant; app does not set it; payments.ts constructs a bare client."
+        },
+        {
+          "id": "orchestration.blocked_db_policy",
+          "statement": "Owner instruction: DB-dependent work without real PostgreSQL is UNVERIFIED and scores zero; RLS setup must assert non-superuser/non-BYPASSRLS."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "TEN-003",
+      "area": "tenant_isolation",
+      "owner": "A",
+      "severity": "Critical",
+      "source": [
+        "followup.tenant_transaction_wrapper.4",
+        "orchestration.lane_a"
+      ],
+      "summary": "Every authenticated request uses a transaction whose first statement sets transaction-local tenant context; authenticated API isolation tests pass.",
+      "sourceDetails": [
+        {
+          "id": "followup.tenant_transaction_wrapper.4",
+          "statement": "Owner request: per-request transaction wrapper sets transaction-local app.current_school_id as first statement."
+        },
+        {
+          "id": "orchestration.lane_a",
+          "statement": "Orchestration instruction: lane A exclusively owns schema, shared Prisma, and tenant request context; RLS waits for authenticated API gate."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "TEN-004",
+      "area": "tenant_isolation",
+      "owner": "A",
+      "severity": "Critical",
+      "source": [
+        "followup.trusted_connections.4",
+        "orchestration.lane_a"
+      ],
+      "summary": "Pre-auth, webhook, worker, and audited super-admin operations use explicit trusted connections with tests and audit records.",
+      "sourceDetails": [
+        {
+          "id": "followup.trusted_connections.4",
+          "statement": "Owner request: trusted separate connections for pre-auth, webhooks, workers, and super-admin."
+        },
+        {
+          "id": "orchestration.lane_a",
+          "statement": "Orchestration instruction: lane A exclusively owns schema, shared Prisma, and tenant request context; RLS waits for authenticated API gate."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "TEN-005",
+      "area": "tenant_isolation",
+      "owner": "A",
+      "severity": "High",
+      "source": [
+        "baseline_audit.2",
+        "followup.tenant_classification.2"
+      ],
+      "summary": "All tenant Prisma reads and writes, including nested writes and upserts, are scoped from generated classification data.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.2",
+          "statement": "Ground-truth defect 2: tenant allowlist covers 27 of 124 schoolId models; RLS fails open with NULL tenant; app does not set it; payments.ts constructs a bare client."
+        },
+        {
+          "id": "followup.tenant_classification.2",
+          "statement": "Owner request: generate TENANT_CLASSIFICATION.json for all 205 models with direct, indirect relation, or global classification; fail CI on unclassified additions."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "TEN-006",
+      "area": "tenant_isolation",
+      "owner": "A",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.2",
+        "followup.prisma_client_cleanup"
+      ],
+      "summary": "No application module creates a PrismaClient outside the central Prisma module.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.2",
+          "statement": "Ground-truth defect 2: tenant allowlist covers 27 of 124 schoolId models; RLS fails open with NULL tenant; app does not set it; payments.ts constructs a bare client."
+        },
+        {
+          "id": "followup.prisma_client_cleanup",
+          "statement": "Owner request: remove all new PrismaClient() constructions outside src/lib/prisma.ts."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "FIN-001",
+      "area": "finance_payments",
+      "owner": "B",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.3"
+      ],
+      "summary": "Payment creation and verification enforce invoice/student ownership, provider order binding, amount, currency, and outstanding balance.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.3",
+          "statement": "Ground-truth defect 3: payment ownership/signature/partial-payment checks, webhook verification, idempotence, atomic ledger posting, and consistent ledger engines are defective."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "FIN-002",
+      "area": "finance_payments",
+      "owner": "B",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.3",
+        "followup.search_ledger.3"
+      ],
+      "summary": "Invalid signatures cannot mutate another user's payment, and partial payments do not mark invoices fully paid.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.3",
+          "statement": "Ground-truth defect 3: payment ownership/signature/partial-payment checks, webhook verification, idempotence, atomic ledger posting, and consistent ledger engines are defective."
+        },
+        {
+          "id": "followup.search_ledger.3",
+          "statement": "Owner clarification: add search regression test; ledger entries balance per transaction and posted rows reject UPDATE/DELETE, with tests."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "FIN-003",
+      "area": "finance_payments",
+      "owner": "B",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.3"
+      ],
+      "summary": "Webhook signatures use raw bytes, constant-time comparison, mandatory secrets, and duplicate-delivery protection in all environments.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.3",
+          "statement": "Ground-truth defect 3: payment ownership/signature/partial-payment checks, webhook verification, idempotence, atomic ledger posting, and consistent ledger engines are defective."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "FIN-004",
+      "area": "finance_payments",
+      "owner": "B",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.3"
+      ],
+      "summary": "Payment state and ledger posting are atomic; ledger failure is surfaced and no parallel inconsistent ledger engine remains.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.3",
+          "statement": "Ground-truth defect 3: payment ownership/signature/partial-payment checks, webhook verification, idempotence, atomic ledger posting, and consistent ledger engines are defective."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "FIN-005",
+      "area": "finance_payments",
+      "owner": "B",
+      "severity": "Critical",
+      "source": [
+        "followup.search_ledger.3"
+      ],
+      "summary": "Ledger entries balance per posted transaction and posted rows reject UPDATE/DELETE, with database tests.",
+      "sourceDetails": [
+        {
+          "id": "followup.search_ledger.3",
+          "statement": "Owner clarification: add search regression test; ledger entries balance per transaction and posted rows reject UPDATE/DELETE, with tests."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "FIN-006",
+      "area": "finance_payments",
+      "owner": "B",
+      "severity": "High",
+      "source": [
+        "baseline_audit.4"
+      ],
+      "summary": "Financial monetary schema fields use exact decimal arithmetic; unspecified policy defaults are documented for owner approval.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.4",
+          "statement": "Ground-truth defect 4: 71 monetary fields are Float and late fine is hard-coded to 50."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "BE-001",
+      "area": "backend_features",
+      "owner": "B",
+      "severity": "High",
+      "source": [
+        "baseline_audit.6"
+      ],
+      "summary": "Bank reconciliation and goods receipt return workflows are schema-backed rather than 501 placeholders.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.6",
+          "statement": "Ground-truth defect 6: bank reconciliation and goods receipt return return 501 because schema fields are missing."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-001",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "All seven portals build and have authenticated browser smoke coverage against configured API endpoints.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "QA-001",
+      "area": "tests_ci_e2e",
+      "owner": "E",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.9",
+        "followup.skipped_tests.5"
+      ],
+      "summary": "The full backend suite passes without skipped tests, weakened assertions, or suite-setup cascades.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.9",
+          "statement": "Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change."
+        },
+        {
+          "id": "followup.skipped_tests.5",
+          "statement": "Owner clarification: explain 57 skipped tests, fix School.code fixtures, and rerun the suite."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "QA-002",
+      "area": "tests_ci_e2e",
+      "owner": "E",
+      "severity": "Critical",
+      "source": [
+        "orchestration.isolated_lane_services",
+        "orchestration.rls_role_assertion"
+      ],
+      "summary": "CI provides isolated PostgreSQL and Redis resources per lane, with RLS tests asserting a non-superuser, non-BYPASSRLS role.",
+      "sourceDetails": [
+        {
+          "id": "orchestration.isolated_lane_services",
+          "statement": "Orchestration instruction: each lane gets a unique PostgreSQL database, Redis DB index, and ports."
+        },
+        {
+          "id": "orchestration.rls_role_assertion",
+          "statement": "Orchestration instruction: RLS tests run under non-superuser, non-BYPASSRLS role and assert these role flags."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "QA-003",
+      "area": "tests_ci_e2e",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.9"
+      ],
+      "summary": "Browser E2E runs real portal workflows against the API with isolated, reproducible fixtures.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.9",
+          "statement": "Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "QA-004",
+      "area": "tests_ci_e2e",
+      "owner": "F",
+      "severity": "High",
+      "source": [
+        "baseline_audit.9",
+        "ground_truth_corrections.typescript_5_9"
+      ],
+      "summary": "Backend lint, type-check, and build all pass without weakened rules or suppressed errors.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.9",
+          "statement": "Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change."
+        },
+        {
+          "id": "ground_truth_corrections.typescript_5_9",
+          "statement": "Owner correction: tsc passes with TypeScript 5.9.3; do not change tsconfig."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "QA-005",
+      "area": "tests_ci_e2e",
+      "owner": "G",
+      "severity": "Critical",
+      "source": [
+        "orchestration.lane_g_clean_clone_audit"
+      ],
+      "summary": "An independent clean-clone audit re-runs required gates and confirms evidence provenance and lane claims.",
+      "sourceDetails": [
+        {
+          "id": "orchestration.lane_g_clean_clone_audit",
+          "statement": "Orchestration instruction: lane G reruns everything from a clean clone and may downgrade lane claims."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "OPS-001",
+      "area": "ops_docs",
+      "owner": "C",
+      "severity": "Critical",
+      "source": [
+        "baseline_audit.10"
+      ],
+      "summary": "Production database, Redis, dashboards, metrics, and container images have reviewed access and deployment configuration.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.10",
+          "statement": "Ground-truth defect 10: public/duplicate metrics, anonymous Grafana, exposed/default database and Redis, unpinned images, runtime mismatch, HS256 fallback, and repository junk."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "OPS-002",
+      "area": "ops_docs",
+      "owner": "C",
+      "severity": "High",
+      "source": [
+        "baseline_audit.9",
+        "baseline_audit.10",
+        "followup.deploy_lockfile_audit.7"
+      ],
+      "summary": "Runtime versions, lockfile paths, and dependency advisories are reviewed; no open high/critical advisory remains.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.9",
+          "statement": "Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change."
+        },
+        {
+          "id": "baseline_audit.10",
+          "statement": "Ground-truth defect 10: public/duplicate metrics, anonymous Grafana, exposed/default database and Redis, unpinned images, runtime mismatch, HS256 fallback, and repository junk."
+        },
+        {
+          "id": "followup.deploy_lockfile_audit.7",
+          "statement": "Owner clarification: fix deploy.yml lockfile path and triage npm audit high/critical."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-002",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing procurement workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-003",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing inventory workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-004",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing ledger workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-005",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing payroll workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-006",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing CRM workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-007",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing scholarships workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-008",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing certificates workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-009",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing messages workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-010",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing branches workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-011",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing billing workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-012",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing reconciliation workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-013",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portals provide the explicitly listed missing reporting workflow.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    },
+    {
+      "id": "PORT-014",
+      "area": "portals",
+      "owner": "D",
+      "severity": "High",
+      "source": [
+        "baseline_audit.8"
+      ],
+      "summary": "Portal API configuration has no hard-coded localhost URLs and sensitive tokens are not stored in localStorage.",
+      "sourceDetails": [
+        {
+          "id": "baseline_audit.8",
+          "statement": "Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage."
+        }
+      ],
+      "status": "UNVERIFIED",
+      "evidence": null,
+      "claimants": []
+    }
+  ],
+  "driftAndConflicts": [],
+  "missingLaneEvidence": [
+    {
+      "lane": "A",
+      "path": "docs/AUDIT/evidence/A.json",
+      "status": "UNVERIFIED"
+    },
+    {
+      "lane": "B",
+      "path": "docs/AUDIT/evidence/B.json",
+      "status": "UNVERIFIED"
+    },
+    {
+      "lane": "C",
+      "path": "docs/AUDIT/evidence/C.json",
+      "status": "UNVERIFIED"
+    },
+    {
+      "lane": "D",
+      "path": "docs/AUDIT/evidence/D.json",
+      "status": "UNVERIFIED"
+    },
+    {
+      "lane": "E",
+      "path": "docs/AUDIT/evidence/E.json",
+      "status": "UNVERIFIED"
+    },
+    {
+      "lane": "F",
+      "path": "docs/AUDIT/evidence/F.json",
+      "status": "UNVERIFIED"
+    },
+    {
+      "lane": "G",
+      "path": "docs/AUDIT/evidence/G.json",
+      "status": "UNVERIFIED"
+    }
+  ],
+  "openIssues": [
+    {
+      "id": "DB-001",
+      "severity": "Critical",
+      "owner": "A",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "A clean PostgreSQL database is built by the committed migration chain, and all 205 model tables exist."
+    },
+    {
+      "id": "DB-002",
+      "severity": "Critical",
+      "owner": "A",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "A clean migrated database has an empty Prisma schema diff."
+    },
+    {
+      "id": "DB-003",
+      "severity": "High",
+      "owner": "A",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "The payment_transactions invoiceId/transactionId unique constraint exists after migration."
+    },
+    {
+      "id": "DB-004",
+      "severity": "High",
+      "owner": "C",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Existing database adoption and migration-history reconciliation are documented and reviewed."
+    },
+    {
+      "id": "SEC-001",
+      "severity": "Critical",
+      "owner": "C",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Mounted sensitive endpoints have reviewed authentication, role, tenant, and ownership rules; no route remains REVIEW_REQUIRED."
+    },
+    {
+      "id": "SEC-002",
+      "severity": "Critical",
+      "owner": "C",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Token validation uses the approved asymmetric algorithm with no insecure fallback."
+    },
+    {
+      "id": "SEC-003",
+      "severity": "High",
+      "owner": "C",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Operational endpoints and dashboards require authentication and authorization."
+    },
+    {
+      "id": "SEC-004",
+      "severity": "Critical",
+      "owner": "C",
+      "humanOnly": true,
+      "status": "UNVERIFIED",
+      "summary": "Credential exposure remediation is complete, including rotation and downstream exposure review."
+    },
+    {
+      "id": "TEN-001",
+      "severity": "Critical",
+      "owner": "A",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Every Prisma model has a reviewed direct, indirect, or global ownership classification; additions fail CI if unclassified."
+    },
+    {
+      "id": "TEN-002",
+      "severity": "Critical",
+      "owner": "A",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Tenant RLS covers every classified tenant table and denies access when the tenant setting is absent."
+    },
+    {
+      "id": "TEN-003",
+      "severity": "Critical",
+      "owner": "A",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Every authenticated request uses a transaction whose first statement sets transaction-local tenant context; authenticated API isolation tests pass."
+    },
+    {
+      "id": "TEN-004",
+      "severity": "Critical",
+      "owner": "A",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Pre-auth, webhook, worker, and audited super-admin operations use explicit trusted connections with tests and audit records."
+    },
+    {
+      "id": "TEN-005",
+      "severity": "High",
+      "owner": "A",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "All tenant Prisma reads and writes, including nested writes and upserts, are scoped from generated classification data."
+    },
+    {
+      "id": "TEN-006",
+      "severity": "Critical",
+      "owner": "A",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "No application module creates a PrismaClient outside the central Prisma module."
+    },
+    {
+      "id": "FIN-001",
+      "severity": "Critical",
+      "owner": "B",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Payment creation and verification enforce invoice/student ownership, provider order binding, amount, currency, and outstanding balance."
+    },
+    {
+      "id": "FIN-002",
+      "severity": "Critical",
+      "owner": "B",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Invalid signatures cannot mutate another user's payment, and partial payments do not mark invoices fully paid."
+    },
+    {
+      "id": "FIN-003",
+      "severity": "Critical",
+      "owner": "B",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Webhook signatures use raw bytes, constant-time comparison, mandatory secrets, and duplicate-delivery protection in all environments."
+    },
+    {
+      "id": "FIN-004",
+      "severity": "Critical",
+      "owner": "B",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Payment state and ledger posting are atomic; ledger failure is surfaced and no parallel inconsistent ledger engine remains."
+    },
+    {
+      "id": "FIN-005",
+      "severity": "Critical",
+      "owner": "B",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Ledger entries balance per posted transaction and posted rows reject UPDATE/DELETE, with database tests."
+    },
+    {
+      "id": "FIN-006",
+      "severity": "High",
+      "owner": "B",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Financial monetary schema fields use exact decimal arithmetic; unspecified policy defaults are documented for owner approval."
+    },
+    {
+      "id": "BE-001",
+      "severity": "High",
+      "owner": "B",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Bank reconciliation and goods receipt return workflows are schema-backed rather than 501 placeholders."
+    },
+    {
+      "id": "PORT-001",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "All seven portals build and have authenticated browser smoke coverage against configured API endpoints."
+    },
+    {
+      "id": "QA-001",
+      "severity": "Critical",
+      "owner": "E",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "The full backend suite passes without skipped tests, weakened assertions, or suite-setup cascades."
+    },
+    {
+      "id": "QA-002",
+      "severity": "Critical",
+      "owner": "E",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "CI provides isolated PostgreSQL and Redis resources per lane, with RLS tests asserting a non-superuser, non-BYPASSRLS role."
+    },
+    {
+      "id": "QA-003",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Browser E2E runs real portal workflows against the API with isolated, reproducible fixtures."
+    },
+    {
+      "id": "QA-004",
+      "severity": "High",
+      "owner": "F",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Backend lint, type-check, and build all pass without weakened rules or suppressed errors."
+    },
+    {
+      "id": "QA-005",
+      "severity": "Critical",
+      "owner": "G",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "An independent clean-clone audit re-runs required gates and confirms evidence provenance and lane claims."
+    },
+    {
+      "id": "OPS-001",
+      "severity": "Critical",
+      "owner": "C",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Production database, Redis, dashboards, metrics, and container images have reviewed access and deployment configuration."
+    },
+    {
+      "id": "OPS-002",
+      "severity": "High",
+      "owner": "C",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Runtime versions, lockfile paths, and dependency advisories are reviewed; no open high/critical advisory remains."
+    },
+    {
+      "id": "PORT-002",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing procurement workflow."
+    },
+    {
+      "id": "PORT-003",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing inventory workflow."
+    },
+    {
+      "id": "PORT-004",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing ledger workflow."
+    },
+    {
+      "id": "PORT-005",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing payroll workflow."
+    },
+    {
+      "id": "PORT-006",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing CRM workflow."
+    },
+    {
+      "id": "PORT-007",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing scholarships workflow."
+    },
+    {
+      "id": "PORT-008",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing certificates workflow."
+    },
+    {
+      "id": "PORT-009",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing messages workflow."
+    },
+    {
+      "id": "PORT-010",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing branches workflow."
+    },
+    {
+      "id": "PORT-011",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing billing workflow."
+    },
+    {
+      "id": "PORT-012",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing reconciliation workflow."
+    },
+    {
+      "id": "PORT-013",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portals provide the explicitly listed missing reporting workflow."
+    },
+    {
+      "id": "PORT-014",
+      "severity": "High",
+      "owner": "D",
+      "humanOnly": false,
+      "status": "UNVERIFIED",
+      "summary": "Portal API configuration has no hard-coded localhost URLs and sensitive tokens are not stored in localStorage."
+    }
+  ],
+  "humanActions": [
+    {
+      "id": "SEC-004",
+      "severity": "Critical",
+      "owner": "C",
+      "humanOnly": true,
+      "status": "UNVERIFIED",
+      "summary": "Credential exposure remediation is complete, including rotation and downstream exposure review."
+    }
+  ]
+}

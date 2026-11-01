@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pavo-bit.github.io/erp/lane-evidence.schema.json",
+  "title": "SSVM ERP remediation lane evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "lane", "commit", "ci", "jobs", "requirements"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "lane": { "enum": ["A", "B", "C", "D", "E", "F", "G"] },
+    "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runUrl"],
+      "properties": { "runUrl": { "type": "string", "format": "uri" } }
+    },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "status", "url", "commit"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["PASS", "FAIL", "SKIPPED", "PENDING", "UNVERIFIED"] },
+          "url": { "type": "string", "format": "uri" },
+          "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "commands", "ciJobs"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["PASS", "FAIL", "UNVERIFIED"] },
+          "commands": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "ciJobs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "detail": { "type": "string" }
+        }
+      }
+    }
+  }
+}
