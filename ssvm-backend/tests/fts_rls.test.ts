@@ -2,7 +2,11 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../src/app";
 import prisma from "../src/lib/prisma";
-import jwt from "jsonwebtoken";
+import { generateAccessToken } from "../src/lib/tokens";
+
+// Fixtures are shared across this suite's beforeAll/afterAll lifecycle.
+// The global integration setup truncates before each individual test.
+process.env.SKIP_TRUNCATE = "true";
 
 describe("FTS and Search API E2E", () => {
   let server: any;
@@ -35,7 +39,16 @@ describe("FTS and Search API E2E", () => {
     });
     adminUserId = adminUser.id;
 
-    adminToken = jwt.sign({ userId: adminUser.id, role: adminUser.role, schoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
+    adminToken = generateAccessToken({
+      userId: adminUser.id,
+      email: adminUser.email,
+      name: adminUser.name,
+      role: adminUser.role,
+      schoolId,
+      branchId: null,
+      sid: `fts-${Date.now()}`,
+      impersonated: false,
+    }).token;
 
     // Seed some data for FTS
     await prisma.student.create({
