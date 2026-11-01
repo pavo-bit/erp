@@ -22,3 +22,5 @@ Historical portal evidence remains in `docs/BUILD_AND_TEST_REPORT.md`; seven por
 Ground-truth correction from the repository owner: the RLS migration applies cleanly on an empty database and configures 23 tables. This is not a fresh database execution by the agent in this turn; it corrects prior documentation that implied migration-ordering failure. The verified defects remain incomplete RLS coverage and the fail-open NULL-tenant policy.
 
 Fresh local evidence on 2026-11-01: `npx vitest run --config vitest.security.config.ts --pool=threads` passed 6 files and 21 tests; `npx tsc --version` reported 5.9.3 and `npm run type-check` passed. No `tsconfig` file was changed.
+
+PostgreSQL gate policy: mocked/unit route checks are not DB evidence. Isolation and RLS tests must connect to a real PostgreSQL instance and assert `rolsuper = false` and `rolbypassrls = false` in setup; fail the suite if either assertion is false. Until that gate passes, each DB-dependent item remains UNVERIFIED and scores 0.
