@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "lane": "B",
+  "commit": "9d0419492f2c7a874adead4c6431c5b945e09b16",
+  "ci": {
+    "runUrl": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-b-finance"
+  },
+  "jobs": [
+    {
+      "name": "backend-test (lane b)",
+      "status": "UNVERIFIED",
+      "url": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-b-finance",
+      "commit": "9d0419492f2c7a874adead4c6431c5b945e09b16",
+      "detail": "No hosted run is available yet. Lane E has authored the intended isolated DB/Redis row, but its workflow is not on this branch. Local API tests stopped before test collection because DATABASE_URL_TEST is unset; 0 tests ran."
+    },
+    {
+      "name": "type-check",
+      "status": "UNVERIFIED",
+      "url": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-b-finance",
+      "commit": "9d0419492f2c7a874adead4c6431c5b945e09b16",
+      "detail": "Local npm run type-check passed; CI has not run."
+    },
+    {
+      "name": "lint",
+      "status": "UNVERIFIED",
+      "url": "https://github.com/pavo-bit/erp/actions?query=branch%3Aremediation%2Flane-b-finance",
+      "commit": "9d0419492f2c7a874adead4c6431c5b945e09b16",
+      "detail": "Scoped ESLint for the changed payment route, ledger service, and payment API tests passed locally. Full backend lint remains a repository-wide failing baseline; CI has not run."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "FIN-001",
+      "status": "UNVERIFIED",
+      "commands": [
+        "npm run type-check (PASS)",
+        "npx eslint src/routes/payments.ts src/services/ledger.service.ts src/tests/api/payments.test.ts --max-warnings 0 (PASS)",
+        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+      ],
+      "ciJobs": ["backend-test (lane b)"],
+      "detail": "Authorization and order/capture checks are authored; DB-backed verification is pending."
+    },
+    {
+      "id": "FIN-002",
+      "status": "UNVERIFIED",
+      "commands": [
+        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+      ],
+      "ciJobs": ["backend-test (lane b)"],
+      "detail": "Invalid-signature no-mutation and partial-payment regression tests are authored but have not run against PostgreSQL."
+    },
+    {
+      "id": "FIN-003",
+      "status": "UNVERIFIED",
+      "commands": [
+        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+      ],
+      "ciJobs": ["backend-test (lane b)"],
+      "detail": "Raw-body HMAC, mandatory webhook secret, and DB-state duplicate protection are authored but require the lane trusted PostgreSQL integration run."
+    },
+    {
+      "id": "FIN-004",
+      "status": "UNVERIFIED",
+      "commands": [
+        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+      ],
+      "ciJobs": ["backend-test (lane b)"],
+      "detail": "Payment, invoice, ledger, audit, and event writes share one tenant transaction; missing account or ledger failures should roll back. DB behavior is unverified."
+    },
+    {
+      "id": "FIN-005",
+      "status": "UNVERIFIED",
+      "commands": [
+        "npx vitest run src/tests/api/payments.test.ts --reporter=dot (BLOCKED before collection: DATABASE_URL_TEST unset; 0 tests)"
+      ],
+      "ciJobs": ["backend-test (lane b)"],
+      "detail": "A balanced single ledger posting assertion is authored; the PostgreSQL ledger invariant and immutability suite has not run."
+    },
+    {
+      "id": "FIN-006",
+      "status": "UNVERIFIED",
+      "commands": [
+        "Review docs/FINANCE/PAYMENT_POLICY_DECISIONS.md"
+      ],
+      "ciJobs": [],
+      "detail": "Safest defaults are documented as UNAPPROVED. Exact Decimal schema work is outside Lane B ownership and remains unverified."
+    }
+  ]
+}
