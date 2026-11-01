@@ -53,7 +53,6 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
       address: "Test Address",
       city: "Test City",
       state: "Test State",
-      subscription: "BASIC",
     },
   });
 

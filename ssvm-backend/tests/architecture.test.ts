@@ -56,8 +56,7 @@ describe("Architecture & Phase A E2E", () => {
       data: {
         action: "BACKUP_TEST",
         entity: "System",
-        severity: "CRITICAL",
-        status: "SUCCESS"
+        details: "CRITICAL test event",
       }
     });
   });
