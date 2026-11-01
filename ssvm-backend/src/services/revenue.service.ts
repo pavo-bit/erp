@@ -1,7 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
+
 import { LedgerService } from './ledger.service';
 
-const prisma = new PrismaClient();
 
 export class RevenueService {
   /**

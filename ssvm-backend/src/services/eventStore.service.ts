@@ -1,6 +1,6 @@
-import { PrismaClient, Prisma, SystemDomainEventType } from '@prisma/client';
+import prisma from '../lib/prisma';
+import { Prisma, SystemDomainEventType } from '@prisma/client';
 
-const prisma = new PrismaClient();
 
 export interface PublishEventInput {
   schoolId?: string;

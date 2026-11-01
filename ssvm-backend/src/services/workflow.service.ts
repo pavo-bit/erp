@@ -1,7 +1,7 @@
-import { PrismaClient, WorkflowStatus, TaskStatus, WorkflowNodeType } from '@prisma/client';
+import prisma from '../lib/prisma';
+import { WorkflowStatus, TaskStatus, WorkflowNodeType } from '@prisma/client';
 import { PolicyEngineService } from './policy.service';
 
-const prisma = new PrismaClient();
 
 export class WorkflowService {
   /**

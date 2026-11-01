@@ -1,9 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
+
 
 import logger from '../lib/logger';
 import { ProjectionService } from '../services/projection.service';
 
-const prisma = new PrismaClient();
 
 /**
  * PHASE 2: OUTBOX RELAY WORKER
