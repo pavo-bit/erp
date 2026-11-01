@@ -75,3 +75,21 @@ The Phase 2 implementation is incomplete. Its classification, extension, migrati
 | `security-scan` | FAIL | `npm audit --audit-level=high` reported high and moderate dependency advisories; Trivy was skipped. |
 
 The previous hosted CI run tested commit `cffcd24` before the baseline migration replacement and failed at missing `public.access_reviews`; it did not test the new baseline. The baseline and retained full-text index migration are now active in the working tree; a new real-PostgreSQL CI result is required before claiming all 205 tables exist or schema diff is empty. The generated tenant RLS migration raises an exception if a classified tenant table is absent, but it is not to be merged until the baseline and trusted request/pre-auth transaction paths pass end-to-end on PostgreSQL. No per-request transaction wrapper or separate trusted pre-auth/super-admin DB role path has been implemented. Existing deployed databases need a controlled migration-history adoption plan. `161b591` remains reverted, not verified, and must not be depended on.
+
+### Fresh baseline CI run — commit `61ae0c6`
+
+Run: [41294746072](https://github.com/pavo-bit/erp/actions/runs/41294746072), on real PostgreSQL 16 and Redis 7 services.
+
+| Gate | Result | Evidence |
+|---|---|---|
+| Prisma migration deploy | PASS | Baseline, retained full-text index migration, and fail-closed RLS migration all applied. |
+| `prisma migrate diff` against schema | PASS | Shadow DB replay and `--exit-code` check completed successfully with no schema diff. |
+| Prisma model table census | PASS; 205/205 | CI query found every generated Prisma model table in `public`. |
+| Backend test suite | FAIL | Vitest produced `test-results.xml` and exited 1; job log did not expose usable per-test summary in the retrieved output. No pass count is claimed. |
+| `test:rls` | SKIPPED | The preceding test step failed and stopped the job. |
+| Backend type-check | PASS | CI job `backend-type-check`. |
+| Backend full lint | FAIL; 519 errors, 1 warning | Repository-wide errors remain although focused lint for `src/lib/prisma.ts` passes. |
+| Frontend builds | PASS; 7/7 | All configured portal build jobs passed. |
+| Dependency security scan | FAIL | `npm audit --audit-level=high` found advisories; Trivy did not run. |
+
+This verifies the fresh baseline builds all 205 tables and is schema-equivalent on the CI PostgreSQL database. Tenant request-context behavior is still not verified, and the RLS migration must remain unmerged until the request/pre-auth transaction path is implemented and `test:rls` passes.

@@ -85,6 +85,7 @@ jobs:
           SQL
 
       - name: Deploy Prisma Migrations
+        id: deploy-migrations
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ env.DIRECT_URL }}
@@ -100,7 +101,16 @@ jobs:
         run: npm run test:ci
 
       - name: Run PostgreSQL RLS tests
+        if: always() && steps.deploy-migrations.outcome == 'success'
         run: npm run test:rls
+
+      - name: Upload backend test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: ./ssvm-backend/test-results.xml
+          if-no-files-found: warn
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3
