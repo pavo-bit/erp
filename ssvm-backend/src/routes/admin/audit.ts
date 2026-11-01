@@ -55,7 +55,17 @@ router.get("/security-alerts", async (req: Request, res: Response): Promise<void
       take: 20
     });
 
-    res.json({ success: true, data: alerts });
+    const mappedAlerts = alerts.map((alert) => ({
+      ...alert,
+      severity:
+        alert.level === "FATAL" || alert.level === "ERROR"
+          ? "CRITICAL"
+          : alert.level === "WARN"
+          ? "WARNING"
+          : "INFO",
+    }));
+
+    res.json({ success: true, data: mappedAlerts });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
