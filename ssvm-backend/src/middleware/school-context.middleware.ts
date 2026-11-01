@@ -1,5 +1,9 @@
 import { AsyncLocalStorage } from "async_hooks";
 import { Request, Response, NextFunction } from "express";
+import {
+  runWithTenantDatabaseTransaction,
+  runWithTrustedDatabaseTransaction,
+} from "../lib/prisma";
 
 // ═══════════════════════════════════════════
 // School Context Middleware (GAP 3)
@@ -85,6 +89,71 @@ export function setAuthenticatedSchoolContext(user: {
     Object.assign(context, authenticatedContext);
   } else {
     schoolContextStorage.enterWith(authenticatedContext);
+  }
+}
+
+/**
+ * Starts the database transaction for an authenticated HTTP request and holds
+ * it open until Express has completed or closed the response. Call only after
+ * token and database-backed identity checks have succeeded.
+ */
+export async function runAuthenticatedTenantRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  user: {
+    id: string;
+    schoolId: string | null;
+    role: string;
+    impersonated?: boolean;
+    originalUserId?: string;
+  },
+): Promise<void> {
+  setAuthenticatedSchoolContext(user);
+
+  const executeRoute = (): Promise<void> => new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (): void => {
+      if (settled) return;
+      settled = true;
+      res.off("finish", finish);
+      res.off("close", finish);
+      resolve();
+    };
+
+    res.once("finish", finish);
+    res.once("close", finish);
+    try {
+      next();
+    } catch (error) {
+      res.off("finish", finish);
+      res.off("close", finish);
+      reject(error);
+    }
+  });
+
+  try {
+    if (user.role === "SUPER_ADMIN") {
+      const requestId = res.getHeader("X-Request-ID")?.toString();
+      await runWithTrustedDatabaseTransaction({
+        purpose: "super_admin",
+        actorUserId: user.id,
+        requestId,
+        route: `${req.method} ${req.originalUrl}`,
+        reason: `Authenticated super-admin request ${req.method} ${req.originalUrl}`,
+      }, executeRoute);
+    } else {
+      if (!user.schoolId) {
+        throw new Error("Authenticated tenant requests require a school assignment.");
+      }
+      await runWithTenantDatabaseTransaction(user.schoolId, executeRoute);
+    }
+  } catch (error) {
+    if (res.headersSent || res.destroyed) {
+      res.destroy(error instanceof Error ? error : new Error("Request transaction failed."));
+      return;
+    }
+    next(error);
   }
 }
 
