@@ -37,17 +37,38 @@ function buildTenantWhere(modelName: string, schoolId: string): UnknownRecord {
   return scope;
 }
 
-function flattenWhere(where: UnknownRecord): UnknownRecord {
+function getCompoundUniqueSelectors(modelName: string): Map<string, readonly string[]> {
+  const model = Prisma.dmmf.datamodel.models.find((candidate) => candidate.name === modelName);
+  const selectors = new Map<string, readonly string[]>();
+  if (!model) return selectors;
+
+  for (const fields of model.uniqueFields) {
+    if (fields.length > 1) selectors.set(fields.join("_"), fields);
+  }
+  for (const index of model.uniqueIndexes) {
+    if (index.fields.length > 1) {
+      selectors.set(index.name ?? index.fields.join("_"), index.fields);
+    }
+  }
+  if (model.primaryKey && model.primaryKey.fields.length > 1) {
+    selectors.set(model.primaryKey.name ?? model.primaryKey.fields.join("_"), model.primaryKey.fields);
+  }
+
+  return selectors;
+}
+
+export function flattenWhere(modelName: string, where: UnknownRecord): UnknownRecord {
   const result: UnknownRecord = {};
+  const compoundSelectors = getCompoundUniqueSelectors(modelName);
   for (const [key, val] of Object.entries(where)) {
-    if (val && typeof val === "object" && !Array.isArray(val) && !(val instanceof Date)) {
-      const keys = Object.keys(val);
-      const isOperator = keys.some((k) =>
-        ["equals", "in", "notIn", "lt", "lte", "gt", "gte", "contains", "startsWith", "endsWith", "mode", "not", "is", "isNot"].includes(k)
-      );
-      if (!isOperator && key.includes("_")) {
-        // Compound unique key like threadId_userId: { threadId, userId }
-        Object.assign(result, val);
+    const fields = compoundSelectors.get(key);
+    const value = asRecord(val);
+    if (fields && value) {
+      const valueKeys = Object.keys(value);
+      const exactlyCompoundFields =
+        valueKeys.length === fields.length && fields.every((field) => Object.hasOwn(value, field));
+      if (exactlyCompoundFields) {
+        Object.assign(result, value);
         continue;
       }
     }
@@ -57,7 +78,7 @@ function flattenWhere(where: UnknownRecord): UnknownRecord {
 }
 
 function addTenantWhere(modelName: string, where: unknown, schoolId: string): UnknownRecord {
-  const current = flattenWhere(asRecord(where) ?? {});
+  const current = flattenWhere(modelName, asRecord(where) ?? {});
   const tenantWhere = buildTenantWhere(modelName, schoolId);
   return Object.keys(current).length > 0
     ? { AND: [current, tenantWhere] }
@@ -232,7 +253,7 @@ extendedPrisma = prismaWithEncryption
             if (schoolId && classification && classification.classification !== "global") {
               const delegate = (prismaWithEncryption as any)[model];
               if (delegate) {
-                const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
+                const flatWhere = flattenWhere(model, asRecord(mutableArgs.where) ?? {});
                 const existing = await delegate.findFirst({
                   where: addTenantWhere(model, flatWhere, schoolId),
                   select: { id: true },
@@ -259,7 +280,7 @@ extendedPrisma = prismaWithEncryption
             const delegate = (prismaWithEncryption as any)[model];
 
             if (operation === "findUnique" || operation === "findUniqueOrThrow") {
-              const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
+              const flatWhere = flattenWhere(model, asRecord(mutableArgs.where) ?? {});
               const queryArgs = {
                 ...mutableArgs,
                 where: addTenantWhere(model, flatWhere, schoolId),
@@ -272,7 +293,7 @@ extendedPrisma = prismaWithEncryption
             }
 
             if (operation === "update" || operation === "delete") {
-              const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
+              const flatWhere = flattenWhere(model, asRecord(mutableArgs.where) ?? {});
               const existing = await delegate.findFirst({
                 where: addTenantWhere(model, flatWhere, schoolId),
                 select: { id: true },
@@ -289,7 +310,7 @@ extendedPrisma = prismaWithEncryption
             }
 
             if (operation === "upsert") {
-              const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
+              const flatWhere = flattenWhere(model, asRecord(mutableArgs.where) ?? {});
               const existing = await delegate.findFirst({
                 where: addTenantWhere(model, flatWhere, schoolId),
               });
