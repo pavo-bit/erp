@@ -1,9 +1,18 @@
+import { AsyncLocalStorage } from "node:async_hooks";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { encryptionExtension } from "./prismaEncryptionMiddleware";
 import { getCurrentSchoolId, getSchoolContext } from "../middleware/school-context.middleware";
 import { TENANT_CLASSIFICATION } from "../generated/tenantClassification";
 
 type UnknownRecord = Record<string, unknown>;
+
+interface ActiveDatabaseTransaction {
+  client: Prisma.TransactionClient;
+  kind: "tenant" | "trusted";
+  schoolId: string | null;
+}
+
+const transactionClientStorage = new AsyncLocalStorage<ActiveDatabaseTransaction>();
 
 function asRecord(value: unknown): UnknownRecord | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -111,34 +120,40 @@ type SoftDeleteDelegate = {
   updateMany(where: UnknownRecord, deletedAt: Date): Promise<unknown>;
 };
 
+let extendedPrisma: PrismaClient;
+
+function activePrismaClient(): PrismaClient | Prisma.TransactionClient {
+  return transactionClientStorage.getStore()?.client ?? extendedPrisma;
+}
+
 const softDeleteDelegates: Record<string, SoftDeleteDelegate> = {
   School: {
-    update: (where, deletedAt) => basePrisma.school.update({ where: where as unknown as Prisma.SchoolWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.school.updateMany({ where: where as unknown as Prisma.SchoolWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => activePrismaClient().school.update({ where: where as unknown as Prisma.SchoolWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => activePrismaClient().school.updateMany({ where: where as unknown as Prisma.SchoolWhereInput, data: { deletedAt } }),
   },
   User: {
-    update: (where, deletedAt) => basePrisma.user.update({ where: where as unknown as Prisma.UserWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.user.updateMany({ where: where as unknown as Prisma.UserWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => activePrismaClient().user.update({ where: where as unknown as Prisma.UserWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => activePrismaClient().user.updateMany({ where: where as unknown as Prisma.UserWhereInput, data: { deletedAt } }),
   },
   Student: {
-    update: (where, deletedAt) => basePrisma.student.update({ where: where as unknown as Prisma.StudentWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.student.updateMany({ where: where as unknown as Prisma.StudentWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => activePrismaClient().student.update({ where: where as unknown as Prisma.StudentWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => activePrismaClient().student.updateMany({ where: where as unknown as Prisma.StudentWhereInput, data: { deletedAt } }),
   },
   Teacher: {
-    update: (where, deletedAt) => basePrisma.teacher.update({ where: where as unknown as Prisma.TeacherWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.teacher.updateMany({ where: where as unknown as Prisma.TeacherWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => activePrismaClient().teacher.update({ where: where as unknown as Prisma.TeacherWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => activePrismaClient().teacher.updateMany({ where: where as unknown as Prisma.TeacherWhereInput, data: { deletedAt } }),
   },
   Invoice: {
-    update: (where, deletedAt) => basePrisma.invoice.update({ where: where as unknown as Prisma.InvoiceWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.invoice.updateMany({ where: where as unknown as Prisma.InvoiceWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => activePrismaClient().invoice.update({ where: where as unknown as Prisma.InvoiceWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => activePrismaClient().invoice.updateMany({ where: where as unknown as Prisma.InvoiceWhereInput, data: { deletedAt } }),
   },
   Admission: {
-    update: (where, deletedAt) => basePrisma.admission.update({ where: where as unknown as Prisma.AdmissionWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.admission.updateMany({ where: where as unknown as Prisma.AdmissionWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => activePrismaClient().admission.update({ where: where as unknown as Prisma.AdmissionWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => activePrismaClient().admission.updateMany({ where: where as unknown as Prisma.AdmissionWhereInput, data: { deletedAt } }),
   },
   PaymentTransaction: {
-    update: (where, deletedAt) => basePrisma.paymentTransaction.update({ where: where as unknown as Prisma.PaymentTransactionWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.paymentTransaction.updateMany({ where: where as unknown as Prisma.PaymentTransactionWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => activePrismaClient().paymentTransaction.update({ where: where as unknown as Prisma.PaymentTransactionWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => activePrismaClient().paymentTransaction.updateMany({ where: where as unknown as Prisma.PaymentTransactionWhereInput, data: { deletedAt } }),
   },
 };
 
@@ -152,7 +167,7 @@ const basePrisma = new PrismaClient();
 //   2. RLS context injection (SET LOCAL app.current_school_id)
 //   3. Soft delete interception
 
-const prisma = basePrisma
+extendedPrisma = basePrisma
   .$extends(encryptionExtension)
   .$extends({
     query: {
@@ -230,6 +245,156 @@ const prisma = basePrisma
         },
       },
     },
-  });
+  }) as unknown as PrismaClient;
 
-export default prisma as unknown as PrismaClient;
+function runNestedTransaction<T>(
+  transaction: ActiveDatabaseTransaction,
+  operation: unknown,
+): Promise<T> {
+  if (typeof operation === "function") {
+    return Promise.resolve(operation(transaction.client) as T);
+  }
+  if (Array.isArray(operation)) {
+    return Promise.all(operation) as Promise<T>;
+  }
+  return Promise.reject(new TypeError("Unsupported nested Prisma transaction operation."));
+}
+
+const prisma = new Proxy(extendedPrisma, {
+  get(target, property, receiver) {
+    const activeTransaction = transactionClientStorage.getStore();
+    if (property === "$transaction" && activeTransaction) {
+      return (operation: unknown) => runNestedTransaction(activeTransaction, operation);
+    }
+
+    const source = activeTransaction?.client ?? target;
+    const value = Reflect.get(source, property, source);
+    return typeof value === "function" ? value.bind(source) : value;
+  },
+});
+
+let trustedPrisma: PrismaClient | undefined;
+let trustedDatabaseUrl: string | undefined;
+
+/**
+ * Returns the explicitly configured trusted database connection.
+ * It intentionally has no DATABASE_URL fallback: callers fail closed when the
+ * separate connection is not provisioned.
+ */
+export function getTrustedPrisma(): PrismaClient {
+  const configuredUrl = process.env.TRUSTED_DATABASE_URL?.trim();
+  if (!configuredUrl) {
+    throw new Error("TRUSTED_DATABASE_URL must configure the separate trusted database role.");
+  }
+
+  if (trustedPrisma && trustedDatabaseUrl === configuredUrl) return trustedPrisma;
+
+  trustedDatabaseUrl = configuredUrl;
+  trustedPrisma = new PrismaClient({ datasources: { db: { url: configuredUrl } } })
+    .$extends(encryptionExtension) as unknown as PrismaClient;
+  return trustedPrisma;
+}
+
+export interface TrustedDatabaseAudit {
+  purpose: "authentication" | "payment_webhook" | "worker" | "super_admin";
+  requestId?: string;
+  actorUserId?: string;
+  route?: string;
+  reason?: string;
+}
+
+async function recordTrustedDatabaseUse(
+  transaction: Prisma.TransactionClient,
+  audit: TrustedDatabaseAudit,
+): Promise<void> {
+  if (audit.purpose === "super_admin" && (!audit.actorUserId || !audit.reason?.trim())) {
+    throw new Error("Audited super-admin database access requires an actor user ID and reason.");
+  }
+
+  await transaction.auditLog.create({
+    data: {
+      action: "TRUSTED_DATABASE_ACCESS",
+      entity: "Database",
+      userId: audit.actorUserId,
+      reason: audit.purpose === "super_admin" ? audit.reason : null,
+      details: JSON.stringify({
+        purpose: audit.purpose,
+        requestId: audit.requestId ?? null,
+        route: audit.route ?? null,
+      }),
+    },
+  });
+}
+
+/**
+ * Executes an explicitly privileged operation through the separate trusted
+ * connection. The transaction-local tenant setting is initialized before the
+ * audit insert and before callback work. The audit insert is atomic with the
+ * privileged work: failures roll back both.
+ */
+export async function runWithTrustedDatabaseTransaction<T>(
+  audit: TrustedDatabaseAudit,
+  callback: () => Promise<T>,
+): Promise<T> {
+  const current = transactionClientStorage.getStore();
+  if (current) {
+    if (current.kind !== "trusted") {
+      throw new Error("Cannot enter a trusted database path from a tenant transaction.");
+    }
+    return callback();
+  }
+
+  const trusted = getTrustedPrisma();
+  return trusted.$transaction(async (transaction) => {
+    const setting = await transaction.$queryRaw<Array<{ tenantId: string }>>`
+      SELECT set_config('app.current_school_id', '', true) AS "tenantId"
+    `;
+    if (setting[0]?.tenantId !== "") {
+      throw new Error("Trusted transaction failed to initialize an empty tenant context.");
+    }
+
+    await recordTrustedDatabaseUse(transaction, audit);
+    return transactionClientStorage.run(
+      { client: transaction, kind: "trusted", schoolId: null },
+      callback,
+    );
+  });
+}
+
+/**
+ * Runs all database calls in a request inside a single transaction. SET LOCAL
+ * is the first SQL statement in that transaction, so connection pooling cannot
+ * lose tenant context between application queries.
+ */
+export async function runWithTenantDatabaseTransaction<T>(
+  schoolId: string,
+  callback: () => Promise<T>,
+): Promise<T> {
+  if (!schoolId.trim()) {
+    throw new Error("A tenant database transaction requires a non-empty school ID.");
+  }
+
+  const current = transactionClientStorage.getStore();
+  if (current) {
+    if (current.kind !== "tenant" || current.schoolId !== schoolId) {
+      throw new Error("Tenant transaction context cannot be changed or elevated inside an active transaction.");
+    }
+    return callback();
+  }
+
+  return extendedPrisma.$transaction(async (transaction) => {
+    const setting = await transaction.$queryRaw<Array<{ tenantId: string }>>`
+      SELECT set_config('app.current_school_id', ${schoolId}, true) AS "tenantId"
+    `;
+    if (setting[0]?.tenantId !== schoolId) {
+      throw new Error("Tenant transaction failed to initialize the requested school ID.");
+    }
+
+    return transactionClientStorage.run(
+      { client: transaction, kind: "tenant", schoolId },
+      callback,
+    );
+  });
+}
+
+export default prisma;

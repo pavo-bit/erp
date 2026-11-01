@@ -228,7 +228,12 @@ app.use(cors({
   credentials: true,
   exposedHeaders: ["X-CSRF-Token"],
 }));
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({
+  limit: "10mb",
+  verify: (req, _res, body) => {
+    (req as express.Request).rawBody = Buffer.from(body);
+  },
+}));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
