@@ -3,7 +3,7 @@ import request from 'supertest';
 import { createTestApp, getTestPrisma, createTestUser, createTestSchool, createTestStudent } from '../helpers/testApp';
 import { InvoiceFactory } from '../helpers/factories';
 import { generateWebhookSignature, createPaymentCapturedPayload, createPaymentFailedPayload } from '../helpers/razorpay';
-import { Role } from '@prisma/client';
+import { LedgerAccountType, LedgerCategory, Role } from '@prisma/client';
 
 const app = createTestApp();
 const prisma = getTestPrisma();
@@ -17,6 +17,25 @@ describe('Payments & Finance APIs', () => {
   beforeEach(async () => {
     const school = await createTestSchool();
     schoolId = school.id;
+
+    await prisma.ledgerAccount.createMany({
+      data: [
+        {
+          schoolId,
+          code: '1010-BANK',
+          name: 'Payment bank',
+          category: LedgerCategory.ASSET,
+          type: LedgerAccountType.BANK,
+        },
+        {
+          schoolId,
+          code: '4000-TUIT',
+          name: 'Tuition revenue',
+          category: LedgerCategory.REVENUE,
+          type: LedgerAccountType.REVENUE,
+        },
+      ],
+    });
     
     const admin = await createTestUser(Role.ERP_ADMIN, schoolId);
     adminCookie = admin.cookie;

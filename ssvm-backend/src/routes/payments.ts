@@ -1,4 +1,4 @@
-import prisma from '../lib/prisma';
+import prisma, { runWithTenantDatabaseTransaction, runWithTrustedDatabaseTransaction } from '../lib/prisma';
 import { Router, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
@@ -7,7 +7,6 @@ import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
 import { getEnv } from "../config/env";
 import { LedgerService } from "../services/ledger.service";
 import { paymentIdempotencyMiddleware, computePaymentIdempotencyKey } from "../middleware/idempotency";
-import { IdempotencyService } from "../services/idempotency.service";
 import { logSecurityEvent } from "../lib/audit";
 import { razorpayCircuitBreaker } from "../lib/circuitBreaker";
 import logger from "../lib/logger";
@@ -21,6 +20,12 @@ const razorpay = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
   : null;
 
 const PAYMENT_ADMIN_ROLES = new Set(["ERP_ADMIN", "ACCOUNTANT"]);
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
 
 function amountToPaise(amount: number): number {
   if (!Number.isFinite(amount) || amount < 0) {
@@ -392,262 +397,104 @@ router.post("/trigger-late-fines", authenticate, requireRole("SUPER_ADMIN", "ERP
 // Razorpay requires 200 on duplicates — never return 4xx/5xx for already-processed events.
 router.post("/webhook", async (req: import("express").Request, res: Response) => {
   try {
-    const signature = req.headers["x-razorpay-signature"] as string;
-    const webhookBody = req.body;
-
-    // ── 1. HMAC Signature Validation ──
-    const secret = env.RAZORPAY_WEBHOOK_SECRET || env.RAZORPAY_KEY_SECRET;
+    const rawBody = req.rawBody;
+    const signature = req.get("x-razorpay-signature");
+    const secret = env.RAZORPAY_WEBHOOK_SECRET;
     if (!secret) {
       res.status(503).json({ success: false, error: "Payment webhook is not configured" });
       return;
     }
-    const payloadString = JSON.stringify(webhookBody);
-    const expectedSignature = crypto
-      .createHmac("sha256", secret)
-      .update(payloadString)
-      .digest("hex");
-
-    const expectedBytes = Buffer.from(expectedSignature, "hex");
-    const suppliedBytes = Buffer.from(signature || "", "hex");
-    if (!expectedBytes.length || expectedBytes.length !== suppliedBytes.length || !crypto.timingSafeEqual(expectedBytes, suppliedBytes)) {
+    if (!rawBody || !verifyHmacSignature(rawBody, signature, secret)) {
       await logSecurityEvent({
         userId: "SYSTEM",
         eventType: "WEBHOOK_TAMPERING",
         severity: "CRITICAL",
         ipAddress: typeof req.ip === "string" ? req.ip : undefined,
-        metadata: { receivedSignature: signature?.substring(0, 16) + "..." },
+        metadata: { reason: rawBody ? "invalid_signature" : "raw_body_missing" },
       });
-      res.status(400).json({ success: false, error: "Invalid signature" });
+      res.status(400).json({ success: false, error: "Invalid signature or missing raw body" });
       return;
     }
 
-    // ── 2. Replay Protection (5-minute window) ──
-    const createdAt = webhookBody.created_at;
-    if (createdAt) {
-      const now = Math.floor(Date.now() / 1000);
-      if (now - createdAt > 300) {
-        logger.warn({ createdAt, now }, "Webhook replay detected — stale event");
-        // Still return 200 so Razorpay stops retrying
-        res.status(200).json({ success: true, message: "Stale event ignored" });
-        return;
-      }
+    let payload: unknown;
+    try {
+      payload = JSON.parse(rawBody.toString("utf8")) as unknown;
+    } catch {
+      res.status(400).json({ success: false, error: "Invalid JSON payload" });
+      return;
+    }
+    const body = asObject(payload);
+    const payloadObject = body ? asObject(body.payload) : null;
+    const paymentObject = payloadObject ? asObject(payloadObject.payment) : null;
+    const payment = paymentObject ? asObject(paymentObject.entity) : null;
+    if (!body || !payment || typeof payment.id !== "string" || typeof payment.order_id !== "string") {
+      res.status(400).json({ success: false, error: "Webhook payment details are incomplete" });
+      return;
     }
 
-    // ── 3. Process Payment Events ──
-    if (webhookBody.event === "payment.captured" || webhookBody.event === "order.paid") {
-      const paymentEntity = webhookBody.payload?.payment?.entity;
-      if (!paymentEntity) {
-        res.status(200).json({ success: true, message: "Ignored — no payment entity" });
-        return;
-      }
-
-      const gatewayPaymentId = paymentEntity.id;
-      const orderId = paymentEntity.order_id;
-      const razorpayEventId = req.headers["x-razorpay-event-id"] as string;
-
-      // Compute deterministic idempotency key
-      const idempotencyKey = razorpayEventId
-        ? crypto.createHash("sha256").update(razorpayEventId).digest("hex")
-        : crypto.createHash("sha256").update(payloadString).digest("hex");
-
-      // Fast-path: Redis SETNX Idempotency Lock
-      // Use 'system' as schoolId if we don't have it parsed yet
-      const lockAcquired = await IdempotencyService.acquireLock("system", idempotencyKey);
-      if (!lockAcquired) {
-        logger.info({ idempotencyKey, gatewayPaymentId }, "Webhook duplicate detected (Redis lock)");
-        res.status(200).json({ success: true, message: "Already processed" });
-        return;
-      }
-
-      try {
-        const result = await prisma.$transaction(async (tx) => {
-          // ── Idempotency Check 1: By idempotency key ──
-          const existingByEvent = await tx.paymentTransaction.findFirst({
-            where: { idempotencyKey },
-          });
-
-          if (existingByEvent) {
-            logger.info({ idempotencyKey, gatewayPaymentId }, "Webhook duplicate detected (idempotency key)");
-            return { alreadyProcessed: true };
-          }
-
-          // ── Idempotency Check 2: By gateway payment ID ──
-          const existingByGateway = await tx.paymentTransaction.findUnique({
-            where: { gatewayPaymentId },
-          });
-
-          if (existingByGateway) {
-            logger.info({ gatewayPaymentId }, "Webhook duplicate detected (gateway payment ID)");
-            // Log to SystemLog for monitoring
-            await tx.systemLog.create({
-              data: {
-                level: "WARN",
-                module: "PAYMENT_WEBHOOK",
-                message: `Duplicate webhook for payment ${gatewayPaymentId}`,
-                metadata: JSON.stringify({ event: webhookBody.event, razorpayEventId }),
-              },
-            });
-            return { alreadyProcessed: true };
-          }
-
-          // ── Find the original transaction by Razorpay order ID ──
-          const transaction = await tx.paymentTransaction.findUnique({
-            where: { transactionId: orderId },
-          });
-
-          if (!transaction) {
-            logger.error({ orderId }, "Transaction not found for webhook orderId");
-            // Create a SystemLog entry for manual investigation
-            await tx.systemLog.create({
-              data: {
-                level: "ERROR",
-                module: "PAYMENT_WEBHOOK",
-                message: `No transaction found for orderId: ${orderId}`,
-                metadata: JSON.stringify({ gatewayPaymentId, event: webhookBody.event }),
-              },
-            });
-            // Still return 200 to Razorpay (don't retry what we can't process)
-            return { alreadyProcessed: true, notFound: true };
-          }
-
-          if (transaction.status === "SUCCESS") {
-            return { alreadyProcessed: true };
-          }
-
-          // ── Atomically update payment + invoice ──
-          const receiptNo = `REC-${Date.now()}`;
-
-          await tx.paymentTransaction.update({
-            where: { id: transaction.id },
-            data: {
-              gatewayPaymentId,
-              status: "SUCCESS",
-              paidAt: new Date(),
-              idempotencyKey,
-            },
-          });
-
-          await tx.invoice.update({
-            where: { id: transaction.invoiceId },
-            data: {
-              status: "PAID",
-              paidDate: new Date(),
-              receiptNo,
-              amountPaid: { increment: transaction.amountPaid },
-            },
-          });
-
-          // ── Post to ledger within the same transaction context ──
-          const invoice = await tx.invoice.findUnique({ where: { id: transaction.invoiceId } });
-
-          if (invoice) {
-            const bankAcc = await tx.ledgerAccount.findUnique({
-              where: { schoolId_code: { schoolId: invoice.schoolId, code: "1010-BANK" } },
-            });
-            const revAcc = await tx.ledgerAccount.findUnique({
-              where: { schoolId_code: { schoolId: invoice.schoolId, code: "4000-TUIT" } },
-            });
-
-            if (bankAcc && revAcc) {
-              // Generate transaction number
-              const counter = await tx.sequenceCounter.upsert({
-                where: { schoolId_key: { schoolId: invoice.schoolId, key: "LEDGER_TXN" } },
-                update: { currentValue: { increment: 1 } },
-                create: { schoolId: invoice.schoolId, key: "LEDGER_TXN", currentValue: 1 },
-              });
-
-              const txnNumber = `LED-${new Date().getFullYear()}-${String(counter.currentValue).padStart(6, "0")}`;
-
-              // Hash chain
-              const lastTx = await tx.ledgerTransaction.findFirst({
-                where: { schoolId: invoice.schoolId },
-                orderBy: { postingDate: "desc" },
-              });
-
-              const previousHash = lastTx?.hash || "GENESIS_HASH";
-              const entries = [
-                { accountId: bankAcc.id, debitAmount: transaction.amountPaid, creditAmount: 0 },
-                { accountId: revAcc.id, debitAmount: 0, creditAmount: transaction.amountPaid },
-              ];
-
-              const payloadForHash = JSON.stringify({
-                txnNumber,
-                schoolId: invoice.schoolId,
-                referenceId: transaction.id,
-                entries,
-                previousHash,
-              });
-
-              const currentHash = crypto.createHash("sha256").update(payloadForHash).digest("hex");
-
-              await tx.ledgerTransaction.create({
-                data: {
-                  schoolId: invoice.schoolId,
-                  transactionNumber: txnNumber,
-                  referenceType: "PAYMENT",
-                  referenceId: transaction.id,
-                  sourceModule: "FEES",
-                  description: `Webhook payment for Invoice ${invoice.id}`,
-                  source: "SYSTEM",
-                  postingDate: new Date(),
-                  previousHash,
-                  hash: currentHash,
-                  createdBy: "WEBHOOK_SYSTEM",
-                  eventPublished: true,
-                  LedgerEntry: {
-                    create: entries.map((e) => ({
-                      accountId: e.accountId,
-                      debitAmount: e.debitAmount,
-                      creditAmount: e.creditAmount,
-                    })),
-                  },
-                },
-              });
-
-              logger.info({ transactionId: transaction.id, txnNumber }, "[Webhook] Ledger entry posted atomically");
-            }
-          }
-
-          return { alreadyProcessed: false };
-        }, {
-          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-        });
-
-        if (result.alreadyProcessed) {
-          // Razorpay requires 200 for duplicates
-          res.status(200).json({ success: true, message: "Already processed" });
-          return;
-        }
-      } catch (txError: unknown) {
-        // Serialization failure → tell Razorpay to retry
-        const txErrorCode = txError && typeof txError === "object" && "code" in txError ? txError.code : undefined;
-        const txErrorMessage = txError instanceof Error ? txError.message : "";
-        if (txErrorCode === "P2034" || txErrorMessage.includes("serialization")) {
-          logger.warn({ err: txError, gatewayPaymentId }, "Serialization conflict in webhook — Razorpay will retry");
-          await IdempotencyService.releaseLock("system", idempotencyKey);
-          res.status(500).json({ success: false, error: "Concurrency error, retry later" });
-          return;
-        }
-
-        // Unique constraint violation → duplicate (race condition handled gracefully)
-        if (txErrorCode === "P2002") {
-          logger.info({ gatewayPaymentId }, "Duplicate caught by unique constraint");
-          res.status(200).json({ success: true, message: "Already processed" });
-          return;
-        }
-
-        logger.error({ err: txError, gatewayPaymentId }, "Webhook transaction error");
-        await IdempotencyService.releaseLock("system", idempotencyKey);
-        res.status(500).json({ success: false, error: "Processing error" });
-        return;
-      }
+    if (body.event !== "payment.captured" && body.event !== "order.paid") {
+      // A failed attempt does not close the order: Razorpay may capture another
+      // attempt against it. Only a verified capture changes our payment state.
+      res.status(200).json({ success: true, message: "Event acknowledged" });
+      return;
+    }
+    if (payment.status !== "captured" || payment.currency !== "INR" || !Number.isInteger(payment.amount)) {
+      res.status(400).json({ success: false, error: "Webhook capture details are invalid" });
+      return;
     }
 
-    // For all other event types, acknowledge receipt
-    res.status(200).json({ success: true });
+    const orderId = payment.order_id;
+    const gatewayPaymentId = payment.id;
+    const razorpayEventId = req.get("x-razorpay-event-id");
+    const idempotencyKey = crypto.createHash("sha256")
+      .update(razorpayEventId || rawBody)
+      .digest("hex");
+    const requestId = crypto.randomUUID();
+
+    const order = await runWithTrustedDatabaseTransaction({
+      purpose: "payment_webhook",
+      requestId,
+      route: "POST /api/v1/payments/webhook",
+    }, async () => prisma.paymentTransaction.findUnique({
+      where: { transactionId: orderId },
+      select: { id: true, transactionId: true, amountPaid: true, status: true, invoice: { select: { schoolId: true } } },
+    }));
+    if (!order?.transactionId || !order.invoice.schoolId) {
+      logger.warn({ orderId }, "Verified payment webhook has no matching school order");
+      res.status(200).json({ success: true, message: "Unknown order acknowledged" });
+      return;
+    }
+
+    const result = await runWithTenantDatabaseTransaction(order.invoice.schoolId, async () => {
+      const current = await prisma.paymentTransaction.findUnique({
+        where: { id: order.id },
+        include: { invoice: true },
+      });
+      if (!current || current.transactionId !== orderId) throw new Error("Payment order changed during webhook processing.");
+      if (payment.amount !== amountToPaise(current.amountPaid)) {
+        throw new Error("Captured amount does not match the stored payment order.");
+      }
+      return prisma.$transaction(async (tx) => applyCapturedPayment(tx, {
+        orderId,
+        gatewayPaymentId,
+        idempotencyKey,
+        actorId: "RAZORPAY_WEBHOOK",
+      }), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    });
+
+    res.status(200).json({
+      success: true,
+      message: result.alreadyProcessed ? "Already processed" : "Payment captured",
+      receiptNo: result.receiptNo,
+    });
   } catch (error) {
     logger.error({ err: error }, "Razorpay Webhook Error");
-    res.status(500).json({ success: false });
+    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+    if (code === "P2002") {
+      res.status(200).json({ success: true, message: "Already processed" });
+      return;
+    }
+    res.status(500).json({ success: false, error: "Payment processing failed; retry delivery" });
   }
 });
 
