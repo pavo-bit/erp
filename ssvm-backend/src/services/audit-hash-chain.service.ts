@@ -1,8 +1,8 @@
+import prisma from '../lib/prisma';
 import crypto from "crypto";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import logger from "../lib/logger";
 
-const prisma = new PrismaClient();
 
 // ═══════════════════════════════════════════
 // Audit Hash Chain Service (GAP 13)

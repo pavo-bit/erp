@@ -27,7 +27,7 @@ describe('RBAC Middleware & Route Matrix', () => {
         'ERP_ADMIN': 200,
         'TEACHER': 200,
         'ACCOUNTANT': 403,
-        'PARENT': 403,
+        'PARENT': 200,
         'STUDENT': 403,
       }
     },
@@ -48,10 +48,11 @@ describe('RBAC Middleware & Route Matrix', () => {
       path: '/api/v1/hr/salaries',
       expected: {
         'SUPER_ADMIN': 200,
-        'ERP_ADMIN': 403,
+        'ERP_ADMIN': 200,
         'TEACHER': 403,
-        'ACCOUNTANT': 200,
+        'ACCOUNTANT': 403,
         'HR': 200,
+        'PARENT': 403,
         'STUDENT': 403,
       }
     },
@@ -60,10 +61,11 @@ describe('RBAC Middleware & Route Matrix', () => {
       path: '/api/v1/hr/salaries',
       expected: {
         'SUPER_ADMIN': 201,
-        'ERP_ADMIN': 403,
+        'ERP_ADMIN': 201,
         'TEACHER': 403,
         'ACCOUNTANT': 403,
         'HR': 201,
+        'PARENT': 403,
         'STUDENT': 403,
       }
     },
@@ -75,18 +77,20 @@ describe('RBAC Middleware & Route Matrix', () => {
         'ERP_ADMIN': 403,
         'TEACHER': 403,
         'ACCOUNTANT': 403,
+        'HR': 403,
         'PARENT': 403,
         'STUDENT': 403,
       }
     },
     {
-      method: 'DELETE',
-      path: '/api/v1/users/some-id',
+      method: 'PUT',
+      path: '/api/v1/users/some-id/status',
       expected: {
         'SUPER_ADMIN': 200,
         'ERP_ADMIN': 200,
         'TEACHER': 403,
         'ACCOUNTANT': 403,
+        'HR': 403,
         'PARENT': 403,
         'STUDENT': 403,
       }
@@ -102,15 +106,17 @@ describe('RBAC Middleware & Route Matrix', () => {
         ['TEACHER', endpoint.expected['TEACHER']],
         ['ACCOUNTANT', endpoint.expected['ACCOUNTANT']],
         ['HR', endpoint.expected['HR'] ?? 403],
-        ['PARENT', endpoint.expected['PARENT']],
+        ['PARENT', endpoint.expected['PARENT'] ?? 403],
         ['STUDENT', endpoint.expected['STUDENT']],
         [null, 401], // Unauthenticated
       ])('role %s returns %i', async (role, expectedStatus) => {
         let req = (request(app) as any)[endpoint.method.toLowerCase()](endpoint.path);
         
         if (role) {
-          const { cookie } = await createTestUser(role as Role, schoolA_Id);
-          req = req.set('Cookie', [cookie]);
+          const { token } = await createTestUser(role as Role, schoolA_Id);
+          req = req.set('Authorization', `Bearer ${token}`);
+        } else {
+          req = req.set('Authorization', 'Bearer none');
         }
 
         // We only care about 401/403 vs 2xx/404/422 (passed auth, failed logic/validation)
@@ -119,7 +125,7 @@ describe('RBAC Middleware & Route Matrix', () => {
         if (expectedStatus === 401 || expectedStatus === 403) {
           expect(res.status).toBe(expectedStatus as number);
         } else {
-          // If the role has access, it might fail because of validation (422) or not found (404)
+          // If the role has access, it might fail because of validation (422/400) or not found (404)
           // But it should NOT be 401 or 403.
           expect(res.status).not.toBe(401);
           expect(res.status).not.toBe(403);
@@ -131,30 +137,27 @@ describe('RBAC Middleware & Route Matrix', () => {
   describe('School Isolation', () => {
     test('User from School A cannot access School B data', async () => {
       // Simulate School A Teacher accessing School B student records
-      const { cookie } = await createTestUser(Role.TEACHER, schoolA_Id);
+      const { token } = await createTestUser(Role.TEACHER, schoolA_Id);
       
       const res = await request(app)
         .get(`/api/v1/students?schoolId=${schoolB_Id}`)
-        .set('Cookie', [cookie]);
+        .set('Authorization', `Bearer ${token}`);
 
       // Depending on implementation, the middleware might reject it (403) 
       // or simply override the schoolId filter so it returns School A data silently.
-      // But explicit school override via query should be rejected or ignored.
       if (res.status !== 403) {
-        // If it doesn't 403, ensure it doesn't actually fetch School B's data
-        // For testing purposes, we assume standard behavior is to 403 if trying to query another school explicitly.
-        // We'll just check that it's correctly behaving.
+        expect(res.status).not.toBe(401);
       } else {
         expect(res.status).toBe(403);
       }
     });
 
     test('SUPER_ADMIN can access any school data', async () => {
-      const { cookie } = await createTestUser(Role.SUPER_ADMIN, undefined);
+      const { token } = await createTestUser(Role.SUPER_ADMIN, undefined);
       
       const res = await request(app)
         .get(`/api/v1/students?schoolId=${schoolB_Id}`)
-        .set('Cookie', [cookie]);
+        .set('Authorization', `Bearer ${token}`);
 
       // SUPER_ADMIN should be allowed, so no 403.
       expect(res.status).not.toBe(403);

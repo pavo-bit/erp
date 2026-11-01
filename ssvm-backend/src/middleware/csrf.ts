@@ -45,12 +45,16 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
     { method: "POST", path: "/api/payments/webhook" },
     { method: "POST", path: "/api/auth/login" },
     { method: "POST", path: "/api/auth/student/login" },
+    { method: "POST", path: "/api/auth/refresh" },
+    { method: "POST", path: "/api/auth/logout" },
     { method: "POST", path: "/api/auth/verify-2fa" },
     { method: "POST", path: "/api/auth/alumni/register" },
     // Aliases mapped under /api/v1/
     { method: "POST", path: "/api/v1/payments/webhook" },
     { method: "POST", path: "/api/v1/auth/login" },
     { method: "POST", path: "/api/v1/auth/student/login" },
+    { method: "POST", path: "/api/v1/auth/refresh" },
+    { method: "POST", path: "/api/v1/auth/logout" },
     { method: "POST", path: "/api/v1/auth/verify-2fa" },
     { method: "POST", path: "/api/v1/auth/alumni/register" },
   ];

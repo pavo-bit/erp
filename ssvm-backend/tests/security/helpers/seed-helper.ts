@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from '../../../src/lib/prisma';
+
 import crypto from "crypto";
 
 // ═══════════════════════════════════════════
@@ -7,7 +8,6 @@ import crypto from "crypto";
 // Creates isolated test data for security tests.
 // Each test run gets unique IDs to avoid conflicts.
 
-const prisma = new PrismaClient();
 
 export interface TestSchool {
   id: string;
@@ -53,7 +53,6 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
       address: "Test Address",
       city: "Test City",
       state: "Test State",
-      subscription: "BASIC",
     },
   });
 
@@ -61,7 +60,7 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
   const adminUser = await prisma.user.create({
     data: {
       email: `admin-${suffix}@${prefix}.test`,
-      password: "$2a$12$test.hash.placeholder.for.security.tests",
+      passwordHash: "$2a$12$test.hash.placeholder.for.security.tests",
       name: `Admin ${suffix}`,
       role: "ERP_ADMIN",
       schoolId: school.id,
@@ -73,7 +72,7 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
   const teacherUser = await prisma.user.create({
     data: {
       email: `teacher-${suffix}@${prefix}.test`,
-      password: "$2a$12$test.hash.placeholder.for.security.tests",
+      passwordHash: "$2a$12$test.hash.placeholder.for.security.tests",
       name: `Teacher ${suffix}`,
       role: "TEACHER",
       schoolId: school.id,
@@ -85,9 +84,6 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
     data: {
       userId: teacherUser.id,
       schoolId: school.id,
-      name: teacherUser.name,
-      email: teacherUser.email,
-      phone: "+910000000000",
       joiningDate: new Date(),
     },
   });
@@ -96,7 +92,7 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
   const studentUser = await prisma.user.create({
     data: {
       email: `student-${suffix}@${prefix}.test`,
-      password: "$2a$12$test.hash.placeholder.for.security.tests",
+      passwordHash: "$2a$12$test.hash.placeholder.for.security.tests",
       name: `Student ${suffix}`,
       role: "STUDENT",
       schoolId: school.id,
@@ -110,7 +106,8 @@ export async function createTestTenant(prefix: string = "test"): Promise<TestTen
       schoolId: school.id,
       name: studentUser.name,
       admissionNo: `ADM-${suffix}`,
-      dateOfBirth: new Date("2010-01-15"),
+      rollNo: `R-${suffix}`,
+      dob: new Date("2010-01-15"),
       gender: "Male",
     },
   });

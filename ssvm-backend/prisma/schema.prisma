@@ -306,6 +306,7 @@ model User {
 
   @@index([role])
   @@index([schoolId])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_users_name_trgm")
   @@map("users")
 }
 
@@ -532,6 +533,7 @@ model Student {
   @@index([guardianId])
   @@index([schoolId, admissionNo])
   @@index([schoolId, isActive])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_students_name_trgm")
   @@map("students")
 }
 
@@ -779,6 +781,7 @@ model Notice {
   @@index([createdAt])
   @@index([schoolId, category])
   @@index([schoolId, status, createdAt])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_notices_title_trgm")
   @@map("notices")
 }
 
@@ -805,6 +808,7 @@ model Event {
   @@index([date, status])
   @@index([category])
   @@index([schoolId, date, status])
+  @@index([title(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_events_title_trgm")
   @@map("events")
 }
 

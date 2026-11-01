@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
-import { app } from "../src/index";
+import { app } from "../src/app";
 
 describe("Health Check API", () => {
   it("should return 200 OK or 503 Service Unavailable depending on dependent services", async () => {

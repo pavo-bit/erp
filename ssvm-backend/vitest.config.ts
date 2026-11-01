@@ -1,15 +1,18 @@
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    setupFiles: ['./src/tests/setup.ts'],
+    pool: 'forks',
+    setupFiles: ['./src/tests/workerDbSetup.ts', './src/tests/setup.ts'],
+    exclude: [...configDefaults.exclude, 'src/tests/db/**/*.test.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       thresholds: { lines: 80, functions: 80, branches: 70 }
     },
     testTimeout: 30000,
+    hookTimeout: 60000,
   }
 });

@@ -231,6 +231,16 @@ export async function incrementFailedLogins(email: string): Promise<number> {
   }
 }
 
+export async function getFailedLogins(email: string): Promise<number> {
+  if (!isRedisAvailable() || !redisClient) return 0;
+  try {
+    const attempts = await redisClient.get(`failed_logins:${email}`);
+    return attempts ? parseInt(attempts, 10) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Reset failed login attempts on successful login.
  */

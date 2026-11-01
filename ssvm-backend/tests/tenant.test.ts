@@ -1,9 +1,9 @@
+import prisma from '../src/lib/prisma';
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "../src/index";
-import { PrismaClient } from "@prisma/client";
+import { app } from "../src/app";
 
-const prisma = new PrismaClient();
+
 
 describe("Multi-Tenant Routing API", () => {
   let server: any;
@@ -18,9 +18,9 @@ describe("Multi-Tenant Routing API", () => {
   });
 
   it("should block requests missing tenant context", async () => {
-    // Assuming /api/saas requires auth and tenant context
+    // Assuming /api/v1/students requires auth and tenant context
     const res = await request(server)
-      .get("/api/saas/dashboard");
+      .get("/api/v1/students");
       
     // Because auth fails first, it should return 401. If auth passes but tenant is missing, it returns 400.
     expect([400, 401, 403]).toContain(res.status);

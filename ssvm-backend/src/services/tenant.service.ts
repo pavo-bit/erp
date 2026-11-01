@@ -1,6 +1,6 @@
-import { PrismaClient, TenantState } from '@prisma/client';
+import prisma from '../lib/prisma';
+import { TenantState } from '@prisma/client';
 
-const prisma = new PrismaClient();
 
 export class TenantLifecycleService {
   /**

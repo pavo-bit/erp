@@ -1,8 +1,8 @@
+import prisma from '../lib/prisma';
 import { Router, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
-import { PrismaClient, Prisma } from "@prisma/client";
-const prisma = new PrismaClient();
+import { Prisma } from "@prisma/client";
 import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
 import { getEnv } from "../config/env";
 import { LedgerService } from "../services/ledger.service";

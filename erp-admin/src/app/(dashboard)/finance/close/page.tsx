@@ -11,7 +11,7 @@ export default function FinancialCloseDashboard() {
   const handleClose = async (periodId: string) => {
     setClosingId(periodId);
     try {
-      await apiCall(`/api/v1/finance/governance/close-periods/${periodId}/lock`, "POST");
+      await apiCall(`/api/v1/finance/governance/periods/${periodId}/close`, "POST");
       mutate();
     } catch (err: any) {
       alert(err.message || "Failed to close period. Ensure no pending transactions exist.");

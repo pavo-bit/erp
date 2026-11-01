@@ -1,8 +1,8 @@
-import { PrismaClient, LedgerTransaction, LedgerEntry, LedgerReferenceType, LedgerModule, LedgerSource, LedgerDomainEvent, FinancialEntityType, FinancialAuditAction, Prisma, SystemDomainEventType } from '@prisma/client';
+import prisma from '../lib/prisma';
+import { LedgerTransaction, LedgerEntry, LedgerReferenceType, LedgerModule, LedgerSource, LedgerDomainEvent, FinancialEntityType, FinancialAuditAction, Prisma, SystemDomainEventType } from '@prisma/client';
 import * as crypto from 'crypto';
 import { EventStoreService } from './eventStore.service';
 
-const prisma = new PrismaClient();
 
 export interface LedgerEntryInput {
   accountId: string;

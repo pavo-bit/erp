@@ -1,12 +1,12 @@
+import prisma from '../lib/prisma';
 import { Router } from "express";
-import { PrismaClient } from "@prisma/client";
+
 import { authenticate, requireRole } from "../middleware/auth";
 import { saasRequestLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
 import { hashPassword } from "../middleware/auth";
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // 1. Submit a new SaaS Registration Request (Public)
 router.post("/request", saasRequestLimiter, verifyTurnstile, spamQualityValidation, async (req: PublicFormRequest, res) => {

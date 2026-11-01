@@ -1,6 +1,6 @@
-import { PrismaClient, LedgerCategory, LedgerAccountType } from '@prisma/client';
+import prisma from '../src/lib/prisma';
+import { LedgerCategory, LedgerAccountType } from '@prisma/client';
 
-const prisma = new PrismaClient();
 
 async function main() {
   console.log('Seeding Enterprise Ledger Chart of Accounts...');

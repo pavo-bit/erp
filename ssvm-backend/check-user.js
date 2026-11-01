@@ -1,6 +1,6 @@
+require('tsx/cjs');
+const prisma = require('./src/lib/prisma').default;
 
-const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient();
 async function run() {
   const student = await prisma.student.findUnique({ where: { admissionNo: "DEMO-1001" } });
   console.log("Student userId:", student.userId);

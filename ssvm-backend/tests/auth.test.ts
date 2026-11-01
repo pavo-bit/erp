@@ -1,9 +1,9 @@
+import prisma from '../src/lib/prisma';
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "../src/index";
-import { PrismaClient } from "@prisma/client";
+import { app } from "../src/app";
 
-const prisma = new PrismaClient();
+
 
 describe("Authentication API", () => {
   let server: any;
@@ -19,7 +19,7 @@ describe("Authentication API", () => {
 
   it("should return 400 for invalid login payload", async () => {
     const res = await request(server)
-      .post("/api/public/login")
+      .post("/api/v1/auth/login")
       .send({ email: "invalid" });
       
     expect(res.status).toBe(400);
@@ -27,7 +27,7 @@ describe("Authentication API", () => {
   
   it("should return 401 for wrong credentials", async () => {
     const res = await request(server)
-      .post("/api/public/login")
+      .post("/api/v1/auth/login")
       .send({ email: "wrong@test.com", password: "wrongpassword" });
       
     expect(res.status).toBe(401);

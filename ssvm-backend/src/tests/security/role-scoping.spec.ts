@@ -109,7 +109,7 @@ describe("Domain-Specific Role Guards", () => {
   it("WEBSITE_ADMIN fails when accessing POST /api/v1/invoices (403)", async () => {
     const res = await request(app)
       .post("/api/v1/invoices")
-      .set("Cookie", [`access_token=${websiteAdminToken}`])
+      .set("Authorization", `Bearer ${websiteAdminToken}`)
       .send({
         studentId,
         amount: 1000,
@@ -122,14 +122,14 @@ describe("Domain-Specific Role Guards", () => {
   it("WEBSITE_ADMIN fails when accessing GET /api/v1/hr/salaries (403)", async () => {
     const res = await request(app)
       .get("/api/v1/hr/salaries")
-      .set("Cookie", [`access_token=${websiteAdminToken}`]);
+      .set("Authorization", `Bearer ${websiteAdminToken}`);
     expect(res.status).toBe(403);
   });
 
   it("WEBSITE_ADMIN succeeds when accessing POST /api/v1/notices (201)", async () => {
     const res = await request(app)
       .post("/api/v1/notices")
-      .set("Cookie", [`access_token=${websiteAdminToken}`])
+      .set("Authorization", `Bearer ${websiteAdminToken}`)
       .send({
         title: "Test Notice",
         content: "Test Content",
@@ -142,7 +142,7 @@ describe("Domain-Specific Role Guards", () => {
   it("ACCOUNTANT succeeds when accessing POST /api/v1/invoices (201)", async () => {
     const res = await request(app)
       .post("/api/v1/invoices")
-      .set("Cookie", [`access_token=${accountantToken}`])
+      .set("Authorization", `Bearer ${accountantToken}`)
       .send({
         studentId,
         amount: 1000,
@@ -155,7 +155,7 @@ describe("Domain-Specific Role Guards", () => {
   it("ACCOUNTANT fails when accessing POST /api/v1/notices (403)", async () => {
     const res = await request(app)
       .post("/api/v1/notices")
-      .set("Cookie", [`access_token=${accountantToken}`])
+      .set("Authorization", `Bearer ${accountantToken}`)
       .send({
         title: "Accountant Notice",
         content: "Should Fail",
@@ -167,7 +167,7 @@ describe("Domain-Specific Role Guards", () => {
   it("ERP_ADMIN succeeds on both (201)", async () => {
     const noticeRes = await request(app)
       .post("/api/v1/notices")
-      .set("Cookie", [`access_token=${erpAdminToken}`])
+      .set("Authorization", `Bearer ${erpAdminToken}`)
       .send({
         title: "ERP Notice",
         content: "Test",
@@ -177,7 +177,7 @@ describe("Domain-Specific Role Guards", () => {
 
     const invoiceRes = await request(app)
       .post("/api/v1/invoices")
-      .set("Cookie", [`access_token=${erpAdminToken}`])
+      .set("Authorization", `Bearer ${erpAdminToken}`)
       .send({
         studentId,
         amount: 500,

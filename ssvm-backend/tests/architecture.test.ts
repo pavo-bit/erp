@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "../src/index";
+import { app } from "../src/app";
 import prisma from "../src/lib/prisma";
-import jwt from "jsonwebtoken";
+import { generateAccessToken } from "../src/lib/tokens";
 import { vi } from "vitest";
 import { BackupService } from "../src/services/backup.service";
 
@@ -28,14 +28,23 @@ describe("Architecture & Phase A E2E", () => {
       data: {
         email: `superadmin.arch${Date.now()}@test.com`,
         name: "Super Admin",
-        password: "hashedpassword",
+        passwordHash: "hashedpassword",
         role: "SUPER_ADMIN",
         schoolId: testSchoolId,
       }
     });
     superAdminUserId = superAdmin.id;
 
-    superAdminToken = jwt.sign({ userId: superAdmin.id, role: superAdmin.role, schoolId: testSchoolId }, process.env.JWT_SECRET || "supersecret", { expiresIn: "1h" });
+    superAdminToken = generateAccessToken({
+      userId: superAdmin.id,
+      email: superAdmin.email,
+      name: superAdmin.name,
+      role: superAdmin.role,
+      schoolId: testSchoolId,
+      branchId: null,
+      sid: "mock-session-id-123",
+      impersonated: false,
+    }).token;
 
     // Mock an active UserSession for this user
     const session = await prisma.userSession.create({
@@ -56,8 +65,28 @@ describe("Architecture & Phase A E2E", () => {
       data: {
         action: "BACKUP_TEST",
         entity: "System",
-        severity: "CRITICAL",
-        status: "SUCCESS"
+        details: "CRITICAL test event",
+      }
+    });
+
+    // Seed mock system backup
+    await prisma.systemBackup.create({
+      data: {
+        fileUrl: "s3://backups/test.sql.gz",
+        sizeBytes: 1024,
+        checksum: "mock-checksum",
+        status: "COMPLETED",
+        type: "DATABASE",
+      }
+    });
+
+    // Seed mock system log for security alerts
+    await prisma.systemLog.create({
+      data: {
+        level: "ERROR",
+        module: "Security",
+        message: "CRITICAL test alert event",
+        schoolId: testSchoolId,
       }
     });
   });
@@ -104,6 +133,12 @@ describe("Architecture & Phase A E2E", () => {
 
   describe("2. Session Management API", () => {
     it("should fetch active sessions", async () => {
+      // Ensure the test session is active regardless of shuffled test execution order
+      await prisma.userSession.update({
+        where: { id: testSessionId },
+        data: { isActive: true },
+      });
+
       const res = await request(server)
         .get("/api/v1/sessions")
         .set("Authorization", `Bearer ${superAdminToken}`);

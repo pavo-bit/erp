@@ -16,11 +16,13 @@ export function getTestPrisma() {
   return prisma;
 }
 
+import { generateAccessToken } from '../../lib/tokens';
+
 export async function createTestUser(role: Role = Role.ERP_ADMIN, schoolId?: string) {
   const env = getEnv();
   
   // Use a deterministic email or random one
-  const email = `testuser_${Date.now()}@example.com`;
+  const email = `testuser_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@example.com`;
   
   const user = await prisma.user.create({
     data: {
@@ -33,19 +35,38 @@ export async function createTestUser(role: Role = Role.ERP_ADMIN, schoolId?: str
     }
   });
 
-  // Generate an RS256 token (assuming env has ACCESS_TOKEN_PRIVATE_KEY)
-  // For testing without the real env, we can fallback to a dummy if needed, but since we are running tests,
-  // setup.ts should provide a mock key or we use the real one.
+  if (role === Role.STUDENT && schoolId) {
+    await prisma.student.create({
+      data: {
+        userId: user.id,
+        schoolId,
+        rollNo: `R-${Date.now()}`,
+        admissionNo: `ADM-${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: user.name,
+        isActive: true,
+      }
+    });
+  }
+
   let token = 'mock_token';
   try {
+    token = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      schoolId: user.schoolId ?? null,
+      branchId: null,
+      sid: `sid-${Date.now()}`,
+      impersonated: false,
+    }).token;
+  } catch (e) {
     if (env.ACCESS_TOKEN_PRIVATE_KEY) {
       token = jwt.sign({ userId: user.id, role: user.role, schoolId: user.schoolId }, env.ACCESS_TOKEN_PRIVATE_KEY, {
         algorithm: 'RS256',
         expiresIn: '1h',
       });
     }
-  } catch (e) {
-    // Ignore key errors in tests if testing without keys
   }
 
   const cookie = `access_token=${token}; HttpOnly; Path=/; SameSite=Lax`;
