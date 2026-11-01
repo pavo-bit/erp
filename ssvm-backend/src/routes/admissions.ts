@@ -5,6 +5,7 @@ import { AuthRequest, authenticate, requireAdmissionsAdmin, hashPassword } from 
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 import { admissionsApplyLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
+import { createStudentAccount } from "../lib/student-account";
 
 const router = Router();
 
@@ -100,21 +101,24 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
       res.status(400).json({ success: false, error: "Only approved admissions can be enrolled" }); return;
     }
 
-    const { rollNo, sectionId, admissionNo, password } = req.body;
+    const { rollNo, sectionId, admissionNo, password, email } = req.body;
     if (!rollNo) {
       res.status(400).json({ success: false, error: "Roll number is required" }); return;
     }
-
-    const guardian = await prisma.guardian.create({
-      data: { schoolId: admission.schoolId, primaryName: admission.parentName, primaryPhone: admission.parentPhone, primaryEmail: admission.parentEmail },
-    });
+    if (typeof email !== "string" || !email.trim()) {
+      res.status(400).json({ success: false, error: "A valid student email is required to create a student account" }); return;
+    }
 
     const finalAdmissionNo = admissionNo || `ADM${Math.floor(100000 + Math.random() * 900000)}`;
     const plainPassword = password || `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
     const hashedPassword = await hashPassword(plainPassword);
 
-    const student = await prisma.student.create({
-      data: {
+    const { student } = await createStudentAccount({
+      schoolId: admission.schoolId,
+      email,
+      passwordHash: hashedPassword,
+      name: admission.applicantName,
+      student: {
         schoolId: admission.schoolId,
         name: admission.applicantName,
         rollNo,
@@ -123,7 +127,12 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
         sectionId: sectionId || null,
         dob: admission.dob,
         gender: admission.gender,
-        guardianId: guardian.id,
+        guardian: { create: {
+          schoolId: admission.schoolId,
+          primaryName: admission.parentName,
+          primaryPhone: admission.parentPhone,
+          primaryEmail: admission.parentEmail,
+        } },
         address: admission.address,
       },
     });

@@ -3,6 +3,7 @@ import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole, requireAcademicAdmin, hashPassword } from "../middleware/auth";
 
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
+import { createStudentAccount } from "../lib/student-account";
 
 const router = Router();
 
@@ -43,13 +44,17 @@ router.get('/me', authenticate, requireRole('STUDENT'), async (req: AuthRequest,
 // POST /api/students
 router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const { name, rollNo, class: className, section, session, guardianName, guardianPhone } = req.body;
+    const { name, email, rollNo, class: className, section, session, guardianName, guardianPhone } = req.body;
+
+    if (typeof email !== "string" || !email.trim()) {
+      return res.status(400).json({ success: false, error: "A valid student email is required to create a student account" });
+    }
     
     // Auto-generate dummy admission No and password
     const admissionNo = `ADM${Math.floor(100000 + Math.random() * 900000)}`;
     const hashedPassword = await hashPassword(`SSVM@${Math.floor(1000 + Math.random() * 9000)}`);
 
-    const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
+    const schoolId = req.user!.schoolId || req.body.schoolId;
     if (!schoolId) {
       return res.status(400).json({ success: false, error: "No school found to associate with" });
     }
@@ -75,23 +80,26 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
       sectionRec = await prisma.section.create({ data: { classId: classRec.id, name: section }, include: { class: true } });
     }
 
-    let guardian = null;
-    if (guardianName || guardianPhone) {
-      guardian = await prisma.guardian.create({
-        data: { schoolId, primaryName: guardianName || "Unknown", primaryPhone: guardianPhone || "0000000000" }
-      });
-    }
-
-    const student = await prisma.student.create({
-      data: {
+    const { student } = await createStudentAccount({
+      schoolId,
+      email,
+      passwordHash: hashedPassword,
+      name,
+      student: {
         schoolId,
         name,
         rollNo,
         admissionNo,
         password: hashedPassword,
         sectionId: sectionRec!.id,
-        guardianId: guardian?.id
-      }
+        ...(guardianName || guardianPhone ? {
+          guardian: { create: {
+            schoolId,
+            primaryName: guardianName || "Unknown",
+            primaryPhone: guardianPhone || "0000000000",
+          } },
+        } : {}),
+      },
     });
 
     res.status(201).json({ success: true, data: student, message: "Student created successfully" });

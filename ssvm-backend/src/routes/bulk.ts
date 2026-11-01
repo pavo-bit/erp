@@ -7,6 +7,7 @@ import { storageService } from "../services/storage.service";
 import { v4 as uuidv4 } from "uuid";
 import Papa from "papaparse";
 import { sendSuccess, sendError } from "../lib/response";
+import { createStudentAccount } from "../lib/student-account";
 
 const router = Router();
 
@@ -33,8 +34,13 @@ router.post("/upload", authenticate, requireOperationsAdmin(), async (req: AuthR
       
       for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        if (!row.Name || !row.RollNo || !row.Class) {
-          if (isValidationPhase) report.push({ row: i + 1, status: "ERROR", message: "Missing required fields (Name, RollNo, Class)" });
+        if (!row.Name || !row.RollNo || !row.Class || !row.Email) {
+          if (isValidationPhase) report.push({ row: i + 1, status: "ERROR", message: "Missing required fields (Name, Email, RollNo, Class)" });
+          continue;
+        }
+
+        if (typeof row.Email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.Email)) {
+          if (isValidationPhase) report.push({ row: i + 1, status: "ERROR", message: "Email must be a valid student email address" });
           continue;
         }
 
@@ -61,9 +67,13 @@ router.post("/upload", authenticate, requireOperationsAdmin(), async (req: AuthR
           const plainPassword = row.Password ? String(row.Password) : `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
           const hashedPassword = await hashPassword(plainPassword);
 
-          await prisma.student.create({
-            data: {
-              school: { connect: { id: schoolId } },
+          await createStudentAccount({
+            schoolId,
+            email: String(row.Email),
+            passwordHash: hashedPassword,
+            name: String(row.Name),
+            student: {
+              schoolId,
               name: String(row.Name),
               rollNo: String(row.RollNo),
               admissionNo: finalAdmissionNo,

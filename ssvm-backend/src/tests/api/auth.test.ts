@@ -5,6 +5,7 @@ import { UserFactory, SchoolFactory, StudentFactory } from '../helpers/factories
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getEnv } from '../../config/env';
+import { Role } from '@prisma/client';
 
 const app = createTestApp();
 const prisma = getTestPrisma();
@@ -31,21 +32,32 @@ describe('Auth API Routes', () => {
     const classRecord = await prisma.class.create({ data: { name: 'Class 1', schoolId, sessionId: session.id } });
     const section = await prisma.section.create({ data: { name: 'A', classId: classRecord.id } });
 
-    testStudent = await prisma.student.create({
-      data: StudentFactory.build({ 
-        schoolId, 
-        sectionId: section.id, 
+    const studentAccount = await prisma.user.create({
+      data: {
+        email: `student-${schoolId}@example.com`,
         passwordHash,
-        guardian: {
-          create: {
-            primaryPhone: '1234567890',
-            primaryEmail: 'guardian@test.com',
-            motherName: 'Mom',
-            fatherName: 'Dad'
-          }
+        name: 'Test Student',
+        role: Role.STUDENT,
+        schoolId,
+        student: {
+          create: StudentFactory.build({
+            schoolId,
+            sectionId: section.id,
+            password: passwordHash,
+            guardian: {
+              create: {
+                schoolId,
+                primaryPhone: '1234567890',
+                primaryEmail: 'guardian@test.com',
+                primaryName: 'Test Guardian',
+              }
+            }
+          })
         }
-      })
+      },
+      include: { student: true },
     });
+    testStudent = studentAccount.student;
   });
 
   describe('POST /api/v1/auth/login', () => {
@@ -132,6 +144,54 @@ describe('Auth API Routes', () => {
       expect(res.status).toBe(200);
       expect(res.body.data.user).toBeDefined();
       expect(res.body.data.user.role).toBe('STUDENT');
+      expect(res.body.data.user.userId).toBeDefined();
+      expect(res.body.data.user.userId).not.toBe(testStudent.id);
+    });
+
+    it('keeps student credentials and identity scoped to their own school', async () => {
+      const otherSchool = await prisma.school.create({ data: SchoolFactory.build() });
+      const otherPassword = 'OtherPassword456!';
+      const otherPasswordHash = await bcrypt.hash(otherPassword, 10);
+      const otherAccount = await prisma.user.create({
+        data: {
+          email: `other-student-${otherSchool.id}@example.com`,
+          passwordHash: otherPasswordHash,
+          name: 'Other School Student',
+          role: Role.STUDENT,
+          schoolId: otherSchool.id,
+          student: { create: StudentFactory.build({ schoolId: otherSchool.id, password: otherPasswordHash }) },
+        },
+        include: { student: true },
+      });
+      const otherStudent = otherAccount.student;
+      expect(otherStudent).not.toBeNull();
+      if (!otherStudent) throw new Error('Student relation was not created');
+
+      const wrongSchoolCredentials = await request(app)
+        .post('/api/v1/auth/student/login')
+        .send({ admissionNo: testStudent.admissionNo, password: otherPassword });
+      expect(wrongSchoolCredentials.status).toBe(401);
+
+      const ownSchoolLogin = await request(app)
+        .post('/api/v1/auth/student/login')
+        .send({ admissionNo: otherStudent.admissionNo, password: otherPassword });
+      expect(ownSchoolLogin.status).toBe(200);
+      expect(ownSchoolLogin.body.data.user.userId).toBe(otherAccount.id);
+      expect(ownSchoolLogin.body.data.user.schoolId).toBe(otherSchool.id);
+    });
+
+    it('does not create or link a User while logging in an unlinked legacy student', async () => {
+      const legacyStudent = await prisma.student.create({
+        data: StudentFactory.build({ schoolId, password: await bcrypt.hash(validPassword, 10) }),
+      });
+      const usersBefore = await prisma.user.count();
+      const res = await request(app)
+        .post('/api/v1/auth/student/login')
+        .send({ admissionNo: legacyStudent.admissionNo, password: validPassword });
+
+      expect(res.status).toBe(401);
+      expect(await prisma.user.count()).toBe(usersBefore);
+      expect((await prisma.student.findUnique({ where: { id: legacyStudent.id } }))?.userId).toBeNull();
     });
   });
 

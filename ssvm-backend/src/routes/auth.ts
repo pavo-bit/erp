@@ -23,6 +23,7 @@ import { alumniRegisterLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
 import { incrementFailedLogins, resetFailedLogins } from "../lib/redis";
 import { enqueueNotification } from "../jobs/queue";
+import { createStudentAccount } from "../lib/student-account";
 
 const router = Router();
 
@@ -42,7 +43,7 @@ export function trustedAuthentication(handler: RequestHandler): RequestHandler {
 
 export async function issueTokenPair(
   res: Response,
-  user: { id: string; email: string; role: string; name: string; schoolId?: string | null; branchId?: string | null },
+  user: { id: string; email: string; role: string; name: string; schoolId?: string | null; branchId?: string | null; studentId?: string },
   req: { ip?: string; headers: Record<string, unknown> },
   options?: { family?: string; replacedBy?: string }
 ): Promise<void> {
@@ -131,6 +132,7 @@ export async function issueTokenPair(
     name: user.name,
     schoolId: user.schoolId,
     branchId: user.branchId,
+    studentId: user.studentId,
     sid: sessionId,
   });
 
@@ -247,7 +249,7 @@ router.post("/student/login", trustedAuthentication(async (req: AuthRequest, res
 
     const student = await prisma.student.findUnique({
       where: { admissionNo },
-      include: { school: true },
+      include: { school: true, user: true },
     });
 
     if (!student) { 
@@ -260,13 +262,14 @@ router.post("/student/login", trustedAuthentication(async (req: AuthRequest, res
       res.status(403).json({ success: false, error: "Student account deactivated" }); 
       return; 
     }
-    if (!student.password) { 
+    const account = student.user;
+    if (!account || account.schoolId !== student.schoolId || account.role !== "STUDENT" || !account.isActive || !account.passwordHash) {
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "invalid_credentials", metadata: { admissionNo } });
-      res.status(401).json({ success: false, error: "Password not set for this student" }); 
+      res.status(401).json({ success: false, error: "Invalid credentials" });
       return; 
     }
 
-    const valid = await verifyPassword(password, student.password, { id: student.id, type: "STUDENT" });
+    const valid = await verifyPassword(password, account.passwordHash, { id: account.id, type: "STUDENT" });
     if (!valid) {
       logger.warn({ admissionNo }, "Failed student login attempt");
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "invalid_credentials", metadata: { admissionNo } });
@@ -275,18 +278,11 @@ router.post("/student/login", trustedAuthentication(async (req: AuthRequest, res
     }
 
     // Issue tokens using standard process
-    await issueTokenPair(res, {
-      id: student.userId,
-      email: student.admissionNo || "",
-      role: "STUDENT",
-      name: student.name,
-      schoolId: student.schoolId,
-      studentId: student.id, // Add studentId to payload
-    } as any, req);
+    await issueTokenPair(res, { ...account, studentId: student.id }, req);
 
     const { password: _, ...studentWithoutPw } = student;
     logger.info({ studentId: student.id }, "Student logged in via Payment Portal");
-    await logAuthEvent(prisma, { eventType: "LOGIN_SUCCESS", userId: student.id, schoolId: student.schoolId, req, success: true });
+    await logAuthEvent(prisma, { eventType: "LOGIN_SUCCESS", userId: account.id, schoolId: student.schoolId, req, success: true });
     res.json({ success: true, data: { user: { ...studentWithoutPw, role: "STUDENT" } } });
   } catch (e) {
     logger.error({ err: e }, "Student login error");
@@ -653,8 +649,12 @@ router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSc
       const plainPassword = profileData.password || password || `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
       const hashedStudentPw = await hashPassword(plainPassword);
 
-      const student = await prisma.student.create({
-        data: {
+      const { student } = await createStudentAccount({
+        schoolId: req.user!.schoolId!,
+        email,
+        passwordHash: hashedStudentPw,
+        name,
+        student: {
           schoolId: req.user!.schoolId!,
           name,
           rollNo: profileData.rollNo || "",
