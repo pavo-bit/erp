@@ -50,7 +50,7 @@ The Phase 2 implementation is incomplete. Its classification, extension, migrati
 
 | Command/check | Result | Limits |
 |---|---|---|
-| `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script --output ../docs/DATABASE/BASELINE_CANDIDATE.sql` | PASS; generated an offline candidate with 205 `CREATE TABLE` statements and 44 `CREATE TYPE` statements | Copied into the active `20261101130000_full_schema_baseline` migration and the partial migration folders were replaced in commit `TBD`; this replacement still awaits a clean hosted DB gate. |
+| `npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script --output ../docs/DATABASE/BASELINE_CANDIDATE.sql` | PASS; generated an offline candidate with 205 `CREATE TABLE` statements and 44 `CREATE TYPE` statements | Copied into the active `20261101130000_full_schema_baseline` migration and the partial migration folders were replaced in commit `766790b`; this replacement still awaits a clean hosted DB gate. |
 | `npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --script` | BLOCKED; Prisma requires `--shadow-database-url` for a migrations-directory diff | No real PostgreSQL/shadow database is reachable. |
 | `docker info --format '{{.ServerVersion}}'` | BLOCKED; Docker Desktop engine pipe returned permission denied | No local Postgres container can be provisioned from this execution. |
 | `npx eslint src/lib/prisma.ts` | PASS; 0 errors, 0 warnings | Changed file only. |

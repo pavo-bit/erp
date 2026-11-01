@@ -5,8 +5,8 @@
   "directCount": 124,
   "indirectCount": 50,
   "globalCount": 31,
-  "tenantModelsWithMigrations": 61,
-  "tenantModelsMissingMigrations": 113,
+  "tenantModelsWithMigrations": 174,
+  "tenantModelsMissingMigrations": 0,
   "verification": "UNVERIFIED",
   "score": 0,
   "models": [
@@ -51,7 +51,7 @@
     {
       "model": "AccessReview",
       "table": "access_reviews",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -97,7 +97,7 @@
     {
       "model": "AccountingPeriod",
       "table": "AccountingPeriod",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -212,7 +212,7 @@
     {
       "model": "AdmissionEnquiry",
       "table": "admission_enquiries",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -346,7 +346,7 @@
     {
       "model": "AppConfiguration",
       "table": "app_configurations",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -366,7 +366,7 @@
     {
       "model": "AppVersion",
       "table": "app_versions",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -378,7 +378,7 @@
     {
       "model": "ArchiveJobLog",
       "table": "archive_job_logs",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -402,7 +402,7 @@
     {
       "model": "Asset",
       "table": "assets",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -487,7 +487,7 @@
     {
       "model": "AssetAssignment",
       "table": "asset_assignments",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -546,7 +546,7 @@
     {
       "model": "AssetCategory",
       "table": "asset_categories",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -577,7 +577,7 @@
     {
       "model": "AssetDepreciation",
       "table": "asset_depreciations",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -614,7 +614,7 @@
     {
       "model": "AssetTransfer",
       "table": "asset_transfers",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -921,7 +921,7 @@
     {
       "model": "auth_events",
       "table": "auth_events",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -933,7 +933,7 @@
     {
       "model": "BackupValidation",
       "table": "backup_validations",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -945,7 +945,7 @@
     {
       "model": "BankReconciliation",
       "table": "BankReconciliation",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1133,7 +1133,7 @@
     {
       "model": "BrandSettings",
       "table": "brand_settings",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1157,7 +1157,7 @@
     {
       "model": "Budget",
       "table": "Budget",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1188,7 +1188,7 @@
     {
       "model": "BudgetLine",
       "table": "BudgetLine",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -1260,7 +1260,7 @@
     {
       "model": "CertificateTemplate",
       "table": "certificate_templates",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1512,7 +1512,7 @@
     {
       "model": "ConfigHistory",
       "table": "config_history",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -1536,7 +1536,7 @@
     {
       "model": "ConsentRecord",
       "table": "consent_records",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1571,7 +1571,7 @@
     {
       "model": "ConsolidationJournal",
       "table": "ConsolidationJournal",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -1595,7 +1595,7 @@
     {
       "model": "Contract",
       "table": "contracts",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1668,7 +1668,7 @@
     {
       "model": "Currency",
       "table": "Currency",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -1680,7 +1680,7 @@
     {
       "model": "CustomDomain",
       "table": "custom_domains",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1704,7 +1704,7 @@
     {
       "model": "CustomWorkflow",
       "table": "CustomWorkflow",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1724,7 +1724,7 @@
     {
       "model": "DailyRevenueProjection",
       "table": "DailyRevenueProjection",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1748,7 +1748,7 @@
     {
       "model": "DataClassification",
       "table": "data_classifications",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1772,7 +1772,7 @@
     {
       "model": "DataRetentionPolicy",
       "table": "DataRetentionPolicy",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1784,7 +1784,7 @@
     {
       "model": "DeferredRevenueSchedule",
       "table": "DeferredRevenueSchedule",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -1919,7 +1919,7 @@
     {
       "model": "DocumentVersion",
       "table": "DocumentVersion",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -1956,7 +1956,7 @@
     {
       "model": "DomainEvent",
       "table": "DomainEvent",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2130,7 +2130,7 @@
     {
       "model": "FailedJob",
       "table": "failed_jobs",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -2142,7 +2142,7 @@
     {
       "model": "FailedWebhook",
       "table": "FailedWebhook",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -2179,7 +2179,7 @@
     {
       "model": "FeatureFlag",
       "table": "feature_flags",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -2199,7 +2199,7 @@
     {
       "model": "FederatedUser",
       "table": "FederatedUser",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -2324,7 +2324,7 @@
     {
       "model": "FinancialApprovalPolicy",
       "table": "FinancialApprovalPolicy",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2348,7 +2348,7 @@
     {
       "model": "FinancialAudit",
       "table": "FinancialAudit",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2383,7 +2383,7 @@
     {
       "model": "FinancialClose",
       "table": "FinancialClose",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2418,7 +2418,7 @@
     {
       "model": "FinancialDimension",
       "table": "FinancialDimension",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2449,7 +2449,7 @@
     {
       "model": "FinancialDimensionValue",
       "table": "FinancialDimensionValue",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -2493,7 +2493,7 @@
     {
       "model": "FinancialPeriod",
       "table": "financial_periods",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2528,7 +2528,7 @@
     {
       "model": "FinancialReportCache",
       "table": "FinancialReportCache",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2576,7 +2576,7 @@
     {
       "model": "FiscalYear",
       "table": "FiscalYear",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2631,7 +2631,7 @@
     {
       "model": "GoodsReceipt",
       "table": "GoodsReceipt",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2693,7 +2693,7 @@
     {
       "model": "HelpdeskTicket",
       "table": "helpdesk_tickets",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2739,7 +2739,7 @@
     {
       "model": "HostelAllocation",
       "table": "hostel_allocations",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2785,7 +2785,7 @@
     {
       "model": "HostelRoom",
       "table": "hostel_rooms",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2828,7 +2828,7 @@
     {
       "model": "IdentityProvider",
       "table": "IdentityProvider",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -2855,7 +2855,7 @@
     {
       "model": "IncidentReport",
       "table": "incident_reports",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2901,7 +2901,7 @@
     {
       "model": "IntegrationApp",
       "table": "IntegrationApp",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -2921,7 +2921,7 @@
     {
       "model": "InterCompanyTransaction",
       "table": "InterCompanyTransaction",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -2956,7 +2956,7 @@
     {
       "model": "InventoryItem",
       "table": "InventoryItem",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2976,7 +2976,7 @@
     {
       "model": "InventoryLocation",
       "table": "InventoryLocation",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -2996,7 +2996,7 @@
     {
       "model": "InventoryStock",
       "table": "InventoryStock",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3091,7 +3091,7 @@
     {
       "model": "IssuedCertificate",
       "table": "issued_certificates",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3150,7 +3150,7 @@
     {
       "model": "JournalTemplate",
       "table": "JournalTemplate",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3181,7 +3181,7 @@
     {
       "model": "JournalTemplateLine",
       "table": "JournalTemplateLine",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3229,7 +3229,7 @@
     {
       "model": "LeadInteraction",
       "table": "LeadInteraction",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3303,7 +3303,7 @@
     {
       "model": "LedgerAccount",
       "table": "LedgerAccount",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3387,7 +3387,7 @@
     {
       "model": "LedgerEntry",
       "table": "LedgerEntry",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3446,7 +3446,7 @@
     {
       "model": "LedgerEvent",
       "table": "LedgerEvent",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3481,7 +3481,7 @@
     {
       "model": "LedgerIntegrityReport",
       "table": "LedgerIntegrityReport",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3505,7 +3505,7 @@
     {
       "model": "LedgerMerkleRoot",
       "table": "LedgerMerkleRoot",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3529,7 +3529,7 @@
     {
       "model": "LedgerSnapshot",
       "table": "LedgerSnapshot",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3564,7 +3564,7 @@
     {
       "model": "LedgerTransaction",
       "table": "LedgerTransaction",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3649,7 +3649,7 @@
     {
       "model": "LegalHold",
       "table": "legal_holds",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3695,7 +3695,7 @@
     {
       "model": "MaintenanceRecord",
       "table": "maintenance_records",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3732,7 +3732,7 @@
     {
       "model": "MarketingCampaign",
       "table": "MarketingCampaign",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -3752,7 +3752,7 @@
     {
       "model": "MasterCategory",
       "table": "mdm_categories",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3764,7 +3764,7 @@
     {
       "model": "MasterCity",
       "table": "mdm_cities",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3788,7 +3788,7 @@
     {
       "model": "MasterCountry",
       "table": "mdm_countries",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3808,7 +3808,7 @@
     {
       "model": "MasterDataRegistry",
       "table": "MasterDataRegistry",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3835,7 +3835,7 @@
     {
       "model": "MasterDepartment",
       "table": "mdm_departments",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3847,7 +3847,7 @@
     {
       "model": "MasterRecordAlias",
       "table": "MasterRecordAlias",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3871,7 +3871,7 @@
     {
       "model": "MasterRecordMerge",
       "table": "MasterRecordMerge",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3895,7 +3895,7 @@
     {
       "model": "MasterReligion",
       "table": "mdm_religions",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3907,7 +3907,7 @@
     {
       "model": "MasterState",
       "table": "mdm_states",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3938,7 +3938,7 @@
     {
       "model": "MasterSubject",
       "table": "mdm_subjects",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -3950,7 +3950,7 @@
     {
       "model": "Message",
       "table": "messages",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4012,7 +4012,7 @@
     {
       "model": "MessageAttachment",
       "table": "message_attachments",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4061,7 +4061,7 @@
     {
       "model": "MessageParticipant",
       "table": "message_participants",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4109,7 +4109,7 @@
     {
       "model": "MessageReadReceipt",
       "table": "message_read_receipts",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4182,7 +4182,7 @@
     {
       "model": "MessageThread",
       "table": "message_threads",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -4297,7 +4297,7 @@
     {
       "model": "NotificationDelivery",
       "table": "notification_deliveries",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -4343,7 +4343,7 @@
     {
       "model": "NotificationPreference",
       "table": "notification_preferences",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4440,7 +4440,7 @@
     {
       "model": "OutboxMessage",
       "table": "OutboxMessage",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4528,7 +4528,7 @@
     {
       "model": "PermissionGroup",
       "table": "permission_groups",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -4559,7 +4559,7 @@
     {
       "model": "PipelineStage",
       "table": "PipelineStage",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -4579,7 +4579,7 @@
     {
       "model": "PolicyDefinition",
       "table": "PolicyDefinition",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -4610,7 +4610,7 @@
     {
       "model": "PolicyEvaluationLog",
       "table": "PolicyEvaluationLog",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4659,7 +4659,7 @@
     {
       "model": "PolicyVersion",
       "table": "PolicyVersion",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4703,7 +4703,7 @@
     {
       "model": "PostingRule",
       "table": "PostingRule",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -4734,7 +4734,7 @@
     {
       "model": "PostingRuleLine",
       "table": "PostingRuleLine",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4782,7 +4782,7 @@
     {
       "model": "PurchaseOrder",
       "table": "purchase_orders",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -4860,7 +4860,7 @@
     {
       "model": "PurchaseOrderItem",
       "table": "purchase_order_items",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4904,7 +4904,7 @@
     {
       "model": "PurchaseRequest",
       "table": "PurchaseRequest",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -4931,7 +4931,7 @@
     {
       "model": "PurchaseRequestItem",
       "table": "PurchaseRequestItem",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -4968,7 +4968,7 @@
     {
       "model": "RazorpayReconciliation",
       "table": "razorpay_reconciliations",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -4992,7 +4992,7 @@
     {
       "model": "ReceptionCallLog",
       "table": "reception_call_logs",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -5016,7 +5016,7 @@
     {
       "model": "ReceptionComplaint",
       "table": "reception_complaints",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -5101,7 +5101,7 @@
     {
       "model": "RevenueRecognitionEntry",
       "table": "RevenueRecognitionEntry",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -5208,7 +5208,7 @@
     {
       "model": "ScheduledJob",
       "table": "scheduled_jobs",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -6078,7 +6078,7 @@
     {
       "model": "SchoolArchive",
       "table": "school_archives",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6113,7 +6113,7 @@
     {
       "model": "SchoolFeature",
       "table": "school_features",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6148,7 +6148,7 @@
     {
       "model": "SchoolGroup",
       "table": "SchoolGroup",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -6175,7 +6175,7 @@
     {
       "model": "SchoolIntegration",
       "table": "SchoolIntegration",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6210,7 +6210,7 @@
     {
       "model": "SchoolRegistrationRequest",
       "table": "school_registration_requests",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "global",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -6222,7 +6222,7 @@
     {
       "model": "SchoolSettings",
       "table": "school_settings",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6246,7 +6246,7 @@
     {
       "model": "SchoolSettingsHistory",
       "table": "school_settings_history",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6353,7 +6353,7 @@
     {
       "model": "SequenceCounter",
       "table": "SequenceCounter",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6401,7 +6401,7 @@
     {
       "model": "SSOConfiguration",
       "table": "SSOConfiguration",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6436,7 +6436,7 @@
     {
       "model": "StockLedger",
       "table": "StockLedger",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6448,7 +6448,7 @@
     {
       "model": "StorageObject",
       "table": "storage_objects",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6628,7 +6628,7 @@
     {
       "model": "StudentFinancialProjection",
       "table": "StudentFinancialProjection",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -6939,7 +6939,7 @@
     {
       "model": "SupportMessage",
       "table": "support_messages",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -6987,7 +6987,7 @@
     {
       "model": "SupportTicket",
       "table": "support_tickets",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -7041,7 +7041,7 @@
     {
       "model": "SystemLog",
       "table": "system_logs",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -7487,7 +7487,7 @@
     {
       "model": "TransportAllocation",
       "table": "transport_allocations",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -7533,7 +7533,7 @@
     {
       "model": "TransportRoute",
       "table": "transport_routes",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -7575,7 +7575,7 @@
     {
       "model": "TransportStop",
       "table": "transport_stops",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -7619,7 +7619,7 @@
     {
       "model": "TransportVehicle",
       "table": "transport_vehicles",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -7661,7 +7661,7 @@
     {
       "model": "UsageMetric",
       "table": "usage_metrics",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -7978,7 +7978,7 @@
     {
       "model": "UserConsent",
       "table": "user_consents",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -8013,7 +8013,7 @@
     {
       "model": "UserDelegation",
       "table": "user_delegations",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -8070,7 +8070,7 @@
     {
       "model": "UserDevice",
       "table": "user_devices",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -8107,7 +8107,7 @@
     {
       "model": "UserSession",
       "table": "user_sessions",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -8144,7 +8144,7 @@
     {
       "model": "Vendor",
       "table": "vendors",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -8189,7 +8189,7 @@
     {
       "model": "VendorInvoice",
       "table": "VendorInvoice",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -8224,7 +8224,7 @@
     {
       "model": "VisitorLog",
       "table": "visitor_logs",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -8248,7 +8248,7 @@
     {
       "model": "WebhookDelivery",
       "table": "WebhookDelivery",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -8272,7 +8272,7 @@
     {
       "model": "WebhookEndpoint",
       "table": "webhook_endpoints",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -8307,7 +8307,7 @@
     {
       "model": "WorkflowDefinition",
       "table": "WorkflowDefinition",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "direct",
       "schoolIdField": "schoolId",
       "schoolIdColumn": "schoolId",
@@ -8345,7 +8345,7 @@
     {
       "model": "WorkflowInstance",
       "table": "WorkflowInstance",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -8389,7 +8389,7 @@
     {
       "model": "WorkflowNode",
       "table": "WorkflowNode",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -8447,7 +8447,7 @@
     {
       "model": "WorkflowStep",
       "table": "WorkflowStep",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -8484,7 +8484,7 @@
     {
       "model": "WorkflowTask",
       "table": "WorkflowTask",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
@@ -8544,7 +8544,7 @@
     {
       "model": "WorkflowTransition",
       "table": "WorkflowTransition",
-      "migrationCoverage": "MISSING",
+      "migrationCoverage": "PRESENT",
       "classification": "indirect",
       "schoolIdField": null,
       "schoolIdColumn": null,
