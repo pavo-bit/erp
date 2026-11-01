@@ -13,6 +13,7 @@ describe('Payments & Finance APIs', () => {
   let schoolId: string;
   let adminToken: string;
   let studentId: string;
+  let classId: string;
 
   beforeEach(async () => {
     const school = await createTestSchool();
@@ -42,6 +43,7 @@ describe('Payments & Finance APIs', () => {
 
     const session = await prisma.academicSession.create({ data: { name: '2026-2027', startDate: new Date(), endDate: new Date(), schoolId } });
     const classRecord = await prisma.class.create({ data: { name: 'Class 1', schoolId, sessionId: session.id } });
+    classId = classRecord.id;
     const section = await prisma.section.create({ data: { name: 'A', classId: classRecord.id } });
     const student = await createTestStudent(section.id, schoolId);
     studentId = student.id;
@@ -269,23 +271,41 @@ describe('Payments & Finance APIs', () => {
 
   describe('POST /api/v1/finance/generate-monthly', () => {
     it('generates invoices idempotently', async () => {
+      const category = await prisma.feeCategory.create({
+        data: { schoolId, name: 'Monthly' },
+      });
+      await prisma.feeStructure.create({
+        data: { schoolId, categoryId: category.id, classId, amount: 1000 },
+      });
+
       // First generation
       const res1 = await request(app)
-        .post('/api/v1/finance/generate-monthly')
+        .post('/api/v1/finance/generate-monthly-fees')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ month: 6, year: 2026 });
+        .send({});
       
       // Whether it is 201 or 200 depending on framework standard
       expect([200, 201]).toContain(res1.status);
 
       // Second generation
       const res2 = await request(app)
-        .post('/api/v1/finance/generate-monthly')
+        .post('/api/v1/finance/generate-monthly-fees')
         .set('Authorization', `Bearer ${adminToken}`)
-        .send({ month: 6, year: 2026 });
+        .send({});
       
-      expect(res2.status).toBe(200);
-      expect(res2.body.data.generatedCount).toBe(0); // Idempotent: 0 new invoices
+      expect(res2.status).toBe(201);
+      const now = new Date();
+      const generatedInvoices = await prisma.invoice.findMany({
+        where: {
+          studentId,
+          type: 'MONTHLY',
+          dueDate: {
+            gte: new Date(now.getFullYear(), now.getMonth(), 1),
+            lt: new Date(now.getFullYear(), now.getMonth() + 1, 1),
+          },
+        },
+      });
+      expect(generatedInvoices).toHaveLength(1);
     });
   });
 });
