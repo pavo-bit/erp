@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "../src/index";
+import { app } from "../src/app";
 import prisma from "../src/lib/prisma";
 import jwt from "jsonwebtoken";
 
@@ -80,10 +80,9 @@ describe("FTS and Search API E2E", () => {
     // Note: FTS query matches exact lexemes, "Johnathan" should match.
     // However, if the trigger hasn't fired or test uses different Prisma config, it might be empty.
     // If it works, data.students should have 1 item.
-    if (res.body.data.students) {
-      const studentMatches = res.body.data.students.filter((s: any) => s.name.includes("Johnathan"));
-      expect(studentMatches.length).toBeGreaterThanOrEqual(0);
-    }
+    expect(res.body.data.students).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "Johnathan Searchable Doe" })])
+    );
   });
 
   it("should find document via FTS category or title", async () => {
@@ -92,8 +91,28 @@ describe("FTS and Search API E2E", () => {
       .set("Authorization", `Bearer ${adminToken}`);
       
     expect(res.status).toBe(200);
-    if (res.body.data.documents) {
-       expect(Array.isArray(res.body.data.documents)).toBe(true);
-    }
+    expect(res.body.data.documents).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: "Financial Docs" })])
+    );
+  });
+
+  it("has trigram indexes supporting the route's substring search on a migrated database", async () => {
+    const indexes = await prisma.$queryRaw<Array<{ indexname: string }>>`
+      SELECT indexname
+      FROM pg_catalog.pg_indexes
+      WHERE schemaname = 'public'
+        AND indexname IN (
+          'idx_students_name_trgm',
+          'idx_users_name_trgm',
+          'idx_notices_title_trgm',
+          'idx_events_title_trgm'
+        )
+    `;
+    expect(indexes.map((index) => index.indexname).sort()).toEqual([
+      "idx_events_title_trgm",
+      "idx_notices_title_trgm",
+      "idx_students_name_trgm",
+      "idx_users_name_trgm",
+    ]);
   });
 });

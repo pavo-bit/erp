@@ -25,7 +25,27 @@ async function verifyDatabaseSchema(): Promise<void> {
     throw new Error(`Missing Prisma model tables after migration deploy: ${missingTables.join(", ")}`);
   }
 
-  console.log(`Database schema contains all ${uniqueExpectedTables.size} Prisma model tables.`);
+  const paymentUniqueIndex = await prisma.$queryRaw<Array<{
+    indexName: string;
+    indexDefinition: string;
+  }>>`
+    SELECT indexname AS "indexName", indexdef AS "indexDefinition"
+    FROM pg_catalog.pg_indexes
+    WHERE schemaname = 'public'
+      AND tablename = 'payment_transactions'
+      AND indexname = 'payment_transactions_invoiceId_transactionId_key'
+  `;
+  if (
+    paymentUniqueIndex.length !== 1 ||
+    !paymentUniqueIndex[0].indexDefinition.startsWith("CREATE UNIQUE INDEX") ||
+    !paymentUniqueIndex[0].indexDefinition.includes('("invoiceId", "transactionId")')
+  ) {
+    throw new Error("The payment invoiceId/transactionId composite unique index is missing from the migrated database.");
+  }
+
+  console.log(
+    `Database schema contains all ${uniqueExpectedTables.size} Prisma model tables and the payment invoiceId/transactionId unique index.`
+  );
 }
 
 verifyDatabaseSchema()
