@@ -92,6 +92,11 @@ jobs:
             --file prisma/migrations/20261101140000_full_text_search_indexes/migration.sql
           psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
             --file prisma/migrations/20261101145000_ledger_integrity/migration.sql
+          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 <<'SQL'
+          GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+            ON ALL TABLES IN SCHEMA public TO ssvm_app;
+          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ssvm_app;
+          SQL
 
       - name: Run Tests with Coverage
         run: npm run test:ci
