@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getEnv } from '../../config/env';
 import { Role } from '@prisma/client';
+import { createStudentAccount } from '../../lib/student-account';
 
 const app = createTestApp();
 const prisma = getTestPrisma();
@@ -146,31 +147,31 @@ describe('Auth API Routes', () => {
       expect(res.body.data.user.role).toBe('STUDENT');
       expect(res.body.data.user.userId).toBeDefined();
       expect(res.body.data.user.userId).not.toBe(testStudent.id);
+      expect(res.body.data.user.user).toBeUndefined();
     });
 
     it('keeps student credentials and identity scoped to their own school', async () => {
       const otherSchool = await prisma.school.create({ data: SchoolFactory.build() });
       const otherPassword = 'OtherPassword456!';
       const otherPasswordHash = await bcrypt.hash(otherPassword, 10);
-      const otherAccount = await prisma.user.create({
-        data: {
-          email: `other-student-${otherSchool.id}@example.com`,
-          passwordHash: otherPasswordHash,
-          name: 'Other School Student',
-          role: Role.STUDENT,
-          schoolId: otherSchool.id,
-          student: { create: StudentFactory.build({ schoolId: otherSchool.id, password: otherPasswordHash }) },
-        },
-        include: { student: true },
+      const { user: otherAccount, student: otherStudent } = await createStudentAccount({
+        schoolId: otherSchool.id,
+        email: `other-student-${otherSchool.id}@example.com`,
+        passwordHash: otherPasswordHash,
+        name: 'Other School Student',
+        student: StudentFactory.build({ schoolId: otherSchool.id, password: otherPasswordHash }),
       });
-      const otherStudent = otherAccount.student;
-      expect(otherStudent).not.toBeNull();
-      if (!otherStudent) throw new Error('Student relation was not created');
+      expect(otherStudent.schoolId).toBe(otherSchool.id);
+      expect(otherAccount.schoolId).toBe(otherSchool.id);
 
+      const usersBefore = await prisma.user.count();
+      const studentsBefore = await prisma.student.count();
       const wrongSchoolCredentials = await request(app)
         .post('/api/v1/auth/student/login')
         .send({ admissionNo: testStudent.admissionNo, password: otherPassword });
       expect(wrongSchoolCredentials.status).toBe(401);
+      expect(await prisma.user.count()).toBe(usersBefore);
+      expect(await prisma.student.count()).toBe(studentsBefore);
 
       const ownSchoolLogin = await request(app)
         .post('/api/v1/auth/student/login')
@@ -178,6 +179,19 @@ describe('Auth API Routes', () => {
       expect(ownSchoolLogin.status).toBe(200);
       expect(ownSchoolLogin.body.data.user.userId).toBe(otherAccount.id);
       expect(ownSchoolLogin.body.data.user.schoolId).toBe(otherSchool.id);
+    });
+
+    it('rejects a duplicate account email without creating a student row', async () => {
+      const studentsBefore = await prisma.student.count();
+      const duplicatePasswordHash = await bcrypt.hash(validPassword, 10);
+      await expect(createStudentAccount({
+        schoolId,
+        email: `student-${schoolId}@example.com`,
+        passwordHash: duplicatePasswordHash,
+        name: 'Duplicate Email Student',
+        student: StudentFactory.build({ schoolId, password: duplicatePasswordHash }),
+      })).rejects.toThrow('A student account already uses this email address');
+      expect(await prisma.student.count()).toBe(studentsBefore);
     });
 
     it('does not create or link a User while logging in an unlinked legacy student', async () => {

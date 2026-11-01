@@ -23,7 +23,7 @@ import { alumniRegisterLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
 import { incrementFailedLogins, resetFailedLogins } from "../lib/redis";
 import { enqueueNotification } from "../jobs/queue";
-import { createStudentAccount } from "../lib/student-account";
+import { createStudentAccount, isStudentAccountConflict } from "../lib/student-account";
 
 const router = Router();
 
@@ -249,7 +249,10 @@ router.post("/student/login", trustedAuthentication(async (req: AuthRequest, res
 
     const student = await prisma.student.findUnique({
       where: { admissionNo },
-      include: { school: true, user: true },
+      include: {
+        school: true,
+        user: { select: { id: true, email: true, role: true, schoolId: true, branchId: true, isActive: true, passwordHash: true, name: true } },
+      },
     });
 
     if (!student) { 
@@ -280,7 +283,7 @@ router.post("/student/login", trustedAuthentication(async (req: AuthRequest, res
     // Issue tokens using standard process
     await issueTokenPair(res, { ...account, studentId: student.id }, req);
 
-    const { password: _, ...studentWithoutPw } = student;
+    const { password: _, user: _account, ...studentWithoutPw } = student;
     logger.info({ studentId: student.id }, "Student logged in via Payment Portal");
     await logAuthEvent(prisma, { eventType: "LOGIN_SUCCESS", userId: account.id, schoolId: student.schoolId, req, success: true });
     res.json({ success: true, data: { user: { ...studentWithoutPw, role: "STUDENT" } } });
@@ -681,6 +684,9 @@ router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSc
     logger.info({ userId: user.id, role: user.role, createdBy: req.user!.id }, "User registered");
     res.status(201).json({ success: true, data: safe });
   } catch (e) {
+    if (isStudentAccountConflict(e)) {
+      return res.status(409).json({ success: false, error: e.message });
+    }
     logger.error({ err: e }, "Register error");
     res.status(500).json({ success: false, error: "Server error" });
   }

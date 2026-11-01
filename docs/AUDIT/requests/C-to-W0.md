@@ -12,7 +12,9 @@ New student account creation is atomic through the Prisma `User.student`
 relation and uses the supplied password hash already accepted by the existing
 student-password login flow. Creation routes require a valid email and do not
 synthesize one. Routes without an email input return a client error until an
-email is supplied. The existing bulk-import generated-password behavior has
+email is supplied. Duplicate emails are rejected and the nested user/student
+write is atomic, so a duplicate cannot leave an orphan student row. The
+existing bulk-import generated-password behavior has
 been preserved; the same hash is stored in the User login record because
 student login now authenticates through that record.
 

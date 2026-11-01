@@ -5,7 +5,7 @@ import { AuthRequest, authenticate, requireAdmissionsAdmin, hashPassword } from 
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 import { admissionsApplyLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
-import { createStudentAccount } from "../lib/student-account";
+import { createStudentAccount, isStudentAccountConflict, isValidStudentEmail } from "../lib/student-account";
 
 const router = Router();
 
@@ -105,7 +105,7 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
     if (!rollNo) {
       res.status(400).json({ success: false, error: "Roll number is required" }); return;
     }
-    if (typeof email !== "string" || !email.trim()) {
+    if (!isValidStudentEmail(email)) {
       res.status(400).json({ success: false, error: "A valid student email is required to create a student account" }); return;
     }
 
@@ -145,6 +145,9 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
     logger.info({ studentId: student.id, admissionId: admission.id }, "Student enrolled from admission");
     res.status(201).json({ success: true, data: student, message: "Student enrolled successfully" });
   } catch (e) {
+    if (isStudentAccountConflict(e)) {
+      return res.status(409).json({ success: false, error: e.message });
+    }
     logger.error({ err: e }, "Enroll error");
     res.status(500).json({ success: false, error: "Server error" });
   }

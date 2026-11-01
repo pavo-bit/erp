@@ -3,7 +3,7 @@ import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole, requireAcademicAdmin, hashPassword } from "../middleware/auth";
 
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
-import { createStudentAccount } from "../lib/student-account";
+import { createStudentAccount, isStudentAccountConflict, isValidStudentEmail } from "../lib/student-account";
 
 const router = Router();
 
@@ -46,7 +46,7 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
   try {
     const { name, email, rollNo, class: className, section, session, guardianName, guardianPhone } = req.body;
 
-    if (typeof email !== "string" || !email.trim()) {
+    if (!isValidStudentEmail(email)) {
       return res.status(400).json({ success: false, error: "A valid student email is required to create a student account" });
     }
     
@@ -104,6 +104,9 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
 
     res.status(201).json({ success: true, data: student, message: "Student created successfully" });
   } catch (e) {
+    if (isStudentAccountConflict(e)) {
+      return res.status(409).json({ success: false, error: e.message });
+    }
     console.error(e);
     res.status(500).json({ success: false, error: "Server error" });
   }
