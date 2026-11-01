@@ -17,6 +17,7 @@ function createApp() {
 
 describe("finance governance authorization", () => {
   it("rejects anonymous period-close requests before using caller-supplied actor data", async () => {
+    await request(createApp()).get("/finance/governance/periods?schoolId=school-a").expect(401);
     await request(createApp())
       .post("/finance/governance/periods/period-a/close")
       .send({ schoolId: "school-b", closedById: "attacker" })
