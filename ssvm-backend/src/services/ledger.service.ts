@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { LedgerTransaction, LedgerEntry, LedgerReferenceType, LedgerModule, LedgerSource, LedgerDomainEvent, FinancialEntityType, FinancialAuditAction, Prisma, SystemDomainEventType } from '@prisma/client';
+import { LedgerReferenceType, LedgerModule, LedgerSource, FinancialEntityType, FinancialAuditAction, Prisma, SystemDomainEventType } from '@prisma/client';
 import * as crypto from 'crypto';
 import { EventStoreService } from './eventStore.service';
 
@@ -164,7 +164,7 @@ export class LedgerService {
         txnNumber: txn.transactionNumber,
         schoolId: txn.schoolId,
         referenceId: txn.referenceId,
-        entries: txn.LedgerEntry.map((e: any) => ({
+        entries: txn.LedgerEntry.map((e) => ({
           accountId: e.accountId,
           dimensionValueId: e.dimensionValueId,
           debitAmount: Number(e.debitAmount),
