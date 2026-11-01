@@ -17,12 +17,13 @@ describe("FTS and Search API E2E", () => {
   beforeAll(async () => {
     server = app.listen(0);
 
+    const uid = `${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
     const school = await prisma.school.create({
       data: {
         name: "FTS Test School",
-        code: "FTS-SCH-1",
+        code: `FTS-${uid}`,
         address: "Test Address",
-        email: "fts@test.com",
+        email: `fts_${uid}@test.com`,
         phone: "1234567890"
       }
     });
@@ -30,7 +31,7 @@ describe("FTS and Search API E2E", () => {
 
     const adminUser = await prisma.user.create({
       data: {
-        email: "admin.fts@test.com",
+        email: `admin.fts.${uid}@test.com`,
         name: "Admin FTS",
         passwordHash: "pwd",
         role: "ERP_ADMIN",
@@ -53,7 +54,7 @@ describe("FTS and Search API E2E", () => {
     // Seed some data for FTS
     await prisma.student.create({
       data: {
-        admissionNo: "FTS-ST-001",
+        admissionNo: `FTS-ST-${uid}`,
         name: "Johnathan Searchable Doe",
         schoolId,
         password: "pwd",
@@ -75,12 +76,16 @@ describe("FTS and Search API E2E", () => {
   });
 
   afterAll(async () => {
-    await prisma.documentRepository.deleteMany({ where: { schoolId } });
-    await prisma.student.deleteMany({ where: { schoolId } });
-    await prisma.user.deleteMany({ where: { id: adminUserId } });
-    await prisma.school.delete({ where: { id: schoolId } });
+    if (schoolId) {
+      await prisma.documentRepository.deleteMany({ where: { schoolId } });
+      await prisma.student.deleteMany({ where: { schoolId } });
+      if (adminUserId) {
+        await prisma.user.deleteMany({ where: { id: adminUserId } });
+      }
+      await prisma.school.delete({ where: { id: schoolId } });
+    }
 
-    server.close();
+    server?.close();
     await prisma.$disconnect();
   });
 

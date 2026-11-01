@@ -85,6 +85,18 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
       });
     }
 
+    const studentEmail = `${(admissionNo || `std_${Date.now()}`).toLowerCase().replace(/[^a-z0-9]/g, '')}_${schoolId.slice(-6)}@student.school`;
+    const user = await prisma.user.create({
+      data: {
+        email: studentEmail,
+        name,
+        passwordHash: hashedPassword,
+        role: "STUDENT",
+        schoolId,
+        isActive: true,
+      }
+    });
+
     const student = await prisma.student.create({
       data: {
         schoolId,
@@ -93,7 +105,8 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
         admissionNo,
         password: hashedPassword,
         sectionId: sectionRec!.id,
-        guardianId: guardian?.id
+        guardianId: guardian?.id,
+        userId: user.id,
       }
     });
 

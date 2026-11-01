@@ -24,8 +24,8 @@ export function getWorkerDatabaseUrl(workerId: string): string {
 
 export function getMaintenanceUrl(): string {
   const adminUrl =
-    process.env.DIRECT_URL ||
     process.env.DATABASE_URL_ADMIN ||
+    process.env.DIRECT_URL ||
     getBaseTestUrl();
   const parsed = new URL(adminUrl);
   parsed.pathname = "/postgres";
@@ -84,13 +84,24 @@ export async function initWorkerDatabase(workerId: string): Promise<string> {
 
     const workerDb = getWorkerDatabaseName(workerId);
     try {
-      // Terminate existing connections to this worker DB and recreate from template
-      await client.$executeRawUnsafe(
-        `DROP DATABASE IF EXISTS ${workerDb} WITH (FORCE);`
-      );
-      await client.$executeRawUnsafe(
-        `CREATE DATABASE ${workerDb} TEMPLATE ssvm_test_template;`
-      );
+      // Terminate existing connections to this worker DB and recreate from template with retry
+      let retries = 5;
+      while (retries > 0) {
+        try {
+          await client.$executeRawUnsafe(
+            `DROP DATABASE IF EXISTS ${workerDb} WITH (FORCE);`
+          );
+          await client.$executeRawUnsafe(
+            `CREATE DATABASE ${workerDb} TEMPLATE ssvm_test_template;`
+          );
+          break;
+        } catch (cloneErr: unknown) {
+          retries--;
+          if (retries === 0) throw cloneErr;
+          const delay = Math.floor(Math.random() * 400) + 200;
+          await new Promise((r) => setTimeout(r, delay));
+        }
+      }
       await client.$executeRawUnsafe(`
         DO $$
         BEGIN

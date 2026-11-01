@@ -28,16 +28,31 @@ function buildTenantWhere(modelName: string, schoolId: string): UnknownRecord {
   return scope;
 }
 
-function flattenWhere(where: UnknownRecord): UnknownRecord {
+export function isCompoundUniqueKey(key: string, val: UnknownRecord): boolean {
+  if (!key.includes("_")) return false;
+  const innerKeys = Object.keys(val);
+  if (innerKeys.length < 2) return false;
+
+  // None of the inner keys can be Prisma filter or relation operators
+  const filterOperators = [
+    "some", "every", "none", "is", "isNot",
+    "equals", "in", "notIn", "lt", "lte", "gt", "gte",
+    "contains", "startsWith", "endsWith", "mode", "not",
+  ];
+  if (innerKeys.some((k) => filterOperators.includes(k))) {
+    return false;
+  }
+
+  // Real compound unique keys in Prisma are named by joining field names (e.g., threadId_userId: { threadId, userId })
+  const outerParts = key.split("_");
+  return innerKeys.every((innerKey) => outerParts.includes(innerKey));
+}
+
+export function flattenWhere(where: UnknownRecord): UnknownRecord {
   const result: UnknownRecord = {};
   for (const [key, val] of Object.entries(where)) {
     if (val && typeof val === "object" && !Array.isArray(val) && !(val instanceof Date)) {
-      const keys = Object.keys(val);
-      const isOperator = keys.some((k) =>
-        ["equals", "in", "notIn", "lt", "lte", "gt", "gte", "contains", "startsWith", "endsWith", "mode", "not", "is", "isNot"].includes(k)
-      );
-      if (!isOperator && key.includes("_")) {
-        // Compound unique key like threadId_userId: { threadId, userId }
+      if (isCompoundUniqueKey(key, val as UnknownRecord)) {
         Object.assign(result, val);
         continue;
       }
