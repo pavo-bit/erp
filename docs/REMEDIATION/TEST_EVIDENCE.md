@@ -126,6 +126,91 @@ This is a per-change evidence table, not a replacement for the overall readiness
 score. No new overall percentage is claimed until the required full gates produce
 fresh evidence. This evidence is recorded in `docs/REMEDIATION/TEST_EVIDENCE.md`.
 
+### Hosted CI follow-up — PR run 41296848127
+
+Run: [41296848127](https://github.com/pavo-bit/erp/actions/runs/41296848127),
+commit `c111f50`. These jobs ran on hosted PostgreSQL 16 and Redis 7:
+
+| Job / gate | Result | Detail |
+|---|---|---|
+| `Build & Test Backend` | PASS | `npm ci`, Prisma client generation, and strict TypeScript check passed. |
+| `backend-type-check` | PASS | `npm run type-check` passed. |
+| `Migrate and RLS Tests (restricted role)` | FAIL before RLS tests | Migrations deployed, but shadow diff found the 4 raw trigram indexes absent from the Prisma model declarations. Follow-up commit `1ed9811` declares matching Gin/trigram indexes; rerun pending. `test:rls` was not reached. |
+| `backend-test` | FAIL; 169 tests: 93 passed, 43 failed, 33 skipped | The test role could not `TRUNCATE` tables during shared setup. Follow-up commit `1ed9811` grants cleanup privileges in this non-RLS-only job; rerun pending. Additional failures include existing RBAC expectations (17 failures: unauthenticated role cases returned 403 where tests expect 401) and a payment webhook assertion. |
+| `backend-lint` | FAIL; 519 errors, 1 warning | Existing repository lint debt; no lint rule was relaxed. |
+| `security-scan` | FAIL | 89 advisories total: 31 high, 2 critical, 54 moderate, 2 low. `npm audit fix` is suggested for the two critical dependencies; no force upgrade was run. |
+| Frontend build jobs | PASS; 7/7 | All configured Next.js portals built. |
+| Deploy workflow | PASS | Lockfile path correction was accepted; package install and backend type check passed. |
+
+Audit triage from that run: critical `handlebars` (4.7.9; direct dependency,
+compiled for school editable communication templates and reports) has three
+JavaScript-injection advisories; upgrade the direct dependency to a fixed compatible
+release and review template compilation before release. Critical `proxy-addr`
+(transitive through Express) has an IPv4-mapped IPv6 trust-subnet spoofing advisory;
+upgrade through the maintained Express dependency chain and test `trust proxy` / IP
+allowlisting behavior. High advisories affect `@grpc/grpc-js`,
+`@opentelemetry/propagator-jaeger`, `axios`, `basic-ftp`, `body-parser`,
+`brace-expansion`, `browserslist`, `deepmerge-ts`, `follow-redirects`, `form-data`,
+`ip-address`, `js-yaml`, `nanoid`, `postcss`, `sharp`, `source-map-js`,
+`systeminformation`, `vite`, `ws`, and `zod`; npm identifies a non-forced fix for
+most. Review the dependency paths and test direct upgrades before merging. This is
+triage only; no dependency changes were applied. The local audit command remains
+blocked by registry DNS, so use a fresh hosted audit after dependency changes.
+
+The 57 skipped tests from the earlier artifact were historical hook/setup cascades,
+not explicit skips. The fresh hosted artifact after repairing imports and adding
+`School.code` fixtures reports 33 skips; it still has failures and must not be
+reported as passing. The fresh total supersedes the prior 178-test count for this
+commit only. The fix to test-role grants and schema index declarations is in
+`1ed9811`; its fresh run is pending as of this evidence update.
+
+### Final fresh hosted run — PR run 41301456157
+
+Run: [41301456157](https://github.com/pavo-bit/erp/actions/runs/41301456157),
+commit `5af170f`. Companion deployment workflow:
+[41301456138](https://github.com/pavo-bit/erp/actions/runs/41301456138).
+
+| Job / gate | Result | Fresh evidence |
+|---|---|---|
+| `Migrate and RLS Tests (restricted role)` | PASS | Clean PostgreSQL migration deploy and Prisma shadow diff exited 0; 205/205 model tables and the unique `payment_transactions(invoiceId, transactionId)` index verified; RLS + ledger DB suite 180/180 passed. Test setup asserted a non-superuser and `rolbypassrls=false`. |
+| `backend-type-check` | PASS | `npm run type-check`. |
+| `backend-test` | FAIL; 169 tests: 96 passed, 73 failed, 0 skipped | The app test JUnit contains 172 records/76 failures because it includes 3 suite-level failure records in addition to 169 individual test cases/73 failures. There are no `.skip` tests and no skipped cases in this run. `tests/fts_rls.test.ts` passed 3/3, including both search API assertions and the four trigram-index assertion. Tenant authenticated API/security assertions remain failing. |
+| `backend-lint` | FAIL; 519 errors, 1 warning | Existing repository-wide lint debt; no rule suppression. |
+| `security-scan` | FAIL; 89 advisories | 31 high, 2 critical, 54 moderate, 2 low. Critical direct `handlebars` and transitive `proxy-addr` triage is above; no dependency fix has been applied. |
+| Frontend portal builds | PASS; 7/7 | All seven Next.js portal builds completed. |
+| Deploy workflow | PASS | Backend install, Prisma generate, and strict type-check passed; image-push job is skipped for PR events. |
+
+The previous **57 skipped** count came from before/after hook setup failures, not
+explicitly skipped test cases. The largest cascades were tenant isolation, role
+scoping, architecture, messaging, and webhook suites. Their causes included bad
+Express bootstrap imports, missing `School.code`, obsolete user `password` fields,
+invalid School/Teacher/Student seed properties, and shared-database cleanup racing
+fixtures. The final test gate serializes file execution, uses corrected Prisma seed
+fields, and now reports **0 skipped**. The 73 remaining failing test assertions are
+not skipped; several tenant/authentication expected behaviors remain unresolved.
+
+The final qualitative area score table uses only the current evidence. Numeric area
+percentages are not recalculated because this repo has no per-requirement scoring
+inventory from which to derive denominators; the prior audit estimate remains
+approximately 25–30%, and this work does not establish the >=80% target.
+
+| Area | Weight | Current verified state | Open gate / reason |
+|---|---:|---|---|
+| DB & migrations | 15 | PASS for clean baseline, schema diff, 205 tables, and payment unique index | Existing database adoption has not been executed. |
+| Security/authz | 15 | PARTIAL | Request-transaction wrapper and trusted pre-auth/webhook/worker/super-admin paths are not implemented; authenticated API tests fail. |
+| Tenant isolation | 15 | PARTIAL | 180 restricted-role RLS tests pass; the per-request tenant transaction and authenticated API path remain unverified. |
+| Finance/payments | 15 | PARTIAL | Posted ledger balance/immutability tests and payment unique index pass; payment-flow vulnerabilities remain. |
+| Backend features | 10 | PARTIAL | Search route and trigram index assertions pass; other feature completeness is outside this change. |
+| Portals | 15 | BUILD PASS; feature coverage remains partial | 7/7 builds pass; the missing portal modules from the baseline audit remain. |
+| Tests/CI/E2E | 10 | PARTIAL | 180 DB/RLS tests pass and full app suite has 0 skips, but 73/169 assertions fail. |
+| Ops/docs | 5 | PARTIAL | Deploy lockfile path fixed; adoption plan recorded; 2 critical and 31 high advisories remain. |
+
+The authenticated-API tenant wrapper requirement is still incomplete. Keep the RLS
+migration in its separate CI job and do not merge PR #1 until that wrapper and the
+trusted role paths pass real authenticated API tests. The existing-database adoption
+plan is [EXISTING_DATABASE_ADOPTION.md](../DATABASE/EXISTING_DATABASE_ADOPTION.md),
+and this evidence is recorded in `docs/REMEDIATION/TEST_EVIDENCE.md`.
+
 ### Fresh baseline CI run — commit `61ae0c6`
 
 Run: [41294950758](https://github.com/pavo-bit/erp/actions/runs/41294950758), on real PostgreSQL 16 and Redis 7 services, commit `cbf1479`.
