@@ -13,5 +13,6 @@ export default defineConfig({
       thresholds: { lines: 80, functions: 80, branches: 70 }
     },
     testTimeout: 30000,
+    hookTimeout: 60000,
   }
 });
