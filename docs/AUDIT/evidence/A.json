@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "lane": "A",
+  "commit": "a8fc539afc5032131e528da79765b352e2bc52e1",
+  "ci": {
+    "runUrl": "https://github.com/pavo-bit/erp/actions/runs/41307316589"
+  },
+  "jobs": [
+    {
+      "name": "Migrate and RLS Tests (restricted role)",
+      "status": "PASS",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41307316589/job/124850251765",
+      "commit": "a8fc539afc5032131e528da79765b352e2bc52e1",
+      "detail": "Real PostgreSQL. prisma migrate deploy, schema diff, all 205 model table and payment unique index verification passed. RLS used the asserted NOSUPERUSER/NOBYPASSRLS app role and distinct NOSUPERUSER/BYPASSRLS trusted role. `npm run test:rls`: 4 files passed, 185 tests passed, 0 failed. Counts: authenticated-tenant-api 2; request-transaction 3; tenant-rls 177; ledger-integrity 3."
+    },
+    {
+      "name": "backend-type-check",
+      "status": "PASS",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41307316589/job/124850251754",
+      "commit": "a8fc539afc5032131e528da79765b352e2bc52e1"
+    },
+    {
+      "name": "backend-test (lane a)",
+      "status": "FAIL",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41307316589/job/124850251929",
+      "commit": "a8fc539afc5032131e528da79765b352e2bc52e1",
+      "detail": "Fresh backend test run: 14 files failed, 13 passed; 75 tests failed, 101 passed (176 total). Failures include RBAC expectations and database fixture foreign-key errors."
+    },
+    {
+      "name": "backend-lint",
+      "status": "FAIL",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41307316589/job/124850251625",
+      "commit": "a8fc539afc5032131e528da79765b352e2bc52e1",
+      "detail": "Lint job failed; Lane F owns remediation."
+    },
+    {
+      "name": "security-scan",
+      "status": "FAIL",
+      "url": "https://github.com/pavo-bit/erp/actions/runs/41307316589/job/124850251726",
+      "commit": "a8fc539afc5032131e528da79765b352e2bc52e1",
+      "detail": "npm audit failed; dependency findings remain open."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "A-DB-MIGRATIONS-SCHEMA",
+      "status": "PASS",
+      "commands": [
+        "npx prisma migrate deploy",
+        "npm run db:verify-diff",
+        "npm run db:verify-tables"
+      ],
+      "ciJobs": ["Migrate and RLS Tests (restricted role)"],
+      "detail": "Clean isolated PostgreSQL database built successfully; Prisma diff was empty; all 205 model tables and the payment unique index were present."
+    },
+    {
+      "id": "A-TENANT-RLS-REQUEST-TRANSACTIONS",
+      "status": "PASS",
+      "commands": ["npm run test:rls"],
+      "ciJobs": ["Migrate and RLS Tests (restricted role)"],
+      "detail": "Real PostgreSQL tests passed with app role rolsuper=false and rolbypassrls=false. Missing tenant context returned no tenant rows; authenticated route tests verified own-school visibility, missing-school rejection before handler execution, and transaction release after response close. Trusted role was distinct, NOSUPERUSER, and BYPASSRLS."
+    },
+    {
+      "id": "A-TYPE-CHECK",
+      "status": "PASS",
+      "commands": ["npm run type-check"],
+      "ciJobs": ["backend-type-check"]
+    },
+    {
+      "id": "A-FULL-BACKEND-TEST-SUITE",
+      "status": "FAIL",
+      "commands": ["npm run test:ci"],
+      "ciJobs": ["backend-test (lane a)"],
+      "detail": "75 failed, 101 passed, 0 skipped across 27 files."
+    },
+    {
+      "id": "A-CLASSIFICATION-GENERATION-AND-OTHER-AUTHZ-COVERAGE",
+      "status": "UNVERIFIED",
+      "commands": [],
+      "ciJobs": [],
+      "detail": "The passing RLS and authenticated request gate does not verify every remaining tenant classification and authorization requirement."
+    }
+  ]
+}
