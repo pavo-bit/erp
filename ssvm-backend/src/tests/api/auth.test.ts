@@ -217,6 +217,17 @@ describe('Auth API Routes', () => {
       expect(cookies.some((c: string) => c.includes('access_token='))).toBe(true);
     });
 
+    it('rejects a refresh cookie sent from a cross-origin browser', async () => {
+      const res = await request(app)
+        .post('/api/v1/auth/refresh')
+        .set('Origin', 'https://attacker.example')
+        .set('Cookie', ['refresh_token=ambient-browser-cookie']);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error).toBe('invalid_origin');
+      expect(res.headers['set-cookie']).toBeUndefined();
+    });
+
     it('returns 401 for expired refresh token', async () => {
       const expiredToken = jwt.sign(
         { userId: testUser.id }, 

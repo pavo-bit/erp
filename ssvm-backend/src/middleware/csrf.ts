@@ -67,6 +67,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
   const hasAuthCookie = Boolean(req.cookies?.access_token || req.cookies?.auth_token || req.cookies?.refresh_token);
   const origin = req.get("origin");
   if (hasAuthCookie && origin) {
+    // Refresh uses an ambient HttpOnly cookie; require the configured browser origin before the route can rotate it.
     let allowedOrigin: string;
     try {
       allowedOrigin = new URL(env.FRONTEND_URL).origin;
