@@ -14,6 +14,7 @@
     "check:esm": "node scripts/check-esm.js",
     "test:api": "vitest run src/tests/api/",
     "test:unit": "vitest run src/tests/unit/",
+    "test:rls": "vitest run --config vitest.rls.config.ts --pool=threads",
     "test:ci": "vitest run --coverage --reporter=junit --outputFile=test-results.xml",
     "lint": "eslint src/ --max-warnings 0",
     "type-check": "tsc --noEmit",
