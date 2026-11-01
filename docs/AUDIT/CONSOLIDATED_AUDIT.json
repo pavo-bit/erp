@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-01T12:24:47.465Z",
-  "repositoryCommit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
+  "generatedAt": "2026-11-01T12:35:32.166Z",
+  "repositoryCommit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
   "scoring": {
     "method": "verified canonical requirements per area; weighted by configured area weight",
     "rounding": "floor to two decimal places; never round up",
@@ -126,125 +126,126 @@
     },
     "E": {
       "status": "RECORDED",
-      "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
-      "ciRunUrl": "https://github.com/pavo-bit/erp/actions/runs/41305764290",
+      "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
+      "ciRunUrl": "https://github.com/pavo-bit/erp/actions/runs/41306700007",
       "jobs": [
         {
-          "name": "security-scan",
+          "name": "backend-lint",
           "status": "FAIL",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701584",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
-          "detail": "npm audit --audit-level=high failed: 89 findings (2 low, 54 moderate, 31 high, 2 critical); Trivy was skipped."
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447138",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
+          "detail": "ESLint reported 520 problems (519 errors, 1 warning)."
+        },
+        {
+          "name": "frontend-build (super-admin)",
+          "status": "PASS",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447285",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb"
+        },
+        {
+          "name": "frontend-build (student-portal)",
+          "status": "PASS",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447321",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb"
         },
         {
           "name": "frontend-build (saas-frontend)",
           "status": "PASS",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701680",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28"
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447333",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb"
         },
         {
-          "name": "backend-type-check",
-          "status": "PASS",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701719",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28"
-        },
-        {
-          "name": "backend-test (lane f)",
+          "name": "backend-test (lane a)",
           "status": "FAIL",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701725",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447348",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
+          "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
+        },
+        {
+          "name": "backend-test (lane g)",
+          "status": "FAIL",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447353",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
           "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
         },
         {
           "name": "backend-test (lane e)",
           "status": "FAIL",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701738",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447357",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
           "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
         },
         {
-          "name": "frontend-build (super-admin)",
+          "name": "backend-type-check",
           "status": "PASS",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701746",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28"
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447358",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb"
         },
         {
           "name": "Migrate and RLS Tests (restricted role)",
           "status": "PASS",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701756",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28"
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447367",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
+          "detail": "Real PostgreSQL, app role NOSUPERUSER/NOBYPASSRLS and distinct trusted role NOSUPERUSER/BYPASSRLS; migrations and 2 Vitest files/180 tests passed. The authenticated API test was absent from this E checkout, so this does not verify that gate."
+        },
+        {
+          "name": "frontend-build (teacher-portal)",
+          "status": "PASS",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447394",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb"
+        },
+        {
+          "name": "frontend-build (erp-admin)",
+          "status": "PASS",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447396",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb"
+        },
+        {
+          "name": "security-scan",
+          "status": "FAIL",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447424",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
+          "detail": "npm audit --audit-level=high failed: 89 findings (2 low, 54 moderate, 31 high, 2 critical); Trivy did not run after audit failure."
+        },
+        {
+          "name": "frontend-build (payment-portal)",
+          "status": "PASS",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447425",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb"
+        },
+        {
+          "name": "backend-test (lane c)",
+          "status": "FAIL",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447431",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
+          "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
         },
         {
           "name": "backend-test (lane d)",
           "status": "FAIL",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701776",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447437",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
+          "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
+        },
+        {
+          "name": "backend-test (lane f)",
+          "status": "FAIL",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447452",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
           "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
         },
         {
           "name": "backend-test (lane b)",
           "status": "FAIL",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701788",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447466",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
           "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
-        },
-        {
-          "name": "frontend-build (student-portal)",
-          "status": "PASS",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701795",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28"
-        },
-        {
-          "name": "backend-test (lane a)",
-          "status": "FAIL",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701802",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
-          "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
-        },
-        {
-          "name": "backend-test (lane c)",
-          "status": "FAIL",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701826",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
-          "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
-        },
-        {
-          "name": "frontend-build (payment-portal)",
-          "status": "PASS",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701829",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28"
-        },
-        {
-          "name": "backend-lint",
-          "status": "FAIL",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701830",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
-          "detail": "ESLint reported 520 problems (519 errors, 1 warning)."
-        },
-        {
-          "name": "frontend-build (teacher-portal)",
-          "status": "PASS",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701831",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28"
         },
         {
           "name": "frontend-build (parent-portal)",
           "status": "PASS",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701885",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28"
-        },
-        {
-          "name": "backend-test (lane g)",
-          "status": "FAIL",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701935",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
-          "detail": "Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total)."
-        },
-        {
-          "name": "frontend-build (erp-admin)",
-          "status": "PASS",
-          "url": "https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701946",
-          "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28"
+          "url": "https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447530",
+          "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb"
         }
       ],
       "requirements": [
@@ -263,7 +264,7 @@
             "backend-test (lane f)",
             "backend-test (lane g)"
           ],
-          "detail": "All seven lane matrix runs failed with 73 failed, 96 passed, and 0 skipped tests out of 169. This run validates only E head 93b3ed8087c2d842400113ba9f988c05bdbc6b28; it does not validate independent A/B/C branch commits."
+          "detail": "All seven lane matrix runs failed with 73 failed, 96 passed, and 0 skipped tests out of 169. Run 41306700007 validates E head c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb only; it does not validate independent lane branch commits."
         },
         {
           "id": "QA-002",
@@ -282,7 +283,7 @@
             "backend-test (lane g)",
             "Migrate and RLS Tests (restricted role)"
           ],
-          "detail": "All lane services and restricted/trusted roles provisioned successfully; the RLS job passed, but matrix suites failed, so the full lane-isolation requirement remains unverified."
+          "detail": "All seven isolated lane jobs and the restricted-role PostgreSQL job ran. The separate RLS suite passed 180 tests in 2 files, but the authenticated tenant API test was absent from E checkout; the complete isolation requirement remains unverified."
         }
       ]
     },
@@ -784,7 +785,7 @@
       "status": "FAIL",
       "evidence": {
         "lane": "E",
-        "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
+        "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
         "commands": [
           "npm run test:ci"
         ],
@@ -797,7 +798,7 @@
           "backend-test (lane f)",
           "backend-test (lane g)"
         ],
-        "detail": "All seven lane matrix runs failed with 73 failed, 96 passed, and 0 skipped tests out of 169. This run validates only E head 93b3ed8087c2d842400113ba9f988c05bdbc6b28; it does not validate independent A/B/C branch commits."
+        "detail": "All seven lane matrix runs failed with 73 failed, 96 passed, and 0 skipped tests out of 169. Run 41306700007 validates E head c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb only; it does not validate independent lane branch commits."
       },
       "claimants": [
         {
@@ -829,7 +830,7 @@
       "status": "UNVERIFIED",
       "evidence": {
         "lane": "E",
-        "commit": "93b3ed8087c2d842400113ba9f988c05bdbc6b28",
+        "commit": "c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb",
         "commands": [
           "CI job-provisioned PostgreSQL and Redis lane matrix A-G",
           "npm run test:rls"
@@ -844,7 +845,7 @@
           "backend-test (lane g)",
           "Migrate and RLS Tests (restricted role)"
         ],
-        "detail": "All lane services and restricted/trusted roles provisioned successfully; the RLS job passed, but matrix suites failed, so the full lane-isolation requirement remains unverified."
+        "detail": "All seven isolated lane jobs and the restricted-role PostgreSQL job ran. The separate RLS suite passed 180 tests in 2 files, but the authenticated tenant API test was absent from E checkout; the complete isolation requirement remains unverified."
       },
       "claimants": [
         {

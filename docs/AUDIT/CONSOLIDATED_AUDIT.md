@@ -1,7 +1,7 @@
 # SSVM ERP Consolidated Audit
 
-Generated: 2026-11-01T12:24:47.465Z
-Repository commit: `93b3ed8087c2d842400113ba9f988c05bdbc6b28`
+Generated: 2026-11-01T12:35:32.166Z
+Repository commit: `c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb`
 Verdict: **FAIL** — overall **0%** (score is floored, never rounded up).
 
 ## Thresholds
@@ -63,27 +63,27 @@ Verdict: **FAIL** — overall **0%** (score is floored, never rounded up).
 ### Lane E
 
 - Status: **RECORDED**
-- Commit: `93b3ed8087c2d842400113ba9f988c05bdbc6b28`
-- CI run: [https://github.com/pavo-bit/erp/actions/runs/41305764290](https://github.com/pavo-bit/erp/actions/runs/41305764290)
+- Commit: `c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb`
+- CI run: [https://github.com/pavo-bit/erp/actions/runs/41306700007](https://github.com/pavo-bit/erp/actions/runs/41306700007)
 - Jobs:
-  - security-scan: **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701584) — npm audit --audit-level=high failed: 89 findings (2 low, 54 moderate, 31 high, 2 critical); Trivy was skipped.
-  - frontend-build (saas-frontend): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701680)
-  - backend-type-check: **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701719)
-  - backend-test (lane f): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701725) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
-  - backend-test (lane e): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701738) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
-  - frontend-build (super-admin): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701746)
-  - Migrate and RLS Tests (restricted role): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701756)
-  - backend-test (lane d): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701776) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
-  - backend-test (lane b): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701788) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
-  - frontend-build (student-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701795)
-  - backend-test (lane a): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701802) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
-  - backend-test (lane c): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701826) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
-  - frontend-build (payment-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701829)
-  - backend-lint: **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701830) — ESLint reported 520 problems (519 errors, 1 warning).
-  - frontend-build (teacher-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701831)
-  - frontend-build (parent-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701885)
-  - backend-test (lane g): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701935) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
-  - frontend-build (erp-admin): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41305764290/job/124845701946)
+  - backend-lint: **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447138) — ESLint reported 520 problems (519 errors, 1 warning).
+  - frontend-build (super-admin): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447285)
+  - frontend-build (student-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447321)
+  - frontend-build (saas-frontend): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447333)
+  - backend-test (lane a): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447348) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - backend-test (lane g): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447353) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - backend-test (lane e): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447357) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - backend-type-check: **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447358)
+  - Migrate and RLS Tests (restricted role): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447367) — Real PostgreSQL, app role NOSUPERUSER/NOBYPASSRLS and distinct trusted role NOSUPERUSER/BYPASSRLS; migrations and 2 Vitest files/180 tests passed. The authenticated API test was absent from this E checkout, so this does not verify that gate.
+  - frontend-build (teacher-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447394)
+  - frontend-build (erp-admin): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447396)
+  - security-scan: **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447424) — npm audit --audit-level=high failed: 89 findings (2 low, 54 moderate, 31 high, 2 critical); Trivy did not run after audit failure.
+  - frontend-build (payment-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447425)
+  - backend-test (lane c): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447431) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - backend-test (lane d): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447437) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - backend-test (lane f): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447452) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - backend-test (lane b): **FAIL** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447466) — Fresh Vitest run: 13 files failed, 12 passed; 73 tests failed, 96 passed, 0 skipped (169 total).
+  - frontend-build (parent-portal): **PASS** — [job](https://github.com/pavo-bit/erp/actions/runs/41306700007/job/124848447530)
 
 ### Lane F
 
@@ -202,8 +202,8 @@ None.
 | FIN-006 | finance_payments | B | UNVERIFIED | baseline_audit.4: Ground-truth defect 4: 71 monetary fields are Float and late fine is hard-coded to 50. | UNVERIFIED: no lane claim |
 | BE-001 | backend_features | B | UNVERIFIED | baseline_audit.6: Ground-truth defect 6: bank reconciliation and goods receipt return return 501 because schema fields are missing. | UNVERIFIED: no lane claim |
 | PORT-001 | portals | D | UNVERIFIED | baseline_audit.8: Ground-truth defect 8: portal coverage gaps, hard-coded localhost URLs, and tokens in localStorage. | UNVERIFIED: no lane claim |
-| QA-001 | tests_ci_e2e | E | FAIL | baseline_audit.9: Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change.; followup.skipped_tests.5: Owner clarification: explain 57 skipped tests, fix School.code fixtures, and rerun the suite. | 93b3ed8087c2d842400113ba9f988c05bdbc6b28; npm run test:ci; CI backend-test (lane a), backend-test (lane b), backend-test (lane c), backend-test (lane d), backend-test (lane e), backend-test (lane f), backend-test (lane g) |
-| QA-002 | tests_ci_e2e | E | UNVERIFIED | orchestration.isolated_lane_services: Orchestration instruction: each lane gets a unique PostgreSQL database, Redis DB index, and ports.; orchestration.rls_role_assertion: Orchestration instruction: RLS tests run under non-superuser, non-BYPASSRLS role and assert these role flags. | 93b3ed8087c2d842400113ba9f988c05bdbc6b28; CI job-provisioned PostgreSQL and Redis lane matrix A-G; npm run test:rls; CI backend-test (lane a), backend-test (lane b), backend-test (lane c), backend-test (lane d), backend-test (lane e), backend-test (lane f), backend-test (lane g), Migrate and RLS Tests (restricted role) |
+| QA-001 | tests_ci_e2e | E | FAIL | baseline_audit.9: Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change.; followup.skipped_tests.5: Owner clarification: explain 57 skipped tests, fix School.code fixtures, and rerun the suite. | c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb; npm run test:ci; CI backend-test (lane a), backend-test (lane b), backend-test (lane c), backend-test (lane d), backend-test (lane e), backend-test (lane f), backend-test (lane g) |
+| QA-002 | tests_ci_e2e | E | UNVERIFIED | orchestration.isolated_lane_services: Orchestration instruction: each lane gets a unique PostgreSQL database, Redis DB index, and ports.; orchestration.rls_role_assertion: Orchestration instruction: RLS tests run under non-superuser, non-BYPASSRLS role and assert these role flags. | c5cabc5e11e113eaaf8d4cce392711cfb9a9cdcb; CI job-provisioned PostgreSQL and Redis lane matrix A-G; npm run test:rls; CI backend-test (lane a), backend-test (lane b), backend-test (lane c), backend-test (lane d), backend-test (lane e), backend-test (lane f), backend-test (lane g), Migrate and RLS Tests (restricted role) |
 | QA-003 | tests_ci_e2e | D | UNVERIFIED | baseline_audit.9: Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change. | UNVERIFIED: no lane claim |
 | QA-004 | tests_ci_e2e | F | UNVERIFIED | baseline_audit.9: Ground-truth defect 9: about 120 tests without DB-backed run, placeholder E2E, CI never run, backend lint problems, and removed TS options; correction says TS 5.9.3 tsc passes and tsconfig must not change.; ground_truth_corrections.typescript_5_9: Owner correction: tsc passes with TypeScript 5.9.3; do not change tsconfig. | UNVERIFIED: no lane claim |
 | QA-005 | tests_ci_e2e | G | UNVERIFIED | orchestration.lane_g_clean_clone_audit: Orchestration instruction: lane G reruns everything from a clean clone and may downgrade lane claims. | UNVERIFIED: no lane claim |
