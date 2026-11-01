@@ -74,22 +74,22 @@ The Phase 2 implementation is incomplete. Its classification, extension, migrati
 | Frontend portal build jobs | PASS; 7/7 | `erp-admin`, `parent-portal`, `payment-portal`, `saas-frontend`, `student-portal`, `super-admin`, `teacher-portal`. |
 | `security-scan` | FAIL | `npm audit --audit-level=high` reported high and moderate dependency advisories; Trivy was skipped. |
 
-The previous hosted CI run tested commit `cffcd24` before the baseline migration replacement and failed at missing `public.access_reviews`; it did not test the new baseline. The baseline and retained full-text index migration are now active in the working tree; a new real-PostgreSQL CI result is required before claiming all 205 tables exist or schema diff is empty. The generated tenant RLS migration raises an exception if a classified tenant table is absent, but it is not to be merged until the baseline and trusted request/pre-auth transaction paths pass end-to-end on PostgreSQL. No per-request transaction wrapper or separate trusted pre-auth/super-admin DB role path has been implemented. Existing deployed databases need a controlled migration-history adoption plan. `161b591` remains reverted, not verified, and must not be depended on.
+The initial hosted CI run at commit `cffcd24` predated the baseline replacement and failed at missing `public.access_reviews`. The current hosted PostgreSQL run verifies the replacement baseline and schema. The generated fail-closed RLS migration passes the dedicated RLS test suite, but it must not be merged until the per-request and trusted pre-auth transaction paths also work end-to-end. Those paths are still unimplemented. Existing deployed databases need a controlled migration-history adoption plan. `161b591` remains reverted, not verified, and must not be depended on.
 
 ### Fresh baseline CI run — commit `61ae0c6`
 
-Run: [41294746072](https://github.com/pavo-bit/erp/actions/runs/41294746072), on real PostgreSQL 16 and Redis 7 services.
+Run: [41294950758](https://github.com/pavo-bit/erp/actions/runs/41294950758), on real PostgreSQL 16 and Redis 7 services, commit `cbf1479`.
 
 | Gate | Result | Evidence |
 |---|---|---|
 | Prisma migration deploy | PASS | Baseline, retained full-text index migration, and fail-closed RLS migration all applied. |
 | `prisma migrate diff` against schema | PASS | Shadow DB replay and `--exit-code` check completed successfully with no schema diff. |
 | Prisma model table census | PASS; 205/205 | CI query found every generated Prisma model table in `public`. |
-| Backend test suite | FAIL | Vitest produced `test-results.xml` and exited 1; job log did not expose usable per-test summary in the retrieved output. No pass count is claimed. |
-| `test:rls` | SKIPPED | The preceding test step failed and stopped the job. |
+| Backend test suite (`test:ci`) | FAIL; 178 tests: 36 passed, 85 failed, 57 skipped, 0 errors | JUnit artifact `backend-test-results` was retrieved. Failures include fixture operations rejected by RLS without tenant context, stale required `School.code` fields, and existing API/server setup failures. No test was skipped or weakened by this change. |
+| `test:rls` | PASS; 177/177 | Ran as a role asserted `rolsuper=false`, `rolbypassrls=false`; generated coverage checks cover all 174 tenant models, and behavior tests include fail-closed missing-tenant reads, tenant reads, and cross-tenant write denial. |
 | Backend type-check | PASS | CI job `backend-type-check`. |
 | Backend full lint | FAIL; 519 errors, 1 warning | Repository-wide errors remain although focused lint for `src/lib/prisma.ts` passes. |
 | Frontend builds | PASS; 7/7 | All configured portal build jobs passed. |
 | Dependency security scan | FAIL | `npm audit --audit-level=high` found advisories; Trivy did not run. |
 
-This verifies the fresh baseline builds all 205 tables and is schema-equivalent on the CI PostgreSQL database. Tenant request-context behavior is still not verified, and the RLS migration must remain unmerged until the request/pre-auth transaction path is implemented and `test:rls` passes.
+This verifies the fresh baseline builds all 205 tables and is schema-equivalent on the CI PostgreSQL database. Database RLS policies pass their dedicated non-bypass suite, but real API requests still fail the broad backend suite because the app does not yet install tenant context in a per-request transaction and pre-auth operations do not have a separate trusted role path. The RLS migration must remain unmerged until those paths are implemented and verified end-to-end.
