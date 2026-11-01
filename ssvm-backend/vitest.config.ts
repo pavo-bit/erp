@@ -4,7 +4,8 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    setupFiles: ['./src/tests/setup.ts'],
+    pool: 'forks',
+    setupFiles: ['./src/tests/workerDbSetup.ts', './src/tests/setup.ts'],
     exclude: [...configDefaults.exclude, 'src/tests/db/**/*.test.ts'],
     coverage: {
       provider: 'v8',
