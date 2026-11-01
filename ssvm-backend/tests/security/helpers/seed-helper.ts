@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from '../../../src/lib/prisma';
+
 import crypto from "crypto";
 
 // ═══════════════════════════════════════════
@@ -7,7 +8,6 @@ import crypto from "crypto";
 // Creates isolated test data for security tests.
 // Each test run gets unique IDs to avoid conflicts.
 
-const prisma = new PrismaClient();
 
 export interface TestSchool {
   id: string;

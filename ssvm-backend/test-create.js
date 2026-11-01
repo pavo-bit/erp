@@ -1,5 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+require('tsx/cjs');
+const prisma = require('./src/lib/prisma').default;
 prisma.user.create({ data: { email: 'testnew@test.com', name: 'Test', password: 'pwd', role: 'SUPER_ADMIN' } })
   .then(console.log)
   .catch(console.error)

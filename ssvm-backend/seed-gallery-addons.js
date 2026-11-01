@@ -1,5 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+require('tsx/cjs');
+const prisma = require('./src/lib/prisma').default;
 
 async function main() {
   const images = [

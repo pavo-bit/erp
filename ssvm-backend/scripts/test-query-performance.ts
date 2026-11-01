@@ -1,8 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../src/lib/prisma';
+
 import fs from 'fs';
 import path from 'path';
 
-const prisma = new PrismaClient();
 
 async function runExplainAnalyze(queryName: string, rawQuery: string): Promise<string> {
   console.log(`Running EXPLAIN ANALYZE for ${queryName}...`);

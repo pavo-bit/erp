@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from '../../lib/prisma';
+
 import { beforeAll } from "vitest";
 
 const testDatabaseUrl = process.env.DATABASE_URL_TEST;
@@ -13,7 +14,7 @@ if (!/(^|[_-])test($|[_-])/i.test(testDatabaseName)) {
 
 process.env.DATABASE_URL = testDatabaseUrl;
 
-export const rlsTestPrisma = new PrismaClient();
+export const rlsTestPrisma = prisma;
 
 beforeAll(async () => {
   const [role] = await rlsTestPrisma.$queryRaw<Array<{
