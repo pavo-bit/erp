@@ -33,3 +33,8 @@ Next: design and validate transaction-scoped RLS context in an isolated PostgreS
 - Added `npm run test:rls` with a real PostgreSQL suite that asserts the connected role has `rolsuper = false` and `rolbypassrls = false`, then checks absent-tenant reads, tenant-scoped reads and cross-tenant writes against `fee_categories`.
 - `npm run type-check` and focused ESLint on the new RLS config/tests passed. The RLS integration suite was not run because PostgreSQL is unreachable. No RLS behavior is claimed as passed; the suite is expected to expose the current NULL-context fail-open policy.
 - Fresh non-DB focused security suite: 6 files, 21 tests passed. This count excludes the RLS suite.
+
+### PR/CI handoff status
+
+- Pushed `remediation/80pct` to `origin` successfully. Opening the PR through `gh` is currently blocked because `gh auth status` reports an invalid token; a prior `git ls-remote` attempt also hit DNS resolution failure. No PR or CI run link/results are claimed.
+- Reverted runtime role-separation commit `161b591` (`a7bd17f`) because no real PostgreSQL gate was available. Do not rely on that role setup until CI verifies it.

@@ -14,7 +14,7 @@ jobs:
         image: postgres:16-alpine
         env:
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_PASSWORD: ${{ github.run_id }}-postgres-ci
           POSTGRES_DB: ssvm_test
         ports:
           - 5432:5432
@@ -38,9 +38,11 @@ jobs:
         working-directory: ./ssvm-backend
 
     env:
-      DATABASE_URL_TEST: postgresql://postgres:postgrespassword@localhost:5432/ssvm_test?schema=public
-      DATABASE_URL: postgresql://postgres:postgrespassword@localhost:5432/ssvm_test?schema=public
-      DIRECT_URL: postgresql://postgres:postgrespassword@localhost:5432/ssvm_test?schema=public
+      APP_DB_PASSWORD: ${{ github.run_id }}-app-ci
+      PGPASSWORD: ${{ github.run_id }}-postgres-ci
+      DATABASE_URL_TEST: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
+      DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_test?schema=public
       REDIS_URL: redis://localhost:6379
 
     steps:
@@ -57,13 +59,36 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Provision restricted test role
+        run: |
+          psql --host localhost --username postgres --dbname ssvm_test \
+            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" <<'SQL'
+          SELECT format(
+            'CREATE ROLE ssvm_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
+            :'app_password'
+          )
+          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_app')
+          \gexec
+
+          GRANT CONNECT ON DATABASE ssvm_test TO ssvm_app;
+          GRANT USAGE ON SCHEMA public TO ssvm_app;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_app;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_app;
+          SQL
+
       - name: Deploy Prisma Migrations
         run: npx prisma migrate deploy
         env:
-          DATABASE_URL: ${{ env.DATABASE_URL_TEST }}
+          DATABASE_URL: ${{ env.DIRECT_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
 
       - name: Run Tests with Coverage
         run: npm run test:ci
+
+      - name: Run PostgreSQL RLS tests
+        run: npm run test:rls
 
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3

@@ -17,6 +17,7 @@ Updated: 2026-11-01
 | Full backend lint | `npm run lint` | FAIL; 548 errors, 1 warning | Repository-wide pre-existing and outstanding quality debt. |
 | PostgreSQL integration | Not run | BLOCKED | No controlled PostgreSQL test database available in this execution. |
 | RLS tenant-isolation suite | `npm run test:rls` | UNVERIFIED (score 0); NOT RUN | Requires real PostgreSQL and test role assertions (`rolsuper = false`, `rolbypassrls = false`); no reachable database. |
+| CI PostgreSQL role setup | `.github/workflows/ci.yml` restricted app role provisioning | CONFIGURED; NOT RUN | Workflow now provisions a run-scoped non-superuser test role; migration runs as the PostgreSQL bootstrap role. No CI job has executed this configuration yet. |
 | Docker/CI/E2E | Not run | NOT VERIFIED | Docker engine/hosted CI/controlled full-stack environment not available. |
 
 Historical portal evidence remains in `docs/BUILD_AND_TEST_REPORT.md`; seven portal builds/type checks passed in the earlier execution and were not repeated here.
@@ -28,3 +29,5 @@ Fresh local evidence on 2026-11-01: `npx vitest run --config vitest.security.con
 Tenant isolation phase evidence: `npm run type-check` and `npx eslint vitest.rls.config.ts src/tests/db/setup.ts src/tests/db/tenant-rls.test.ts` passed after authoring the RLS suite. `npm run test:rls` was not run because no real PostgreSQL instance is reachable. The RLS implementation and tests remain UNVERIFIED (score 0); no DB gate passed.
 
 PostgreSQL gate policy: mocked/unit route checks are not DB evidence. Isolation and RLS tests must connect to a real PostgreSQL instance and assert `rolsuper = false` and `rolbypassrls = false` in setup; fail the suite if either assertion is false. Until that gate passes, each DB-dependent item remains UNVERIFIED and scores 0.
+
+GitHub handoff: `git push -u origin remediation/80pct` succeeded, but no PR is open and no GitHub Actions run link/results exist yet. `gh auth status` reported an invalid token, blocking PR creation through the CLI. Runtime role separation commit `161b591` was reverted as `a7bd17f` pending real PostgreSQL verification.
