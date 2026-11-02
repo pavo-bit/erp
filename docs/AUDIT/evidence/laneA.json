@@ -288,6 +288,13 @@
       "stdoutTail": "(no output; 0 errors)",
       "timestampUtc": "2026-11-02 21:03:16 UTC",
       "commitSha": "58cf096"
+    },
+    {
+      "command": "gh run watch 41525180831; gh pr checks 3",
+      "exitCode": 0,
+      "stdoutTail": "CI Run 41525180831 on PR #3: backend-test PASS (125550959962 in 2m56s); backend-type-check PASS (125550960225 in 1m21s); Migrate and RLS Tests (restricted role) PASS (125550960273 in 1m9s); all 7 frontend-build jobs PASS; backend-lint & security-scan baseline failures recorded in A-to-E.md.",
+      "timestampUtc": "2026-11-02 21:08:56 UTC",
+      "commitSha": "0da984a"
     }
   ]
 }
