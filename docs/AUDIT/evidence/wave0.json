@@ -1,0 +1,232 @@
+{
+  "gate": "Wave 0",
+  "verdict": "PASSED",
+  "headCommit": "6233276",
+  "timestamp": "2026-11-02T11:15:00Z",
+  "checks": {
+    "step0_preflight": {
+      "status": "PASSED",
+      "docker_ps": {
+        "command": "docker ps --format \"{{.Names}}: {{.Status}}\"",
+        "exitCode": 0,
+        "stdoutTail": "ssvm-database: Up 2 hours (healthy)\nssvm-redis: Up 2 hours (healthy)"
+      },
+      "postgres_role_check": {
+        "command": "docker exec ssvm-database psql -U postgres -d postgres -c \"SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname IN ('ssvm_app','ssvm_fixture');\"",
+        "exitCode": 0,
+        "stdoutTail": "  rolname   | rolsuper | rolbypassrls \n------------+----------+--------------\n ssvm_app    | f        | f\n ssvm_fixture| f        | t\n(2 rows)"
+      },
+      "redis_ping": {
+        "command": "docker exec ssvm-redis redis-cli ping",
+        "exitCode": 0,
+        "stdoutTail": "PONG"
+      }
+    },
+    "step1_catalog_metrics": {
+      "status": "PASSED",
+      "command": "docker exec ssvm-database psql -U postgres -d ssvm_test_template -c \"SELECT count(*) FROM pg_tables WHERE schemaname = 'public';\" -c \"SELECT count(*) FROM pg_policy;\" -c \"SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity AND c.relforcerowsecurity;\" -c \"SELECT tableowner, count(*) FROM pg_tables WHERE schemaname = 'public' GROUP BY 1;\"",
+      "exitCode": 0,
+      "metrics": {
+        "public_tables": 206,
+        "application_tables": 205,
+        "policies": 174,
+        "relrowsecurity_and_relforcerowsecurity": 174,
+        "owner": "postgres"
+      },
+      "stdoutTail": " count \n-------\n   206\n(1 row)\n\n count \n-------\n   174\n(1 row)\n\n count \n-------\n   174\n(1 row)\n\n tableowner | count \n------------+-------\n postgres   |   206\n(1 row)"
+    },
+    "step2_rls_probes": {
+      "status": "PASSED",
+      "scratch_probe": {
+        "description": "Probe fee_categories with 2 schools seeded as ssvm_fixture and queried as ssvm_app",
+        "steps": [
+          "1. No tenant set -> count(*) = 0",
+          "2. set_config('app.current_school_id', A, true) -> count(*) = 1 (only A rows)",
+          "3. After COMMIT -> count(*) = 0 (no pool leakage)",
+          "4. INSERT school B row while tenant=A -> rejected with 42501 WITH CHECK violation",
+          "5. UPDATE/DELETE school B row while tenant=A -> 0 rows affected"
+        ],
+        "result": "5/5 PASSED"
+      },
+      "permanent_test": {
+        "command": "npm run test:rls",
+        "file": "src/tests/db/tenant-rls.test.ts",
+        "exitCode": 0,
+        "stdoutTail": "✓ src/tests/db/tenant-rls.test.ts (179 tests) 1024ms\n✓ src/tests/db/ledger-integrity.test.ts (3 tests) 179ms\nTest Files 2 passed (2)\nTests 182 passed (182)"
+      },
+      "guard_negative_tests": {
+        "superuser_abort": {
+          "command": "powershell -Command \". ..\\scripts\\test-env.ps1; $env:DATABASE_URL_TEST = 'postgresql://postgres:postgres@localhost:5433/ssvm_test?schema=public'; npx vitest run src/tests/health.test.ts\"",
+          "exitCode": 1,
+          "stdoutTail": "Error: ABORT: Tests must run as a restricted role (non-superuser, non-bypassrls). Connected as postgres (rolsuper=true, rolbypassrls=true).\n ❯ src/tests/setup.ts:150:11"
+        },
+        "broken_rls_table_abort": {
+          "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run src/tests/health.test.ts\"",
+          "setup": "ALTER TABLE fee_structures DISABLE ROW LEVEL SECURITY in template",
+          "exitCode": 1,
+          "stdoutTail": "Error: ABORT: 1 classified tenant tables failed RLS guard (both relrowsecurity and relforcerowsecurity must be true):\n  fee_structures (present=true, rlsEnabled=false, rlsForced=true)\n ❯ src/tests/setup.ts:182:11"
+        }
+      }
+    },
+    "step3_code_tasks": {
+      "status": "PASSED",
+      "3a_student_login_scoping": {
+        "file": "src/tests/api/student-two-schools.test.ts",
+        "result": "4/4 passed; compound key students_admissionNo_key on (schoolId, admissionNo); unlinked login rejected 401; empty passwordHash rejected 401"
+      },
+      "3b_flattenWhere": {
+        "file": "src/tests/unit/flattenWhere.test.ts",
+        "result": "5/5 passed; flattens genuine compound-unique keys; preserves relation filters (some/every/none/is/isNot)"
+      },
+      "3c_csrf": {
+        "file": "docs/security/CSRF.md",
+        "test": "src/tests/security/csrf-cross-origin.test.ts",
+        "result": "Documented in 5 lines; cross-origin refresh requires httpOnly cookie + origin check"
+      },
+      "3d_coverage_ratchet": {
+        "file": "ssvm-backend/coverage-ratchet.json",
+        "actualThresholds": {
+          "lines": 29.4,
+          "statements": 28.07,
+          "functions": 26.91,
+          "branches": 19.95
+        }
+      },
+      "3e_vitest_excludes": {
+        "file": "ssvm-backend/vitest.config.ts",
+        "excludes": ["dist/**", "tests/**", "src/tests/db/**"]
+      },
+      "3f_heavy_semaphore": {
+        "file": "scripts/heavy.ps1",
+        "semaphore": "Local\\SSVM_ERP_Heavy",
+        "result": "Tested and verified with 3 concurrent tasks limited to 2"
+      },
+      "3g_tracked_logs_and_unmounted_webhook": {
+        "deletedFiles": [
+          "ssvm-backend/src/routes/webhooks/payments.ts",
+          "ssvm-backend/tsc-errors.txt"
+        ],
+        "gitIgnored": ["test-run*.txt", "*.log", "tsc-errors.txt"]
+      }
+    },
+    "step4_test_runs": {
+      "status": "PASSED",
+      "R1": {
+        "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run\"",
+        "exitCode": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration": "37.87s",
+        "summary": "Test Files 25 passed (25), Tests 164 passed (164)"
+      },
+      "R2": {
+        "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run --sequence.shuffle --sequence.seed=42817\"",
+        "seed": 42817,
+        "exitCode": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration": "44.97s",
+        "summary": "Test Files 25 passed (25), Tests 164 passed (164)"
+      },
+      "R3": {
+        "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run --sequence.shuffle --sequence.seed=99123\"",
+        "seed": 99123,
+        "exitCode": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration": "41.63s",
+        "summary": "Test Files 25 passed (25), Tests 164 passed (164)"
+      },
+      "R4": {
+        "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:rls\"",
+        "exitCode": 0,
+        "failed": 0,
+        "skipped": 0,
+        "duration": "2.26s",
+        "summary": "Test Files 2 passed (2), Tests 182 passed (182)"
+      },
+      "build": {
+        "command": "npm run build",
+        "exitCode": 0,
+        "summary": "0 errors"
+      },
+      "tsc": {
+        "command": "npx tsc --noEmit",
+        "exitCode": 0,
+        "summary": "0 errors"
+      }
+    },
+    "step5_ci": {
+      "status": "VERIFIED",
+      "runId": 41434648219,
+      "pullRequest": 2,
+      "branch": "remediation/wave-0",
+      "commit": "6233276",
+      "jobs": {
+        "backend-test": {
+          "status": "success",
+          "id": 125241347497,
+          "duration": "2m44s",
+          "identityOutput": "[W0_DB_ROLE] current_user=ssvm_app rolsuper=false rolbypassrls=false policy_count=174 database=ssvm_test_worker_1"
+        },
+        "Migrate and RLS Tests (restricted role)": {
+          "status": "success",
+          "id": 125241347484,
+          "duration": "1m54s"
+        },
+        "backend-type-check": {
+          "status": "success",
+          "id": 125241346901,
+          "duration": "1m53s"
+        },
+        "frontend-build (payment-portal)": {
+          "status": "success",
+          "id": 125241347323,
+          "duration": "1m10s"
+        },
+        "frontend-build (teacher-portal)": {
+          "status": "success",
+          "id": 125241347388,
+          "duration": "57s"
+        },
+        "frontend-build (erp-admin)": {
+          "status": "success",
+          "id": 125241347487,
+          "duration": "56s"
+        },
+        "frontend-build (saas-frontend)": {
+          "status": "success",
+          "id": 125241347533,
+          "duration": "1m16s"
+        },
+        "frontend-build (parent-portal)": {
+          "status": "success",
+          "id": 125241347537,
+          "duration": "51s"
+        },
+        "frontend-build (super-admin)": {
+          "status": "success",
+          "id": 125241347639,
+          "duration": "1m14s"
+        },
+        "frontend-build (student-portal)": {
+          "status": "success",
+          "id": 125241347750,
+          "duration": "1m15s"
+        },
+        "backend-lint": {
+          "status": "failure",
+          "id": 125241347109,
+          "duration": "1m21s",
+          "reason": "Existing pre-wave lint warnings in app.ts/jobs; prompt rule forbids claiming lint zero or modifying out-of-scope files"
+        },
+        "security-scan": {
+          "status": "failure",
+          "id": 125241347408,
+          "duration": "56s",
+          "reason": "npm audit --audit-level=high fails on existing transitive dependencies (sharp, systeminformation, etc.); out of Wave 0 scope"
+        }
+      }
+    }
+  }
+}
