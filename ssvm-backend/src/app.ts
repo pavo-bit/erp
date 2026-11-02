@@ -23,9 +23,8 @@ export async function createApp(): Promise<Express> {
   const client = (await import("prom-client")).default;
   const logger = (await import("./lib/logger")).default;
   const { notFoundHandler, globalErrorHandler } = await import("./middleware/errorHandler");
-  const { deprecated } = await import("./middleware/versioning");
   const { addResponseHeaders } = await import("./lib/response");
-  const { defaultLimiter, authLimiter, strictLimiter, uploadLimiter, bulkLimiter, webhookLimiter, paymentCreateLimiter, paymentVerifyLimiter, crmLimiter, otpLimiter, passwordResetLimiter } = await import("./middleware/rateLimiter");
+  const { defaultLimiter, authLimiter, strictLimiter, uploadLimiter, bulkLimiter, webhookLimiter, paymentCreateLimiter, crmLimiter } = await import("./middleware/rateLimiter");
   const { bruteForceCheck } = await import("./middleware/brute-force.middleware");
   const { csrfProtection, injectCsrfToken } = await import("./middleware/csrf");
   const { schoolContextMiddleware } = await import("./middleware/school-context.middleware");
@@ -267,7 +266,9 @@ app.get("/health", async (req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     dbStatus = "connected";
-  } catch (e) { }
+  } catch {
+    /* database offline */
+  }
 
   if (isRedisAvailable()) {
     redisStatus = "connected";
@@ -352,13 +353,13 @@ const legacyCompatMiddleware = async (req: Request, res: Response, next: NextFun
       await prisma.activityLog.create({
         data: {
           schoolId,
-          type: "LEGACY_API_ACCESS" as any,
+          type: "NOTICE",
           title: "Legacy Route Hit",
           description: `Deprecated route accessed: ${req.path}`,
           metadata: { path: req.path, method: req.method, timestamp: new Date().toISOString() }
         }
       });
-    } catch (e) {
+    } catch {
       // Fallback if schoolId constraint fails
     }
 

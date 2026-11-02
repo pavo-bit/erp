@@ -225,6 +225,7 @@ describe("Architecture & Phase A E2E", () => {
         "src/lib/authPrisma.ts",
         "src/tests/api/auth.test.ts",
         "src/tests/architecture.test.ts",
+        "src/tests/db/role-privileges.test.ts",
       ]);
 
       const violations: string[] = [];

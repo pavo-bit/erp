@@ -250,3 +250,12 @@ BEGIN
   END LOOP;
 END;
 $student_user_backfill$;
+
+-- Trusted audit & system log read policies for ADMIN_AUDIT
+DROP POLICY IF EXISTS trusted_audit_logs_read ON audit_logs;
+CREATE POLICY trusted_audit_logs_read ON audit_logs FOR SELECT TO ssvm_app_group
+  USING (current_setting('app.trusted_purpose', true) = 'ADMIN_AUDIT');
+
+DROP POLICY IF EXISTS trusted_system_logs_read ON system_logs;
+CREATE POLICY trusted_system_logs_read ON system_logs FOR SELECT TO ssvm_app_group
+  USING (current_setting('app.trusted_purpose', true) = 'ADMIN_AUDIT');

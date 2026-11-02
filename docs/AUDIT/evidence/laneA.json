@@ -253,6 +253,41 @@
       "stdoutTail": "tsc (0 errors)",
       "timestampUtc": "2026-11-02 20:12:14 UTC",
       "commitSha": "22907d1"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:rls\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 4 passed (4); Tests 205 passed (205); 0 failed; role-privileges passed with 0 policies on ssvm_trusted; Duration 4.20s.",
+      "timestampUtc": "2026-11-02 20:58:13 UTC",
+      "commitSha": "58cf096"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run src/tests/architecture.test.ts\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1); Tests 9 passed (9); 0 failed; Duration 9.97s; authPrismaAllowlist and superAdmin school context verified.",
+      "timestampUtc": "2026-11-02 20:58:36 UTC",
+      "commitSha": "58cf096"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:unit\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 5 passed (5); Tests 65 passed (65); 0 failed; Duration 7.53s.",
+      "timestampUtc": "2026-11-02 20:58:56 UTC",
+      "commitSha": "58cf096"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:api\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 9 passed (9); Tests 62 passed (62); 0 failed; Duration 21.41s; full multi-tenant isolation and webhook processing verified.",
+      "timestampUtc": "2026-11-02 20:59:27 UTC",
+      "commitSha": "58cf096"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdoutTail": "(no output; 0 errors)",
+      "timestampUtc": "2026-11-02 21:03:16 UTC",
+      "commitSha": "58cf096"
     }
   ]
 }

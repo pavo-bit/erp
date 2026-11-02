@@ -287,6 +287,8 @@ const prisma = prismaWithEncryption
 
           // ── Application-Level Tenant Isolation ──
           const schoolId = getCurrentSchoolId();
+          const context = getSchoolContext();
+          const isSuperAdmin = context?.isSuperAdmin ?? false;
           const classification = model ? getTenantClassification(model) : undefined;
           const softDeleteDelegate = model ? softDeleteDelegates[model] : undefined;
           const mutableArgs = asRecord(args) ?? {};
@@ -417,7 +419,7 @@ const prisma = prismaWithEncryption
             });
           }
 
-          if (!schoolId && !inTxStorage.getStore() && classification && classification.classification !== "global") {
+          if (!schoolId && !isSuperAdmin && !inTxStorage.getStore() && classification && classification.classification !== "global") {
             const writeOps = new Set(["create", "createMany", "createManyAndReturn", "update", "updateMany", "updateManyAndReturn", "delete", "deleteMany", "upsert"]);
             if (writeOps.has(operation)) {
               throw new Error(`Tenant context required for write operation '${operation}' on tenant table '${model}'.`);

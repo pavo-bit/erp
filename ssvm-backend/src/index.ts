@@ -20,7 +20,7 @@ async function bootstrap(): Promise<void> {
     { createApp },
     { getEnv },
     { initSentry },
-    { initRedis, disconnectRedis },
+    { disconnectRedis },
     { startWorkers },
     { startTokenCleanupScheduler, stopTokenCleanupScheduler },
     { closeQueues },
