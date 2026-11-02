@@ -12,19 +12,30 @@ export function createTestApp(): Express {
   return app;
 }
 
-export function getTestPrisma() {
-  return prisma;
+import { PrismaClient } from '@prisma/client';
+
+let fixturePrismaClient: PrismaClient | null = null;
+export function getTestPrisma(): PrismaClient {
+  const url = process.env.DATABASE_URL_TEST_FIXTURE || process.env.DATABASE_URL_TEST || (prisma as any)._activeUrl;
+  if (!fixturePrismaClient || (fixturePrismaClient as any)._activeUrl !== url) {
+    fixturePrismaClient = new PrismaClient({
+      datasources: { db: { url } },
+    });
+    (fixturePrismaClient as any)._activeUrl = url;
+  }
+  return fixturePrismaClient;
 }
 
 import { generateAccessToken } from '../../lib/tokens';
 
 export async function createTestUser(role: Role = Role.ERP_ADMIN, schoolId?: string) {
   const env = getEnv();
+  const db = getTestPrisma();
   
   // Use a deterministic email or random one
   const email = `testuser_${Date.now()}_${Math.random().toString(36).substring(2, 7)}@example.com`;
   
-  const user = await prisma.user.create({
+  const user = await db.user.create({
     data: {
       email,
       passwordHash: 'hashedpassword',
@@ -35,8 +46,9 @@ export async function createTestUser(role: Role = Role.ERP_ADMIN, schoolId?: str
     }
   });
 
+
   if (role === Role.STUDENT && schoolId) {
-    await prisma.student.create({
+    await db.student.create({
       data: {
         userId: user.id,
         schoolId,
@@ -74,10 +86,12 @@ export async function createTestUser(role: Role = Role.ERP_ADMIN, schoolId?: str
 }
 
 export async function createTestSchool() {
-  return prisma.school.create({
+  const db = getTestPrisma();
+  const uid = `${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+  return db.school.create({
     data: {
-      code: `SCH-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
-      name: `Test School ${Date.now()}`,
+      code: `SCH-${uid}`,
+      name: `Test School ${uid}`,
       address: '123 Test St',
       isActive: true,
     }
@@ -85,7 +99,8 @@ export async function createTestSchool() {
 }
 
 export async function createTestStudent(sectionId: string, schoolId: string) {
-  return prisma.student.create({
+  const db = getTestPrisma();
+  return db.student.create({
     data: {
       admissionNo: `ADM-${Date.now()}`,
       rollNo: '1',
@@ -94,6 +109,7 @@ export async function createTestStudent(sectionId: string, schoolId: string) {
       gender: 'MALE',
       school: { connect: { id: schoolId } },
       sectionRef: { connect: { id: sectionId } },
+
       guardian: {
         create: {
           primaryName: 'Test Guardian',

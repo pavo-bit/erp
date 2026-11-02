@@ -40,7 +40,40 @@ export function injectCsrfToken(req: Request, res: Response, next: NextFunction)
 
 // Wrapper for doubleCsrfProtection that includes route exclusions
 export function csrfProtection(req: Request, res: Response, next: NextFunction) {
-  // Excluded routes where CSRF validation is disabled:
+  const hasAuthCookie = Boolean(req.cookies?.access_token || req.cookies?.auth_token || req.cookies?.refresh_token);
+  const origin = req.get("origin");
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Cross-Origin Defense for Cookie-Authenticated Requests:
+  // For all cookie-carrying requests (including /api/v1/auth/refresh and logout),
+  // if an Origin header is present, it MUST match the configured trusted origin.
+  // This prevents malicious third-party origins from issuing ambient-credential
+  // state requests, even on routes excluded from doubleCsrf token validation.
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (hasAuthCookie && origin) {
+    let allowedOrigin: string;
+    try {
+      allowedOrigin = new URL(env.FRONTEND_URL).origin;
+    } catch {
+      return res.status(500).json({ success: false, error: "csrf_origin_configuration_error" });
+    }
+    if (origin !== allowedOrigin) {
+      return res.status(403).json({ success: false, error: "invalid_origin", message: "Request origin is not allowed" });
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CSRF Double-Submit Cookie Validation Exclusions:
+  // - Public bootstrap routes (login, student/login, verify-2fa, alumni/register):
+  //   Pre-authentication endpoints where no prior session or CSRF token exists.
+  // - Webhook endpoints (payments/webhook):
+  //   Machine-to-machine integrations secured via HMAC cryptographic signatures.
+  // - Token lifecycle routes (refresh, logout):
+  //   Protected via HttpOnly SameSite=Lax cookies, strict Origin checks above,
+  //   hashed refresh tokens in the database, and single-use token family rotation.
+  //   Double-submit CSRF headers are omitted here because refresh requests occur
+  //   asynchronously when the client access token or CSRF token may have expired.
+  // ═══════════════════════════════════════════════════════════════════════════
   const excludedRoutes = [
     { method: "POST", path: "/api/payments/webhook" },
     { method: "POST", path: "/api/auth/login" },
@@ -66,20 +99,6 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
 
   if (isExcluded) {
     return next();
-  }
-
-  const hasAuthCookie = Boolean(req.cookies?.access_token || req.cookies?.auth_token || req.cookies?.refresh_token);
-  const origin = req.get("origin");
-  if (hasAuthCookie && origin) {
-    let allowedOrigin: string;
-    try {
-      allowedOrigin = new URL(env.FRONTEND_URL).origin;
-    } catch {
-      return res.status(500).json({ success: false, error: "csrf_origin_configuration_error" });
-    }
-    if (origin !== allowedOrigin) {
-      return res.status(403).json({ success: false, error: "invalid_origin", message: "Request origin is not allowed" });
-    }
   }
 
   // A bearer token is supplied explicitly by the caller and is not ambient browser

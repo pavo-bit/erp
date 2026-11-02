@@ -1,10 +1,15 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "../src/app";
-import prisma from "../src/lib/prisma";
-import { generateAccessToken } from "../src/lib/tokens";
+import { app } from "../app";
+import { getTestPrisma } from "./helpers/testApp";
+import appPrisma from "../lib/prisma";
+import { generateAccessToken } from "../lib/tokens";
+
+const prisma = getTestPrisma();
+import fs from "fs";
+import path from "path";
 import { vi } from "vitest";
-import { BackupService } from "../src/services/backup.service";
+import { BackupService } from "../services/backup.service";
 
 describe("Architecture & Phase A E2E", () => {
   let server: any;
@@ -92,11 +97,6 @@ describe("Architecture & Phase A E2E", () => {
   });
 
   afterAll(async () => {
-    // Note: since soft deletes are active, we must use a raw query or be careful.
-    // However, Prisma client allows physical deletes if we aren't using an extension for deleteMany,
-    // wait, my extension intercepts deleteMany and turns it into an update!
-    // So deleteMany will just soft-delete them. That's fine for tests.
-    
     await prisma.userSession.deleteMany({ where: { userId: superAdminUserId } });
     await prisma.auditLog.deleteMany({ where: { action: "BACKUP_TEST" } });
     await prisma.user.deleteMany({ where: { id: superAdminUserId } });
@@ -113,15 +113,15 @@ describe("Architecture & Phase A E2E", () => {
         data: { name: "Dummy School", code: `DUMMY-${Date.now()}` }
       });
 
-      // Call prisma.delete
-      await prisma.school.delete({ where: { id: dummySchool.id } });
+      // Call appPrisma.delete
+      await appPrisma.school.delete({ where: { id: dummySchool.id } });
 
       // Verify findUnique returns null
-      const fetchSchool = await prisma.school.findUnique({ where: { id: dummySchool.id } });
+      const fetchSchool = await appPrisma.school.findUnique({ where: { id: dummySchool.id } });
       expect(fetchSchool).toBeNull();
 
       // Verify findFirst returns null
-      const fetchFirst = await prisma.school.findFirst({ where: { id: dummySchool.id } });
+      const fetchFirst = await appPrisma.school.findFirst({ where: { id: dummySchool.id } });
       expect(fetchFirst).toBeNull();
 
       // Verify the record is physically still in DB with deletedAt populated using raw query
@@ -133,12 +133,6 @@ describe("Architecture & Phase A E2E", () => {
 
   describe("2. Session Management API", () => {
     it("should fetch active sessions", async () => {
-      // Ensure the test session is active regardless of shuffled test execution order
-      await prisma.userSession.update({
-        where: { id: testSessionId },
-        data: { isActive: true },
-      });
-
       const res = await request(server)
         .get("/api/v1/sessions")
         .set("Authorization", `Bearer ${superAdminToken}`);
@@ -150,13 +144,25 @@ describe("Architecture & Phase A E2E", () => {
     });
 
     it("should revoke a specific session", async () => {
+      const sessionToRevoke = await prisma.userSession.create({
+        data: {
+          userId: superAdminUserId,
+          sessionId: `mock-session-revoke-${Date.now()}`,
+          refreshFamily: `family-revoke-${Date.now()}`,
+          deviceName: "MacBook Pro",
+          browser: "Chrome",
+          ipAddress: "127.0.0.1",
+          expiresAt: new Date(Date.now() + 86400000)
+        }
+      });
+
       const res = await request(server)
-        .delete(`/api/v1/sessions/${testSessionId}`)
+        .delete(`/api/v1/sessions/${sessionToRevoke.id}`)
         .set("Authorization", `Bearer ${superAdminToken}`);
         
       expect(res.status).toBe(200);
       
-      const checkSession = await prisma.userSession.findUnique({ where: { id: testSessionId } });
+      const checkSession = await prisma.userSession.findUnique({ where: { id: sessionToRevoke.id } });
       expect(checkSession?.isActive).toBe(false);
     });
   });
@@ -209,4 +215,76 @@ describe("Architecture & Phase A E2E", () => {
       expect(res.body.data.some((alert: any) => alert.severity === "CRITICAL" || alert.severity === "WARNING")).toBe(true);
     });
   });
+
+  describe("5. Architecture Boundary Enforcement (Prisma Clients Allowlist)", () => {
+    it("prohibits unauthorized imports of getAuthPrisma outside the allowlist", () => {
+      const authPrismaAllowlist = new Set([
+        "src/routes/auth.ts",
+        "src/middleware/auth.ts",
+        "src/lib/authPrisma.ts",
+        "src/tests/api/auth.test.ts",
+        "src/tests/architecture.test.ts",
+      ]);
+
+      const violations: string[] = [];
+      function scanDir(dir: string) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (entry.name !== "node_modules" && entry.name !== "dist") {
+              scanDir(fullPath);
+            }
+          } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".js"))) {
+            const relPath = path.relative(path.resolve(__dirname, "../.."), fullPath).replace(/\\/g, "/");
+            const content = fs.readFileSync(fullPath, "utf-8");
+            if (content.includes("getAuthPrisma") && !authPrismaAllowlist.has(relPath)) {
+              violations.push(relPath);
+            }
+          }
+        }
+      }
+
+      scanDir(path.resolve(__dirname, ".."));
+      expect(violations, `Unauthorized getAuthPrisma imports found in: ${violations.join(", ")}`).toEqual([]);
+    });
+
+    it("prohibits unauthorized imports of getTrustedPrisma outside the allowlist", () => {
+      const trustedPrismaAllowlist = new Set([
+        "src/routes/payments.ts",
+        "src/routes/search.ts",
+        "src/routes/students.ts",
+        "src/routes/sessions.ts",
+        "src/routes/admin/audit.ts",
+        "src/lib/audit.ts",
+        "src/lib/authEventLogger.ts",
+        "src/lib/trustedPrisma.ts",
+        "src/tests/architecture.test.ts",
+        "src/tests/api/audit-and-auth-events.test.ts",
+      ]);
+
+      const violations: string[] = [];
+      function scanDir(dir: string) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (entry.name !== "node_modules" && entry.name !== "dist") {
+              scanDir(fullPath);
+            }
+          } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".js"))) {
+            const relPath = path.relative(path.resolve(__dirname, "../.."), fullPath).replace(/\\/g, "/");
+            const content = fs.readFileSync(fullPath, "utf-8");
+            if (content.includes("getTrustedPrisma") && !trustedPrismaAllowlist.has(relPath)) {
+              violations.push(relPath);
+            }
+          }
+        }
+      }
+
+      scanDir(path.resolve(__dirname, ".."));
+      expect(violations, `Unauthorized getTrustedPrisma imports found in: ${violations.join(", ")}`).toEqual([]);
+    });
+  });
 });
+

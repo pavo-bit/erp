@@ -38,4 +38,36 @@ beforeAll(async () => {
       `(rolsuper=${role.isSuperuser}, rolbypassrls=${role.bypassRls}).`
     );
   }
+
+  const { TENANT_RLS_TABLES } = await import('../../generated/tenantClassification');
+  const tableStates = await rlsTestPrisma.$queryRaw<Array<{
+    tableName: string;
+    rlsEnabled: boolean;
+    rlsForced: boolean;
+  }>>`
+    SELECT c.relname AS "tableName",
+           c.relrowsecurity AS "rlsEnabled",
+           c.relforcerowsecurity AS "rlsForced"
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = ANY(${[...TENANT_RLS_TABLES]})
+  `;
+
+  const stateMap = new Map(tableStates.map((t) => [t.tableName, t]));
+  const missingOrBroken: string[] = [];
+
+  for (const table of TENANT_RLS_TABLES) {
+    const st = stateMap.get(table);
+    if (!st || !st.rlsEnabled || !st.rlsForced) {
+      missingOrBroken.push(`${table} (present=${Boolean(st)}, rlsEnabled=${st?.rlsEnabled}, rlsForced=${st?.rlsForced})`);
+    }
+  }
+
+  if (missingOrBroken.length > 0) {
+    throw new Error(
+      `ABORT: ${missingOrBroken.length} classified tenant tables failed RLS guard (both relrowsecurity and relforcerowsecurity must be true):\n  ${missingOrBroken.join("\n  ")}`
+    );
+  }
 });
+

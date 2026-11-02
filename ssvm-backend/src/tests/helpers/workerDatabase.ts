@@ -22,10 +22,36 @@ export function getWorkerDatabaseUrl(workerId: string): string {
   return parsed.toString();
 }
 
+export function getWorkerFixtureDatabaseUrl(workerId: string): string {
+  const fixtureUrl = process.env.DATABASE_URL_TEST_FIXTURE;
+  if (!fixtureUrl) return getWorkerDatabaseUrl(workerId);
+  const parsed = new URL(fixtureUrl);
+  parsed.pathname = `/${getWorkerDatabaseName(workerId)}`;
+  return parsed.toString();
+}
+
+export function getWorkerAuthDatabaseUrl(workerId: string): string {
+  const authUrl =
+    process.env.DATABASE_URL_AUTH ||
+    "postgresql://ssvm_auth:authpassword@localhost:5433/ssvm_test?schema=public";
+  const parsed = new URL(authUrl);
+  parsed.pathname = `/${getWorkerDatabaseName(workerId)}`;
+  return parsed.toString();
+}
+
+export function getWorkerTrustedDatabaseUrl(workerId: string): string {
+  const trustedUrl =
+    process.env.DATABASE_URL_TRUSTED ||
+    "postgresql://ssvm_trusted:trustedpassword@localhost:5433/ssvm_test?schema=public";
+  const parsed = new URL(trustedUrl);
+  parsed.pathname = `/${getWorkerDatabaseName(workerId)}`;
+  return parsed.toString();
+}
+
 export function getMaintenanceUrl(): string {
   const adminUrl =
-    process.env.DIRECT_URL ||
     process.env.DATABASE_URL_ADMIN ||
+    process.env.DIRECT_URL ||
     getBaseTestUrl();
   const parsed = new URL(adminUrl);
   parsed.pathname = "/postgres";
@@ -57,11 +83,21 @@ export async function ensureTemplateDatabase(): Promise<void> {
           IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_app') THEN
             EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ssvm_test_template TO ssvm_app';
           END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_fixture') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ssvm_test_template TO ssvm_fixture';
+          END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_auth') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ssvm_test_template TO ssvm_auth';
+          END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_trusted') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ssvm_test_template TO ssvm_trusted';
+          END IF;
         END
         $$;
       `);
     }
     templateEnsured = true;
+
   } catch (err: unknown) {
     // If another worker created it concurrently or permission denied, handle gracefully
     const msg = String(err);
@@ -84,22 +120,43 @@ export async function initWorkerDatabase(workerId: string): Promise<string> {
 
     const workerDb = getWorkerDatabaseName(workerId);
     try {
-      // Terminate existing connections to this worker DB and recreate from template
-      await client.$executeRawUnsafe(
-        `DROP DATABASE IF EXISTS ${workerDb} WITH (FORCE);`
-      );
-      await client.$executeRawUnsafe(
-        `CREATE DATABASE ${workerDb} TEMPLATE ssvm_test_template;`
-      );
+      // Terminate existing connections to this worker DB and recreate from template with retry
+      let retries = 5;
+      while (retries > 0) {
+        try {
+          await client.$executeRawUnsafe(
+            `DROP DATABASE IF EXISTS ${workerDb} WITH (FORCE);`
+          );
+          await client.$executeRawUnsafe(
+            `CREATE DATABASE ${workerDb} TEMPLATE ssvm_test_template;`
+          );
+          break;
+        } catch (cloneErr: unknown) {
+          retries--;
+          if (retries === 0) throw cloneErr;
+          const delay = Math.floor(Math.random() * 400) + 200;
+          await new Promise((r) => setTimeout(r, delay));
+        }
+      }
       await client.$executeRawUnsafe(`
         DO $$
         BEGIN
           IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_app') THEN
             EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ${workerDb} TO ssvm_app';
           END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_fixture') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ${workerDb} TO ssvm_fixture';
+          END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_auth') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ${workerDb} TO ssvm_auth';
+          END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_trusted') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ${workerDb} TO ssvm_trusted';
+          END IF;
         END
         $$;
       `);
+
     } finally {
       await client.$disconnect();
     }

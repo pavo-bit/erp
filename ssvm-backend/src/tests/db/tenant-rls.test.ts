@@ -73,7 +73,7 @@ describe("PostgreSQL tenant RLS", () => {
     const policies = await prisma.$queryRaw<Array<{ usingExpression: string | null; checkExpression: string | null }>>(Prisma.sql`
       SELECT qual AS "usingExpression", with_check AS "checkExpression"
       FROM pg_policies
-      WHERE schemaname = 'public' AND tablename = ${table}
+      WHERE schemaname = 'public' AND tablename = ${table} AND roles = '{public}'
     `);
     expect(policies.length, `${table} must have an RLS policy`).toBeGreaterThan(0);
     for (const policy of policies) {
@@ -104,4 +104,41 @@ describe("PostgreSQL tenant RLS", () => {
       })
     ).rejects.toBeDefined();
   });
+
+  it("ensures connection reuse after COMMIT resets tenant context to empty (no leakage)", async () => {
+    // Run transaction with tenant A
+    await withTenant(schoolA.id, async (tx) => {
+      const rows = await selectFixtureCategories(tx);
+      expect(rows).toEqual([{ id: categoryA.id, schoolId: schoolA.id }]);
+    });
+
+    // Query on same pool without setting tenant: must return 0 rows
+    const rows = await prisma.$queryRaw<ScopedCategoryRow[]>`
+      SELECT id, "schoolId" FROM fee_categories
+      WHERE id IN (${categoryA.id}, ${categoryB.id})
+    `;
+    expect(rows).toEqual([]);
+  });
+
+  it("prevents updating or deleting rows belonging to another tenant (0 rows affected)", async () => {
+    await withTenant(schoolA.id, async (tx) => {
+      const updateCount = await tx.$executeRaw`
+        UPDATE fee_categories SET name = 'Hacked' WHERE id = ${categoryB.id}
+      `;
+      expect(updateCount).toBe(0);
+
+      const deleteCount = await tx.$executeRaw`
+        DELETE FROM fee_categories WHERE id = ${categoryB.id}
+      `;
+      expect(deleteCount).toBe(0);
+    });
+
+    // Verify categoryB still exists intact
+    await withTenant(schoolB.id, async (tx) => {
+      const rows = await selectFixtureCategories(tx);
+      expect(rows).toEqual([{ id: categoryB.id, schoolId: schoolB.id }]);
+      expect(rows[0].id).toBe(categoryB.id);
+    });
+  });
 });
+

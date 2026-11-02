@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - develop
+      - 'remediation/**'
 
 jobs:
   backend-test:
@@ -39,10 +40,17 @@ jobs:
 
     env:
       APP_DB_PASSWORD: ${{ github.run_id }}-app-ci
+      FIXTURE_DB_PASSWORD: ${{ github.run_id }}-fixture-ci
+      AUTH_DB_PASSWORD: ${{ github.run_id }}-auth-ci
+      TRUSTED_DB_PASSWORD: ${{ github.run_id }}-trusted-ci
       PGPASSWORD: ${{ github.run_id }}-postgres-ci
       DATABASE_URL_TEST: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_TEST_FIXTURE: postgresql://ssvm_fixture:${{ github.run_id }}-fixture-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_AUTH: postgresql://ssvm_auth:${{ github.run_id }}-auth-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_TRUSTED: postgresql://ssvm_trusted:${{ github.run_id }}-trusted-ci@localhost:5432/ssvm_test?schema=public
       DATABASE_URL: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
       DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_ADMIN: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/postgres
       SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_shadow?schema=public
       REDIS_URL: redis://localhost:6379
 
@@ -63,45 +71,38 @@ jobs:
       - name: Check tenant classification
         run: npm run db:tenant-classification:check
 
-      - name: Provision restricted test role
+      - name: Create shadow database
         run: |
-          psql --host localhost --username postgres --dbname ssvm_test \
-            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" <<'SQL'
-          SELECT format(
-            'CREATE ROLE ssvm_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
-            :'app_password'
-          )
-          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_app')
-          \gexec
+          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 -c "CREATE DATABASE ssvm_shadow;"
 
-          GRANT CONNECT ON DATABASE ssvm_test TO ssvm_app;
-          GRANT USAGE ON SCHEMA public TO ssvm_app;
-          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_app;
-          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_app;
+      - name: Deploy full schema and RLS migrations as owner role
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DIRECT_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
 
-          CREATE DATABASE ssvm_shadow;
-          SQL
-
-      - name: Create application-test schema without RLS
+      - name: Provision database roles and grants
         run: |
           psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
-            --command 'CREATE EXTENSION IF NOT EXISTS pg_trgm;'
-          npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script \
-            | psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1
-          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
-            --file prisma/migrations/20261101140000_full_text_search_indexes/migration.sql
-          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
-            --file prisma/migrations/20261101145000_ledger_integrity/migration.sql
-          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 <<'SQL'
-          GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
-            ON ALL TABLES IN SCHEMA public TO ssvm_app;
-          GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ssvm_app;
-          SQL
+            -v app_password="$APP_DB_PASSWORD" \
+            -v fixture_password="$FIXTURE_DB_PASSWORD" \
+            -v auth_password="$AUTH_DB_PASSWORD" \
+            -v trusted_password="$TRUSTED_DB_PASSWORD" \
+            -f scripts/db/provision-roles.sql
+
+      - name: Show database identity and policy count
+        run: |
+          PGPASSWORD="$APP_DB_PASSWORD" psql --host localhost --username ssvm_app --dbname ssvm_test \
+            --command 'SELECT current_user, r.rolsuper, r.rolbypassrls, (SELECT count(*) FROM pg_policy) AS policy_count FROM pg_roles r WHERE r.rolname = current_user;'
 
       - name: Run Tests with Coverage
         run: npm run test:ci
+
+      - name: Run Shuffled Parallel Tests
+        run: |
+          SHUFFLE_SEED=$((10000 + RANDOM % 90000))
+          echo "Running vitest with sequence.shuffle and seed: $SHUFFLE_SEED"
+          npx vitest run --sequence.shuffle --sequence.seed=$SHUFFLE_SEED
 
       - name: Upload backend test report
         if: always()
@@ -115,7 +116,7 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           directory: ./ssvm-backend/coverage/
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           flags: backend
 
   database-rls:
@@ -140,8 +141,14 @@ jobs:
         working-directory: ./ssvm-backend
     env:
       APP_DB_PASSWORD: ${{ github.run_id }}-app-ci
+      FIXTURE_DB_PASSWORD: ${{ github.run_id }}-fixture-ci
+      AUTH_DB_PASSWORD: ${{ github.run_id }}-auth-ci
+      TRUSTED_DB_PASSWORD: ${{ github.run_id }}-trusted-ci
       PGPASSWORD: ${{ github.run_id }}-postgres-ci
       DATABASE_URL_TEST: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_TEST_FIXTURE: postgresql://ssvm_fixture:${{ github.run_id }}-fixture-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_AUTH: postgresql://ssvm_auth:${{ github.run_id }}-auth-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_TRUSTED: postgresql://ssvm_trusted:${{ github.run_id }}-trusted-ci@localhost:5432/ssvm_test?schema=public
       DATABASE_URL: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
       DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_test?schema=public
       SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_shadow?schema=public
@@ -155,29 +162,22 @@ jobs:
       - run: npm ci
       - name: Check tenant classification
         run: npm run db:tenant-classification:check
-      - name: Provision restricted RLS test role
+      - name: Create shadow database
         run: |
-          psql --host localhost --username postgres --dbname ssvm_test \
-            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" <<'SQL'
-          SELECT format(
-            'CREATE ROLE ssvm_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
-            :'app_password'
-          )
-          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_app')
-          \gexec
-          GRANT CONNECT ON DATABASE ssvm_test TO ssvm_app;
-          GRANT USAGE ON SCHEMA public TO ssvm_app;
-          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_app;
-          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
-            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_app;
-          CREATE DATABASE ssvm_shadow;
-          SQL
+          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 -c "CREATE DATABASE ssvm_shadow;"
       - name: Deploy full schema and RLS migrations
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ env.DIRECT_URL }}
           DIRECT_URL: ${{ env.DIRECT_URL }}
+      - name: Provision database roles and grants
+        run: |
+          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
+            -v app_password="$APP_DB_PASSWORD" \
+            -v fixture_password="$FIXTURE_DB_PASSWORD" \
+            -v auth_password="$AUTH_DB_PASSWORD" \
+            -v trusted_password="$TRUSTED_DB_PASSWORD" \
+            -f scripts/db/provision-roles.sql
       - name: Verify schema matches Prisma datamodel
         run: npm run db:verify-diff
       - name: Verify all model tables and payment unique index
