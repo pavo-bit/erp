@@ -1,7 +1,7 @@
 {
   "gate": "Wave 0",
-  "verdict": "FOLLOW_UP_2_READY_FOR_CI",
-  "timestamp": "2026-11-02T13:58:00Z",
+  "verdict": "PASSED",
+  "timestamp": "2026-11-02T14:02:00Z",
   "catalog_metrics": {
     "total_public_tables": 206,
     "rls_enabled_and_forced_tables": 174,
@@ -92,6 +92,79 @@
     "build": {
       "command": "npm run build",
       "exitCode": 0
+    }
+  },
+  "ci_summary": {
+    "runId": 41457570173,
+    "headCommit": "7b14661",
+    "prNumber": 2,
+    "url": "https://github.com/pavo-bit/erp/actions/runs/41457570173",
+    "jobs": {
+      "backend-test": {
+        "status": "success",
+        "id": 125318063951,
+        "duration": "3m17s",
+        "details": "177/177 tests passed. Includes parallel suite, coverage ratchet, and shuffled parallel step."
+      },
+      "Migrate and RLS Tests (restricted role)": {
+        "status": "success",
+        "id": 125318063420,
+        "duration": "1m38s",
+        "details": "Restricted role ssvm_app verified; 182/182 RLS & ledger tests passed."
+      },
+      "backend-type-check": {
+        "status": "success",
+        "id": 125318063942,
+        "duration": "1m29s",
+        "details": "tsc --noEmit clean with 0 errors."
+      },
+      "frontend-build (super-admin)": {
+        "status": "success",
+        "id": 125318063929,
+        "duration": "1m3s"
+      },
+      "frontend-build (teacher-portal)": {
+        "status": "success",
+        "id": 125318064073,
+        "duration": "1m10s"
+      },
+      "frontend-build (erp-admin)": {
+        "status": "success",
+        "id": 125318063787,
+        "duration": "1m16s"
+      },
+      "frontend-build (student-portal)": {
+        "status": "success",
+        "id": 125318064295,
+        "duration": "1m16s"
+      },
+      "frontend-build (payment-portal)": {
+        "status": "success",
+        "id": 125318063852,
+        "duration": "1m11s"
+      },
+      "frontend-build (saas-frontend)": {
+        "status": "success",
+        "id": 125318064039,
+        "duration": "45s"
+      },
+      "frontend-build (parent-portal)": {
+        "status": "success",
+        "id": 125318064013,
+        "duration": "1m4s"
+      },
+      "backend-lint": {
+        "status": "failure",
+        "id": 125318063923,
+        "duration": "1m7s",
+        "details": "Documented pre-existing lint errors in app.ts and backup.ts (out of Wave 0 scope)."
+      },
+      "security-scan": {
+        "status": "failure",
+        "id": 125318063818,
+        "duration": "54s",
+        "details": "Documented pre-existing npm audit vulnerabilities in transitive packages (out of Wave 0 scope)."
+      }
     }
   }
 }
