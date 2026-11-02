@@ -211,6 +211,27 @@
       "stdoutTail": "(no output; 0 errors)",
       "timestampUtc": "2026-11-02 19:46:49 UTC",
       "commitSha": "a77ac40f3cfcb02cf12e0f0683a9926eb5a7c2be"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run src/tests/api/tenant-isolation.test.ts\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1); Tests 17 passed (17); Duration 4.07s; comprehensive isolation tests across students, invoices, payments, attendance, exams, documents, users, notices, inventory, procurement, alumni, library.",
+      "timestampUtc": "2026-11-02 20:04:01 UTC",
+      "commitSha": "52c05e2"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:api\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 9 passed (9); Tests 62 passed (62); Duration 16.80s; full API suite passing under restricted role.",
+      "timestampUtc": "2026-11-02 20:04:26 UTC",
+      "commitSha": "52c05e2"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdoutTail": "(no output; 0 errors)",
+      "timestampUtc": "2026-11-02 20:05:25 UTC",
+      "commitSha": "52c05e2"
     }
   ]
 }
