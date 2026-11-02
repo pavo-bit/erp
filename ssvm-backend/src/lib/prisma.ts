@@ -1,7 +1,10 @@
 import { Prisma, PrismaClient } from "@prisma/client";
+import { AsyncLocalStorage } from "async_hooks";
 import { encryptionExtension } from "./prismaEncryptionMiddleware";
 import { getCurrentSchoolId, getSchoolContext } from "../middleware/school-context.middleware";
 import { TENANT_CLASSIFICATION } from "../generated/tenantClassification";
+
+const inTxStorage = new AsyncLocalStorage<boolean>();
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -22,7 +25,7 @@ function buildTenantWhere(modelName: string, schoolId: string): UnknownRecord {
   let scope: UnknownRecord = { schoolId };
   for (const relation of [...classification.path].reverse()) {
     scope = {
-      [relation.relation]: { is: scope },
+      [relation.relation]: (relation.cardinality as string) === "many" ? { some: scope } : scope,
     };
   }
   return scope;
@@ -256,71 +259,99 @@ const prisma = prismaWithEncryption
           }
 
           if (schoolId && classification && classification.classification !== "global") {
-            const delegate = (prismaWithEncryption as any)[model];
-
             if (operation === "findUnique" || operation === "findUniqueOrThrow") {
               const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
-              const queryArgs = {
-                ...mutableArgs,
-                where: addTenantWhere(model, flatWhere, schoolId),
-              };
-              if (operation === "findUnique") {
-                return delegate.findFirst(queryArgs);
-              } else {
-                return delegate.findFirstOrThrow(queryArgs);
-              }
-            }
-
-            if (operation === "update" || operation === "delete") {
+              mutableArgs.where = addTenantWhere(model, flatWhere, schoolId);
+            } else if (operation === "update" || operation === "delete") {
               const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
-              const existing = await delegate.findFirst({
-                where: addTenantWhere(model, flatWhere, schoolId),
-                select: { id: true },
-              });
-              if (!existing) {
-                const err = new Error(`An operation failed because it depends on one or more records that were required but not found.`);
-                (err as any).code = "P2025";
-                throw err;
-              }
+              mutableArgs.where = addTenantWhere(model, flatWhere, schoolId);
               if (operation === "update" && "data" in mutableArgs) {
                 mutableArgs.data = scopeNestedWrite(model, mutableArgs.data, schoolId);
               }
-              return query(mutableArgs as typeof args);
-            }
-
-            if (operation === "upsert") {
+            } else if (operation === "upsert") {
               const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
-              const existing = await delegate.findFirst({
-                where: addTenantWhere(model, flatWhere, schoolId),
-              });
-              if (existing) {
-                return delegate.update({
-                  where: mutableArgs.where,
-                  data: scopeNestedWrite(model, mutableArgs.update, schoolId),
-                });
-              } else {
-                return delegate.create({
-                  data: scopeNestedWrite(model, mutableArgs.create, schoolId),
-                });
+              mutableArgs.where = addTenantWhere(model, flatWhere, schoolId);
+              if ("update" in mutableArgs) {
+                mutableArgs.update = scopeNestedWrite(model, mutableArgs.update, schoolId);
               }
-            }
+              if ("create" in mutableArgs) {
+                mutableArgs.create = scopeNestedWrite(model, mutableArgs.create, schoolId);
+              }
+            } else {
+              const generalWhereOps = new Set([
+                "findFirst", "findFirstOrThrow", "findMany", "count",
+                "updateMany", "updateManyAndReturn", "deleteMany", "aggregate", "groupBy"
+              ]);
+              if (generalWhereOps.has(operation)) {
+                mutableArgs.where = addTenantWhere(model, mutableArgs.where, schoolId);
+              }
 
-            const generalWhereOps = new Set([
-              "findFirst", "findFirstOrThrow", "findMany", "count",
-              "updateMany", "updateManyAndReturn", "deleteMany", "aggregate", "groupBy"
-            ]);
-            if (generalWhereOps.has(operation)) {
-              mutableArgs.where = addTenantWhere(model, mutableArgs.where, schoolId);
-            }
-
-            const writeDataOps = new Set(["create", "createMany", "createManyAndReturn", "updateMany", "updateManyAndReturn"]);
-            if (writeDataOps.has(operation) && "data" in mutableArgs) {
-              mutableArgs.data = scopeNestedWrite(model, mutableArgs.data, schoolId);
+              const writeDataOps = new Set(["create", "createMany", "createManyAndReturn", "updateMany", "updateManyAndReturn"]);
+              if (writeDataOps.has(operation) && "data" in mutableArgs) {
+                mutableArgs.data = scopeNestedWrite(model, mutableArgs.data, schoolId);
+              }
             }
           }
 
+          if (schoolId && !inTxStorage.getStore() && classification && classification.classification !== "global") {
+            return inTxStorage.run(true, () => {
+              return (basePrisma as any).$transaction(async (tx: any) => {
+                await tx.$executeRawUnsafe(`SELECT set_config('app.current_school_id', '${schoolId}', true);`);
+                const delegateName = model.charAt(0).toLowerCase() + model.slice(1);
+                const txDelegate = tx[delegateName] || tx[model];
+                if (txDelegate) {
+                  if (operation === "findUnique") {
+                    return txDelegate.findFirst(mutableArgs);
+                  }
+                  if (operation === "findUniqueOrThrow") {
+                    return txDelegate.findFirstOrThrow(mutableArgs);
+                  }
+                  if (operation === "update" || operation === "delete") {
+                    const existing = await txDelegate.findFirst({
+                      where: mutableArgs.where,
+                      select: { id: true },
+                    });
+                    if (!existing) {
+                      const err = new Error(`An operation failed because it depends on one or more records that were required but not found.`);
+                      (err as any).code = "P2025";
+                      throw err;
+                    }
+                    if (operation === "delete" && softDeleteDelegate) {
+                      return softDeleteDelegate.update(asRecord(mutableArgs.where) ?? {}, new Date());
+                    }
+                    return txDelegate[operation]({
+                      ...mutableArgs,
+                      where: { id: existing.id }
+                    });
+                  }
+                  if (operation === "upsert") {
+                    const existing = await txDelegate.findFirst({
+                      where: mutableArgs.where,
+                      select: { id: true },
+                    });
+                    if (existing) {
+                      return txDelegate.update({
+                        where: { id: existing.id },
+                        data: mutableArgs.update,
+                      });
+                    } else {
+                      return txDelegate.create({
+                        data: mutableArgs.create,
+                      });
+                    }
+                  }
+                  if (typeof txDelegate[operation] === "function") {
+                    return txDelegate[operation](mutableArgs);
+                  }
+                }
+                return query(mutableArgs as typeof args);
+              });
+            });
+          }
+
           if (softDeleteDelegate && (operation === 'findUnique' || operation === 'findUniqueOrThrow')) {
-            const delegate = (prismaWithEncryption as any)[model];
+            const delegateKey = model in (prismaWithEncryption as any) ? model : (model.charAt(0).toLowerCase() + model.slice(1));
+            const delegate = (prismaWithEncryption as any)[delegateKey];
             if (delegate) {
               if (operation === "findUnique") {
                 return delegate.findFirst(mutableArgs);

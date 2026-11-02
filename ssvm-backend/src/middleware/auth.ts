@@ -7,6 +7,7 @@ import logger from "../lib/logger";
 import { verifyAccessToken, isTokenExpiredError, AccessTokenPayload } from "../lib/tokens";
 import { jwtVerificationTotal } from "./metrics";
 import { setAuthenticatedSchoolContext } from "./school-context.middleware";
+import { getAuthPrisma } from "../lib/authPrisma";
 
 // ═══════════════════════════════════════════
 // Types
@@ -68,10 +69,11 @@ export async function verifyPassword(password: string, hashed: string, userMeta?
   if (isValid && needsRehash && userMeta) {
     const newHash = await hashPassword(password);
     try {
+      const authDb = getAuthPrisma();
       if (userMeta.type === "USER") {
-        await prisma.user.update({ where: { id: userMeta.id }, data: { passwordHash: newHash } });
+        await authDb.user.update({ where: { id: userMeta.id }, data: { passwordHash: newHash } });
       } else if (userMeta.type === "STUDENT") {
-        await prisma.student.update({ where: { id: userMeta.id }, data: { password: newHash } });
+        await authDb.student.update({ where: { id: userMeta.id }, data: { password: newHash } });
       }
       logger.info({ userId: userMeta.id, type: userMeta.type }, "Upgraded password hash to Argon2id");
     } catch (err) {
@@ -177,12 +179,13 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
-    const userId = "userId" in payload ? payload.userId : (payload as AccessTokenPayload).userId;
+    const userId = (payload as any).userId || (payload as any).id || (payload as any).sub;
+    const authDb = getAuthPrisma();
     
     let user: AuthRequest["user"] | null = null;
 
     if (payload.role === "STUDENT") {
-      const student = await prisma.student.findUnique({
+      const student = await authDb.student.findUnique({
         where: { userId: userId },
         select: {
           id: true, admissionNo: true, name: true,
@@ -203,7 +206,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
         };
       }
     } else {
-      user = await prisma.user.findUnique({
+      user = await authDb.user.findUnique({
         where: { id: userId },
         select: {
           id: true, email: true, name: true, role: true,
@@ -219,7 +222,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     }
 
     // Phase 2C: Enforce mustChangePassword
-    const userWithPasswordPolicy = await prisma.user.findUnique({
+    const userWithPasswordPolicy = await authDb.user.findUnique({
       where: { id: userId },
       select: { mustChangePassword: true }
     });

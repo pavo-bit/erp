@@ -3225,7 +3225,7 @@ CREATE INDEX "teachers_schoolId_idx" ON "teachers"("schoolId");
 CREATE UNIQUE INDEX "guardians_userId_key" ON "guardians"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "students_admissionNo_key" ON "students"("admissionNo");
+CREATE UNIQUE INDEX "students_admissionNo_key" ON "students"("schoolId", "admissionNo");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "students_userId_key" ON "students"("userId");
@@ -3248,8 +3248,6 @@ CREATE INDEX "students_schoolId_sectionId_idx" ON "students"("schoolId", "sectio
 -- CreateIndex
 CREATE INDEX "students_guardianId_idx" ON "students"("guardianId");
 
--- CreateIndex
-CREATE INDEX "students_schoolId_admissionNo_idx" ON "students"("schoolId", "admissionNo");
 
 -- CreateIndex
 CREATE INDEX "students_schoolId_isActive_idx" ON "students"("schoolId", "isActive");

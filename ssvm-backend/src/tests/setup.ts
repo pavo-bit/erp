@@ -1,7 +1,7 @@
 import { beforeAll, beforeEach, afterAll, vi } from 'vitest';
-import { execSync } from 'child_process';
 import prisma from '../lib/prisma';
 import { initRedis } from '../lib/redis';
+import { TENANT_RLS_TABLES } from '../generated/tenantClassification';
 import Redis from 'ioredis-mock';
 
 // Mock Redis globally
@@ -130,13 +130,63 @@ process.env.RAZORPAY_KEY_SECRET = crypto.randomBytes(32).toString('hex');
 process.env.RAZORPAY_WEBHOOK_SECRET = crypto.randomBytes(32).toString('hex');
 
 beforeAll(async () => {
-  try {
-    await initRedis();
-    console.log('Running Prisma migrations for test DB...');
-  } catch (e) {
-    console.error('Migration failed in setup:', e);
+  const [role] = await prisma.$queryRaw<Array<{
+    currentUser: string;
+    isSuperuser: boolean;
+    bypassRls: boolean;
+  }>>`
+    SELECT current_user AS "currentUser",
+           rolsuper AS "isSuperuser",
+           rolbypassrls AS "bypassRls"
+    FROM pg_roles
+    WHERE rolname = current_user
+  `;
+
+  if (!role) {
+    throw new Error("ABORT: Could not resolve the current PostgreSQL role for tests.");
   }
+
+  if (role.isSuperuser || role.bypassRls) {
+    throw new Error(
+      `ABORT: Tests must run as a restricted role (non-superuser, non-bypassrls). Connected as ${role.currentUser} (rolsuper=${role.isSuperuser}, rolbypassrls=${role.bypassRls}).`
+    );
+  }
+
+  const classifiedTables = [...TENANT_RLS_TABLES];
+
+  const tableStates = await prisma.$queryRaw<Array<{
+    tableName: string;
+    rlsEnabled: boolean;
+    rlsForced: boolean;
+  }>>`
+    SELECT c.relname AS "tableName",
+           c.relrowsecurity AS "rlsEnabled",
+           c.relforcerowsecurity AS "rlsForced"
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = ANY(${classifiedTables})
+  `;
+
+  const stateMap = new Map(tableStates.map((t) => [t.tableName, t]));
+  const missingOrBroken: string[] = [];
+
+  for (const table of classifiedTables) {
+    const st = stateMap.get(table);
+    if (!st || !st.rlsEnabled || !st.rlsForced) {
+      missingOrBroken.push(`${table} (present=${Boolean(st)}, rlsEnabled=${st?.rlsEnabled}, rlsForced=${st?.rlsForced})`);
+    }
+  }
+
+  if (missingOrBroken.length > 0) {
+    throw new Error(
+      `ABORT: ${missingOrBroken.length} classified tenant tables failed RLS guard (both relrowsecurity and relforcerowsecurity must be true):\n  ${missingOrBroken.join("\n  ")}`
+    );
+  }
+
+  await initRedis();
 });
+
 
 beforeEach(async () => {
   // Global TRUNCATE has been replaced by per-worker databases cloned from a template

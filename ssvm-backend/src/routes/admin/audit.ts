@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { authenticate, requireRole } from "../../middleware/auth";
-import prisma from "../../lib/prisma";
+import { getAuthPrisma } from "../../lib/authPrisma";
 
 const router = Router();
 
@@ -19,14 +19,15 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     const whereClause: any = {};
     if (action) whereClause.action = action;
 
+    const authPrisma = getAuthPrisma();
     const [logs, total] = await Promise.all([
-      prisma.auditLog.findMany({
+      authPrisma.auditLog.findMany({
         where: whereClause,
         orderBy: { createdAt: 'desc' },
         skip: (pageNum - 1) * limitNum,
         take: limitNum
       }),
-      prisma.auditLog.count({ where: whereClause })
+      authPrisma.auditLog.count({ where: whereClause })
     ]);
 
     res.json({
@@ -47,7 +48,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 // 2. Get Security Alerts specifically
 router.get("/security-alerts", async (req: Request, res: Response): Promise<void> => {
   try {
-    const alerts = await prisma.systemLog.findMany({
+    const alerts = await getAuthPrisma().systemLog.findMany({
       where: {
         level: { in: ["WARN", "ERROR", "FATAL"] }
       },

@@ -1,4 +1,5 @@
 import prisma from "./prisma";
+import { getAuthPrisma } from "./authPrisma";
 import logger from "./logger";
 import crypto from "crypto";
 
@@ -101,7 +102,8 @@ export async function logSecurityEvent(data: {
   metadata?: any;
 }) {
   try {
-    const log = await prisma.systemLog.create({
+    const db = getAuthPrisma();
+    const log = await db.systemLog.create({
       data: {
         level: data.severity === "CRITICAL" ? "FATAL" : data.severity === "HIGH" ? "ERROR" : data.severity === "MEDIUM" ? "WARN" : "INFO",
         module: "SECURITY",

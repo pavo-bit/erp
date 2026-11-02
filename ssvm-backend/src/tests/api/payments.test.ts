@@ -99,6 +99,7 @@ describe('Payments & Finance APIs', () => {
       // Create initial PaymentTransaction since our webhook expects it
       await prisma.paymentTransaction.create({
         data: {
+          schoolId,
           invoiceId: invoice.id,
           transactionId: orderId,
           amountPaid: 500,

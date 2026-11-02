@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { Role } from '@prisma/client';
 import { createTestApp, getTestPrisma } from '../helpers/testApp';
 import { UserFactory, SchoolFactory, StudentFactory } from '../helpers/factories';
 import bcrypt from 'bcryptjs';
@@ -31,11 +32,23 @@ describe('Auth API Routes', () => {
     const classRecord = await prisma.class.create({ data: { name: 'Class 1', schoolId, sessionId: session.id } });
     const section = await prisma.section.create({ data: { name: 'A', classId: classRecord.id } });
 
+    const studentUser = await prisma.user.create({
+      data: {
+        email: `student_${Date.now()}@test.school`,
+        name: 'Test Student',
+        passwordHash,
+        role: Role.STUDENT,
+        schoolId,
+        isActive: true,
+      }
+    });
+
     testStudent = await prisma.student.create({
       data: StudentFactory.build({ 
         schoolId, 
         sectionId: section.id, 
         password: passwordHash,
+        userId: studentUser.id,
       })
     });
   });

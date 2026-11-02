@@ -22,6 +22,14 @@ export function getWorkerDatabaseUrl(workerId: string): string {
   return parsed.toString();
 }
 
+export function getWorkerFixtureDatabaseUrl(workerId: string): string {
+  const fixtureUrl = process.env.DATABASE_URL_TEST_FIXTURE;
+  if (!fixtureUrl) return getWorkerDatabaseUrl(workerId);
+  const parsed = new URL(fixtureUrl);
+  parsed.pathname = `/${getWorkerDatabaseName(workerId)}`;
+  return parsed.toString();
+}
+
 export function getMaintenanceUrl(): string {
   const adminUrl =
     process.env.DATABASE_URL_ADMIN ||
@@ -57,11 +65,15 @@ export async function ensureTemplateDatabase(): Promise<void> {
           IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_app') THEN
             EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ssvm_test_template TO ssvm_app';
           END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_fixture') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ssvm_test_template TO ssvm_fixture';
+          END IF;
         END
         $$;
       `);
     }
     templateEnsured = true;
+
   } catch (err: unknown) {
     // If another worker created it concurrently or permission denied, handle gracefully
     const msg = String(err);
@@ -108,9 +120,13 @@ export async function initWorkerDatabase(workerId: string): Promise<string> {
           IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_app') THEN
             EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ${workerDb} TO ssvm_app';
           END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_fixture') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ${workerDb} TO ssvm_fixture';
+          END IF;
         END
         $$;
       `);
+
     } finally {
       await client.$disconnect();
     }

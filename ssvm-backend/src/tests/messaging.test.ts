@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../app";
-import prisma from "../lib/prisma";
+import { getTestPrisma } from "./helpers/testApp";
 import { generateAccessToken } from "../lib/tokens";
+
+const prisma = getTestPrisma();
 
 describe("Messaging API E2E", () => {
   let server: any;
@@ -95,6 +97,10 @@ describe("Messaging API E2E", () => {
             }
           ]
         }
+      },
+      include: {
+        participants: true,
+        messages: true
       }
     });
     threadId = initialThread.id;

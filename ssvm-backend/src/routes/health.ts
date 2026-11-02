@@ -60,4 +60,33 @@ router.get("/", async (_req: Request, res: Response) => {
   }
 });
 
+router.get("/database-identity", async (_req: Request, res: Response, next) => {
+  try {
+    const [identity] = await prisma.$queryRaw<Array<{
+      currentUser: string;
+      databaseName: string;
+      isSuperuser: boolean;
+      bypassRls: boolean;
+      policyCount: number;
+    }>>`
+      SELECT current_user AS "currentUser",
+             current_database() AS "databaseName",
+             role.rolsuper AS "isSuperuser",
+             role.rolbypassrls AS "bypassRls",
+             (SELECT count(*)::int FROM pg_policy) AS "policyCount"
+      FROM pg_roles AS role
+      WHERE role.rolname = current_user
+    `;
+
+    if (!identity) {
+      res.status(500).json({ success: false, error: "Database role could not be resolved" });
+      return;
+    }
+
+    res.status(200).json(identity);
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

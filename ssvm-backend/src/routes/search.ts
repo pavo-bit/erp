@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
+import { getAuthPrisma } from "../lib/authPrisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate } from "../middleware/auth";
 
@@ -20,6 +21,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     const whereSchool = schoolId ? { schoolId } : {};
+    const db = (req.user!.role === "SUPER_ADMIN" && !schoolId) ? getAuthPrisma() : prisma;
     
     // For raw queries, we format the query for tsquery
     const tsQuery = query.split(/\s+/).map(word => `${word}:*`).join(" & ");
@@ -30,7 +32,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     // Using Prisma's fullTextSearch feature if enabled, or trigram via contains
     // Since we created pg_trgm indexes, contains mode insensitive will use them!
     const [students, teachers, guardians, invoices, assignments, admissions, events, notices, attendance, results, alumni, documents, commLogs] = await Promise.all([
-      prisma.student.findMany({
+      db.student.findMany({
         where: {
           ...whereSchool,
           OR: [
@@ -41,7 +43,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         select: { id: true, name: true, rollNo: true, sectionId: true, sectionRef: { select: { name: true, class: { select: { name: true } } } } }
       }),
-      prisma.teacher.findMany({
+      db.teacher.findMany({
         where: {
           ...whereSchool,
           user: {
@@ -54,7 +56,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         include: { user: { select: { name: true, email: true } }, department: true }
       }),
-      prisma.guardian.findMany({
+      db.guardian.findMany({
         where: {
           ...whereSchool,
           OR: [
@@ -66,7 +68,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         include: { students: { select: { name: true } } }
       }),
-      prisma.invoice.findMany({
+      db.invoice.findMany({
         where: {
           ...whereSchool,
           OR: [
@@ -76,7 +78,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         include: { student: { select: { name: true } } }
       }),
-      prisma.assignment.findMany({
+      db.assignment.findMany({
         where: {
           ...whereSchool,
           OR: [
@@ -87,7 +89,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         select: { id: true, title: true, dueDate: true, classRef: { select: { name: true } }, subjectRef: { select: { name: true } } }
       }),
-      prisma.admission.findMany({
+      db.admission.findMany({
         where: {
           ...whereSchool,
           OR: [
@@ -98,7 +100,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         select: { id: true, applicantName: true, parentName: true, status: true }
       }),
-      prisma.event.findMany({
+      db.event.findMany({
         where: {
           ...whereSchool,
           OR: [
@@ -109,7 +111,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         select: { id: true, title: true, date: true, category: true }
       }),
-      prisma.notice.findMany({
+      db.notice.findMany({
         where: {
           ...whereSchool,
           OR: [
@@ -120,7 +122,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         select: { id: true, title: true, category: true, status: true, createdAt: true }
       }),
-      prisma.attendance.findMany({
+      db.attendance.findMany({
         where: {
           ...whereSchool,
           student: {
@@ -130,7 +132,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         select: { id: true, date: true, status: true, student: { select: { name: true } } }
       }),
-      prisma.studentMark.findMany({
+      db.studentMark.findMany({
         where: {
           student: {
             name: { contains: query, mode: "insensitive" },
@@ -140,7 +142,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         select: { id: true, marksObtained: true, grade: true, student: { select: { name: true } }, examSubject: { select: { exam: { select: { name: true } } } } }
       }),
-      prisma.alumni.findMany({
+      db.alumni.findMany({
         where: {
           user: {
             ...(schoolId ? { schoolId } : {}),
@@ -150,7 +152,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         select: { id: true, batch: true, currentRole: true, user: { select: { name: true } } }
       }),
-      prisma.documentRepository.findMany({
+      db.documentRepository.findMany({
         where: {
           ...whereSchool,
           OR: [
@@ -161,7 +163,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
         take: 5,
         select: { id: true, name: true, category: true, createdAt: true }
       }),
-      prisma.communicationLog.findMany({
+      db.communicationLog.findMany({
         where: {
           ...whereSchool,
           OR: [

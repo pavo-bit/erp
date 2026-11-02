@@ -494,7 +494,7 @@ model Student {
   sectionId                  String?
   guardianId                 String?
   rollNo                     String
-  admissionNo                String?                     @unique
+  admissionNo                String?
   password                   String?
   name                       String
   dob                        DateTime?
@@ -531,7 +531,7 @@ model Student {
   @@index([admissionNo])
   @@index([schoolId, sectionId])
   @@index([guardianId])
-  @@index([schoolId, admissionNo])
+  @@unique([schoolId, admissionNo], map: "students_admissionNo_key")
   @@index([schoolId, isActive])
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_students_name_trgm")
   @@map("students")

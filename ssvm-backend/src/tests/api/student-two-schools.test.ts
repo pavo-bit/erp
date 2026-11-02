@@ -1,8 +1,11 @@
 import request from "supertest";
 import { describe, expect, it, beforeAll, afterAll } from "vitest";
-import app from "../../app";
-import prisma from "../../lib/prisma";
+import { Role } from "@prisma/client";
+import { createTestApp, getTestPrisma } from "../helpers/testApp";
 import { hashPassword, signToken } from "../../middleware/auth";
+
+const app = createTestApp();
+const prisma = getTestPrisma();
 
 describe("Student user linking and two-schools isolation", () => {
   let schoolAId: string;
@@ -43,14 +46,15 @@ describe("Student user linking and two-schools isolation", () => {
         email: `admin_a_${uid}@test.school`,
         name: "Admin A",
         passwordHash: await hashPassword("AdminA@123"),
-        role: "ADMIN",
+        role: Role.ERP_ADMIN,
         schoolId: schoolAId,
         isActive: true,
       },
     });
     adminAToken = signToken({
-      id: adminA.id,
+      userId: adminA.id,
       email: adminA.email,
+      name: adminA.name,
       role: adminA.role,
       schoolId: schoolAId,
     });
@@ -61,14 +65,15 @@ describe("Student user linking and two-schools isolation", () => {
         email: `admin_b_${uid}@test.school`,
         name: "Admin B",
         passwordHash: await hashPassword("AdminB@123"),
-        role: "ADMIN",
+        role: Role.ERP_ADMIN,
         schoolId: schoolBId,
         isActive: true,
       },
     });
     adminBToken = signToken({
-      id: adminB.id,
+      userId: adminB.id,
       email: adminB.email,
+      name: adminB.name,
       role: adminB.role,
       schoolId: schoolBId,
     });
@@ -84,10 +89,10 @@ describe("Student user linking and two-schools isolation", () => {
       },
     });
     const classA = await prisma.class.create({
-      data: { name: `Grade 10 A ${uid}`, schoolId: schoolAId, academicSessionId: academicA.id },
+      data: { name: `Grade 10 A ${uid}`, schoolId: schoolAId, sessionId: academicA.id },
     });
     const secA = await prisma.section.create({
-      data: { name: "A", classId: classA.id, schoolId: schoolAId },
+      data: { name: "A", classId: classA.id },
     });
     sectionAId = secA.id;
 
@@ -101,10 +106,10 @@ describe("Student user linking and two-schools isolation", () => {
       },
     });
     const classB = await prisma.class.create({
-      data: { name: `Grade 10 B ${uid}`, schoolId: schoolBId, academicSessionId: academicB.id },
+      data: { name: `Grade 10 B ${uid}`, schoolId: schoolBId, sessionId: academicB.id },
     });
     const secB = await prisma.section.create({
-      data: { name: "A", classId: classB.id, schoolId: schoolBId },
+      data: { name: "A", classId: classB.id },
     });
     sectionBId = secB.id;
   });
@@ -113,7 +118,7 @@ describe("Student user linking and two-schools isolation", () => {
     if (schoolAId) {
       await prisma.student.deleteMany({ where: { schoolId: schoolAId } });
       await prisma.user.deleteMany({ where: { schoolId: schoolAId } });
-      await prisma.section.deleteMany({ where: { schoolId: schoolAId } });
+      await prisma.section.deleteMany({ where: { class: { schoolId: schoolAId } } });
       await prisma.class.deleteMany({ where: { schoolId: schoolAId } });
       await prisma.academicSession.deleteMany({ where: { schoolId: schoolAId } });
       await prisma.school.deleteMany({ where: { id: schoolAId } });
@@ -121,7 +126,7 @@ describe("Student user linking and two-schools isolation", () => {
     if (schoolBId) {
       await prisma.student.deleteMany({ where: { schoolId: schoolBId } });
       await prisma.user.deleteMany({ where: { schoolId: schoolBId } });
-      await prisma.section.deleteMany({ where: { schoolId: schoolBId } });
+      await prisma.section.deleteMany({ where: { class: { schoolId: schoolBId } } });
       await prisma.class.deleteMany({ where: { schoolId: schoolBId } });
       await prisma.academicSession.deleteMany({ where: { schoolId: schoolBId } });
       await prisma.school.deleteMany({ where: { id: schoolBId } });
@@ -210,6 +215,7 @@ describe("Student user linking and two-schools isolation", () => {
     const studentUnlinked = await prisma.student.create({
       data: {
         name: "Unlinked Student",
+        rollNo: "99",
         admissionNo: unlinkedAdm,
         password: await hashPassword("Unlinked@123"),
         schoolId: schoolAId,
@@ -238,5 +244,80 @@ describe("Student user linking and two-schools isolation", () => {
       },
     });
     expect(user).toBeNull();
+  });
+
+  it("rejects student login when using wrong school code", async () => {
+    const admissionNo = `WRONGSCH_${Date.now().toString(36)}`;
+    const studentUser = await prisma.user.create({
+      data: {
+        email: `student_ws_${Date.now()}@test.school`,
+        name: "Student WS",
+        passwordHash: await hashPassword("ValidPass@123"),
+        role: Role.STUDENT,
+        schoolId: schoolAId,
+        isActive: true,
+      },
+    });
+
+    await prisma.student.create({
+      data: {
+        name: "Student WS",
+        rollNo: "102",
+        admissionNo,
+        password: await hashPassword("ValidPass@123"),
+        schoolId: schoolAId,
+        sectionId: sectionAId,
+        userId: studentUser.id,
+      },
+    });
+
+    // Attempt login with School B's code instead of School A
+    const loginRes = await request(app)
+      .post("/api/v1/auth/student/login")
+      .send({
+        admissionNo,
+        dob: "ValidPass@123",
+        schoolCode: (await prisma.school.findUnique({ where: { id: schoolBId } }))!.code,
+      });
+
+    expect(loginRes.status).toBe(401);
+    expect(loginRes.body.success).toBe(false);
+  });
+
+  it("rejects student login when user passwordHash is empty string", async () => {
+    const admissionNo = `EMPTYHASH_${Date.now().toString(36)}`;
+    const studentUser = await prisma.user.create({
+      data: {
+        email: `student_eh_${Date.now()}@test.school`,
+        name: "Student EH",
+        passwordHash: "",
+        role: Role.STUDENT,
+        schoolId: schoolAId,
+        isActive: true,
+      },
+    });
+
+    await prisma.student.create({
+      data: {
+        name: "Student EH",
+        rollNo: "103",
+        admissionNo,
+        password: "",
+        schoolId: schoolAId,
+        sectionId: sectionAId,
+        userId: studentUser.id,
+      },
+    });
+
+    const loginRes = await request(app)
+      .post("/api/v1/auth/student/login")
+      .send({
+        admissionNo,
+        dob: "AnyPassword@123",
+        schoolCode: (await prisma.school.findUnique({ where: { id: schoolAId } }))!.code,
+      });
+
+    expect(loginRes.status).toBe(401);
+    expect(loginRes.body.success).toBe(false);
   });
 });

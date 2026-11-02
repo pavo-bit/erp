@@ -1,7 +1,6 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import app from "../../app";
-import prisma from "../../lib/prisma";
 
 interface DatabaseIdentity {
   currentUser: string;
@@ -11,29 +10,7 @@ interface DatabaseIdentity {
   policyCount: number;
 }
 
-const probePath = "/__wave0/database-identity";
-
-app.get(probePath, async (_req, res, next) => {
-  try {
-    const [identity] = await prisma.$queryRaw<DatabaseIdentity[]>`
-      SELECT current_user AS "currentUser",
-             current_database() AS "databaseName",
-             role.rolsuper AS "isSuperuser",
-             role.rolbypassrls AS "bypassRls",
-             (SELECT count(*)::int FROM pg_policy) AS "policyCount"
-      FROM pg_roles AS role
-      WHERE role.rolname = current_user
-    `;
-
-    if (!identity) {
-      throw new Error("The current database role could not be resolved.");
-    }
-
-    res.status(200).json(identity);
-  } catch (error) {
-    next(error);
-  }
-});
+const probePath = "/api/v1/health/database-identity";
 
 describe("backend API database identity", () => {
   it("serves the restricted app role and current policy count", async () => {

@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { app } from "../app";
-import prisma from "../lib/prisma";
+import { getTestPrisma } from "./helpers/testApp";
 import { generateAccessToken } from "../lib/tokens";
+
+const prisma = getTestPrisma();
 
 // Fixtures are shared across this suite's beforeAll/afterAll lifecycle.
 // The global integration setup truncates before each individual test.

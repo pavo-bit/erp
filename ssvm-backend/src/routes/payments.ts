@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import { getAuthPrisma } from "../lib/authPrisma";
 import { Router, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
@@ -334,7 +335,8 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
       }
 
       try {
-        const result = await prisma.$transaction(async (tx) => {
+        const db = getAuthPrisma();
+        const result = await db.$transaction(async (tx) => {
           // ── Idempotency Check 1: By idempotency key ──
           const existingByEvent = await tx.paymentTransaction.findFirst({
             where: { idempotencyKey },

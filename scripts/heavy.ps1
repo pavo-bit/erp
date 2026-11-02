@@ -12,7 +12,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$semaphoreName = "Local\SSVM_ERP_Heavy_Limit_$Limit"
+$semaphoreName = "Local\SSVM_ERP_Heavy"
 $createdNew = $false
 $semaphore = $null
 $acquired = $false

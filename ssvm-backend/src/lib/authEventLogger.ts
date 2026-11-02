@@ -1,5 +1,6 @@
 import { PrismaClient, AuthEventType } from "@prisma/client";
 import { Request } from "express";
+import { getAuthPrisma } from "./authPrisma";
 
 export interface AuthEventPayload {
   userId?: string;
@@ -11,7 +12,7 @@ export interface AuthEventPayload {
   metadata?: any;
 }
 
-export async function logAuthEvent(prisma: PrismaClient, event: AuthEventPayload) {
+export async function logAuthEvent(_prisma: PrismaClient, event: AuthEventPayload) {
   try {
     const ipAddress = 
       (event.req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
@@ -20,7 +21,8 @@ export async function logAuthEvent(prisma: PrismaClient, event: AuthEventPayload
       
     const userAgent = event.req.headers['user-agent'] || "unknown";
 
-    await prisma.auth_events.create({
+    const db = getAuthPrisma();
+    await db.auth_events.create({
       data: {
         userId: event.userId,
         schoolId: event.schoolId,

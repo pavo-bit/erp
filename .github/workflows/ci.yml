@@ -102,23 +102,30 @@ jobs:
           CREATE DATABASE ssvm_shadow;
           SQL
 
-      - name: Create application-test schema without RLS
+      - name: Deploy full schema and RLS migrations as owner role
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ env.DIRECT_URL }}
+          DIRECT_URL: ${{ env.DIRECT_URL }}
+
+      - name: Grant restricted role privileges
         run: |
-          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
-            --command 'CREATE EXTENSION IF NOT EXISTS pg_trgm;'
-          npx prisma migrate diff --from-empty --to-schema-datamodel prisma/schema.prisma --script \
-            | psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1
-          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
-            --file prisma/migrations/20261101140000_full_text_search_indexes/migration.sql
-          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
-            --file prisma/migrations/20261101145000_ledger_integrity/migration.sql
           psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 <<'SQL'
-          GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
-            ON ALL TABLES IN SCHEMA public TO ssvm_app;
+          GRANT USAGE ON SCHEMA public TO ssvm_app;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ssvm_app;
           GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ssvm_app;
-          GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
-            ON ALL TABLES IN SCHEMA public TO ssvm_fixture;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_app;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_app;
+
+          GRANT USAGE ON SCHEMA public TO ssvm_fixture;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ssvm_fixture;
           GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ssvm_fixture;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_fixture;
+          ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
+            GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_fixture;
           SQL
 
       - name: Show database identity and policy count
