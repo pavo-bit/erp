@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll, afterAll } from 'vitest';
 import request from 'supertest';
-import { app } from '../../app';
-
+import { createTestApp } from "../helpers/testApp";
+const app = createTestApp();
 // Note: In a real test environment, this would mock or hit a test database.
 // This test asserts the cryptographic boundaries of multi-tenancy.
 

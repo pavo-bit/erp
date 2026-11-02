@@ -1,6 +1,7 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import app from "../../app";
+import { createTestApp } from "../helpers/testApp";
+const app = createTestApp();
 import { getEnv } from "../../config/env";
 
 describe("CSRF and Cross-Origin Protection for Auth Endpoints", () => {

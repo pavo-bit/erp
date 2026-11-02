@@ -1,15 +1,21 @@
-import express, { Express } from 'express';
-import { app } from '../../app'; // Import the main app (you might need to adjust export in index.ts)
+import express from 'express';
+import type { Express, Request, Response, NextFunction } from 'express';
+import { createApp } from '../../app';
 import prisma from '../../lib/prisma';
 import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
 import { getEnv } from '../../config/env';
 
-// If app is not exported from index.ts, you might need to export it there or recreate it here.
-// For now, assuming index.ts exports the configured express `app`.
+let applicationPromise: Promise<Express> | undefined;
 
+/** Lazily create one app for each isolated test-file module. */
 export function createTestApp(): Express {
-  return app;
+  const testApp = express();
+  testApp.use((req: Request, res: Response, next: NextFunction) => {
+    applicationPromise ??= createApp();
+    void applicationPromise.then((application) => application(req, res, next)).catch(next);
+  });
+  return testApp;
 }
 
 import { PrismaClient } from '@prisma/client';

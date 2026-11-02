@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "../../app";
+import { createTestApp } from "../helpers/testApp";
+const app = createTestApp();
 import { getTestPrisma } from "../helpers/testApp";
 
 const prisma = getTestPrisma();

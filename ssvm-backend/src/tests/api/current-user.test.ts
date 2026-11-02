@@ -1,7 +1,7 @@
 import request from "supertest";
 import { describe, expect, it } from "vitest";
-import app from "../../app";
-
+import { createTestApp } from "../helpers/testApp";
+const app = createTestApp();
 interface DatabaseIdentity {
   currentUser: string;
   databaseName: string;

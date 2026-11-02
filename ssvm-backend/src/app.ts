@@ -1,19 +1,115 @@
-// Bootstrap logic moved to index.ts
 import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
-import helmet from "helmet";
-import path from "path";
-import * as Sentry from "@sentry/node";
-import { nodeProfilingIntegration } from "@sentry/profiling-node";
+import type { NextFunction, Request, Response, Express } from "express";
 
-import { getEnv } from "./config/env";
-import { initSentry } from "./lib/sentry";
-import client from "prom-client";
+// Bootstrap logic moved to index.ts
+
+
+
+
+
+
+
+
+
 
 // Initialize Prometheus Metrics
-const collectDefaultMetrics = client.collectDefaultMetrics;
-collectDefaultMetrics({ prefix: 'ssvm_' });
+export async function createApp(): Promise<Express> {
+  const cors = (await import("cors")).default;
+  const cookieParser = (await import("cookie-parser")).default;
+  const helmet = (await import("helmet")).default;
+  const path = (await import("path")).default;
+  const Sentry = await import("@sentry/node");
+  const { getEnv } = await import("./config/env");
+  const client = (await import("prom-client")).default;
+  const logger = (await import("./lib/logger")).default;
+  const { notFoundHandler, globalErrorHandler } = await import("./middleware/errorHandler");
+  const { deprecated } = await import("./middleware/versioning");
+  const { addResponseHeaders } = await import("./lib/response");
+  const { defaultLimiter, authLimiter, strictLimiter, uploadLimiter, bulkLimiter, webhookLimiter, paymentCreateLimiter, paymentVerifyLimiter, crmLimiter, otpLimiter, passwordResetLimiter } = await import("./middleware/rateLimiter");
+  const { bruteForceCheck } = await import("./middleware/brute-force.middleware");
+  const { csrfProtection, injectCsrfToken } = await import("./middleware/csrf");
+  const { schoolContextMiddleware } = await import("./middleware/school-context.middleware");
+  const authRoutes = (await import("./routes/auth")).default;
+  const schoolRoutes = (await import("./routes/schools")).default;
+  const noticeRoutes = (await import("./routes/notices")).default;
+  const eventRoutes = (await import("./routes/events")).default;
+  const studentRoutes = (await import("./routes/students")).default;
+  const teacherRoutes = (await import("./routes/teachers")).default;
+  const invoiceRoutes = (await import("./routes/invoices")).default;
+  const financeRoutes = (await import("./routes/finance")).default;
+  const scholarshipRoutes = (await import("./routes/scholarships")).default;
+  const reconciliationRoutes = (await import("./routes/finance-reconciliation")).default;
+  const attendanceRoutes = (await import("./routes/attendance")).default;
+  const assignmentRoutes = (await import("./routes/assignments")).default;
+  const galleryRoutes = (await import("./routes/gallery")).default;
+  const alumniRoutes = (await import("./routes/alumni")).default;
+  const cmsRoutes = (await import("./routes/cms")).default;
+  const statsRoutes = (await import("./routes/stats")).default;
+  const paymentRoutes = (await import("./routes/payments")).default;
+  const timetableRoutes = (await import("./routes/timetable")).default;
+  const examRoutes = (await import("./routes/exams")).default;
+  const admissionRoutes = (await import("./routes/admissions")).default;
+  const hrRoutes = (await import("./routes/hr")).default;
+  const notificationRoutes = (await import("./routes/notifications")).default;
+  const academicRoutes = (await import("./routes/academic")).default;
+  const reportsRoutes = (await import("./routes/reports")).default;
+  const communicationsRoutes = (await import("./routes/communications")).default;
+  const branchesRoutes = (await import("./routes/branches")).default;
+  const subscriptionsRoutes = (await import("./routes/subscriptions")).default;
+  const searchRouter = (await import("./routes/search")).default;
+  const bulkRouter = (await import("./routes/bulk")).default;
+  const activityRouter = (await import("./routes/activity")).default;
+  const userRoutes = (await import("./routes/users")).default;
+  const sseRoutes = (await import("./routes/sse")).default;
+  const libraryRoutes = (await import("./routes/library")).default;
+  const twoFaRoutes = (await import("./routes/2fa")).default;
+  const storageRoutes = (await import("./routes/storage")).default;
+  const backupRoutes = (await import("./routes/backups")).default;
+  const assetsRoutes = (await import("./routes/assets")).default;
+  const mobileRoutes = (await import("./routes/mobile")).default;
+  const transportRoutes = (await import("./routes/admin/transport")).default;
+  const governanceRoutes = (await import("./routes/admin/governance")).default;
+  const ancillaryRoutes = (await import("./routes/admin/ancillary")).default;
+  const receptionRoutes = (await import("./routes/reception")).default;
+  const healthRoutes = (await import("./routes/health")).default;
+  const saasRoutes = (await import("./routes/saas")).default;
+  const bullBoardRoutes = (await import("./routes/admin/bull-board")).default;
+  const backupsRoutes = (await import("./routes/admin/backups")).default;
+  const auditRoutes = (await import("./routes/admin/audit")).default;
+  const sessionsRoutes = (await import("./routes/sessions")).default;
+  const webhooksRoutes = (await import("./routes/webhooks")).default;
+  const securityRoutes = (await import("./routes/security")).default;
+  const messagesRoutes = (await import("./routes/messages")).default;
+  const certificatesRoutes = (await import("./routes/certificates")).default;
+  const guardiansRoutes = (await import("./routes/guardians")).default;
+  const preferencesRoutes = (await import("./routes/preferences")).default;
+  const documentsRoutes = (await import("./routes/documents")).default;
+  const saasSettingsRoutes = (await import("./routes/admin/saasSettings")).default;
+  const dataExportRoutes = (await import("./routes/admin/dataExport")).default;
+  const saasSecurityRoutes = (await import("./routes/admin/security")).default;
+  const accessGovernanceRoutes = (await import("./routes/admin/accessGovernance")).default;
+  const procurementRoutes = (await import("./routes/admin/procurement")).default;
+  const mdmRoutes = (await import("./routes/admin/mdm")).default;
+  const v2Router = (await import("./routes/v2")).default;
+  const disciplineRoutes = (await import("./routes/discipline")).default;
+  const myProcurementRoutes = (await import("./routes/procurement")).default;
+  const myInventoryRoutes = (await import("./routes/inventory")).default;
+  const crmRoutes = (await import("./routes/crm")).default;
+  const financeGovernanceRoutes = (await import("./routes/finance-governance")).default;
+  const governanceWorkflowsRoutes = (await import("./routes/admin/governance-workflows")).default;
+  const vendorsRoutes = (await import("./routes/admin/vendors")).default;
+  const purchaseOrdersRoutes = (await import("./routes/admin/purchaseOrders")).default;
+  const inventoryRoutes = (await import("./routes/admin/inventory")).default;
+  const ledgerAccountsRoutes = (await import("./routes/admin/ledgerAccounts")).default;
+  const ledgerTransactionsRoutes = (await import("./routes/admin/ledgerTransactions")).default;
+  const billingRoutes = (await import("./routes/admin/billing")).default;
+  const payrollRoutes = (await import("./routes/admin/payroll")).default;
+  const resultsRoutes = (await import("./routes/results")).default;
+  const { metricsMiddleware, getMetrics } = await import("./middleware/metrics");
+  const swaggerUi = (await import("swagger-ui-express")).default;
+  const { generateSpec } = await import("./openapi/generate");
+  const { isRedisAvailable } = await import("./lib/redis");
+  const prisma = (await import("./lib/prisma")).default;
 
 const httpRequestDurationMicroseconds = new client.Histogram({
   name: 'ssvm_http_request_duration_seconds',
@@ -22,124 +118,106 @@ const httpRequestDurationMicroseconds = new client.Histogram({
   buckets: [0.1, 0.3, 0.5, 0.7, 1, 3, 5, 7, 10]
 });
 
-initSentry();
 
-import logger from "./lib/logger";
-import { notFoundHandler, globalErrorHandler } from "./middleware/errorHandler";
-import { deprecated } from "./middleware/versioning";
-import { addResponseHeaders } from "./lib/response";
-import { defaultLimiter, authLimiter, strictLimiter, uploadLimiter, bulkLimiter, webhookLimiter, paymentCreateLimiter, paymentVerifyLimiter, crmLimiter, otpLimiter, passwordResetLimiter } from "./middleware/rateLimiter";
-import { bruteForceCheck } from "./middleware/brute-force.middleware";
-import { csrfProtection, injectCsrfToken } from "./middleware/csrf";
-import { schoolContextMiddleware } from "./middleware/school-context.middleware";
-import { startTokenCleanupScheduler, stopTokenCleanupScheduler } from "./jobs/cleanupTokens";
-import { startWorkers } from "./jobs/worker";
-import { closeQueues } from "./jobs/queue";
-import { BackupService } from "./services/backup.service";
+
+
+
+
+
+
+
+
+
+
 
 // Route imports
-import authRoutes from "./routes/auth";
-import schoolRoutes from "./routes/schools";
-import noticeRoutes from "./routes/notices";
-import eventRoutes from "./routes/events";
-import studentRoutes from "./routes/students";
-import teacherRoutes from "./routes/teachers";
-import invoiceRoutes from "./routes/invoices";
-import financeRoutes from "./routes/finance";
-import scholarshipRoutes from "./routes/scholarships";
-import reconciliationRoutes from "./routes/finance-reconciliation";
-import attendanceRoutes from "./routes/attendance";
-import assignmentRoutes from "./routes/assignments";
-import galleryRoutes from "./routes/gallery";
-import alumniRoutes from "./routes/alumni";
-import cmsRoutes from "./routes/cms";
-import statsRoutes from "./routes/stats";
-import paymentRoutes from "./routes/payments";
-import timetableRoutes from "./routes/timetable";
-import examRoutes from "./routes/exams";
-import admissionRoutes from "./routes/admissions";
-import hrRoutes from "./routes/hr";
-import notificationRoutes from "./routes/notifications";
-import academicRoutes from "./routes/academic";
-import reportsRoutes from "./routes/reports";
-import communicationsRoutes from "./routes/communications";
-import branchesRoutes from "./routes/branches";
-import subscriptionsRoutes from "./routes/subscriptions";
-import searchRouter from "./routes/search";
-import bulkRouter from "./routes/bulk";
-import activityRouter from "./routes/activity";
-import userRoutes from "./routes/users";
-import sseRoutes from "./routes/sse";
-import libraryRoutes from "./routes/library";
-import twoFaRoutes from "./routes/2fa";
-import storageRoutes from "./routes/storage";
-import backupRoutes from "./routes/backups";
-import assetsRoutes from "./routes/assets";
-import mobileRoutes from "./routes/mobile";
-import transportRoutes from "./routes/admin/transport";
-import governanceRoutes from "./routes/admin/governance";
-import ancillaryRoutes from "./routes/admin/ancillary";
-import receptionRoutes from "./routes/reception";
-import healthRoutes from "./routes/health";
-import saasRoutes from "./routes/saas";
-import bullBoardRoutes from "./routes/admin/bull-board";
-import backupsRoutes from "./routes/admin/backups";
-import auditRoutes from "./routes/admin/audit";
-import sessionsRoutes from "./routes/sessions";
-import webhooksRoutes from "./routes/webhooks";
-import securityRoutes from "./routes/security";
-import messagesRoutes from "./routes/messages";
-import certificatesRoutes from "./routes/certificates";
-import guardiansRoutes from "./routes/guardians";
-import preferencesRoutes from "./routes/preferences";
-import documentsRoutes from "./routes/documents";
-import saasSettingsRoutes from "./routes/admin/saasSettings";
-import dataExportRoutes from "./routes/admin/dataExport";
-import saasSecurityRoutes from "./routes/admin/security";
-import accessGovernanceRoutes from "./routes/admin/accessGovernance";
-import procurementRoutes from "./routes/admin/procurement";
-import mdmRoutes from "./routes/admin/mdm";
-import v2Router from "./routes/v2";
-import disciplineRoutes from "./routes/discipline";
-import myProcurementRoutes from "./routes/procurement";
-import myInventoryRoutes from "./routes/inventory";
-import crmRoutes from "./routes/crm";
-import financeGovernanceRoutes from "./routes/finance-governance";
-import governanceWorkflowsRoutes from "./routes/admin/governance-workflows";
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // Phase C: Procurement & Inventory
-import vendorsRoutes from "./routes/admin/vendors";
-import purchaseOrdersRoutes from "./routes/admin/purchaseOrders";
-import inventoryRoutes from "./routes/admin/inventory";
+
+
 
 // Phase D: Accounting & Ledger
-import ledgerAccountsRoutes from "./routes/admin/ledgerAccounts";
-import ledgerTransactionsRoutes from "./routes/admin/ledgerTransactions";
+
 
 // Phase E: Billing
-import billingRoutes from "./routes/admin/billing";
-import payrollRoutes from "./routes/admin/payroll";
-import resultsRoutes from "./routes/results";
 
-import { metricsMiddleware, getMetrics } from "./middleware/metrics";
-import swaggerUi from "swagger-ui-express";
-import { generateSpec } from "./openapi/generate";
+
+
+
+
 
 // ─── Validate environment on startup ───
 const env = getEnv();
 
-// ─── Initialize Sentry ───
-Sentry.init({
-  dsn: env.SENTRY_DSN || "",
-  integrations: [
-    nodeProfilingIntegration(),
-  ],
-  tracesSampleRate: 1.0,
-  profilesSampleRate: 1.0,
-});
-
 // ─── Initialize Express App ───
-export const app = express();
+const app = express();
 
 // ═══════════════════════════════════════════
 // Security Middleware
@@ -179,8 +257,7 @@ app.use(helmet({
   },
 }));
 
-import { isRedisAvailable, initRedis } from "./lib/redis";
-import prisma from "./lib/prisma";
+
 
 // PM2 / Load Balancer Healthcheck (Root Level)
 app.get("/health", async (req, res) => {
@@ -260,7 +337,7 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 // Legacy API Compatibility & Rewrite
 // ═══════════════════════════════════════════
 
-const legacyCompatMiddleware = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+const legacyCompatMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   if (req.path.startsWith("/api/") && !req.path.startsWith("/api/v1/") && !req.path.startsWith("/api/v2/")) {
     const v1Path = req.url.replace(/^\/api\//, "/api/v1/");
 
@@ -296,7 +373,7 @@ app.use(legacyCompatMiddleware);
 // 10. EDGE CACHING STRATEGY (PHASE 7)
 // ═══════════════════════════════════════════
 
-const edgeCacheMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+const edgeCacheMiddleware = (req: Request, res: Response, next: NextFunction) => {
   // Only cache GET requests that are NOT API endpoints
   if (req.method === 'GET' && !req.path.startsWith('/api')) {
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400');
@@ -431,57 +508,5 @@ Sentry.setupExpressErrorHandler(app);
 app.use(notFoundHandler);
 app.use(globalErrorHandler);
 
-// ═══════════════════════════════════════════
-// Start Server
-// ═══════════════════════════════════════════
-
-let server: any;
-if (env.NODE_ENV !== "test" && !process.env.VITEST) {
-  server = app.listen(parseInt(env.PORT, 10), "0.0.0.0", async () => {
-    await initRedis();
-
-    logger.info(`🚀 SSVM ERP Backend running on http://localhost:${env.PORT}`);
-    logger.info(`📡 API v1: http://localhost:${env.PORT}/api/v1`);
-    logger.info(`📡 API (compat): http://localhost:${env.PORT}/api`);
-    logger.info(`🏥 Health: http://localhost:${env.PORT}/api/health`);
-    logger.info(`🔒 Security: helmet ✓ | rate-limit ✓ | cors ✓ | refresh-tokens ✓`);
-    logger.info(`🌍 Environment: ${env.NODE_ENV}`);
-
-    // Start background jobs
-    startTokenCleanupScheduler();
-    startWorkers();
-
-    // Daily Database Backup Scheduler (Runs every 24 hours)
-    const DAILY_MS = 24 * 60 * 60 * 1000;
-    setInterval(() => {
-      logger.info("[Scheduler] Triggering daily database backup");
-      BackupService.createDatabaseBackup(true).catch(err => {
-        logger.error(`[Scheduler] Daily backup failed: ${err.message}`);
-      });
-    }, DAILY_MS);
-  });
-
-  // ═══════════════════════════════════════════
-  // Graceful Shutdown
-  // ═══════════════════════════════════════════
-
-  const gracefulShutdown = async (signal: string): Promise<void> => {
-    logger.info(`${signal} received — shutting down gracefully`);
-    stopTokenCleanupScheduler();
-    await closeQueues();
-    server?.close(() => {
-      logger.info("Server closed");
-      process.exit(0);
-    });
-    // Force close after 10s
-    setTimeout(() => {
-      logger.error("Forced shutdown after timeout");
-      process.exit(1);
-    }, 10000);
-  };
-
-  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
-  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+  return app;
 }
-
-export default app;

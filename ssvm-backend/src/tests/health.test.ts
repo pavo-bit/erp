@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
-import { app } from "../app";
-
+import { createTestApp } from "./helpers/testApp";
+const app = createTestApp();
 describe("Health Check API", () => {
   it("should return 200 OK or 503 Service Unavailable depending on dependent services", async () => {
     const res = await request(app).get("/api/health");
