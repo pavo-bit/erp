@@ -232,6 +232,27 @@
       "stdoutTail": "(no output; 0 errors)",
       "timestampUtc": "2026-11-02 20:05:25 UTC",
       "commitSha": "52c05e2"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run --config vitest.rls.config.ts --pool=threads --sequence.shuffle --sequence.seed=42819\"",
+      "exitCode": 0,
+      "stdoutTail": "Running tests with seed '42819'; Test Files 4 passed (4); Tests 205 passed (205); 0 failed; 0 skipped; 0 deadlocks (40P01); 0 timeouts; Duration 3.34s.",
+      "timestampUtc": "2026-11-02 20:11:14 UTC",
+      "commitSha": "22907d1"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run --config vitest.rls.config.ts --pool=threads --sequence.shuffle --sequence.seed=93721\"",
+      "exitCode": 0,
+      "stdoutTail": "Running tests with seed '93721'; Test Files 4 passed (4); Tests 205 passed (205); 0 failed; 0 skipped; 0 deadlocks (40P01); 0 timeouts; Duration 3.33s.",
+      "timestampUtc": "2026-11-02 20:11:26 UTC",
+      "commitSha": "22907d1"
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "stdoutTail": "tsc (0 errors)",
+      "timestampUtc": "2026-11-02 20:12:14 UTC",
+      "commitSha": "22907d1"
     }
   ]
 }
