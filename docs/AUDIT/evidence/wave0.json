@@ -1,8 +1,8 @@
 {
   "gate": "Wave 0",
-  "verdict": "PASSED",
-  "headCommit": "6233276",
-  "timestamp": "2026-11-02T11:15:00Z",
+  "verdict": "COMPLETED_FOLLOW_UP",
+  "headCommit": "ea6bfac",
+  "timestamp": "2026-11-02T12:16:00Z",
   "checks": {
     "step0_preflight": {
       "status": "PASSED",
@@ -12,9 +12,9 @@
         "stdoutTail": "ssvm-database: Up 2 hours (healthy)\nssvm-redis: Up 2 hours (healthy)"
       },
       "postgres_role_check": {
-        "command": "docker exec ssvm-database psql -U postgres -d postgres -c \"SELECT rolname, rolsuper, rolbypassrls FROM pg_roles WHERE rolname IN ('ssvm_app','ssvm_fixture');\"",
+        "command": "docker exec ssvm-database psql -U postgres -d postgres -c \"SELECT rolname, rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname IN ('ssvm_app','ssvm_auth','ssvm_fixture','postgres');\"",
         "exitCode": 0,
-        "stdoutTail": "  rolname   | rolsuper | rolbypassrls \n------------+----------+--------------\n ssvm_app    | f        | f\n ssvm_fixture| f        | t\n(2 rows)"
+        "stdoutTail": "   rolname    | rolsuper | rolbypassrls | rolcanlogin \n--------------+----------+--------------+-------------\n postgres     | t        | t            | t\n ssvm_app     | f        | f            | t\n ssvm_auth    | f        | f            | t\n ssvm_fixture | f        | t            | t\n(4 rows)"
       },
       "redis_ping": {
         "command": "docker exec ssvm-redis redis-cli ping",
@@ -24,16 +24,20 @@
     },
     "step1_catalog_metrics": {
       "status": "PASSED",
-      "command": "docker exec ssvm-database psql -U postgres -d ssvm_test_template -c \"SELECT count(*) FROM pg_tables WHERE schemaname = 'public';\" -c \"SELECT count(*) FROM pg_policy;\" -c \"SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity AND c.relforcerowsecurity;\" -c \"SELECT tableowner, count(*) FROM pg_tables WHERE schemaname = 'public' GROUP BY 1;\"",
+      "command": "docker exec -i ssvm-database psql -U postgres -d <db> -c \"SELECT (SELECT count(*) FROM pg_tables WHERE schemaname = 'public') AS total_tables, (SELECT count(*) FROM pg_policy) AS total_policies, (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity = true AND c.relforcerowsecurity = true) AS rls_forced_tables, (SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tableowner != 'postgres') AS non_postgres_owned_tables;\"",
       "exitCode": 0,
-      "metrics": {
-        "public_tables": 206,
-        "application_tables": 205,
-        "policies": 174,
-        "relrowsecurity_and_relforcerowsecurity": 174,
-        "owner": "postgres"
+      "ssvm_test_template": {
+        "total_tables": 206,
+        "total_policies": 184,
+        "rls_forced_tables": 174,
+        "non_postgres_owned_tables": 0
       },
-      "stdoutTail": " count \n-------\n   206\n(1 row)\n\n count \n-------\n   174\n(1 row)\n\n count \n-------\n   174\n(1 row)\n\n tableowner | count \n------------+-------\n postgres   |   206\n(1 row)"
+      "ssvm_test": {
+        "total_tables": 206,
+        "total_policies": 184,
+        "rls_forced_tables": 174,
+        "non_postgres_owned_tables": 0
+      }
     },
     "step2_rls_probes": {
       "status": "PASSED",
@@ -52,7 +56,7 @@
         "command": "npm run test:rls",
         "file": "src/tests/db/tenant-rls.test.ts",
         "exitCode": 0,
-        "stdoutTail": "✓ src/tests/db/tenant-rls.test.ts (179 tests) 1024ms\n✓ src/tests/db/ledger-integrity.test.ts (3 tests) 179ms\nTest Files 2 passed (2)\nTests 182 passed (182)"
+        "stdoutTail": "✓ src/tests/db/tenant-rls.test.ts (179 tests) 702ms\n✓ src/tests/db/ledger-integrity.test.ts (3 tests) 161ms\nTest Files 2 passed (2)\nTests 182 passed (182)"
       },
       "guard_negative_tests": {
         "superuser_abort": {
@@ -72,7 +76,7 @@
       "status": "PASSED",
       "3a_student_login_scoping": {
         "file": "src/tests/api/student-two-schools.test.ts",
-        "result": "4/4 passed; compound key students_admissionNo_key on (schoolId, admissionNo); unlinked login rejected 401; empty passwordHash rejected 401"
+        "result": "5/5 passed; returns 401 when ambiguous student match across schools without schoolCode; dob rejected as password fallback; unlinked login rejected 401; empty passwordHash rejected 401"
       },
       "3b_flattenWhere": {
         "file": "src/tests/unit/flattenWhere.test.ts",
@@ -81,7 +85,7 @@
       "3c_csrf": {
         "file": "docs/security/CSRF.md",
         "test": "src/tests/security/csrf-cross-origin.test.ts",
-        "result": "Documented in 5 lines; cross-origin refresh requires httpOnly cookie + origin check"
+        "result": "Documented in docs/security/CSRF.md with SameSite=Lax and Origin check matching src/middleware/csrf.ts"
       },
       "3d_coverage_ratchet": {
         "file": "ssvm-backend/coverage-ratchet.json",
@@ -94,137 +98,123 @@
       },
       "3e_vitest_excludes": {
         "file": "ssvm-backend/vitest.config.ts",
-        "excludes": ["dist/**", "tests/**", "src/tests/db/**"]
+        "excludes": ["dist/**", "src/tests/db/**"]
       },
       "3f_heavy_semaphore": {
         "file": "scripts/heavy.ps1",
-        "semaphore": "Local\\SSVM_ERP_Heavy",
-        "result": "Tested and verified with 3 concurrent tasks limited to 2"
+        "name": "Local\\SSVM_ERP_Heavy",
+        "result": "Verified parallel semaphore limits concurrency to 2"
       },
-      "3g_tracked_logs_and_unmounted_webhook": {
-        "deletedFiles": [
-          "ssvm-backend/src/routes/webhooks/payments.ts",
-          "ssvm-backend/tsc-errors.txt"
-        ],
-        "gitIgnored": ["test-run*.txt", "*.log", "tsc-errors.txt"]
+      "3g_tracked_logs_webhook": {
+        "deletedFile": "ssvm-backend/tsc-errors.txt",
+        "unmountedRoute": "ssvm-backend/src/routes/webhooks/payments.ts"
       }
     },
-    "step4_test_runs": {
-      "status": "PASSED",
-      "R1": {
-        "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run\"",
-        "exitCode": 0,
-        "failed": 0,
-        "skipped": 0,
-        "duration": "37.87s",
-        "summary": "Test Files 25 passed (25), Tests 164 passed (164)"
+    "step4_follow_up": {
+      "status": "COMPLETED",
+      "item1_database_url_auth": {
+        "status": "PASSED",
+        "details": "DATABASE_URL_AUTH required in env.ts, validate-env.ts, .env.example (root and ssvm-backend), docker-compose.yml, docker-compose.api.yml, ssvm-backend/docker-compose.yml, and ssvm-backend/k8s/deployment.yaml. Removed fallback in authPrisma.ts. Dedicated narrow role ssvm_auth provisioned (rolsuper=false, rolbypassrls=false) with only login grants and policies.",
+        "tests": {
+          "role_verification": "Proves authPrisma connects as ssvm_auth with rolsuper=false and rolbypassrls=false (src/tests/api/auth.test.ts:225)",
+          "missing_auth_url_loud_failure": "Proves direct call to getAuthPrisma throws and login attempt fails with 500 when DATABASE_URL_AUTH is deleted (src/tests/api/auth.test.ts:245)"
+        }
       },
-      "R2": {
-        "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run --sequence.shuffle --sequence.seed=42817\"",
-        "seed": 42817,
-        "exitCode": 0,
-        "failed": 0,
-        "skipped": 0,
-        "duration": "44.97s",
-        "summary": "Test Files 25 passed (25), Tests 164 passed (164)"
+      "item2_caller_inventory": {
+        "status": "PASSED",
+        "file": "docs/AUDIT/requests/W0-to-A.md",
+        "details": "Inventoried 9 callers of getAuthPrisma without modification: payments.ts (touches tenant tables), search.ts (touches tenant tables), sessions.ts (touches user_sessions), students.ts (touches users), auth.ts (touches tenant tables), admin/audit.ts (touches tenant tables), auth middleware (touches tenant tables), authEventLogger.ts (touches auth_events), audit.ts (touches audit_logs)."
       },
-      "R3": {
-        "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run --sequence.shuffle --sequence.seed=99123\"",
-        "seed": 99123,
-        "exitCode": 0,
-        "failed": 0,
-        "skipped": 0,
-        "duration": "41.63s",
-        "summary": "Test Files 25 passed (25), Tests 164 passed (164)"
+      "item3_student_login_ambiguity_and_dob": {
+        "status": "PASSED",
+        "details": "Student login returns 401 when multiple students match admissionNo across schools and schoolCode is omitted. dob password fallback removed. Verified in src/tests/api/student-two-schools.test.ts."
       },
-      "R4": {
-        "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:rls\"",
-        "exitCode": 0,
-        "failed": 0,
-        "skipped": 0,
-        "duration": "2.26s",
-        "summary": "Test Files 2 passed (2), Tests 182 passed (182)"
+      "item4_csrf_docs": {
+        "status": "PASSED",
+        "file": "docs/security/CSRF.md",
+        "details": "Updated to document SameSite=Lax and Origin header check against new URL(env.FRONTEND_URL).origin matching src/middleware/csrf.ts."
       },
-      "build": {
-        "command": "npm run build",
-        "exitCode": 0,
-        "summary": "0 errors"
+      "item5_deleted_tests_mapping": {
+        "status": "PASSED",
+        "details": "Deleted ssvm-backend/tests/ after confirming 1:1 equivalent in src/tests; mapped in commit ea6bfac message."
       },
-      "tsc": {
-        "command": "npx tsc --noEmit",
-        "exitCode": 0,
-        "summary": "0 errors"
+      "item6_ci_shuffled_parallel": {
+        "status": "PASSED",
+        "details": "Added CI step 'Run Shuffled Parallel Tests' running npx vitest run --sequence.shuffle --sequence.seed=$SHUFFLE_SEED with printed seed."
+      },
+      "item7_catalog_rerun": {
+        "status": "PASSED",
+        "ssvm_test_template": "206 tables, 184 policies, 174 rls_forced_tables, 0 non_postgres_owned",
+        "ssvm_test": "206 tables, 184 policies, 174 rls_forced_tables, 0 non_postgres_owned"
       }
     },
-    "step5_ci": {
-      "status": "VERIFIED",
-      "runId": 41434648219,
-      "pullRequest": 2,
-      "branch": "remediation/wave-0",
-      "commit": "6233276",
+    "step5_ci_summary": {
+      "runId": 41442764866,
+      "headCommit": "ea6bfac",
+      "prNumber": 2,
       "jobs": {
-        "backend-test": {
-          "status": "success",
-          "id": 125241347497,
-          "duration": "2m44s",
-          "identityOutput": "[W0_DB_ROLE] current_user=ssvm_app rolsuper=false rolbypassrls=false policy_count=174 database=ssvm_test_worker_1"
-        },
         "Migrate and RLS Tests (restricted role)": {
           "status": "success",
-          "id": 125241347484,
-          "duration": "1m54s"
+          "id": 125268428609,
+          "duration": "1m44s"
         },
         "backend-type-check": {
           "status": "success",
-          "id": 125241346901,
-          "duration": "1m53s"
-        },
-        "frontend-build (payment-portal)": {
-          "status": "success",
-          "id": 125241347323,
-          "duration": "1m10s"
-        },
-        "frontend-build (teacher-portal)": {
-          "status": "success",
-          "id": 125241347388,
-          "duration": "57s"
-        },
-        "frontend-build (erp-admin)": {
-          "status": "success",
-          "id": 125241347487,
-          "duration": "56s"
-        },
-        "frontend-build (saas-frontend)": {
-          "status": "success",
-          "id": 125241347533,
-          "duration": "1m16s"
-        },
-        "frontend-build (parent-portal)": {
-          "status": "success",
-          "id": 125241347537,
-          "duration": "51s"
+          "id": 125268428727,
+          "duration": "1m29s"
         },
         "frontend-build (super-admin)": {
           "status": "success",
-          "id": 125241347639,
-          "duration": "1m14s"
+          "id": 125268428364,
+          "duration": "1m19s"
+        },
+        "frontend-build (teacher-portal)": {
+          "status": "success",
+          "id": 125268428470,
+          "duration": "1m13s"
+        },
+        "frontend-build (erp-admin)": {
+          "status": "success",
+          "id": 125268428498,
+          "duration": "1m18s"
         },
         "frontend-build (student-portal)": {
           "status": "success",
-          "id": 125241347750,
-          "duration": "1m15s"
+          "id": 125268428592,
+          "duration": "1m1s"
+        },
+        "frontend-build (payment-portal)": {
+          "status": "success",
+          "id": 125268428641,
+          "duration": "1m2s"
+        },
+        "frontend-build (saas-frontend)": {
+          "status": "success",
+          "id": 125268428685,
+          "duration": "1m11s"
+        },
+        "frontend-build (parent-portal)": {
+          "status": "success",
+          "id": 125268428849,
+          "duration": "1m17s"
+        },
+        "backend-test": {
+          "status": "failure",
+          "id": 125268428083,
+          "duration": "2m40s",
+          "reason": "165/167 tests passed (23/25 test files passed). 2 tests failed: payments.test.ts and tenant-isolation.spec.ts because getAuthPrisma() was restricted to ssvm_auth with only login grants per Wave 0 follow-up requirement 1; callers are unedited per requirement 2 and inventoried for Lane A."
         },
         "backend-lint": {
           "status": "failure",
-          "id": 125241347109,
-          "duration": "1m21s",
-          "reason": "Existing pre-wave lint warnings in app.ts/jobs; prompt rule forbids claiming lint zero or modifying out-of-scope files"
+          "id": 125268428503,
+          "duration": "1m30s",
+          "reason": "Pre-existing lint errors in app.ts and backup.ts; out of Wave 0 scope."
         },
         "security-scan": {
           "status": "failure",
-          "id": 125241347408,
-          "duration": "56s",
-          "reason": "npm audit --audit-level=high fails on existing transitive dependencies (sharp, systeminformation, etc.); out of Wave 0 scope"
+          "id": 125268428605,
+          "duration": "55s",
+          "reason": "npm audit --audit-level=high fails on existing transitive dependencies (sharp, systeminformation, vite, zod); out of Wave 0 scope."
         }
       }
     }
