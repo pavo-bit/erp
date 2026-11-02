@@ -9,7 +9,8 @@ const activeTxStorage = new AsyncLocalStorage<Prisma.TransactionClient>();
 
 export async function runWithTenantDatabaseTransaction<T>(
   schoolId: string,
-  fn: (tx: Prisma.TransactionClient) => Promise<T>
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: { maxWait?: number; timeout?: number; isolationLevel?: Prisma.TransactionIsolationLevel }
 ): Promise<T> {
   const existingTx = activeTxStorage.getStore();
   if (existingTx) {
@@ -22,6 +23,36 @@ export async function runWithTenantDatabaseTransaction<T>(
       return activeTxStorage.run(tx, () => {
         return runWithSchoolContext(schoolId, () => fn(tx));
       });
+    }, options);
+  });
+}
+
+const TRUSTED_PURPOSES = new Set([
+  "ADMIN_AUDIT",
+  "SUPER_ADMIN_SEARCH",
+  "PAYMENTS_WEBHOOK",
+] as const);
+
+export async function runWithTrustedDatabaseTransaction<T>(
+  context: { purpose: string; actorId?: string },
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  if (!TRUSTED_PURPOSES.has(context.purpose as any)) {
+    throw new Error(`Unauthorized or unknown trusted purpose: ${context.purpose}`);
+  }
+  const existingTx = activeTxStorage.getStore();
+  if (existingTx) {
+    return fn(existingTx);
+  }
+
+  return inTxStorage.run(true, () => {
+    return (basePrisma as any).$transaction(async (tx: Prisma.TransactionClient) => {
+      await (tx as any).$executeRawUnsafe(
+        `SELECT set_config('app.trusted_purpose', $1, true), set_config('app.actor_id', $2, true);`,
+        context.purpose,
+        context.actorId || "SYSTEM"
+      );
+      return activeTxStorage.run(tx, () => fn(tx));
     });
   });
 }

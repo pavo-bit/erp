@@ -3,7 +3,7 @@ import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole, requireAcademicAdmin, hashPassword } from "../middleware/auth";
 
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
-import { getTrustedPrisma } from "../lib/trustedPrisma";
+
 
 const router = Router();
 
@@ -94,9 +94,8 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
       });
     }
 
-    const authDb = getTrustedPrisma("STUDENT_ENROLLMENT"); // TEMP: replaced by tenant wrapper in lane A
     const studentEmail = `${(admissionNo || `std_${Date.now()}`).toLowerCase().replace(/[^a-z0-9]/g, '')}_${schoolId.slice(-6)}@student.school`;
-    const user = await authDb.user.create({
+    const user = await prisma.user.create({
       data: {
         email: studentEmail,
         name: name || "Student",

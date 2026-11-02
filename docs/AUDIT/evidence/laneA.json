@@ -148,6 +148,27 @@
       "stdoutTail": "Test Files 8 passed (8); Tests 45 passed (45); Duration 19.24s",
       "timestampUtc": "2026-11-02 18:03:29 UTC",
       "commitSha": "9b9676839352e89694e9f783286f34eef179fa03"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:rls\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 4 passed (4); Tests 202 passed (202); Duration 4.70s; includes 14 tests in role-privileges.test.ts verifying least privilege, zero USING (true) policies on ssvm_trusted, and trigger guard on users table.",
+      "timestampUtc": "2026-11-02 19:08:26 UTC",
+      "commitSha": "49a99e320f78c80d4db1c9f225725ca3ee2a9069"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:api\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 8 passed (8); Tests 45 passed (45); Duration 19.98s; all api tests passing including auth, student-two-schools, payments, tenant, webhooks, db-roles-health.",
+      "timestampUtc": "2026-11-02 19:08:11 UTC",
+      "commitSha": "49a99e320f78c80d4db1c9f225725ca3ee2a9069"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdoutTail": "tsc --noEmit (0 errors)",
+      "timestampUtc": "2026-11-02 19:09:25 UTC",
+      "commitSha": "49a99e320f78c80d4db1c9f225725ca3ee2a9069"
     }
   ]
 }

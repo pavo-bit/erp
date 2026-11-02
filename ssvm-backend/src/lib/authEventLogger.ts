@@ -1,7 +1,8 @@
 import { PrismaClient, AuthEventType } from "@prisma/client";
 import { Request } from "express";
-import { getTrustedPrisma } from "./trustedPrisma";
 import logger from "./logger";
+import { runWithSchoolContext } from "../middleware/school-context.middleware";
+import prisma from "./prisma";
 
 export interface AuthEventPayload {
   userId?: string;
@@ -22,19 +23,34 @@ export async function logAuthEvent(_prisma: PrismaClient, event: AuthEventPayloa
       
     const userAgent = event.req.headers['user-agent'] || "unknown";
 
-    const db = getTrustedPrisma("AUTH_EVENT_LOGGING"); // TEMP: replaced by tenant wrapper in lane A
-    await db.auth_events.create({
-      data: {
-        userId: event.userId,
-        schoolId: event.schoolId,
-        eventType: event.eventType,
+    if (event.schoolId) {
+      await runWithSchoolContext(event.schoolId, async () => {
+        await prisma.auth_events.create({
+          data: {
+            userId: event.userId,
+            schoolId: event.schoolId,
+            eventType: event.eventType,
+            ipAddress,
+            userAgent,
+            success: event.success,
+            failReason: event.failReason,
+            metadata: event.metadata ? JSON.stringify(event.metadata) : undefined,
+          }
+        });
+      });
+    } else {
+      await prisma.$queryRawUnsafe(
+        `SELECT log_pre_tenant_auth_event($1, $2, $3, $4, $5, $6, $7, $8)`,
+        event.eventType,
+        event.userId || null,
+        null,
         ipAddress,
         userAgent,
-        success: event.success,
-        failReason: event.failReason,
-        metadata: event.metadata ? JSON.stringify(event.metadata) : undefined,
-      }
-    });
+        event.success,
+        event.failReason || null,
+        event.metadata ? JSON.stringify(event.metadata) : null
+      );
+    }
   } catch (error: any) {
     const sqlState = error?.code || error?.meta?.code || "UNKNOWN";
     logger.error({ err: error, sqlState, eventType: event.eventType }, "Failed to log auth event");

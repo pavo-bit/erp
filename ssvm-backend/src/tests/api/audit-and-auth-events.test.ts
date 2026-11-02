@@ -3,12 +3,11 @@ import request from "supertest";
 import { createTestApp, getTestPrisma } from "../helpers/testApp";
 import { SchoolFactory, UserFactory } from "../helpers/factories";
 import { createAuditLog, logSecurityEvent } from "../../lib/audit";
-import { getTrustedPrisma } from "../../lib/trustedPrisma";
+import { runWithSchoolContext } from "../../middleware/school-context.middleware";
 import bcrypt from "bcryptjs";
 
 const app = createTestApp();
 const prisma = getTestPrisma();
-const trustedDb = getTrustedPrisma("AUDIT_LOGGING");
 
 describe("Audit, System Logs & Auth Events Verification", () => {
   let schoolId: string;
@@ -35,14 +34,16 @@ describe("Audit, System Logs & Auth Events Verification", () => {
 
     expect(res.status).toBe(401);
 
-    // Verify auth_events row was actually written by ssvm_trusted
-    const events = await trustedDb.auth_events.findMany({
-      where: {
-        userId: testUser.id,
-        success: false,
-      },
-      orderBy: { createdAt: "desc" },
-      take: 1,
+    // Verify auth_events row was actually written
+    const events = await runWithSchoolContext(schoolId, async () => {
+      return await prisma.auth_events.findMany({
+        where: {
+          userId: testUser.id,
+          success: false,
+        },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      });
     });
 
     expect(events.length).toBe(1);
@@ -66,8 +67,10 @@ describe("Audit, System Logs & Auth Events Verification", () => {
     expect(auditRecord?.id).toBeDefined();
 
     // Verify row actually exists in database
-    const savedLog = await trustedDb.auditLog.findUnique({
-      where: { id: auditRecord!.id },
+    const savedLog = await runWithSchoolContext(schoolId, async () => {
+      return await prisma.auditLog.findUnique({
+        where: { id: auditRecord!.id },
+      });
     });
 
     expect(savedLog).not.toBeNull();
@@ -89,8 +92,10 @@ describe("Audit, System Logs & Auth Events Verification", () => {
     expect(secEvent?.id).toBeDefined();
 
     // Verify row actually exists in database
-    const savedSysLog = await trustedDb.systemLog.findUnique({
-      where: { id: secEvent!.id },
+    const savedSysLog = await runWithSchoolContext(schoolId, async () => {
+      return await prisma.systemLog.findUnique({
+        where: { id: secEvent!.id },
+      });
     });
 
     expect(savedSysLog).not.toBeNull();

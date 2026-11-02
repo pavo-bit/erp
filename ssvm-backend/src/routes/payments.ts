@@ -1,5 +1,4 @@
-import prisma from '../lib/prisma';
-import { getTrustedPrisma } from "../lib/trustedPrisma";
+import prisma, { runWithTenantDatabaseTransaction } from '../lib/prisma';
 import { Router, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
@@ -335,8 +334,19 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
       }
 
       try {
-        const db = getTrustedPrisma("PAYMENTS_WEBHOOK"); // TEMP: replaced by tenant wrapper in lane A
-        const result = await db.$transaction(async (tx) => {
+        const [resolved] = await prisma.$queryRawUnsafe<Array<{ resolve_payment_school: string | null }>>(
+          `SELECT resolve_payment_school($1) AS resolve_payment_school`,
+          orderId
+        );
+        const schoolId = resolved?.resolve_payment_school;
+
+        if (!schoolId) {
+          logger.error({ orderId }, "Transaction not found for webhook orderId");
+          res.status(200).json({ success: true, message: "Transaction not found, logged" });
+          return;
+        }
+
+        const result = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
           // ── Idempotency Check 1: By idempotency key ──
           const existingByEvent = await tx.paymentTransaction.findFirst({
             where: { idempotencyKey },
