@@ -1,10 +1,30 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { AsyncLocalStorage } from "async_hooks";
 import { encryptionExtension } from "./prismaEncryptionMiddleware";
-import { getCurrentSchoolId, getSchoolContext } from "../middleware/school-context.middleware";
+import { getCurrentSchoolId, getSchoolContext, runWithSchoolContext } from "../middleware/school-context.middleware";
 import { TENANT_CLASSIFICATION } from "../generated/tenantClassification";
 
 const inTxStorage = new AsyncLocalStorage<boolean>();
+const activeTxStorage = new AsyncLocalStorage<Prisma.TransactionClient>();
+
+export async function runWithTenantDatabaseTransaction<T>(
+  schoolId: string,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  const existingTx = activeTxStorage.getStore();
+  if (existingTx) {
+    return fn(existingTx);
+  }
+
+  return inTxStorage.run(true, () => {
+    return (basePrisma as any).$transaction(async (tx: Prisma.TransactionClient) => {
+      await (tx as any).$executeRaw`SELECT set_config('app.current_school_id', ${schoolId}, true);`;
+      return activeTxStorage.run(tx, () => {
+        return runWithSchoolContext(schoolId, () => fn(tx));
+      });
+    });
+  });
+}
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -193,9 +213,26 @@ const prismaWithEncryption = basePrisma.$extends(encryptionExtension);
 
 const prisma = prismaWithEncryption
   .$extends({
+    client: {
+      async $transaction(arg: any, options?: any) {
+        return inTxStorage.run(true, () => {
+          return (basePrisma as any).$transaction(arg, options);
+        });
+      },
+    },
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
+          // ── Active Transaction Delegation ──
+          const activeTx = activeTxStorage.getStore();
+          if (activeTx && model) {
+            const delegateName = model.charAt(0).toLowerCase() + model.slice(1);
+            const txDelegate = (activeTx as any)[delegateName] || (activeTx as any)[model];
+            if (txDelegate && typeof txDelegate[operation] === "function") {
+              return txDelegate[operation](args);
+            }
+          }
+
           // ── Audit Log Impersonation Tagging ──
           if (model === 'AuditLog' && (operation === 'create' || operation === 'createMany')) {
             const context = getSchoolContext();
@@ -296,7 +333,7 @@ const prisma = prismaWithEncryption
           if (schoolId && !inTxStorage.getStore() && classification && classification.classification !== "global") {
             return inTxStorage.run(true, () => {
               return (basePrisma as any).$transaction(async (tx: any) => {
-                await tx.$executeRawUnsafe(`SELECT set_config('app.current_school_id', '${schoolId}', true);`);
+                await (tx as any).$executeRaw`SELECT set_config('app.current_school_id', ${schoolId}, true);`;
                 const delegateName = model.charAt(0).toLowerCase() + model.slice(1);
                 const txDelegate = tx[delegateName] || tx[model];
                 if (txDelegate) {
@@ -343,6 +380,34 @@ const prisma = prismaWithEncryption
                   if (typeof txDelegate[operation] === "function") {
                     return txDelegate[operation](mutableArgs);
                   }
+                }
+                return query(mutableArgs as typeof args);
+              });
+            });
+          }
+
+          if (!schoolId && !inTxStorage.getStore() && classification && classification.classification !== "global") {
+            const writeOps = new Set(["create", "createMany", "createManyAndReturn", "update", "updateMany", "updateManyAndReturn", "delete", "deleteMany", "upsert"]);
+            if (writeOps.has(operation)) {
+              throw new Error(`Tenant context required for write operation '${operation}' on tenant table '${model}'.`);
+            }
+            return inTxStorage.run(true, () => {
+              return (basePrisma as any).$transaction(async (tx: any) => {
+                await (tx as any).$executeRaw`SELECT set_config('app.current_school_id', '', true);`;
+                const delegateName = model.charAt(0).toLowerCase() + model.slice(1);
+                const txDelegate = tx[delegateName] || tx[model];
+                if (operation === "findUnique" || operation === "findFirst") return null;
+                if (operation === "findUniqueOrThrow" || operation === "findFirstOrThrow") {
+                  const err = new Error(`An operation failed because it depends on one or more records that were required but not found.`);
+                  (err as any).code = "P2025";
+                  throw err;
+                }
+                if (operation === "findMany") return [];
+                if (operation === "count") return 0;
+                if (operation === "aggregate") return { _count: 0 };
+                if (operation === "groupBy") return [];
+                if (txDelegate && typeof txDelegate[operation] === "function") {
+                  return txDelegate[operation](mutableArgs);
                 }
                 return query(mutableArgs as typeof args);
               });
