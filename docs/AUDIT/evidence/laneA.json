@@ -169,6 +169,48 @@
       "stdoutTail": "tsc --noEmit (0 errors)",
       "timestampUtc": "2026-11-02 19:09:25 UTC",
       "commitSha": "49a99e320f78c80d4db1c9f225725ca3ee2a9069"
+    },
+    {
+      "command": "npx prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url \"postgresql://postgres:postgres@localhost:5433/ssvm_shadow?schema=public\" --exit-code",
+      "exitCode": 0,
+      "stdoutTail": "No difference detected.",
+      "timestampUtc": "2026-11-02 19:47:58 UTC",
+      "commitSha": "a77ac40f3cfcb02cf12e0f0683a9926eb5a7c2be"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run db:verify-tables\"",
+      "exitCode": 0,
+      "stdoutTail": "Database schema contains all 208 Prisma model tables and the payment invoiceId/transactionId unique index.",
+      "timestampUtc": "2026-11-02 19:48:07 UTC",
+      "commitSha": "a77ac40f3cfcb02cf12e0f0683a9926eb5a7c2be"
+    },
+    {
+      "command": "node scripts/generate-tenant-classification.cjs --check",
+      "exitCode": 0,
+      "stdoutTail": "Tenant classification is current: 208 models (127 direct, 50 indirect, 31 global); 177 classified tenant models have migration tables, 0 do not. All remain UNVERIFIED, score 0.",
+      "timestampUtc": "2026-11-02 19:48:14 UTC",
+      "commitSha": "a77ac40f3cfcb02cf12e0f0683a9926eb5a7c2be"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:rls\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 4 passed (4); Tests 205 passed (205); Duration 3.55s; includes 182 tests in tenant-rls.test.ts verifying fail-closed RLS on all 177 classified tenant models.",
+      "timestampUtc": "2026-11-02 19:47:34 UTC",
+      "commitSha": "a77ac40f3cfcb02cf12e0f0683a9926eb5a7c2be"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:api\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 8 passed (8); Tests 45 passed (45); Duration 20.82s; all API suites pass with Decimal(14,2) conversions.",
+      "timestampUtc": "2026-11-02 19:42:21 UTC",
+      "commitSha": "a77ac40f3cfcb02cf12e0f0683a9926eb5a7c2be"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdoutTail": "(no output; 0 errors)",
+      "timestampUtc": "2026-11-02 19:46:49 UTC",
+      "commitSha": "a77ac40f3cfcb02cf12e0f0683a9926eb5a7c2be"
     }
   ]
 }

@@ -112,9 +112,10 @@ router.put("/:id/approve", authenticate, requireFinanceAdmin(), async (req: Auth
       }
 
       // Apply credit to the invoice
-      const creditAmount = Math.min(scholarship.amount, nextInvoice.remainingAmount || nextInvoice.amount);
-      const newRemainingAmount = (nextInvoice.remainingAmount || nextInvoice.amount) - creditAmount;
-      const newAmountPaid = (nextInvoice.amountPaid || 0) + creditAmount;
+      const remOrAmount = Number(nextInvoice.remainingAmount || nextInvoice.amount);
+      const creditAmount = Math.min(Number(scholarship.amount), remOrAmount);
+      const newRemainingAmount = remOrAmount - creditAmount;
+      const newAmountPaid = Number(nextInvoice.amountPaid || 0) + creditAmount;
       const newStatus = newRemainingAmount <= 0 ? "PAID" : "PARTIAL";
 
       await tx.invoice.update({

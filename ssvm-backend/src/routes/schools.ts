@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireSuperAdmin, requireAllowedIp } from "../middleware/auth";
+import { seedDefaultChartOfAccounts } from "../lib/chartOfAccounts";
 
 const router = Router();
 
@@ -55,6 +56,7 @@ router.post("/", authenticate, requireSuperAdmin(), requireAllowedIp(), async (r
     const school = await prisma.school.create({
       data: { name, code, address, city, state, phone, email, website },
     });
+    await seedDefaultChartOfAccounts(prisma, school.id);
     logger.info({ schoolId: school.id }, "School created");
     res.status(201).json({ success: true, data: school });
   } catch (e) {
@@ -250,8 +252,8 @@ router.get("/:id/stats", authenticate, requireSuperAdmin(), async (req: AuthRequ
       prisma.admission.count({ where: { schoolId, status: "PENDING" } }),
     ]);
 
-    const totalCollected = feeStats.reduce((s, f) => s + (f._sum.amountPaid || 0), 0);
-    const totalPending = feeStats.filter(f => f.status !== "PAID").reduce((s, f) => s + ((f._sum.amount || 0) - (f._sum.amountPaid || 0)), 0);
+    const totalCollected = feeStats.reduce((s, f) => s + Number(f._sum.amountPaid || 0), 0);
+    const totalPending = feeStats.filter(f => f.status !== "PAID").reduce((s, f) => s + (Number(f._sum.amount || 0) - Number(f._sum.amountPaid || 0)), 0);
 
     res.json({
       success: true,

@@ -47,7 +47,7 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
 
     // Optional: Add parent/student authorization check here
 
-    const totalAmount = fee.amount + fee.fineAmount;
+    const totalAmount = Number(fee.amount) + Number(fee.fineAmount);
 
     // Create Razorpay Order with Circuit Breaker protection
     const options = {
@@ -198,8 +198,8 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
               postingDate: new Date(),
               createdBy: req.user?.id || "SYSTEM",
               entries: [
-                { accountId: bankAcc.id, debitAmount: result.transaction.amountPaid, creditAmount: 0 },
-                { accountId: revAcc.id, debitAmount: 0, creditAmount: result.transaction.amountPaid },
+                { accountId: bankAcc.id, debitAmount: Number(result.transaction.amountPaid), creditAmount: 0 },
+                { accountId: revAcc.id, debitAmount: 0, creditAmount: Number(result.transaction.amountPaid) },
               ],
             });
             logger.info({ transactionId: result.transaction.id }, "[Ledger] Payment posted to Immutable Ledger");
@@ -240,7 +240,7 @@ router.post("/trigger-late-fines", authenticate, requireRole("SUPER_ADMIN", "ERP
     let updatedCount = 0;
 
     for (const fee of overdueFees) {
-      if (fee.fineAmount === 0) {
+      if (Number(fee.fineAmount) === 0) {
         await prisma.invoice.update({
           where: { id: fee.id, schoolId, fineAmount: 0 },
           data: {

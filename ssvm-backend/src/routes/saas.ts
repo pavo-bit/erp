@@ -5,6 +5,7 @@ import { authenticate, requireRole } from "../middleware/auth";
 import { saasRequestLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
 import { hashPassword } from "../middleware/auth";
+import { seedDefaultChartOfAccounts } from "../lib/chartOfAccounts";
 
 const router = Router();
 
@@ -89,7 +90,10 @@ router.post("/approve/:id", authenticate, requireRole("SUPER_ADMIN"), async (req
         },
       });
 
-      // 3. Create the ERP Admin User for this School
+      // 3. Seed Default Chart of Accounts
+      await seedDefaultChartOfAccounts(tx, school.id);
+
+      // 4. Create the ERP Admin User for this School
       const hashedPassword = await hashPassword("Admin@123");
       const adminUser = await tx.user.create({
         data: {

@@ -1,11 +1,11 @@
 {
   "schema": "ssvm-backend/prisma/schema.prisma",
   "generatedBy": "ssvm-backend/scripts/generate-tenant-classification.cjs",
-  "modelCount": 205,
-  "directCount": 124,
+  "modelCount": 208,
+  "directCount": 127,
   "indirectCount": 50,
   "globalCount": 31,
-  "tenantModelsWithMigrations": 174,
+  "tenantModelsWithMigrations": 177,
   "tenantModelsMissingMigrations": 0,
   "verification": "UNVERIFIED",
   "score": 0,
@@ -964,6 +964,41 @@
         },
         {
           "relation": "schools",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "BankStatementLine",
+      "table": "BankStatementLine",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "ledgerEntry",
+          "relatedModel": "LedgerEntry",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "matchedLedgerEntryId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "school",
           "relatedModel": "School",
           "cardinality": "one",
           "foreignKeyFields": [
@@ -2647,6 +2682,70 @@
           "referencedFields": [
             "id"
           ]
+        },
+        {
+          "relation": "lines",
+          "relatedModel": "GoodsReceiptLine",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "GoodsReceiptLine",
+      "table": "GoodsReceiptLine",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "goodsReceipt",
+          "relatedModel": "GoodsReceipt",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "goodsReceiptId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "purchaseOrderItem",
+          "relatedModel": "PurchaseOrderItem",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "purchaseOrderItemId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
         }
       ],
       "verification": "UNVERIFIED",
@@ -2954,6 +3053,37 @@
       "score": 0
     },
     {
+      "model": "InventoryCategory",
+      "table": "InventoryCategory",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "items",
+          "relatedModel": "InventoryItem",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
       "model": "InventoryItem",
       "table": "InventoryItem",
       "migrationCoverage": "PRESENT",
@@ -2963,11 +3093,33 @@
       "path": [],
       "relations": [
         {
+          "relation": "category",
+          "relatedModel": "InventoryCategory",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "categoryId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
           "relation": "stocks",
           "relatedModel": "InventoryStock",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
         }
       ],
       "verification": "UNVERIFIED",
@@ -3019,6 +3171,17 @@
           "cardinality": "one",
           "foreignKeyFields": [
             "locationId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
           ],
           "referencedFields": [
             "id"
@@ -3438,6 +3601,13 @@
           "referencedFields": [
             "id"
           ]
+        },
+        {
+          "relation": "bankStatementLines",
+          "relatedModel": "BankStatementLine",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
         }
       ],
       "verification": "UNVERIFIED",
@@ -4887,6 +5057,13 @@
           "referencedFields": []
         },
         {
+          "relation": "goodsReceiptLines",
+          "relatedModel": "GoodsReceiptLine",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
           "relation": "po",
           "relatedModel": "PurchaseOrder",
           "cardinality": "one",
@@ -6067,6 +6244,48 @@
         {
           "relation": "webhookEndpoints",
           "relatedModel": "WebhookEndpoint",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "bankStatementLines",
+          "relatedModel": "BankStatementLine",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "goodsReceiptLines",
+          "relatedModel": "GoodsReceiptLine",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "goodsReceipts",
+          "relatedModel": "GoodsReceipt",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "inventoryCategories",
+          "relatedModel": "InventoryCategory",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "inventoryItems",
+          "relatedModel": "InventoryItem",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "inventoryStocks",
+          "relatedModel": "InventoryStock",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []

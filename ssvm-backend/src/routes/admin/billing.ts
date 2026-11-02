@@ -153,14 +153,14 @@ router.post("/invoices/generate", authenticate, requireFinanceRole, async (req: 
           entries: [
             {
               accountId: receivableAccount.id,
-              debitAmount: structure.amount,
+              debitAmount: Number(structure.amount),
               creditAmount: 0,
               description: "Accounts Receivable",
             },
             {
               accountId: revenueAccount.id,
               debitAmount: 0,
-              creditAmount: structure.amount,
+              creditAmount: Number(structure.amount),
               description: "Tuition Revenue",
             }
           ]

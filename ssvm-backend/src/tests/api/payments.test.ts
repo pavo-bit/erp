@@ -83,7 +83,7 @@ describe('Payments & Finance APIs', () => {
       });
 
       expect(updated.status).toBe('PAID');
-      expect(updated.remainingAmount).toBe(0);
+      expect(Number(updated.remainingAmount)).toBe(0);
     });
   });
 

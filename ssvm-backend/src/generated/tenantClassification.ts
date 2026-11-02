@@ -967,6 +967,41 @@ export const TENANT_CLASSIFICATION = {
     "verification": "UNVERIFIED",
     "score": 0
   },
+  "BankStatementLine": {
+    "model": "BankStatementLine",
+    "table": "BankStatementLine",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "ledgerEntry",
+        "relatedModel": "LedgerEntry",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "matchedLedgerEntryId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
   "Book": {
     "model": "Book",
     "table": "books",
@@ -2637,6 +2672,70 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": [
           "id"
         ]
+      },
+      {
+        "relation": "lines",
+        "relatedModel": "GoodsReceiptLine",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
+  "GoodsReceiptLine": {
+    "model": "GoodsReceiptLine",
+    "table": "GoodsReceiptLine",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "goodsReceipt",
+        "relatedModel": "GoodsReceipt",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "goodsReceiptId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "purchaseOrderItem",
+        "relatedModel": "PurchaseOrderItem",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "purchaseOrderItemId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
       }
     ],
     "verification": "UNVERIFIED",
@@ -2943,6 +3042,37 @@ export const TENANT_CLASSIFICATION = {
     "verification": "UNVERIFIED",
     "score": 0
   },
+  "InventoryCategory": {
+    "model": "InventoryCategory",
+    "table": "InventoryCategory",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "items",
+        "relatedModel": "InventoryItem",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
   "InventoryItem": {
     "model": "InventoryItem",
     "table": "InventoryItem",
@@ -2953,11 +3083,33 @@ export const TENANT_CLASSIFICATION = {
     "path": [],
     "relations": [
       {
+        "relation": "category",
+        "relatedModel": "InventoryCategory",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "categoryId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
         "relation": "stocks",
         "relatedModel": "InventoryStock",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
       }
     ],
     "verification": "UNVERIFIED",
@@ -3009,6 +3161,17 @@ export const TENANT_CLASSIFICATION = {
         "cardinality": "one",
         "foreignKeyFields": [
           "locationId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
         ],
         "referencedFields": [
           "id"
@@ -3428,6 +3591,13 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": [
           "id"
         ]
+      },
+      {
+        "relation": "bankStatementLines",
+        "relatedModel": "BankStatementLine",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
       }
     ],
     "verification": "UNVERIFIED",
@@ -4877,6 +5047,13 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": []
       },
       {
+        "relation": "goodsReceiptLines",
+        "relatedModel": "GoodsReceiptLine",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
         "relation": "po",
         "relatedModel": "PurchaseOrder",
         "cardinality": "one",
@@ -6057,6 +6234,48 @@ export const TENANT_CLASSIFICATION = {
       {
         "relation": "webhookEndpoints",
         "relatedModel": "WebhookEndpoint",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "bankStatementLines",
+        "relatedModel": "BankStatementLine",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "goodsReceiptLines",
+        "relatedModel": "GoodsReceiptLine",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "goodsReceipts",
+        "relatedModel": "GoodsReceipt",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "inventoryCategories",
+        "relatedModel": "InventoryCategory",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "inventoryItems",
+        "relatedModel": "InventoryItem",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "inventoryStocks",
+        "relatedModel": "InventoryStock",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
@@ -8615,6 +8834,7 @@ export const TENANT_MODEL_NAMES = [
   "AuditLog",
   "auth_events",
   "BankReconciliation",
+  "BankStatementLine",
   "Book",
   "BookIssue",
   "Branch",
@@ -8660,11 +8880,13 @@ export const TENANT_MODEL_NAMES = [
   "FiscalYear",
   "GalleryImage",
   "GoodsReceipt",
+  "GoodsReceiptLine",
   "Guardian",
   "HelpdeskTicket",
   "HostelAllocation",
   "HostelRoom",
   "IncidentReport",
+  "InventoryCategory",
   "InventoryItem",
   "InventoryLocation",
   "InventoryStock",
@@ -8791,6 +9013,7 @@ export const TENANT_RLS_MODELS = [
   "AuditLog",
   "auth_events",
   "BankReconciliation",
+  "BankStatementLine",
   "Book",
   "BookIssue",
   "Branch",
@@ -8836,11 +9059,13 @@ export const TENANT_RLS_MODELS = [
   "FiscalYear",
   "GalleryImage",
   "GoodsReceipt",
+  "GoodsReceiptLine",
   "Guardian",
   "HelpdeskTicket",
   "HostelAllocation",
   "HostelRoom",
   "IncidentReport",
+  "InventoryCategory",
   "InventoryItem",
   "InventoryLocation",
   "InventoryStock",
@@ -8967,6 +9192,7 @@ export const TENANT_RLS_TABLES = [
   "audit_logs",
   "auth_events",
   "BankReconciliation",
+  "BankStatementLine",
   "books",
   "book_issues",
   "branches",
@@ -9012,11 +9238,13 @@ export const TENANT_RLS_TABLES = [
   "FiscalYear",
   "gallery_images",
   "GoodsReceipt",
+  "GoodsReceiptLine",
   "guardians",
   "helpdesk_tickets",
   "hostel_allocations",
   "hostel_rooms",
   "incident_reports",
+  "InventoryCategory",
   "InventoryItem",
   "InventoryLocation",
   "InventoryStock",

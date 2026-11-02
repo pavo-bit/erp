@@ -74,9 +74,9 @@ router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "SUP
     const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id as string } });
     if (!invoice) { res.status(404).json({ success: false, error: "Invoice not found" }); return; }
 
-    const newAmountPaid = invoice.amountPaid + parseFloat(amountPaid);
+    const newAmountPaid = Number(invoice.amountPaid) + parseFloat(amountPaid);
     let newStatus = "PARTIAL";
-    if (newAmountPaid >= invoice.amount + invoice.fineAmount) {
+    if (newAmountPaid >= Number(invoice.amount) + Number(invoice.fineAmount)) {
       newStatus = "PAID";
     }
 

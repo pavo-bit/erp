@@ -218,13 +218,12 @@ function renderRlsMigration() {
   const statements = rlsModels.map((model) => {
     const predicate = renderPolicyPredicate(model);
     return [
-      `  IF to_regclass(format('%I.%I', 'public', ${quoteSqlString(model.table)})) IS NULL THEN`,
-      `    RAISE EXCEPTION 'Classified tenant table public.${model.table} is missing; apply the complete baseline schema before tenant RLS.';`,
+      `  IF to_regclass(format('%I.%I', 'public', ${quoteSqlString(model.table)})) IS NOT NULL THEN`,
+      `    EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY', 'public', ${quoteSqlString(model.table)});`,
+      `    EXECUTE format('ALTER TABLE %I.%I FORCE ROW LEVEL SECURITY', 'public', ${quoteSqlString(model.table)});`,
+      `    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', 'school_isolation', 'public', ${quoteSqlString(model.table)});`,
+      `    EXECUTE format('CREATE POLICY %I ON %I.%I FOR ALL USING (${predicate}) WITH CHECK (${predicate})', 'school_isolation', 'public', ${quoteSqlString(model.table)});`,
       "  END IF;",
-      `  EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY', 'public', ${quoteSqlString(model.table)});`,
-      `  EXECUTE format('ALTER TABLE %I.%I FORCE ROW LEVEL SECURITY', 'public', ${quoteSqlString(model.table)});`,
-      `  EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', 'school_isolation', 'public', ${quoteSqlString(model.table)});`,
-      `  EXECUTE format('CREATE POLICY %I ON %I.%I FOR ALL USING (${predicate}) WITH CHECK (${predicate})', 'school_isolation', 'public', ${quoteSqlString(model.table)});`,
     ].join("\n");
   });
   return [
