@@ -1,6 +1,7 @@
 import { PrismaClient, AuthEventType } from "@prisma/client";
 import { Request } from "express";
-import { getAuthPrisma } from "./authPrisma";
+import { getTrustedPrisma } from "./trustedPrisma";
+import logger from "./logger";
 
 export interface AuthEventPayload {
   userId?: string;
@@ -21,7 +22,7 @@ export async function logAuthEvent(_prisma: PrismaClient, event: AuthEventPayloa
       
     const userAgent = event.req.headers['user-agent'] || "unknown";
 
-    const db = getAuthPrisma();
+    const db = getTrustedPrisma("AUTH_EVENT_LOGGING"); // TEMP: replaced by tenant wrapper in lane A
     await db.auth_events.create({
       data: {
         userId: event.userId,
@@ -34,8 +35,9 @@ export async function logAuthEvent(_prisma: PrismaClient, event: AuthEventPayloa
         metadata: event.metadata ? JSON.stringify(event.metadata) : undefined,
       }
     });
-  } catch (error) {
-    console.error("Failed to log auth event:", error);
+  } catch (error: any) {
+    const sqlState = error?.code || error?.meta?.code || "UNKNOWN";
+    logger.error({ err: error, sqlState, eventType: event.eventType }, "Failed to log auth event");
     // We intentionally don't throw here to avoid failing the authentication 
     // flow just because the audit log failed to write.
   }

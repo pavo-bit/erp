@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
-import { getAuthPrisma } from "../lib/authPrisma";
+import { getTrustedPrisma } from "../lib/trustedPrisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate } from "../middleware/auth";
 
@@ -21,7 +21,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     const whereSchool = schoolId ? { schoolId } : {};
-    const db = (req.user!.role === "SUPER_ADMIN" && !schoolId) ? getAuthPrisma() : prisma;
+    const db = (req.user!.role === "SUPER_ADMIN" && !schoolId) ? getTrustedPrisma("SUPER_ADMIN_SEARCH") : prisma; // TEMP: replaced by tenant wrapper in lane A
     
     // For raw queries, we format the query for tsquery
     const tsQuery = query.split(/\s+/).map(word => `${word}:*`).join(" & ");

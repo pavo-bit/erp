@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { authenticate, requireRole } from "../../middleware/auth";
-import { getAuthPrisma } from "../../lib/authPrisma";
+import { getTrustedPrisma } from "../../lib/trustedPrisma";
 
 const router = Router();
 
@@ -19,7 +19,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     const whereClause: any = {};
     if (action) whereClause.action = action;
 
-    const authPrisma = getAuthPrisma();
+    const authPrisma = getTrustedPrisma("ADMIN_AUDIT"); // TEMP: replaced by tenant wrapper in lane A
     const [logs, total] = await Promise.all([
       authPrisma.auditLog.findMany({
         where: whereClause,
@@ -48,7 +48,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 // 2. Get Security Alerts specifically
 router.get("/security-alerts", async (req: Request, res: Response): Promise<void> => {
   try {
-    const alerts = await getAuthPrisma().systemLog.findMany({
+    const alerts = await getTrustedPrisma("ADMIN_AUDIT").systemLog.findMany({ // TEMP: replaced by tenant wrapper in lane A
       where: {
         level: { in: ["WARN", "ERROR", "FATAL"] }
       },

@@ -43,6 +43,7 @@ services:
       # Use internal docker networking
       - DATABASE_URL=postgresql://ssvm_admin:ssvm_password_secure@ssvm-postgres:5432/ssvm_erp_db?schema=public
       - DATABASE_URL_AUTH=postgresql://ssvm_admin:ssvm_password_secure@ssvm-postgres:5432/ssvm_erp_db?schema=public
+      - DATABASE_URL_TRUSTED=postgresql://ssvm_admin:ssvm_password_secure@ssvm-postgres:5432/ssvm_erp_db?schema=public
       - REDIS_URL=redis://ssvm-redis:6379
       - JWT_SECRET=production_secret_key_change_me
     depends_on:

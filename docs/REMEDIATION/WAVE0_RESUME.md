@@ -59,3 +59,36 @@ Both databases verified identically via PostgreSQL catalog query:
 | **backend-test** | **FAILURE (X)** | 2m40s | 165/167 tests passed (23/25 test files passed). 2 tests failed: `payments.test.ts` & `tenant-isolation.spec.ts` because `getAuthPrisma()` was restricted to `ssvm_auth` with only login grants; callers unedited per requirement 2 and inventoried for Lane A |
 | **backend-lint** | **FAILURE (X)** | 1m30s | Pre-existing lint errors in `app.ts` and `backup.ts` (outside Wave 0 scope) |
 | **security-scan** | **FAILURE (X)** | 55s | Pre-existing npm audit vulnerabilities in transitive packages (outside Wave 0 scope) |
+
+---
+
+## Wave 0 Follow-Up #2 Regression Fix
+
+1. **Versioned Roles & Grants (`ssvm-backend/scripts/db/provision-roles.sql`):**
+   - Single authoritative, idempotent script provisioning `ssvm_app`, `ssvm_auth`, `ssvm_trusted`, `ssvm_fixture`.
+   - Passwords passed strictly via `psql` variables with no hard-coded secrets.
+   - Used across `.github/workflows/ci.yml`, `docker-compose.yml`, `ssvm-backend/k8s/provision-roles-job.yaml`, and `docs/DATABASE/LOCAL_SETUP.md`.
+   - Removed inline role/grant/policy SQL blocks from `ci.yml`.
+
+2. **`ssvm_auth` Least Privilege:**
+   - Column-level grants restrict UPDATE on `users` strictly to password hash upgrade, last login, and 2FA credentials (no UPDATE on `role`, `schoolId`, `isActive`; no INSERT on `users`).
+   - Narrow RLS policies applied.
+   - Negative tests in `src/tests/api/auth.test.ts` prove `ssvm_auth` CANNOT update `users.role`, cannot read `invoices`, and cannot insert into `users`.
+
+3. **`ssvm_trusted` & `getTrustedPrisma(purpose)`:**
+   - Dedicated client `getTrustedPrisma(purpose)` backed by `DATABASE_URL_TRUSTED` and role `ssvm_trusted`.
+   - Non-login callers (`payments.ts`, `search.ts`, `students.ts`, `admin/audit.ts`, `sessions.ts`, `audit.ts`, `authEventLogger.ts`) migrated and marked `// TEMP: replaced by tenant wrapper in lane A`.
+   - Architecture test `src/tests/architecture.test.ts` enforces strict import allowlist for both `getAuthPrisma` and `getTrustedPrisma`.
+
+4. **Silent Logging Remediation:**
+   - `logAuthEvent` and `logSecurityEvent` log SQLSTATE on DB write failures.
+   - `src/tests/api/audit-and-auth-events.test.ts` verifies rows are written to `auth_events`, `system_logs`, and `audit_logs` on failed logins and audited events.
+
+5. **Database Roles Startup Health Check:**
+   - `src/lib/dbRoleHealthCheck.ts` and `src/tests/api/db-roles-health.test.ts` verify all three database roles (`ssvm_app`, `ssvm_auth`, `ssvm_trusted`) are non-superusers (`rolsuper=false`), non-bypassrls (`rolbypassrls=false`), and adhere to permission boundaries.
+
+6. **Catalog Metrics:**
+   - 174 tenant tables RLS enabled + forced (`relrowsecurity=true AND relforcerowsecurity=true`).
+   - 39 additional role policies (8 `ssvm_auth` + 31 `ssvm_trusted`) listed by name and table.
+   - Total policies in `pg_policy`: 213.
+

@@ -6,6 +6,8 @@ import appPrisma from "../lib/prisma";
 import { generateAccessToken } from "../lib/tokens";
 
 const prisma = getTestPrisma();
+import fs from "fs";
+import path from "path";
 import { vi } from "vitest";
 import { BackupService } from "../services/backup.service";
 
@@ -213,4 +215,76 @@ describe("Architecture & Phase A E2E", () => {
       expect(res.body.data.some((alert: any) => alert.severity === "CRITICAL" || alert.severity === "WARNING")).toBe(true);
     });
   });
+
+  describe("5. Architecture Boundary Enforcement (Prisma Clients Allowlist)", () => {
+    it("prohibits unauthorized imports of getAuthPrisma outside the allowlist", () => {
+      const authPrismaAllowlist = new Set([
+        "src/routes/auth.ts",
+        "src/middleware/auth.ts",
+        "src/lib/authPrisma.ts",
+        "src/tests/api/auth.test.ts",
+        "src/tests/architecture.test.ts",
+      ]);
+
+      const violations: string[] = [];
+      function scanDir(dir: string) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (entry.name !== "node_modules" && entry.name !== "dist") {
+              scanDir(fullPath);
+            }
+          } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".js"))) {
+            const relPath = path.relative(path.resolve(__dirname, "../.."), fullPath).replace(/\\/g, "/");
+            const content = fs.readFileSync(fullPath, "utf-8");
+            if (content.includes("getAuthPrisma") && !authPrismaAllowlist.has(relPath)) {
+              violations.push(relPath);
+            }
+          }
+        }
+      }
+
+      scanDir(path.resolve(__dirname, ".."));
+      expect(violations, `Unauthorized getAuthPrisma imports found in: ${violations.join(", ")}`).toEqual([]);
+    });
+
+    it("prohibits unauthorized imports of getTrustedPrisma outside the allowlist", () => {
+      const trustedPrismaAllowlist = new Set([
+        "src/routes/payments.ts",
+        "src/routes/search.ts",
+        "src/routes/students.ts",
+        "src/routes/sessions.ts",
+        "src/routes/admin/audit.ts",
+        "src/lib/audit.ts",
+        "src/lib/authEventLogger.ts",
+        "src/lib/trustedPrisma.ts",
+        "src/tests/architecture.test.ts",
+        "src/tests/api/audit-and-auth-events.test.ts",
+      ]);
+
+      const violations: string[] = [];
+      function scanDir(dir: string) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (entry.name !== "node_modules" && entry.name !== "dist") {
+              scanDir(fullPath);
+            }
+          } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".js"))) {
+            const relPath = path.relative(path.resolve(__dirname, "../.."), fullPath).replace(/\\/g, "/");
+            const content = fs.readFileSync(fullPath, "utf-8");
+            if (content.includes("getTrustedPrisma") && !trustedPrismaAllowlist.has(relPath)) {
+              violations.push(relPath);
+            }
+          }
+        }
+      }
+
+      scanDir(path.resolve(__dirname, ".."));
+      expect(violations, `Unauthorized getTrustedPrisma imports found in: ${violations.join(", ")}`).toEqual([]);
+    });
+  });
 });
+

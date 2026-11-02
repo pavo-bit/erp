@@ -1,222 +1,97 @@
 {
   "gate": "Wave 0",
-  "verdict": "COMPLETED_FOLLOW_UP",
-  "headCommit": "ea6bfac",
-  "timestamp": "2026-11-02T12:16:00Z",
-  "checks": {
-    "step0_preflight": {
-      "status": "PASSED",
-      "docker_ps": {
-        "command": "docker ps --format \"{{.Names}}: {{.Status}}\"",
-        "exitCode": 0,
-        "stdoutTail": "ssvm-database: Up 2 hours (healthy)\nssvm-redis: Up 2 hours (healthy)"
-      },
-      "postgres_role_check": {
-        "command": "docker exec ssvm-database psql -U postgres -d postgres -c \"SELECT rolname, rolsuper, rolbypassrls, rolcanlogin FROM pg_roles WHERE rolname IN ('ssvm_app','ssvm_auth','ssvm_fixture','postgres');\"",
-        "exitCode": 0,
-        "stdoutTail": "   rolname    | rolsuper | rolbypassrls | rolcanlogin \n--------------+----------+--------------+-------------\n postgres     | t        | t            | t\n ssvm_app     | f        | f            | t\n ssvm_auth    | f        | f            | t\n ssvm_fixture | f        | t            | t\n(4 rows)"
-      },
-      "redis_ping": {
-        "command": "docker exec ssvm-redis redis-cli ping",
-        "exitCode": 0,
-        "stdoutTail": "PONG"
-      }
-    },
-    "step1_catalog_metrics": {
-      "status": "PASSED",
-      "command": "docker exec -i ssvm-database psql -U postgres -d <db> -c \"SELECT (SELECT count(*) FROM pg_tables WHERE schemaname = 'public') AS total_tables, (SELECT count(*) FROM pg_policy) AS total_policies, (SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity = true AND c.relforcerowsecurity = true) AS rls_forced_tables, (SELECT count(*) FROM pg_tables WHERE schemaname = 'public' AND tableowner != 'postgres') AS non_postgres_owned_tables;\"",
+  "verdict": "FOLLOW_UP_2_READY_FOR_CI",
+  "timestamp": "2026-11-02T13:58:00Z",
+  "catalog_metrics": {
+    "total_public_tables": 206,
+    "rls_enabled_and_forced_tables": 174,
+    "additional_role_policies_count": 39,
+    "total_policies": 213,
+    "non_postgres_owned_tables": 0,
+    "role_policies": [
+      { "table": "LedgerAccount", "policy": "trusted_ledger_account", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "LedgerEntry", "policy": "trusted_ledger_entry", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "LedgerTransaction", "policy": "trusted_ledger_tx", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "SequenceCounter", "policy": "trusted_sequence_counter", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "academic_sessions", "policy": "trusted_academic_sessions", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "admissions", "policy": "trusted_admissions", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "alumni", "policy": "auth_alumni", "role": "ssvm_auth", "cmd": "SELECT" },
+      { "table": "alumni", "policy": "trusted_alumni", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "assignments", "policy": "trusted_assignments", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "attendance", "policy": "trusted_attendance", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "audit_logs", "policy": "trusted_audit_logs", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "auth_events", "policy": "trusted_auth_events", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "classes", "policy": "trusted_classes", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "communication_logs", "policy": "trusted_communication_logs", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "departments", "policy": "trusted_departments", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "document_repository", "policy": "trusted_document_repository", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "events", "policy": "trusted_events", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "exam_subjects", "policy": "trusted_exam_subjects", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "exams", "policy": "trusted_exams", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "fee_structures", "policy": "trusted_fee_structures", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "guardians", "policy": "auth_guardians", "role": "ssvm_auth", "cmd": "SELECT" },
+      { "table": "guardians", "policy": "trusted_guardians", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "invoices", "policy": "trusted_invoices", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "notices", "policy": "trusted_notices", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "payment_transactions", "policy": "trusted_payment_tx", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "refresh_tokens", "policy": "auth_refresh_tokens", "role": "ssvm_auth", "cmd": "ALL" },
+      { "table": "sections", "policy": "trusted_sections", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "student_marks", "policy": "trusted_student_marks", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "students", "policy": "auth_student_select", "role": "ssvm_auth", "cmd": "SELECT" },
+      { "table": "students", "policy": "auth_student_update", "role": "ssvm_auth", "cmd": "UPDATE" },
+      { "table": "students", "policy": "trusted_students", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "subjects", "policy": "trusted_subjects", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "system_logs", "policy": "trusted_system_logs", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "teachers", "policy": "trusted_teachers", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "user_sessions", "policy": "auth_sessions", "role": "ssvm_auth", "cmd": "ALL" },
+      { "table": "user_sessions", "policy": "trusted_user_sessions", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "users", "policy": "auth_user_select", "role": "ssvm_auth", "cmd": "SELECT" },
+      { "table": "users", "policy": "auth_user_update", "role": "ssvm_auth", "cmd": "UPDATE" },
+      { "table": "users", "policy": "trusted_users", "role": "ssvm_trusted", "cmd": "ALL" }
+    ]
+  },
+  "roles_and_privileges": {
+    "provision_script": "ssvm-backend/scripts/db/provision-roles.sql",
+    "roles": {
+      "ssvm_app": { "rolsuper": false, "rolbypassrls": false, "scope": "Runtime strict tenant isolation via current_tenant_id()" },
+      "ssvm_auth": { "rolsuper": false, "rolbypassrls": false, "scope": "Login only; SELECT lookups; column-level UPDATE on passwordHash/lastLogin; no INSERT; no role alteration; no invoices" },
+      "ssvm_trusted": { "rolsuper": false, "rolbypassrls": false, "scope": "Named server background tasks (webhook, logs, search) via DATABASE_URL_TRUSTED" },
+      "ssvm_fixture": { "rolsuper": false, "rolbypassrls": true, "scope": "Test fixtures only" }
+    }
+  },
+  "local_test_evidence": {
+    "R1_parallel": {
+      "command": "npm run test:ci",
       "exitCode": 0,
-      "ssvm_test_template": {
-        "total_tables": 206,
-        "total_policies": 184,
-        "rls_forced_tables": 174,
-        "non_postgres_owned_tables": 0
-      },
-      "ssvm_test": {
-        "total_tables": 206,
-        "total_policies": 184,
-        "rls_forced_tables": 174,
-        "non_postgres_owned_tables": 0
-      }
+      "testFiles": "27 passed (27)",
+      "tests": "177 passed (177)",
+      "coverage": "Lines 29.4%, Statements 28.07%, Functions 26.91%, Branches 19.95%"
     },
-    "step2_rls_probes": {
-      "status": "PASSED",
-      "scratch_probe": {
-        "description": "Probe fee_categories with 2 schools seeded as ssvm_fixture and queried as ssvm_app",
-        "steps": [
-          "1. No tenant set -> count(*) = 0",
-          "2. set_config('app.current_school_id', A, true) -> count(*) = 1 (only A rows)",
-          "3. After COMMIT -> count(*) = 0 (no pool leakage)",
-          "4. INSERT school B row while tenant=A -> rejected with 42501 WITH CHECK violation",
-          "5. UPDATE/DELETE school B row while tenant=A -> 0 rows affected"
-        ],
-        "result": "5/5 PASSED"
-      },
-      "permanent_test": {
-        "command": "npm run test:rls",
-        "file": "src/tests/db/tenant-rls.test.ts",
-        "exitCode": 0,
-        "stdoutTail": "✓ src/tests/db/tenant-rls.test.ts (179 tests) 702ms\n✓ src/tests/db/ledger-integrity.test.ts (3 tests) 161ms\nTest Files 2 passed (2)\nTests 182 passed (182)"
-      },
-      "guard_negative_tests": {
-        "superuser_abort": {
-          "command": "powershell -Command \". ..\\scripts\\test-env.ps1; $env:DATABASE_URL_TEST = 'postgresql://postgres:postgres@localhost:5433/ssvm_test?schema=public'; npx vitest run src/tests/health.test.ts\"",
-          "exitCode": 1,
-          "stdoutTail": "Error: ABORT: Tests must run as a restricted role (non-superuser, non-bypassrls). Connected as postgres (rolsuper=true, rolbypassrls=true).\n ❯ src/tests/setup.ts:150:11"
-        },
-        "broken_rls_table_abort": {
-          "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npx vitest run src/tests/health.test.ts\"",
-          "setup": "ALTER TABLE fee_structures DISABLE ROW LEVEL SECURITY in template",
-          "exitCode": 1,
-          "stdoutTail": "Error: ABORT: 1 classified tenant tables failed RLS guard (both relrowsecurity and relforcerowsecurity must be true):\n  fee_structures (present=true, rlsEnabled=false, rlsForced=true)\n ❯ src/tests/setup.ts:182:11"
-        }
-      }
+    "R2_shuffled_seed_42817": {
+      "command": "npx vitest run --sequence.shuffle --sequence.seed=42817",
+      "exitCode": 0,
+      "testFiles": "27 passed (27)",
+      "tests": "177 passed (177)"
     },
-    "step3_code_tasks": {
-      "status": "PASSED",
-      "3a_student_login_scoping": {
-        "file": "src/tests/api/student-two-schools.test.ts",
-        "result": "5/5 passed; returns 401 when ambiguous student match across schools without schoolCode; dob rejected as password fallback; unlinked login rejected 401; empty passwordHash rejected 401"
-      },
-      "3b_flattenWhere": {
-        "file": "src/tests/unit/flattenWhere.test.ts",
-        "result": "5/5 passed; flattens genuine compound-unique keys; preserves relation filters (some/every/none/is/isNot)"
-      },
-      "3c_csrf": {
-        "file": "docs/security/CSRF.md",
-        "test": "src/tests/security/csrf-cross-origin.test.ts",
-        "result": "Documented in docs/security/CSRF.md with SameSite=Lax and Origin check matching src/middleware/csrf.ts"
-      },
-      "3d_coverage_ratchet": {
-        "file": "ssvm-backend/coverage-ratchet.json",
-        "actualThresholds": {
-          "lines": 29.4,
-          "statements": 28.07,
-          "functions": 26.91,
-          "branches": 19.95
-        }
-      },
-      "3e_vitest_excludes": {
-        "file": "ssvm-backend/vitest.config.ts",
-        "excludes": ["dist/**", "src/tests/db/**"]
-      },
-      "3f_heavy_semaphore": {
-        "file": "scripts/heavy.ps1",
-        "name": "Local\\SSVM_ERP_Heavy",
-        "result": "Verified parallel semaphore limits concurrency to 2"
-      },
-      "3g_tracked_logs_webhook": {
-        "deletedFile": "ssvm-backend/tsc-errors.txt",
-        "unmountedRoute": "ssvm-backend/src/routes/webhooks/payments.ts"
-      }
+    "R3_shuffled_seed_89432": {
+      "command": "npx vitest run --sequence.shuffle --sequence.seed=89432",
+      "exitCode": 0,
+      "testFiles": "27 passed (27)",
+      "tests": "177 passed (177)"
     },
-    "step4_follow_up": {
-      "status": "COMPLETED",
-      "item1_database_url_auth": {
-        "status": "PASSED",
-        "details": "DATABASE_URL_AUTH required in env.ts, validate-env.ts, .env.example (root and ssvm-backend), docker-compose.yml, docker-compose.api.yml, ssvm-backend/docker-compose.yml, and ssvm-backend/k8s/deployment.yaml. Removed fallback in authPrisma.ts. Dedicated narrow role ssvm_auth provisioned (rolsuper=false, rolbypassrls=false) with only login grants and policies.",
-        "tests": {
-          "role_verification": "Proves authPrisma connects as ssvm_auth with rolsuper=false and rolbypassrls=false (src/tests/api/auth.test.ts:225)",
-          "missing_auth_url_loud_failure": "Proves direct call to getAuthPrisma throws and login attempt fails with 500 when DATABASE_URL_AUTH is deleted (src/tests/api/auth.test.ts:245)"
-        }
-      },
-      "item2_caller_inventory": {
-        "status": "PASSED",
-        "file": "docs/AUDIT/requests/W0-to-A.md",
-        "details": "Inventoried 9 callers of getAuthPrisma without modification: payments.ts (touches tenant tables), search.ts (touches tenant tables), sessions.ts (touches user_sessions), students.ts (touches users), auth.ts (touches tenant tables), admin/audit.ts (touches tenant tables), auth middleware (touches tenant tables), authEventLogger.ts (touches auth_events), audit.ts (touches audit_logs)."
-      },
-      "item3_student_login_ambiguity_and_dob": {
-        "status": "PASSED",
-        "details": "Student login returns 401 when multiple students match admissionNo across schools and schoolCode is omitted. dob password fallback removed. Verified in src/tests/api/student-two-schools.test.ts."
-      },
-      "item4_csrf_docs": {
-        "status": "PASSED",
-        "file": "docs/security/CSRF.md",
-        "details": "Updated to document SameSite=Lax and Origin header check against new URL(env.FRONTEND_URL).origin matching src/middleware/csrf.ts."
-      },
-      "item5_deleted_tests_mapping": {
-        "status": "PASSED",
-        "details": "Deleted ssvm-backend/tests/ after confirming 1:1 equivalent in src/tests; mapped in commit ea6bfac message."
-      },
-      "item6_ci_shuffled_parallel": {
-        "status": "PASSED",
-        "details": "Added CI step 'Run Shuffled Parallel Tests' running npx vitest run --sequence.shuffle --sequence.seed=$SHUFFLE_SEED with printed seed."
-      },
-      "item7_catalog_rerun": {
-        "status": "PASSED",
-        "ssvm_test_template": "206 tables, 184 policies, 174 rls_forced_tables, 0 non_postgres_owned",
-        "ssvm_test": "206 tables, 184 policies, 174 rls_forced_tables, 0 non_postgres_owned"
-      }
+    "R4_rls": {
+      "command": "npm run test:rls",
+      "exitCode": 0,
+      "testFiles": "2 passed (2)",
+      "tests": "182 passed (182)"
     },
-    "step5_ci_summary": {
-      "runId": 41442764866,
-      "headCommit": "ea6bfac",
-      "prNumber": 2,
-      "jobs": {
-        "Migrate and RLS Tests (restricted role)": {
-          "status": "success",
-          "id": 125268428609,
-          "duration": "1m44s"
-        },
-        "backend-type-check": {
-          "status": "success",
-          "id": 125268428727,
-          "duration": "1m29s"
-        },
-        "frontend-build (super-admin)": {
-          "status": "success",
-          "id": 125268428364,
-          "duration": "1m19s"
-        },
-        "frontend-build (teacher-portal)": {
-          "status": "success",
-          "id": 125268428470,
-          "duration": "1m13s"
-        },
-        "frontend-build (erp-admin)": {
-          "status": "success",
-          "id": 125268428498,
-          "duration": "1m18s"
-        },
-        "frontend-build (student-portal)": {
-          "status": "success",
-          "id": 125268428592,
-          "duration": "1m1s"
-        },
-        "frontend-build (payment-portal)": {
-          "status": "success",
-          "id": 125268428641,
-          "duration": "1m2s"
-        },
-        "frontend-build (saas-frontend)": {
-          "status": "success",
-          "id": 125268428685,
-          "duration": "1m11s"
-        },
-        "frontend-build (parent-portal)": {
-          "status": "success",
-          "id": 125268428849,
-          "duration": "1m17s"
-        },
-        "backend-test": {
-          "status": "failure",
-          "id": 125268428083,
-          "duration": "2m40s",
-          "reason": "165/167 tests passed (23/25 test files passed). 2 tests failed: payments.test.ts and tenant-isolation.spec.ts because getAuthPrisma() was restricted to ssvm_auth with only login grants per Wave 0 follow-up requirement 1; callers are unedited per requirement 2 and inventoried for Lane A."
-        },
-        "backend-lint": {
-          "status": "failure",
-          "id": 125268428503,
-          "duration": "1m30s",
-          "reason": "Pre-existing lint errors in app.ts and backup.ts; out of Wave 0 scope."
-        },
-        "security-scan": {
-          "status": "failure",
-          "id": 125268428605,
-          "duration": "55s",
-          "reason": "npm audit --audit-level=high fails on existing transitive dependencies (sharp, systeminformation, vite, zod); out of Wave 0 scope."
-        }
-      }
+    "tsc_typecheck": {
+      "command": "npm run type-check",
+      "exitCode": 0
+    },
+    "build": {
+      "command": "npm run build",
+      "exitCode": 0
     }
   }
 }

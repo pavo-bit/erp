@@ -242,6 +242,29 @@ describe('Auth API Routes', () => {
       expect(res.body.success).toBe(true);
     });
 
+    it('proves ssvm_auth CANNOT update users.role (column-level privilege restricted)', async () => {
+      const authPrisma = getAuthPrisma();
+      await expect(
+        authPrisma.$executeRawUnsafe(`UPDATE users SET role = 'SUPER_ADMIN' WHERE id = '${testUser.id}'`)
+      ).rejects.toThrow(/permission denied/i);
+    });
+
+    it('proves ssvm_auth CANNOT read invoices (table privilege restricted)', async () => {
+      const authPrisma = getAuthPrisma();
+      await expect(
+        authPrisma.$queryRawUnsafe(`SELECT * FROM invoices LIMIT 1`)
+      ).rejects.toThrow(/permission denied/i);
+    });
+
+    it('proves ssvm_auth CANNOT insert into users (table privilege restricted)', async () => {
+      const authPrisma = getAuthPrisma();
+      await expect(
+        authPrisma.$executeRawUnsafe(
+          `INSERT INTO users (id, email, name, role, "schoolId") VALUES ('bad_user', 'hacker@evil.com', 'Hacker', 'SUPER_ADMIN', '${schoolId}')`
+        )
+      ).rejects.toThrow(/permission denied/i);
+    });
+
     it('fails loudly when DATABASE_URL_AUTH is missing during auth operations', async () => {
       const originalAuthUrl = process.env.DATABASE_URL_AUTH;
       try {

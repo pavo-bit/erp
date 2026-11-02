@@ -1,5 +1,5 @@
 import prisma from "./prisma";
-import { getAuthPrisma } from "./authPrisma";
+import { getTrustedPrisma } from "./trustedPrisma";
 import logger from "./logger";
 import crypto from "crypto";
 
@@ -15,11 +15,12 @@ export async function createAuditLog({ data }: { data: {
   ipAddress?: string | null;
   device?: string | null;
 }}) {
+  const db = getTrustedPrisma("AUDIT_LOGGING"); // TEMP: replaced by tenant wrapper in lane A
   try {
     // Ensure we are chaining chronologically within a single transaction if possible
     // For absolute strictness we use a transaction to lock the latest row, but 
     // for performance we just fetch the latest.
-    const lastLog = await prisma.auditLog.findFirst({
+    const lastLog = await db.auditLog.findFirst({
       orderBy: { id: "desc" },
       select: { hash: true }
     });
@@ -42,17 +43,24 @@ export async function createAuditLog({ data }: { data: {
 
     const hash = crypto.createHash("sha256").update(logContent).digest("hex");
 
-    return await prisma.auditLog.create({
+    return await db.auditLog.create({
       data: {
         ...data,
         previousHash,
         hash
       }
     });
-  } catch (error) {
-    logger.error({ err: error, action: data.action }, "Failed to create AuditLog");
-    // Fallback: create without hash if chaining fails (e.g. concurrency race)
-    return await prisma.auditLog.create({ data });
+  } catch (error: any) {
+    const sqlState = error?.code || error?.meta?.code || "UNKNOWN";
+    logger.error({ err: error, sqlState, action: data.action }, "Failed to create AuditLog with hash chain");
+    try {
+      // Fallback: create without hash if chaining fails (e.g. concurrency race)
+      return await db.auditLog.create({ data });
+    } catch (fallbackError: any) {
+      const fallbackSqlState = fallbackError?.code || fallbackError?.meta?.code || "UNKNOWN";
+      logger.error({ err: fallbackError, sqlState: fallbackSqlState, action: data.action }, "Failed to create AuditLog fallback");
+      return null;
+    }
   }
 }
 
@@ -102,7 +110,7 @@ export async function logSecurityEvent(data: {
   metadata?: any;
 }) {
   try {
-    const db = getAuthPrisma();
+    const db = getTrustedPrisma("SECURITY_EVENT_LOGGING"); // TEMP: replaced by tenant wrapper in lane A
     const log = await db.systemLog.create({
       data: {
         level: data.severity === "CRITICAL" ? "FATAL" : data.severity === "HIGH" ? "ERROR" : data.severity === "MEDIUM" ? "WARN" : "INFO",
@@ -123,7 +131,8 @@ export async function logSecurityEvent(data: {
     }
 
     return log;
-  } catch (error) {
-    logger.error({ err: error, data }, "Failed to create SecurityAuditLog");
+  } catch (error: any) {
+    const sqlState = error?.code || error?.meta?.code || "UNKNOWN";
+    logger.error({ err: error, sqlState, data }, "Failed to create SecurityAuditLog");
   }
 }

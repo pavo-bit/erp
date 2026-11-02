@@ -73,7 +73,7 @@ describe("PostgreSQL tenant RLS", () => {
     const policies = await prisma.$queryRaw<Array<{ usingExpression: string | null; checkExpression: string | null }>>(Prisma.sql`
       SELECT qual AS "usingExpression", with_check AS "checkExpression"
       FROM pg_policies
-      WHERE schemaname = 'public' AND tablename = ${table}
+      WHERE schemaname = 'public' AND tablename = ${table} AND roles = '{public}'
     `);
     expect(policies.length, `${table} must have an RLS policy`).toBeGreaterThan(0);
     for (const policy of policies) {

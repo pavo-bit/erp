@@ -1,5 +1,5 @@
 import prisma from '../lib/prisma';
-import { getAuthPrisma } from "../lib/authPrisma";
+import { getTrustedPrisma } from "../lib/trustedPrisma";
 import { Router, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
@@ -335,7 +335,7 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
       }
 
       try {
-        const db = getAuthPrisma();
+        const db = getTrustedPrisma("PAYMENTS_WEBHOOK"); // TEMP: replaced by tenant wrapper in lane A
         const result = await db.$transaction(async (tx) => {
           // ── Idempotency Check 1: By idempotency key ──
           const existingByEvent = await tx.paymentTransaction.findFirst({

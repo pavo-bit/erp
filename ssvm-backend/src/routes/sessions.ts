@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { authenticate } from "../middleware/auth";
-import { getAuthPrisma } from "../lib/authPrisma";
+import { getTrustedPrisma } from "../lib/trustedPrisma";
 import { logSecurityEvent } from "../lib/audit";
 
 const router = Router();
@@ -17,7 +17,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const authDb = getAuthPrisma();
+    const authDb = getTrustedPrisma("SESSION_MANAGEMENT"); // TEMP: replaced by tenant wrapper in lane A
     const sessions = await authDb.userSession.findMany({
       where: { userId, isActive: true },
       orderBy: { lastSeen: 'desc' }
@@ -36,7 +36,7 @@ router.delete("/:sessionId", async (req: Request, res: Response): Promise<void> 
     const userId = req.user?.id;
     const { sessionId } = req.params;
 
-    const authDb = getAuthPrisma();
+    const authDb = getTrustedPrisma("SESSION_MANAGEMENT"); // TEMP: replaced by tenant wrapper in lane A
     const session = await authDb.userSession.findFirst({
       where: {
         userId,
@@ -84,7 +84,7 @@ router.post("/logout-all", async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    await getAuthPrisma().userSession.updateMany({
+    await getTrustedPrisma("SESSION_MANAGEMENT").userSession.updateMany({ // TEMP: replaced by tenant wrapper in lane A
       where: { 
         userId, 
         isActive: true,
