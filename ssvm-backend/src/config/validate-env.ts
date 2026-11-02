@@ -14,6 +14,7 @@ import { z } from "zod";
 const productionSecretsSchema = z.object({
   // Database
   DATABASE_URL: z.string().min(1),
+  DATABASE_URL_AUTH: z.string().min(1),
 
   // JWT RSA Keys
   ACCESS_TOKEN_PRIVATE_KEY: z.string().refine(
@@ -59,6 +60,7 @@ const productionSecretsSchema = z.object({
 
 const developmentSecretsSchema = z.object({
   DATABASE_URL: z.string().min(1),
+  DATABASE_URL_AUTH: z.string().min(1),
   ACCESS_TOKEN_PRIVATE_KEY: z.string().min(1),
   ACCESS_TOKEN_PUBLIC_KEY: z.string().min(1),
   REFRESH_TOKEN_PRIVATE_KEY: z.string().min(1),

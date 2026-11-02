@@ -41,9 +41,11 @@ jobs:
     env:
       APP_DB_PASSWORD: ${{ github.run_id }}-app-ci
       FIXTURE_DB_PASSWORD: ${{ github.run_id }}-fixture-ci
+      AUTH_DB_PASSWORD: ${{ github.run_id }}-auth-ci
       PGPASSWORD: ${{ github.run_id }}-postgres-ci
       DATABASE_URL_TEST: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
       DATABASE_URL_TEST_FIXTURE: postgresql://ssvm_fixture:${{ github.run_id }}-fixture-ci@localhost:5432/ssvm_test?schema=public
+      DATABASE_URL_AUTH: postgresql://ssvm_auth:${{ github.run_id }}-auth-ci@localhost:5432/ssvm_test?schema=public
       DATABASE_URL: postgresql://ssvm_app:${{ github.run_id }}-app-ci@localhost:5432/ssvm_test?schema=public
       DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_test?schema=public
       DATABASE_URL_ADMIN: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/postgres
@@ -70,7 +72,7 @@ jobs:
       - name: Provision restricted test role
         run: |
           psql --host localhost --username postgres --dbname ssvm_test \
-            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" --set=fixture_password="$FIXTURE_DB_PASSWORD" <<'SQL'
+            --set=ON_ERROR_STOP=1 --set=app_password="$APP_DB_PASSWORD" --set=fixture_password="$FIXTURE_DB_PASSWORD" --set=auth_password="$AUTH_DB_PASSWORD" <<'SQL'
           SELECT format(
             'CREATE ROLE ssvm_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
             :'app_password'
@@ -99,6 +101,16 @@ jobs:
           ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
             GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_fixture;
 
+          SELECT format(
+            'CREATE ROLE ssvm_auth WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
+            :'auth_password'
+          )
+          WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_auth')
+          \gexec
+
+          GRANT CONNECT ON DATABASE ssvm_test TO ssvm_auth;
+          GRANT USAGE ON SCHEMA public TO ssvm_auth;
+
           CREATE DATABASE ssvm_shadow;
           SQL
 
@@ -126,6 +138,87 @@ jobs:
             GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ssvm_fixture;
           ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public
             GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO ssvm_fixture;
+
+          GRANT USAGE ON SCHEMA public TO ssvm_auth;
+          GRANT SELECT, INSERT, UPDATE ON users TO ssvm_auth;
+          GRANT SELECT ON schools TO ssvm_auth;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON user_sessions TO ssvm_auth;
+          GRANT SELECT, INSERT, UPDATE, DELETE ON refresh_tokens TO ssvm_auth;
+          GRANT SELECT, INSERT ON audit_logs TO ssvm_auth;
+          GRANT SELECT, INSERT ON system_logs TO ssvm_auth;
+          GRANT SELECT, INSERT ON auth_events TO ssvm_auth;
+          GRANT SELECT, UPDATE ON students TO ssvm_auth;
+          GRANT SELECT ON teachers, guardians, alumni TO ssvm_auth;
+          GRANT SELECT ON academic_sessions, classes, sections TO ssvm_auth;
+          GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ssvm_auth;
+
+          DROP POLICY IF EXISTS auth_user_login ON users;
+          CREATE POLICY auth_user_login ON users FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id()) 
+            WITH CHECK (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id());
+
+          DROP POLICY IF EXISTS auth_sessions ON user_sessions;
+          CREATE POLICY auth_sessions ON user_sessions FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR EXISTS (
+              SELECT 1 FROM users tenant_ref_0
+              WHERE user_sessions."userId" = tenant_ref_0.id AND tenant_ref_0."schoolId" = current_tenant_id()
+            )) 
+            WITH CHECK (current_user = 'ssvm_auth' OR EXISTS (
+              SELECT 1 FROM users tenant_ref_0
+              WHERE user_sessions."userId" = tenant_ref_0.id AND tenant_ref_0."schoolId" = current_tenant_id()
+            ));
+
+          DROP POLICY IF EXISTS auth_refresh_tokens ON refresh_tokens;
+          CREATE POLICY auth_refresh_tokens ON refresh_tokens FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR EXISTS (
+              SELECT 1 FROM users tenant_ref_0
+              WHERE refresh_tokens."userId" = tenant_ref_0.id AND tenant_ref_0."schoolId" = current_tenant_id()
+            )) 
+            WITH CHECK (current_user = 'ssvm_auth' OR EXISTS (
+              SELECT 1 FROM users tenant_ref_0
+              WHERE refresh_tokens."userId" = tenant_ref_0.id AND tenant_ref_0."schoolId" = current_tenant_id()
+            ));
+
+          DROP POLICY IF EXISTS auth_students ON students;
+          CREATE POLICY auth_students ON students FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id()) 
+            WITH CHECK (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id());
+
+          DROP POLICY IF EXISTS auth_guardians ON guardians;
+          CREATE POLICY auth_guardians ON guardians FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id()) 
+            WITH CHECK (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id());
+
+          DROP POLICY IF EXISTS auth_alumni ON alumni;
+          CREATE POLICY auth_alumni ON alumni FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR EXISTS (
+              SELECT 1 FROM users tenant_ref_0
+              WHERE alumni."userId" = tenant_ref_0.id AND tenant_ref_0."schoolId" = current_tenant_id()
+            )) 
+            WITH CHECK (current_user = 'ssvm_auth' OR EXISTS (
+              SELECT 1 FROM users tenant_ref_0
+              WHERE alumni."userId" = tenant_ref_0.id AND tenant_ref_0."schoolId" = current_tenant_id()
+            ));
+
+          DROP POLICY IF EXISTS auth_teachers ON teachers;
+          CREATE POLICY auth_teachers ON teachers FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id()) 
+            WITH CHECK (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id());
+
+          DROP POLICY IF EXISTS auth_audit_logs ON audit_logs;
+          CREATE POLICY auth_audit_logs ON audit_logs FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id()) 
+            WITH CHECK (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id());
+
+          DROP POLICY IF EXISTS auth_system_logs ON system_logs;
+          CREATE POLICY auth_system_logs ON system_logs FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id()) 
+            WITH CHECK (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id());
+
+          DROP POLICY IF EXISTS auth_role_events ON auth_events;
+          CREATE POLICY auth_role_events ON auth_events FOR ALL TO ssvm_auth 
+            USING (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id()) 
+            WITH CHECK (current_user = 'ssvm_auth' OR "schoolId" = current_tenant_id());
           SQL
 
       - name: Show database identity and policy count
@@ -135,6 +228,12 @@ jobs:
 
       - name: Run Tests with Coverage
         run: npm run test:ci
+
+      - name: Run Shuffled Parallel Tests
+        run: |
+          SHUFFLE_SEED=$((10000 + RANDOM % 90000))
+          echo "Running vitest with sequence.shuffle and seed: $SHUFFLE_SEED"
+          npx vitest run --sequence.shuffle --sequence.seed=$SHUFFLE_SEED
 
       - name: Upload backend test report
         if: always()

@@ -46,3 +46,21 @@ WHERE n.nspname = 'public' AND c.relname = 'fee_categories';
 ```
 
 Scratch catalog output was `relrowsecurity=f`, `relforcerowsecurity=t`, `fee_policy_count=1`. The policy exists but is not enforced because row security is disabled.
+
+## Callers of getAuthPrisma Inventory
+
+Per Wave 0 follow-up requirement 2, here is the complete audit of every caller of `getAuthPrisma()` in `ssvm-backend/src/` and whether each touches tenant tables. **Note: These callers have NOT been modified by Wave 0.**
+
+| Caller File | Line(s) | Tables Accessed via `getAuthPrisma()` | Touches Tenant Tables? | Details |
+|-------------|---------|---------------------------------------|------------------------|---------|
+| `src/routes/payments.ts` | 338 | `transactions`, `invoices`, `students`, `fee_structures` | **YES** | Webhook verification bypasses RLS using authPrisma to query and update tenant records (`schoolId`-scoped). |
+| `src/routes/search.ts` | 24 | `students`, `teachers`/`staff`, `fee_structures` | **YES** | Global search uses authPrisma when `role === 'SUPER_ADMIN' && !schoolId` across tenant-scoped tables. |
+| `src/routes/sessions.ts` | 20, 39, 87 | `user_sessions` | **NO direct tenant table** | Accesses `user_sessions` (scoped to `userId` with indirect foreign key join to `users.schoolId`). |
+| `src/routes/students.ts` | 97 | `users` | **YES** | Enrolling student creates linked login `User` record (`schoolId`-scoped). |
+| `src/routes/auth.ts` | 66, 151, 247, 360, 736 | `users`, `user_sessions`, `refresh_tokens`, `students`, `guardians`, `alumni`, `schools` | **YES** | Authentication endpoints touch `users` and `students` (both tenant-scoped), along with relations `guardians` and `alumni`. |
+| `src/routes/admin/audit.ts` | 22, 51 | `audit_logs`, `system_logs` | **YES** | Admin audit log viewer queries tenant-scoped `audit_logs` and `system_logs` (`schoolId` column). |
+| `src/middleware/auth.ts` | 72, 183 | `users`, `students` | **YES** | Auth middleware verifies user/student and updates password hashes on Argon2 upgrade. |
+| `src/lib/authEventLogger.ts` | 24 | `auth_events` | **YES** | Logs login failures to `auth_events` (`schoolId` column). |
+| `src/lib/audit.ts` | 105 | `audit_logs` | **YES** | Logs audit entries to `audit_logs` (`schoolId` column). |
+
+Lane A should review these callers in Wave 1 / Phase A to migrate non-auth cross-tenant operations to dedicated tenant-context proxies or appropriate domain-level roles rather than using `getAuthPrisma()`.

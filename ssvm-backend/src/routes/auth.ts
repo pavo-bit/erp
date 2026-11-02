@@ -237,7 +237,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
 router.post("/student/login", async (req: AuthRequest, res: Response) => {
   try {
     const { admissionNo, schoolCode } = req.body;
-    const password = req.body.password || req.body.dob;
+    const password = req.body.password;
 
     if (!admissionNo || !password) {
       res.status(400).json({ success: false, error: "Admission number and password required" });
@@ -256,19 +256,28 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
       schoolId = school.id;
     }
 
-    const student = await authDb.student.findFirst({
+    const matchingStudents = await authDb.student.findMany({
       where: {
         admissionNo,
         ...(schoolId ? { schoolId } : {}),
       },
       include: { school: true, user: true },
+      take: 2,
     });
 
-    if (!student) { 
+    if (matchingStudents.length === 0) { 
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", req, success: false, failReason: "user_not_found", metadata: { admissionNo, schoolCode } });
       res.status(401).json({ success: false, error: "Invalid admission number" }); 
       return; 
     }
+
+    if (!schoolId && matchingStudents.length > 1) {
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", req, success: false, failReason: "ambiguous_school", metadata: { admissionNo } });
+      res.status(401).json({ success: false, error: "Multiple students found with this admission number across schools. Please specify schoolCode." });
+      return;
+    }
+
+    const student = matchingStudents[0];
 
     if (schoolId && student.schoolId !== schoolId) {
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "wrong_school", metadata: { admissionNo, schoolCode } });

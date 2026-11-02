@@ -26,7 +26,7 @@ export default defineConfig({
     maxWorkers: 2,
     minWorkers: 1,
     setupFiles: ['./src/tests/workerDbSetup.ts', './src/tests/setup.ts'],
-    exclude: [...configDefaults.exclude, 'dist/**', 'tests/**', 'src/tests/db/**'],
+    exclude: [...configDefaults.exclude, 'dist/**', 'src/tests/db/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'json-summary', 'html'],

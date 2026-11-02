@@ -188,7 +188,7 @@ describe("Student user linking and two-schools isolation", () => {
       .post("/api/v1/auth/student/login")
       .send({
         admissionNo,
-        dob: "StudentPassword@123", // used as password field in student login
+        password: "StudentPassword@123",
         schoolCode: (await prisma.school.findUnique({ where: { id: schoolAId } }))!.code,
       });
 
@@ -201,13 +201,25 @@ describe("Student user linking and two-schools isolation", () => {
       .post("/api/v1/auth/student/login")
       .send({
         admissionNo,
-        dob: "StudentPassword@456",
+        password: "StudentPassword@456",
         schoolCode: (await prisma.school.findUnique({ where: { id: schoolBId } }))!.code,
       });
 
     expect(loginResB.status).toBe(200);
     expect(loginResB.body.success).toBe(true);
     expect(loginResB.body.data.user.id).toBe(studentB.id);
+
+    // Test ambiguous login without schoolCode when admissionNo exists in both schools
+    const ambiguousRes = await request(app)
+      .post("/api/v1/auth/student/login")
+      .send({
+        admissionNo,
+        password: "StudentPassword@123",
+      });
+
+    expect(ambiguousRes.status).toBe(401);
+    expect(ambiguousRes.body.success).toBe(false);
+    expect(ambiguousRes.body.error).toMatch(/Multiple students found/i);
   });
 
   it("rejects student login if the Student record has no linked userId (no on-the-fly User creation)", async () => {
@@ -228,7 +240,7 @@ describe("Student user linking and two-schools isolation", () => {
       .post("/api/v1/auth/student/login")
       .send({
         admissionNo: unlinkedAdm,
-        dob: "Unlinked@123",
+        password: "Unlinked@123",
         schoolCode: (await prisma.school.findUnique({ where: { id: schoolAId } }))!.code,
       });
 
@@ -244,6 +256,44 @@ describe("Student user linking and two-schools isolation", () => {
       },
     });
     expect(user).toBeNull();
+  });
+
+  it("rejects student login when dob is supplied as fallback without password", async () => {
+    const adm = `DOBTEST_${Date.now().toString(36)}`;
+    const studentUser = await prisma.user.create({
+      data: {
+        email: `student_dob_${Date.now()}@test.school`,
+        name: "Student DOB",
+        passwordHash: await hashPassword("DobPass@123"),
+        role: Role.STUDENT,
+        schoolId: schoolAId,
+        isActive: true,
+      },
+    });
+
+    await prisma.student.create({
+      data: {
+        name: "Student DOB",
+        rollNo: "105",
+        admissionNo: adm,
+        password: await hashPassword("DobPass@123"),
+        schoolId: schoolAId,
+        sectionId: sectionAId,
+        userId: studentUser.id,
+      },
+    });
+
+    const loginRes = await request(app)
+      .post("/api/v1/auth/student/login")
+      .send({
+        admissionNo: adm,
+        dob: "DobPass@123", // dob is rejected as password fallback
+        schoolCode: (await prisma.school.findUnique({ where: { id: schoolAId } }))!.code,
+      });
+
+    expect(loginRes.status).toBe(400);
+    expect(loginRes.body.success).toBe(false);
+    expect(loginRes.body.error).toContain("password required");
   });
 
   it("rejects student login when using wrong school code", async () => {
@@ -276,7 +326,7 @@ describe("Student user linking and two-schools isolation", () => {
       .post("/api/v1/auth/student/login")
       .send({
         admissionNo,
-        dob: "ValidPass@123",
+        password: "ValidPass@123",
         schoolCode: (await prisma.school.findUnique({ where: { id: schoolBId } }))!.code,
       });
 
@@ -313,7 +363,7 @@ describe("Student user linking and two-schools isolation", () => {
       .post("/api/v1/auth/student/login")
       .send({
         admissionNo,
-        dob: "AnyPassword@123",
+        password: "AnyPassword@123",
         schoolCode: (await prisma.school.findUnique({ where: { id: schoolAId } }))!.code,
       });
 

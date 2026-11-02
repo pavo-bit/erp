@@ -21,6 +21,12 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 4000
+          env:
+            - name: DATABASE_URL_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: ssvm-backend-secrets
+                  key: DATABASE_URL_AUTH
           envFrom:
             - secretRef:
                 name: ssvm-backend-secrets

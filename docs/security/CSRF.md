@@ -1,6 +1,7 @@
-# CSRF Refresh and Logout Token Exclusion Rationale
-1. Refresh and logout endpoints are excluded from CSRF tokens because they use SameSite=Strict and HttpOnly cookies.
-2. Browsers do not attach SameSite=Strict cookies to cross-site requests, preventing cross-site request forgery.
-3. Strict Origin header validation explicitly rejects requests from unapproved origins before cookie inspection.
-4. Refresh tokens rotate upon invocation, preventing ambient session hijacking or replay attacks.
-5. Clients can safely recover or terminate sessions without holding existing CSRF tokens in browser memory.
+# CSRF Defense & Token Lifecycle Rationale
+
+1. **SameSite=Lax Cookies**: Authentication tokens (`access_token`, `refresh_token`) and CSRF tokens are issued with `SameSite=Lax`, `HttpOnly`, and `Secure` (in production). Modern browsers withhold `SameSite=Lax` cookies from cross-site subrequests (such as `fetch`/`XHR` or `POST` submissions made from third-party websites).
+2. **Strict Origin Verification**: In addition to cookie attributes, all incoming requests carrying authentication cookies (`access_token`, `auth_token`, or `refresh_token`) undergo strict origin inspection in `csrfProtection`. If an `Origin` header is present, it is parsed and verified to match `new URL(env.FRONTEND_URL).origin`. Requests with mismatched or untrusted origins are immediately rejected with HTTP 403 (`invalid_origin`), neutralizing cross-site ambient credential attacks before cookie inspection or route execution.
+3. **Double-Submit Exclusions**: Endpoints such as `/api/v1/auth/refresh` and `/api/v1/auth/logout` are excluded from the double-submit CSRF token requirement because token refresh occurs asynchronously when client access tokens or CSRF tokens may have expired. They remain protected by `SameSite=Lax`, strict `Origin` verification, and single-use refresh token family rotation.
+4. **Refresh Token Rotation**: Refresh tokens are stored as SHA-256 hashes in PostgreSQL and rotate on every invocation with family tracking, ensuring replay or theft attempts revoke the entire token family.
+5. **Session Safety**: Clients can safely recover or terminate sessions without holding existing CSRF tokens in browser memory.

@@ -6,6 +6,7 @@ import { UserFactory, SchoolFactory, StudentFactory } from '../helpers/factories
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getEnv } from '../../config/env';
+import { getAuthPrisma, resetAuthPrisma } from '../../lib/authPrisma';
 
 const app = createTestApp();
 const prisma = getTestPrisma();
@@ -217,6 +218,49 @@ describe('Auth API Routes', () => {
       expect(res.status).toBe(200);
       const returnedUser = res.body.data?.user || res.body.data;
       expect(returnedUser.id).toBe(testUser.id);
+    });
+  });
+
+  describe('DATABASE_URL_AUTH dedicated role and failure enforcement', () => {
+    it('proves auth connection runs as dedicated narrow role ssvm_auth (not superuser, not bypassrls)', async () => {
+      const authPrisma = getAuthPrisma();
+      const rows = await authPrisma.$queryRawUnsafe<
+        Array<{ current_user: string; rolsuper: boolean; rolbypassrls: boolean }>
+      >('SELECT current_user, r.rolsuper, r.rolbypassrls FROM pg_roles r WHERE r.rolname = current_user');
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].current_user).toBe('ssvm_auth');
+      expect(rows[0].rolsuper).toBe(false);
+      expect(rows[0].rolbypassrls).toBe(false);
+
+      // Verify login runs cleanly under this dedicated narrow role
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: testUser.email, password: validPassword });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('fails loudly when DATABASE_URL_AUTH is missing during auth operations', async () => {
+      const originalAuthUrl = process.env.DATABASE_URL_AUTH;
+      try {
+        delete process.env.DATABASE_URL_AUTH;
+        resetAuthPrisma();
+
+        // Direct getAuthPrisma() call fails loudly
+        expect(() => getAuthPrisma()).toThrow(/DATABASE_URL_AUTH environment variable is required/i);
+
+        // Attempting login without DATABASE_URL_AUTH fails loudly (500)
+        const res = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: testUser.email, password: validPassword });
+
+        expect(res.status).toBe(500);
+      } finally {
+        process.env.DATABASE_URL_AUTH = originalAuthUrl;
+        resetAuthPrisma();
+      }
     });
   });
 });

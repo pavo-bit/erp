@@ -30,6 +30,15 @@ export function getWorkerFixtureDatabaseUrl(workerId: string): string {
   return parsed.toString();
 }
 
+export function getWorkerAuthDatabaseUrl(workerId: string): string {
+  const authUrl =
+    process.env.DATABASE_URL_AUTH ||
+    "postgresql://ssvm_auth:authpassword@localhost:5433/ssvm_test?schema=public";
+  const parsed = new URL(authUrl);
+  parsed.pathname = `/${getWorkerDatabaseName(workerId)}`;
+  return parsed.toString();
+}
+
 export function getMaintenanceUrl(): string {
   const adminUrl =
     process.env.DATABASE_URL_ADMIN ||
@@ -67,6 +76,9 @@ export async function ensureTemplateDatabase(): Promise<void> {
           END IF;
           IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_fixture') THEN
             EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ssvm_test_template TO ssvm_fixture';
+          END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_auth') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ssvm_test_template TO ssvm_auth';
           END IF;
         END
         $$;
@@ -122,6 +134,9 @@ export async function initWorkerDatabase(workerId: string): Promise<string> {
           END IF;
           IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_fixture') THEN
             EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ${workerDb} TO ssvm_fixture';
+          END IF;
+          IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'ssvm_auth') THEN
+            EXECUTE 'GRANT ALL PRIVILEGES ON DATABASE ${workerDb} TO ssvm_auth';
           END IF;
         END
         $$;
