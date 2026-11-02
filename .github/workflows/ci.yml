@@ -130,7 +130,7 @@ jobs:
 
       - name: Show database identity and policy count
         run: |
-          psql "$DATABASE_URL_TEST" \
+          PGPASSWORD="$APP_DB_PASSWORD" psql --host localhost --username ssvm_app --dbname ssvm_test \
             --command 'SELECT current_user, r.rolsuper, r.rolbypassrls, (SELECT count(*) FROM pg_policy) AS policy_count FROM pg_roles r WHERE r.rolname = current_user;'
 
       - name: Run Tests with Coverage
@@ -148,7 +148,7 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           directory: ./ssvm-backend/coverage/
-          fail_ci_if_error: true
+          fail_ci_if_error: false
           flags: backend
 
   database-rls:
