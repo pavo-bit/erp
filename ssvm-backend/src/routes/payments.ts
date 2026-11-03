@@ -1,5 +1,4 @@
-import prisma from '../lib/prisma';
-import { getTrustedPrisma } from "../lib/trustedPrisma";
+import prisma, { runWithTenantDatabaseTransaction } from '../lib/prisma';
 import { Router, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
@@ -48,7 +47,7 @@ router.post("/create-order", authenticate, async (req: AuthRequest, res: Respons
 
     // Optional: Add parent/student authorization check here
 
-    const totalAmount = fee.amount + fee.fineAmount;
+    const totalAmount = Number(fee.amount) + Number(fee.fineAmount);
 
     // Create Razorpay Order with Circuit Breaker protection
     const options = {
@@ -199,8 +198,8 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
               postingDate: new Date(),
               createdBy: req.user?.id || "SYSTEM",
               entries: [
-                { accountId: bankAcc.id, debitAmount: result.transaction.amountPaid, creditAmount: 0 },
-                { accountId: revAcc.id, debitAmount: 0, creditAmount: result.transaction.amountPaid },
+                { accountId: bankAcc.id, debitAmount: Number(result.transaction.amountPaid), creditAmount: 0 },
+                { accountId: revAcc.id, debitAmount: 0, creditAmount: Number(result.transaction.amountPaid) },
               ],
             });
             logger.info({ transactionId: result.transaction.id }, "[Ledger] Payment posted to Immutable Ledger");
@@ -241,7 +240,7 @@ router.post("/trigger-late-fines", authenticate, requireRole("SUPER_ADMIN", "ERP
     let updatedCount = 0;
 
     for (const fee of overdueFees) {
-      if (fee.fineAmount === 0) {
+      if (Number(fee.fineAmount) === 0) {
         await prisma.invoice.update({
           where: { id: fee.id, schoolId, fineAmount: 0 },
           data: {
@@ -335,8 +334,19 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
       }
 
       try {
-        const db = getTrustedPrisma("PAYMENTS_WEBHOOK"); // TEMP: replaced by tenant wrapper in lane A
-        const result = await db.$transaction(async (tx) => {
+        const [resolved] = await prisma.$queryRawUnsafe<Array<{ resolve_payment_school: string | null }>>(
+          `SELECT resolve_payment_school($1) AS resolve_payment_school`,
+          orderId
+        );
+        const schoolId = resolved?.resolve_payment_school;
+
+        if (!schoolId) {
+          logger.error({ orderId }, "Transaction not found for webhook orderId");
+          res.status(200).json({ success: true, message: "Transaction not found, logged" });
+          return;
+        }
+
+        const result = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
           // ── Idempotency Check 1: By idempotency key ──
           const existingByEvent = await tx.paymentTransaction.findFirst({
             where: { idempotencyKey },

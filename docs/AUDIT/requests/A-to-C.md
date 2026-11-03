@@ -1,26 +1,13 @@
-# Lane A request to Lane C — trusted auth and worker database paths
+# Lane A request to Lane C: lazy initialization required by createApp()
 
-**Requested owner:** Lane C (authz/ops)  
-**Requested by:** Lane A (DB spine)  
-**Status:** OPEN — A is authoring the shared trusted client and request wrapper.
+**Status:** OPEN — Lane C owns middleware/ops files.
 
-Use Lane A's `getTrustedPrisma()` (or a scoped trusted helper if A publishes one)
-for pre-auth identity/session operations where the tenant is not known yet: login,
-refresh, password recovery, and other credential/bootstrap paths. Never instantiate
-another Prisma client or fall back to `DATABASE_URL` for this work. After a verified
-school identity is established, authenticated route handlers must execute through
-Lane A's request transaction wrapper; the wrapper owns the transaction, sets
-`app.current_school_id` as its first statement, holds it through response completion,
-and clears context when done. Do not independently open a second request transaction.
+A1 requires `src/app.ts` to export `createApp()` without startup side effects. Static inspection found:
 
-Background workers and schedulers that process cross-tenant queues must use the
-dedicated trusted client for tenant discovery, then run tenant-specific work in the
-tenant-scoped wrapper with an explicit school ID. A global worker operation must use
-an audited super-admin helper that records an authenticated actor, request/job ID,
-source, and reason; do not add a generic `runAsSuperAdmin` bypass. Coordinate exact
-API names with A before integration.
+- `src/middleware/metrics.ts` calls `collectDefaultMetrics()` at module evaluation, which starts a collection interval.
+- `src/middleware/rateLimiter.ts` constructs an ioredis client at module evaluation when `REDIS_URL` is configured.
+- `src/jobs/queue.ts` constructs BullMQ queues and schedules maintenance jobs at module evaluation; route modules import it.
 
-**Files requested:** C-owned auth/token/session middleware and worker/runtime files,
-tests. A retains ownership of shared client/context files and schema/migrations.  
-**Gate:** authenticated API and worker tests against real PostgreSQL with missing or
-wrong tenant denied; evidence JSON before requesting merge.
+Please expose explicit initialization for metrics and rate limiter so app construction can register middleware without starting timers or network clients. Initialization should be invoked from `src/index.ts` after bootstrap. Please also advise/own a lazy queue initialization contract for route imports (or authorize Lane A to update the relevant queue module). Until these are resolved, A1 cannot claim that `createApp()` builds the app without starting network clients/timers.
+
+Lane A will avoid editing Lane C middleware and will keep only `app.ts`/`index.ts`/A1 tests in its scope while the request is open.

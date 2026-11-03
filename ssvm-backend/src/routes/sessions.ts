@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { authenticate } from "../middleware/auth";
-import { getTrustedPrisma } from "../lib/trustedPrisma";
+import prisma from "../lib/prisma";
 import { logSecurityEvent } from "../lib/audit";
 
 const router = Router();
@@ -17,8 +17,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const authDb = getTrustedPrisma("SESSION_MANAGEMENT"); // TEMP: replaced by tenant wrapper in lane A
-    const sessions = await authDb.userSession.findMany({
+    const sessions = await prisma.userSession.findMany({
       where: { userId, isActive: true },
       orderBy: { lastSeen: 'desc' }
     });
@@ -36,8 +35,7 @@ router.delete("/:sessionId", async (req: Request, res: Response): Promise<void> 
     const userId = req.user?.id;
     const { sessionId } = req.params;
 
-    const authDb = getTrustedPrisma("SESSION_MANAGEMENT"); // TEMP: replaced by tenant wrapper in lane A
-    const session = await authDb.userSession.findFirst({
+    const session = await prisma.userSession.findFirst({
       where: {
         userId,
         OR: [
@@ -52,7 +50,7 @@ router.delete("/:sessionId", async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    await authDb.userSession.update({
+    await prisma.userSession.update({
       where: { id: session.id },
       data: { isActive: false }
     });
@@ -84,7 +82,7 @@ router.post("/logout-all", async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    await getTrustedPrisma("SESSION_MANAGEMENT").userSession.updateMany({ // TEMP: replaced by tenant wrapper in lane A
+    await prisma.userSession.updateMany({
       where: { 
         userId, 
         isActive: true,

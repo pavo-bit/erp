@@ -1,10 +1,121 @@
 import { Prisma, PrismaClient } from "@prisma/client";
 import { AsyncLocalStorage } from "async_hooks";
 import { encryptionExtension } from "./prismaEncryptionMiddleware";
-import { getCurrentSchoolId, getSchoolContext } from "../middleware/school-context.middleware";
+import { getCurrentSchoolId, getSchoolContext, runWithSchoolContext } from "../middleware/school-context.middleware";
 import { TENANT_CLASSIFICATION } from "../generated/tenantClassification";
 
 const inTxStorage = new AsyncLocalStorage<boolean>();
+const activeTxStorage = new AsyncLocalStorage<Prisma.TransactionClient>();
+const activeTenantSchoolIdStorage = new AsyncLocalStorage<string>();
+
+const basePrisma = new PrismaClient();
+
+function getEffectiveClient(): any {
+  return activeTxStorage.getStore() || basePrisma;
+}
+
+export async function runWithTenantDatabaseTransaction<T>(
+  schoolId: string,
+  fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  options?: { maxWait?: number; timeout?: number; isolationLevel?: Prisma.TransactionIsolationLevel }
+): Promise<T> {
+  const existingTx = activeTxStorage.getStore();
+  const activeSchoolId = activeTenantSchoolIdStorage.getStore();
+
+  if (existingTx) {
+    if (activeSchoolId && activeSchoolId !== schoolId) {
+      throw new Error(`Cannot switch tenant context inside active transaction from '${activeSchoolId}' to '${schoolId}'.`);
+    }
+    if (!activeSchoolId && inTxStorage.getStore()) {
+      throw new Error(`Cannot start tenant transaction for '${schoolId}' inside an active trusted transaction.`);
+    }
+    return fn(existingTx);
+  }
+
+  return inTxStorage.run(true, () => {
+    return (basePrisma as any).$transaction(async (tx: Prisma.TransactionClient) => {
+      await (tx as any).$executeRaw`SELECT set_config('app.current_school_id', ${schoolId}, true);`;
+      const proxyTx = new Proxy(tx, {
+        get(target, prop, receiver) {
+          const orig = Reflect.get(target, prop, receiver);
+          const propStr = typeof prop === "string" ? prop : "";
+          const modelName = propStr ? (propStr.charAt(0).toUpperCase() + propStr.slice(1)) : "";
+          if (propStr && (propStr in softDeleteDelegates || modelName in softDeleteDelegates)) {
+            const delegateKey = propStr in softDeleteDelegates ? propStr : modelName;
+            return new Proxy(orig, {
+              get(modelTarget, modelProp, modelReceiver) {
+                if (modelProp === "delete") {
+                  return async (args: any) => {
+                    const flatWhere = flattenWhere(asRecord(args?.where) ?? {});
+                    const existing = await modelTarget.findFirst({
+                      where: addTenantWhere(delegateKey, flatWhere, schoolId),
+                      select: { id: true },
+                    });
+                    if (!existing) {
+                      const err = new Error(`An operation failed because it depends on one or more records that were required but not found.`);
+                      (err as any).code = "P2025";
+                      throw err;
+                    }
+                    return modelTarget.update({
+                      where: { id: existing.id },
+                      data: { deletedAt: new Date() },
+                    });
+                  };
+                }
+                if (modelProp === "deleteMany") {
+                  return async (args: any) => {
+                    const finalWhere = addTenantWhere(delegateKey, asRecord(args?.where) ?? {}, schoolId);
+                    return modelTarget.updateMany({
+                      where: finalWhere,
+                      data: { deletedAt: new Date() },
+                    });
+                  };
+                }
+                return Reflect.get(modelTarget, modelProp, modelReceiver);
+              }
+            });
+          }
+          return orig;
+        }
+      });
+      return activeTxStorage.run(proxyTx, () => {
+        return activeTenantSchoolIdStorage.run(schoolId, () => {
+          return runWithSchoolContext(schoolId, () => fn(proxyTx));
+        });
+      });
+    }, options);
+  });
+}
+
+const TRUSTED_PURPOSES = new Set([
+  "ADMIN_AUDIT",
+  "SUPER_ADMIN_SEARCH",
+  "PAYMENTS_WEBHOOK",
+] as const);
+
+export async function runWithTrustedDatabaseTransaction<T>(
+  context: { purpose: string; actorId?: string },
+  fn: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  if (!TRUSTED_PURPOSES.has(context.purpose as any)) {
+    throw new Error(`Unauthorized or unknown trusted purpose: ${context.purpose}`);
+  }
+  const existingTx = activeTxStorage.getStore();
+  if (existingTx) {
+    return fn(existingTx);
+  }
+
+  return inTxStorage.run(true, () => {
+    return (basePrisma as any).$transaction(async (tx: Prisma.TransactionClient) => {
+      await (tx as any).$executeRawUnsafe(
+        `SELECT set_config('app.trusted_purpose', $1, true), set_config('app.actor_id', $2, true);`,
+        context.purpose,
+        context.actorId || "SYSTEM"
+      );
+      return activeTxStorage.run(tx, () => fn(tx));
+    });
+  });
+}
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -150,36 +261,42 @@ type SoftDeleteDelegate = {
 
 const softDeleteDelegates: Record<string, SoftDeleteDelegate> = {
   School: {
-    update: (where, deletedAt) => basePrisma.school.update({ where: where as unknown as Prisma.SchoolWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.school.updateMany({ where: where as unknown as Prisma.SchoolWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => (getEffectiveClient().school || getEffectiveClient().School).update({ where: where as unknown as Prisma.SchoolWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => (getEffectiveClient().school || getEffectiveClient().School).updateMany({ where: where as unknown as Prisma.SchoolWhereInput, data: { deletedAt } }),
   },
   User: {
-    update: (where, deletedAt) => basePrisma.user.update({ where: where as unknown as Prisma.UserWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.user.updateMany({ where: where as unknown as Prisma.UserWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => (getEffectiveClient().user || getEffectiveClient().User).update({ where: where as unknown as Prisma.UserWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => (getEffectiveClient().user || getEffectiveClient().User).updateMany({ where: where as unknown as Prisma.UserWhereInput, data: { deletedAt } }),
   },
   Student: {
-    update: (where, deletedAt) => basePrisma.student.update({ where: where as unknown as Prisma.StudentWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.student.updateMany({ where: where as unknown as Prisma.StudentWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => (getEffectiveClient().student || getEffectiveClient().Student).update({ where: where as unknown as Prisma.StudentWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => (getEffectiveClient().student || getEffectiveClient().Student).updateMany({ where: where as unknown as Prisma.StudentWhereInput, data: { deletedAt } }),
   },
   Teacher: {
-    update: (where, deletedAt) => basePrisma.teacher.update({ where: where as unknown as Prisma.TeacherWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.teacher.updateMany({ where: where as unknown as Prisma.TeacherWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => (getEffectiveClient().teacher || getEffectiveClient().Teacher).update({ where: where as unknown as Prisma.TeacherWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => (getEffectiveClient().teacher || getEffectiveClient().Teacher).updateMany({ where: where as unknown as Prisma.TeacherWhereInput, data: { deletedAt } }),
   },
   Invoice: {
-    update: (where, deletedAt) => basePrisma.invoice.update({ where: where as unknown as Prisma.InvoiceWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.invoice.updateMany({ where: where as unknown as Prisma.InvoiceWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => (getEffectiveClient().invoice || getEffectiveClient().Invoice).update({ where: where as unknown as Prisma.InvoiceWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => (getEffectiveClient().invoice || getEffectiveClient().Invoice).updateMany({ where: where as unknown as Prisma.InvoiceWhereInput, data: { deletedAt } }),
   },
   Admission: {
-    update: (where, deletedAt) => basePrisma.admission.update({ where: where as unknown as Prisma.AdmissionWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.admission.updateMany({ where: where as unknown as Prisma.AdmissionWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => (getEffectiveClient().admission || getEffectiveClient().Admission).update({ where: where as unknown as Prisma.AdmissionWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => (getEffectiveClient().admission || getEffectiveClient().Admission).updateMany({ where: where as unknown as Prisma.AdmissionWhereInput, data: { deletedAt } }),
   },
   PaymentTransaction: {
-    update: (where, deletedAt) => basePrisma.paymentTransaction.update({ where: where as unknown as Prisma.PaymentTransactionWhereUniqueInput, data: { deletedAt } }),
-    updateMany: (where, deletedAt) => basePrisma.paymentTransaction.updateMany({ where: where as unknown as Prisma.PaymentTransactionWhereInput, data: { deletedAt } }),
+    update: (where, deletedAt) => (getEffectiveClient().paymentTransaction || getEffectiveClient().PaymentTransaction).update({ where: where as unknown as Prisma.PaymentTransactionWhereUniqueInput, data: { deletedAt } }),
+    updateMany: (where, deletedAt) => (getEffectiveClient().paymentTransaction || getEffectiveClient().PaymentTransaction).updateMany({ where: where as unknown as Prisma.PaymentTransactionWhereInput, data: { deletedAt } }),
   },
 };
 
-const basePrisma = new PrismaClient();
+softDeleteDelegates.student = softDeleteDelegates.Student;
+softDeleteDelegates.user = softDeleteDelegates.User;
+softDeleteDelegates.school = softDeleteDelegates.School;
+softDeleteDelegates.teacher = softDeleteDelegates.Teacher;
+softDeleteDelegates.invoice = softDeleteDelegates.Invoice;
+softDeleteDelegates.admission = softDeleteDelegates.Admission;
+softDeleteDelegates.paymentTransaction = softDeleteDelegates.PaymentTransaction;
 
 // ═══════════════════════════════════════════
 // Prisma Client with Extensions (GAP 3)
@@ -193,9 +310,26 @@ const prismaWithEncryption = basePrisma.$extends(encryptionExtension);
 
 const prisma = prismaWithEncryption
   .$extends({
+    client: {
+      async $transaction(arg: any, options?: any) {
+        return inTxStorage.run(true, () => {
+          return (basePrisma as any).$transaction(arg, options);
+        });
+      },
+    },
     query: {
       $allModels: {
         async $allOperations({ model, operation, args, query }) {
+          // ── Active Transaction Delegation ──
+          const activeTx = activeTxStorage.getStore();
+          if (activeTx && model) {
+            const delegateName = model.charAt(0).toLowerCase() + model.slice(1);
+            const txDelegate = (activeTx as any)[delegateName] || (activeTx as any)[model];
+            if (txDelegate && typeof txDelegate[operation] === "function") {
+              return txDelegate[operation](args);
+            }
+          }
+
           // ── Audit Log Impersonation Tagging ──
           if (model === 'AuditLog' && (operation === 'create' || operation === 'createMany')) {
             const context = getSchoolContext();
@@ -219,6 +353,8 @@ const prisma = prismaWithEncryption
 
           // ── Application-Level Tenant Isolation ──
           const schoolId = getCurrentSchoolId();
+          const context = getSchoolContext();
+          const isSuperAdmin = context?.isSuperAdmin ?? false;
           const classification = model ? getTenantClassification(model) : undefined;
           const softDeleteDelegate = model ? softDeleteDelegates[model] : undefined;
           const mutableArgs = asRecord(args) ?? {};
@@ -232,22 +368,29 @@ const prisma = prismaWithEncryption
           }
 
           if (softDeleteDelegate && operation === 'delete') {
-            if (schoolId && classification && classification.classification !== "global") {
-              const delegate = (prismaWithEncryption as any)[model];
-              if (delegate) {
-                const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
-                const existing = await delegate.findFirst({
-                  where: addTenantWhere(model, flatWhere, schoolId),
-                  select: { id: true },
-                });
-                if (!existing) {
-                  const err = new Error(`An operation failed because it depends on one or more records that were required but not found.`);
-                  (err as any).code = "P2025";
-                  throw err;
+            if (!inTxStorage.getStore() && schoolId && classification && classification.classification !== "global") {
+              // Fall through to transaction wrapper below
+            } else {
+              let targetWhere = asRecord(mutableArgs.where) ?? {};
+              if (schoolId && classification && classification.classification !== "global") {
+                const client = getEffectiveClient() as any;
+                const delegate = client[model] || client[model.charAt(0).toLowerCase() + model.slice(1)] || (prismaWithEncryption as any)[model] || (prismaWithEncryption as any)[model.charAt(0).toLowerCase() + model.slice(1)];
+                if (delegate) {
+                  const flatWhere = flattenWhere(asRecord(mutableArgs.where) ?? {});
+                  const existing = await delegate.findFirst({
+                    where: addTenantWhere(model, flatWhere, schoolId),
+                    select: { id: true },
+                  });
+                  if (!existing) {
+                    const err = new Error(`An operation failed because it depends on one or more records that were required but not found.`);
+                    (err as any).code = "P2025";
+                    throw err;
+                  }
+                  targetWhere = { id: existing.id };
                 }
               }
+              return softDeleteDelegate.update(targetWhere, new Date());
             }
-            return softDeleteDelegate.update(asRecord(mutableArgs.where) ?? {}, new Date());
           }
 
           if (softDeleteDelegate && operation === 'deleteMany') {
@@ -296,7 +439,7 @@ const prisma = prismaWithEncryption
           if (schoolId && !inTxStorage.getStore() && classification && classification.classification !== "global") {
             return inTxStorage.run(true, () => {
               return (basePrisma as any).$transaction(async (tx: any) => {
-                await tx.$executeRawUnsafe(`SELECT set_config('app.current_school_id', '${schoolId}', true);`);
+                await (tx as any).$executeRaw`SELECT set_config('app.current_school_id', ${schoolId}, true);`;
                 const delegateName = model.charAt(0).toLowerCase() + model.slice(1);
                 const txDelegate = tx[delegateName] || tx[model];
                 if (txDelegate) {
@@ -317,7 +460,10 @@ const prisma = prismaWithEncryption
                       throw err;
                     }
                     if (operation === "delete" && softDeleteDelegate) {
-                      return softDeleteDelegate.update(asRecord(mutableArgs.where) ?? {}, new Date());
+                      return (txDelegate || (tx as any)[model]).update({
+                        where: { id: existing.id },
+                        data: { deletedAt: new Date() }
+                      });
                     }
                     return txDelegate[operation]({
                       ...mutableArgs,
@@ -343,6 +489,34 @@ const prisma = prismaWithEncryption
                   if (typeof txDelegate[operation] === "function") {
                     return txDelegate[operation](mutableArgs);
                   }
+                }
+                return query(mutableArgs as typeof args);
+              });
+            });
+          }
+
+          if (!schoolId && !isSuperAdmin && !inTxStorage.getStore() && classification && classification.classification !== "global") {
+            const writeOps = new Set(["create", "createMany", "createManyAndReturn", "update", "updateMany", "updateManyAndReturn", "delete", "deleteMany", "upsert"]);
+            if (writeOps.has(operation)) {
+              throw new Error(`Tenant context required for write operation '${operation}' on tenant table '${model}'.`);
+            }
+            return inTxStorage.run(true, () => {
+              return (basePrisma as any).$transaction(async (tx: any) => {
+                await (tx as any).$executeRaw`SELECT set_config('app.current_school_id', '', true);`;
+                const delegateName = model.charAt(0).toLowerCase() + model.slice(1);
+                const txDelegate = tx[delegateName] || tx[model];
+                if (operation === "findUnique" || operation === "findFirst") return null;
+                if (operation === "findUniqueOrThrow" || operation === "findFirstOrThrow") {
+                  const err = new Error(`An operation failed because it depends on one or more records that were required but not found.`);
+                  (err as any).code = "P2025";
+                  throw err;
+                }
+                if (operation === "findMany") return [];
+                if (operation === "count") return 0;
+                if (operation === "aggregate") return { _count: 0 };
+                if (operation === "groupBy") return [];
+                if (txDelegate && typeof txDelegate[operation] === "function") {
+                  return txDelegate[operation](mutableArgs);
                 }
                 return query(mutableArgs as typeof args);
               });

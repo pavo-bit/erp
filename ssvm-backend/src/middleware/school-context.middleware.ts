@@ -56,7 +56,6 @@ export function getSchoolContext(): SchoolContext | null {
 export function getCurrentSchoolId(): string | null {
   const context = getSchoolContext();
   if (!context) return null;
-  if (context.isSuperAdmin) return null; // Super admins bypass RLS
   return context.schoolId;
 }
 

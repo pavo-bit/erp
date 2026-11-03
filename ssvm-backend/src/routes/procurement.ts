@@ -132,7 +132,7 @@ router.post("/requests/:id/approve", requireOperationsAdmin("ASSET_MANAGER"), as
               description: item.description,
               quantity: item.quantity,
               unitPrice: item.estimatedPrice,
-              totalPrice: item.quantity * item.estimatedPrice,
+              totalPrice: item.quantity * Number(item.estimatedPrice),
               status: "PENDING",
             })),
           },

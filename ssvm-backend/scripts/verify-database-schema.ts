@@ -8,9 +8,9 @@ interface PublicTable {
 async function verifyDatabaseSchema(): Promise<void> {
   const expectedTables = Object.values(TENANT_CLASSIFICATION).map((model) => model.table);
   const uniqueExpectedTables = new Set(expectedTables);
-  if (expectedTables.length !== 205 || uniqueExpectedTables.size !== expectedTables.length) {
+  if (expectedTables.length !== 208 || uniqueExpectedTables.size !== expectedTables.length) {
     throw new Error(
-      `Expected 205 unique Prisma model tables; found ${expectedTables.length} model entries and ${uniqueExpectedTables.size} unique tables.`
+      `Expected 208 unique Prisma model tables; found ${expectedTables.length} model entries and ${uniqueExpectedTables.size} unique tables.`
     );
   }
 

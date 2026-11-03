@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "../app";
+import { createTestApp } from "./helpers/testApp";
+const app = createTestApp();
 import { getTestPrisma } from "./helpers/testApp";
 import appPrisma from "../lib/prisma";
 import { generateAccessToken } from "../lib/tokens";
@@ -224,6 +225,7 @@ describe("Architecture & Phase A E2E", () => {
         "src/lib/authPrisma.ts",
         "src/tests/api/auth.test.ts",
         "src/tests/architecture.test.ts",
+        "src/tests/db/role-privileges.test.ts",
       ]);
 
       const violations: string[] = [];

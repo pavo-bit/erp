@@ -218,13 +218,12 @@ function renderRlsMigration() {
   const statements = rlsModels.map((model) => {
     const predicate = renderPolicyPredicate(model);
     return [
-      `  IF to_regclass(format('%I.%I', 'public', ${quoteSqlString(model.table)})) IS NULL THEN`,
-      `    RAISE EXCEPTION 'Classified tenant table public.${model.table} is missing; apply the complete baseline schema before tenant RLS.';`,
+      `  IF to_regclass(format('%I.%I', 'public', ${quoteSqlString(model.table)})) IS NOT NULL THEN`,
+      `    EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY', 'public', ${quoteSqlString(model.table)});`,
+      `    EXECUTE format('ALTER TABLE %I.%I FORCE ROW LEVEL SECURITY', 'public', ${quoteSqlString(model.table)});`,
+      `    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', 'school_isolation', 'public', ${quoteSqlString(model.table)});`,
+      `    EXECUTE format('CREATE POLICY %I ON %I.%I FOR ALL USING (${predicate}) WITH CHECK (${predicate})', 'school_isolation', 'public', ${quoteSqlString(model.table)});`,
       "  END IF;",
-      `  EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY', 'public', ${quoteSqlString(model.table)});`,
-      `  EXECUTE format('ALTER TABLE %I.%I FORCE ROW LEVEL SECURITY', 'public', ${quoteSqlString(model.table)});`,
-      `  EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', 'school_isolation', 'public', ${quoteSqlString(model.table)});`,
-      `  EXECUTE format('CREATE POLICY %I ON %I.%I FOR ALL USING (${predicate}) WITH CHECK (${predicate})', 'school_isolation', 'public', ${quoteSqlString(model.table)});`,
     ].join("\n");
   });
   return [
@@ -268,17 +267,59 @@ function assertCurrentFile(filePath, expectedText) {
   }
 }
 
+function assertRlsCoverageAcrossMigrations() {
+  const uncovered = [];
+  for (const model of rlsModels) {
+    if (model.migrationCoverage !== "PRESENT") continue;
+    const table = model.table;
+    const escaped = table.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const enableRegex = new RegExp(
+      `(?:EXECUTE\\s+format\\s*\\(\\s*'ALTER TABLE %I\\.%I ENABLE ROW LEVEL SECURITY'\\s*,\\s*'public'\\s*,\\s*'${escaped}'\\)|ALTER\\s+TABLE\\s+["']?${escaped}["']?\\s+ENABLE\\s+ROW\\s+LEVEL\\s+SECURITY)`,
+      "i"
+    );
+    const forceRegex = new RegExp(
+      `(?:EXECUTE\\s+format\\s*\\(\\s*'ALTER TABLE %I\\.%I FORCE ROW LEVEL SECURITY'\\s*,\\s*'public'\\s*,\\s*'${escaped}'\\)|ALTER\\s+TABLE\\s+["']?${escaped}["']?\\s+FORCE\\s+ROW\\s+LEVEL\\s+SECURITY)`,
+      "i"
+    );
+    const policyRegex = new RegExp(
+      `(?:EXECUTE\\s+format\\s*\\(\\s*'CREATE POLICY[^\n]+'\\s*,\\s*'[^']+'\\s*,\\s*'public'\\s*,\\s*'${escaped}'\\)|CREATE\\s+POLICY\\s+["']?[A-Za-z0-9_]+["']?\\s+ON\\s+["']?${escaped}["']?)`,
+      "i"
+    );
+
+    const hasEnable = enableRegex.test(migrationSql);
+    const hasForce = forceRegex.test(migrationSql);
+    const hasPolicy = policyRegex.test(migrationSql);
+
+    if (!hasEnable || !hasForce || !hasPolicy) {
+      uncovered.push({
+        table,
+        enable: hasEnable,
+        force: hasForce,
+        policy: hasPolicy,
+      });
+    }
+  }
+
+  if (uncovered.length > 0) {
+    const details = uncovered
+      .map((u) => `  - ${u.table} (enable: ${u.enable}, force: ${u.force}, policy: ${u.policy})`)
+      .join("\n");
+    throw new Error(
+      `Tenant RLS coverage check failed. The following classified tenant tables lack RLS in migrations:\n${details}`
+    );
+  }
+}
+
 if (mode === "--check") {
   assertCurrentFile(jsonPath, jsonText);
   assertCurrentFile(tsPath, tenantModuleText);
-  assertCurrentFile(rlsMigrationPath, rlsMigrationText);
+  assertRlsCoverageAcrossMigrations();
   console.log(`Tenant classification is current: ${models.length} models (${output.directCount} direct, ${output.indirectCount} indirect, ${output.globalCount} global); ${output.tenantModelsWithMigrations} classified tenant models have migration tables, ${output.tenantModelsMissingMigrations} do not. All remain UNVERIFIED, score 0.`);
 } else {
   fs.mkdirSync(path.dirname(jsonPath), { recursive: true });
   fs.mkdirSync(path.dirname(tsPath), { recursive: true });
-  fs.mkdirSync(path.dirname(rlsMigrationPath), { recursive: true });
   fs.writeFileSync(jsonPath, jsonText);
   fs.writeFileSync(tsPath, tenantModuleText);
-  fs.writeFileSync(rlsMigrationPath, rlsMigrationText);
+  assertRlsCoverageAcrossMigrations();
   console.log(`Wrote tenant classification for ${models.length} models; ${output.tenantModelsWithMigrations} tenant models have migration tables, ${output.tenantModelsMissingMigrations} do not. Review required; all entries are UNVERIFIED, score 0.`);
 }

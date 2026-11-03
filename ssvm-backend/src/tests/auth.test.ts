@@ -1,5 +1,6 @@
 import request from "supertest";
-import { app } from "../app"; // Ensure you export 'app' from index.ts without starting the server, or mock it
+import { createTestApp } from "./helpers/testApp";
+const app = createTestApp();
 
 describe("Auth Routes", () => {
   it("should fail login with invalid credentials", async () => {

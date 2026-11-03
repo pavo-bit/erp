@@ -215,13 +215,13 @@ router.post("/razorpay", async (req, res) => {
         });
 
         // Update Invoice Status
-        const newRemaining = invoice.remainingAmount - amountPaid;
+        const newRemaining = Number(invoice.remainingAmount) - amountPaid;
         const newStatus = newRemaining <= 0 ? "PAID" : "PARTIAL";
 
         await tx.invoice.update({
           where: { id: invoiceId },
           data: {
-            amountPaid: invoice.amountPaid + amountPaid,
+            amountPaid: Number(invoice.amountPaid) + amountPaid,
             remainingAmount: Math.max(0, newRemaining),
             status: newStatus,
             paidDate: newStatus === "PAID" ? new Date() : null,

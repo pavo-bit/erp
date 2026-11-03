@@ -52,7 +52,7 @@ router.post("/movements", async (req: AuthRequest, res: Response): Promise<void>
       }
 
       const delta = movementType === "INWARD" ? quantity : movementType === "OUTWARD" ? -quantity : quantity;
-      const newQuantity = stock.quantity + delta;
+      const newQuantity = Number(stock.quantity) + delta;
       if (!Number.isFinite(newQuantity) || newQuantity < 0) {
         throw new Error("Insufficient stock for this movement");
       }

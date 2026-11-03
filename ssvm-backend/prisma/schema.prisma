@@ -141,6 +141,12 @@ model School {
   vendors                                                               Vendor[]
   visitorLogs                                                           VisitorLog[]
   webhookEndpoints                                                      WebhookEndpoint[]
+  bankStatementLines                                                    BankStatementLine[]
+  goodsReceiptLines                                                     GoodsReceiptLine[]
+  goodsReceipts                                                         GoodsReceipt[]
+  inventoryCategories                                                   InventoryCategory[]
+  inventoryItems                                                        InventoryItem[]
+  inventoryStocks                                                       InventoryStock[]
 
   @@map("schools")
 }
@@ -831,7 +837,7 @@ model FeeStructure {
   schoolId   String
   categoryId String
   classId    String?
-  amount     Float
+  amount     Decimal     @db.Decimal(14, 2)
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   category   FeeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -845,12 +851,19 @@ model FeeStructure {
 model FineRule {
   id           String   @id @default(cuid())
   schoolId     String
+  code         String   @default("LATE_FEE")
+  name         String   @default("Late Payment Fine")
   graceDays    Int      @default(7)
-  fineAmount   Float    @default(50.0)
+  fineAmount   Decimal  @default(50.0) @db.Decimal(14, 2)
   isPercentage Boolean  @default(false)
+  frequency    String   @default("ONCE")
+  isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
+  updatedAt    DateTime @default(now()) @updatedAt
   school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@unique([schoolId, code])
+  @@index([schoolId])
   @@map("fine_rules")
 }
 
@@ -859,10 +872,10 @@ model Invoice {
   studentId               String
   schoolId                String
   branchId                String?
-  amount                  Float
-  amountPaid              Float                    @default(0)
-  remainingAmount         Float                    @default(0)
-  fineAmount              Float                    @default(0)
+  amount                  Decimal                  @db.Decimal(14, 2)
+  amountPaid              Decimal                  @default(0) @db.Decimal(14, 2)
+  remainingAmount         Decimal                  @default(0) @db.Decimal(14, 2)
+  fineAmount              Decimal                  @default(0) @db.Decimal(14, 2)
   type                    FeeType                  @default(MONTHLY)
   description             String?
   status                  InvoiceStatus            @default(PENDING)
@@ -1032,10 +1045,10 @@ model Salary {
   schoolId   String
   month      Int
   year       Int
-  basicPay   Float
-  allowances Float        @default(0)
-  deductions Float        @default(0)
-  netPay     Float
+  basicPay   Decimal      @db.Decimal(14, 2)
+  allowances Decimal      @default(0) @db.Decimal(14, 2)
+  deductions Decimal      @default(0) @db.Decimal(14, 2)
+  netPay     Decimal      @db.Decimal(14, 2)
   status     SalaryStatus @default(PENDING)
   paidDate   DateTime?
   remarks    String?
@@ -1183,7 +1196,7 @@ model Testimonial {
 model PaymentTransaction {
   id                String          @id @default(cuid())
   invoiceId         String
-  amountPaid        Float
+  amountPaid        Decimal         @db.Decimal(14, 2)
   gateway           String          @default("RAZORPAY")
   transactionId     String?         @unique
   razorpaySignature String?
@@ -1423,7 +1436,7 @@ model Scholarship {
   branchId   String?
   studentId  String
   name       String
-  amount     Float
+  amount     Decimal           @db.Decimal(14, 2)
   percentage Float?
   reason     String?
   approvedBy String?
@@ -2298,7 +2311,7 @@ model PurchaseOrder {
   vendorId          String
   poNumber          String              @unique
   status            String              @default("DRAFT")
-  totalAmount       Float               @default(0)
+  totalAmount       Decimal             @default(0) @db.Decimal(14, 2)
   expectedDate      DateTime?
   createdBy         String
   createdAt         DateTime            @default(now())
@@ -2316,15 +2329,16 @@ model PurchaseOrder {
 }
 
 model PurchaseOrderItem {
-  id          String        @id @default(cuid())
-  poId        String
-  description String
-  quantity    Int
-  unitPrice   Float
-  totalPrice  Float
-  status      String        @default("PENDING")
-  asset       Asset[]
-  po          PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  id                String             @id @default(cuid())
+  poId              String
+  description       String
+  quantity          Int
+  unitPrice         Decimal            @db.Decimal(14, 2)
+  totalPrice        Decimal            @db.Decimal(14, 2)
+  status            String             @default("PENDING")
+  asset             Asset[]
+  goodsReceiptLines GoodsReceiptLine[]
+  po                PurchaseOrder      @relation(fields: [poId], references: [id], onDelete: Cascade)
 
   @@map("purchase_order_items")
 }
@@ -2792,6 +2806,7 @@ model LedgerEntry {
   LedgerAccount           LedgerAccount            @relation(fields: [accountId], references: [id])
   FinancialDimensionValue FinancialDimensionValue? @relation(fields: [dimensionValueId], references: [id])
   LedgerTransaction       LedgerTransaction        @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  bankStatementLines      BankStatementLine[]
 
   @@index([accountId])
   @@index([accountId, transactionId])
@@ -3367,7 +3382,7 @@ model PurchaseRequest {
   departmentId   String?
   status         PRStatus              @default(DRAFT)
   justification  String?
-  totalEstAmount Float                 @default(0)
+  totalEstAmount Decimal               @default(0) @db.Decimal(14, 2)
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   items          PurchaseRequestItem[]
@@ -3383,24 +3398,64 @@ model PurchaseRequestItem {
   itemId            String?
   description       String
   quantity          Float
-  estimatedPrice    Float
+  estimatedPrice    Decimal         @db.Decimal(14, 2)
   createdAt         DateTime        @default(now())
   purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
 }
 
 model GoodsReceipt {
-  id              String        @id @default(cuid())
+  id              String             @id @default(cuid())
   schoolId        String
-  grNumber        String        @unique
+  grNumber        String
   purchaseOrderId String
-  receivedDate    DateTime      @default(now())
+  receivedDate    DateTime           @default(now())
   receivedById    String
   remarks         String?
-  createdAt       DateTime      @default(now())
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  createdAt       DateTime           @default(now())
+  purchaseOrder   PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id])
+  lines           GoodsReceiptLine[]
+  school          School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@unique([schoolId, grNumber])
   @@index([schoolId])
   @@index([purchaseOrderId])
+}
+
+model GoodsReceiptLine {
+  id                  String            @id @default(cuid())
+  schoolId            String
+  goodsReceiptId      String
+  purchaseOrderItemId String
+  receivedQuantity    Decimal           @db.Decimal(14, 2)
+  location            String?
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  goodsReceipt        GoodsReceipt      @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+  purchaseOrderItem   PurchaseOrderItem @relation(fields: [purchaseOrderItemId], references: [id], onDelete: Cascade)
+  school              School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([goodsReceiptId])
+  @@index([purchaseOrderItemId])
+}
+
+model BankStatementLine {
+  id                   String       @id @default(cuid())
+  schoolId             String
+  date                 DateTime
+  amount               Decimal      @db.Decimal(14, 2)
+  reference            String
+  matchedLedgerEntryId String?
+  status               String       @default("UNMATCHED")
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  ledgerEntry          LedgerEntry? @relation(fields: [matchedLedgerEntryId], references: [id], onDelete: SetNull)
+  school               School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([schoolId, status])
+  @@index([matchedLedgerEntryId])
 }
 
 model VendorInvoice {
@@ -3409,7 +3464,7 @@ model VendorInvoice {
   invoiceNumber   String
   vendorId        String
   purchaseOrderId String?
-  amount          Float
+  amount          Decimal        @db.Decimal(14, 2)
   status          String         @default("PENDING")
   dueDate         DateTime?
   createdAt       DateTime       @default(now())
@@ -3419,6 +3474,20 @@ model VendorInvoice {
   @@index([schoolId])
   @@index([vendorId])
   @@index([schoolId, status])
+}
+
+model InventoryCategory {
+  id          String          @id @default(cuid())
+  schoolId    String
+  name        String
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  items       InventoryItem[]
+  school      School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
 }
 
 model InventoryLocation {
@@ -3434,18 +3503,22 @@ model InventoryLocation {
 }
 
 model InventoryItem {
-  id           String           @id @default(cuid())
+  id           String             @id @default(cuid())
   schoolId     String
-  sku          String           @unique
+  sku          String
   name         String
   categoryId   String?
-  uom          String           @default("NOS")
-  reorderLevel Float            @default(0)
-  isActive     Boolean          @default(true)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  uom          String             @default("NOS")
+  quantity     Decimal            @default(0) @db.Decimal(14, 2)
+  reorderLevel Decimal            @default(0) @db.Decimal(14, 2)
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  category     InventoryCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   stocks       InventoryStock[]
+  school       School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@unique([schoolId, sku])
   @@index([schoolId])
 }
 
@@ -3454,10 +3527,11 @@ model InventoryStock {
   schoolId    String
   itemId      String
   locationId  String
-  quantity    Float             @default(0)
+  quantity    Decimal           @default(0) @db.Decimal(14, 2)
   lastUpdated DateTime          @updatedAt
   item        InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
   location    InventoryLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([itemId, locationId])
   @@index([schoolId])
@@ -3469,8 +3543,8 @@ model StockLedger {
   itemId        String
   locationId    String
   movementType  InventoryMovementType
-  quantity      Float
-  balanceAfter  Float
+  quantity      Decimal               @db.Decimal(14, 2)
+  balanceAfter  Decimal               @db.Decimal(14, 2)
   referenceDoc  String?
   performedById String
   timestamp     DateTime              @default(now())

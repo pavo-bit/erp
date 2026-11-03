@@ -5,7 +5,7 @@ import {
   Prisma,
 } from "@prisma/client";
 import { randomUUID } from "crypto";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { rlsTestPrisma as prisma } from "./setup";
 
 const suffix = randomUUID().replaceAll("-", "");
@@ -46,7 +46,7 @@ async function createPostedTransaction(
 }
 
 describe("PostgreSQL ledger invariants", () => {
-  it("accepts a posted transaction only when its entries balance", async () => {
+  beforeAll(async () => {
     await prisma.school.create({
       data: { id: schoolId, name: `Ledger Test ${suffix}`, code: `LEDGER${suffix}` },
     });
@@ -72,7 +72,13 @@ describe("PostgreSQL ledger invariants", () => {
         ],
       });
     });
+  });
 
+  afterAll(async () => {
+    await prisma.school.deleteMany({ where: { id: schoolId } });
+  });
+
+  it("accepts a posted transaction only when its entries balance", async () => {
     const transaction = await createPostedTransaction(
       [
         { accountId: debitAccountId, debitAmount: "25.00", creditAmount: "0.00" },
