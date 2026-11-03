@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import prisma from '../lib/prisma';
+
 import crypto from "crypto";
 import { Request } from "express";
 import { hashToken, generateRefreshToken, verifyRefreshToken } from "../lib/tokens";
@@ -6,7 +7,6 @@ import { generateDeviceFingerprint, validateDeviceFingerprint } from "../utils/d
 import { logSecurityEvent } from "../lib/audit";
 import logger from "../lib/logger";
 
-const prisma = new PrismaClient();
 
 // ═══════════════════════════════════════════
 // Auth Service (GAP 10 — Session Security)

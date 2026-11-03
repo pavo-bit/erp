@@ -34,7 +34,7 @@ router.get("/defaulters", authenticate, requireFinanceAdmin(), async (req: AuthR
       return {
         ...inv,
         daysOverdue,
-        remainingAmount: inv.amount + inv.fineAmount - inv.amountPaid
+        remainingAmount: Number(inv.amount) + Number(inv.fineAmount) - Number(inv.amountPaid)
       };
     });
 

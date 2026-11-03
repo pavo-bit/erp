@@ -2,17 +2,40 @@ import { Router, Response } from "express";
 import { FinancialCloseService } from "../services/FinancialCloseService";
 import { AuthRequest, authenticate, requireFinanceAdmin } from "../middleware/auth";
 import logger from "../lib/logger";
+import prisma from "../lib/prisma";
 
 const router = Router();
+
+function resolveSchoolId(req: AuthRequest, requestedSchoolId?: unknown): string | null {
+    const schoolId = req.user?.role === "SUPER_ADMIN" ? requestedSchoolId : req.user?.schoolId;
+    return typeof schoolId === "string" && schoolId.trim() ? schoolId : null;
+}
+
+router.get("/periods", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
+    const schoolId = resolveSchoolId(req, req.query.schoolId);
+    if (!schoolId) {
+        res.status(400).json({ success: false, error: "School scope is required" });
+        return;
+    }
+    try {
+        const periods = await prisma.accountingPeriod.findMany({
+            where: { schoolId },
+            orderBy: { startDate: "asc" },
+        });
+        res.json({ success: true, data: periods });
+    } catch (error) {
+        logger.error({ err: error, schoolId }, "Accounting period list failed");
+        res.status(500).json({ success: false, error: "Unable to load accounting periods" });
+    }
+});
 
 // 1. Month-End Close (Lock Accounting Period)
 router.post("/periods/:id/close", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response): Promise<void> => {
     const periodId = req.params.id as string;
     try {
         const user = req.user!;
-        const requestedSchoolId = req.body?.schoolId;
-        const schoolId = user.role === "SUPER_ADMIN" ? requestedSchoolId : user.schoolId;
-        if (typeof schoolId !== "string" || !schoolId.trim()) {
+        const schoolId = resolveSchoolId(req, req.body?.schoolId);
+        if (!schoolId) {
             res.status(400).json({ success: false, error: "School scope is required" });
             return;
         }

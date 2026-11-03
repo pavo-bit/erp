@@ -1,5 +1,6 @@
+import prisma from '../lib/prisma';
 import { Worker, Job } from "bullmq";
-import { PrismaClient } from "@prisma/client";
+
 import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
@@ -12,7 +13,6 @@ import { getRedisClient, isRedisAvailable } from "../lib/redis";
 import { enqueueNotification } from "./queue";
 
 const execAsync = promisify(exec);
-const prisma = new PrismaClient();
 const env = getEnv();
 
 // ═══════════════════════════════════════════

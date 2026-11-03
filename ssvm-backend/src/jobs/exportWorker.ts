@@ -1,5 +1,5 @@
 import { Worker, Job } from "bullmq";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 import { parse } from "json2csv";
 import { storageService } from "../services/storage.service";
@@ -21,7 +21,8 @@ export function startExportWorker() {
   "exportQueue",
   async (job: Job) => {
     const { schoolId, userId, entity, format, filters, userEmail } = job.data;
-    logger.info({ jobId: job.id, entity, schoolId }, "Starting export job");
+    return runWithTenantDatabaseTransaction(schoolId, async () => {
+      logger.info({ jobId: job.id, entity, schoolId }, "Starting export job");
 
     try {
       let data: any[] = [];
@@ -198,8 +199,9 @@ export function startExportWorker() {
         });
       }
 
-      throw error;
-    }
+        throw error;
+      }
+    });
   },
   { connection }
   );

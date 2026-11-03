@@ -1,6 +1,7 @@
 import prisma from "./prisma";
 import logger from "./logger";
 import crypto from "crypto";
+import { runWithSchoolContext } from "../middleware/school-context.middleware";
 
 export async function createAuditLog({ data }: { data: {
   schoolId?: string | null;
@@ -15,20 +16,42 @@ export async function createAuditLog({ data }: { data: {
   device?: string | null;
 }}) {
   try {
-    // Ensure we are chaining chronologically within a single transaction if possible
-    // For absolute strictness we use a transaction to lock the latest row, but 
-    // for performance we just fetch the latest.
-    const lastLog = await prisma.auditLog.findFirst({
-      orderBy: { id: "desc" },
-      select: { hash: true }
-    });
+    if (data.schoolId) {
+      return await runWithSchoolContext(data.schoolId, async () => {
+        const lastLog = await prisma.auditLog.findFirst({
+          where: { schoolId: data.schoolId! },
+          orderBy: { id: "desc" },
+          select: { hash: true }
+        });
 
-    const previousHash = lastLog?.hash || null;
+        const previousHash = lastLog?.hash || null;
+        const logContent = JSON.stringify({
+          schoolId: data.schoolId || null,
+          userId: data.userId || null,
+          action: data.action,
+          entity: data.entity,
+          entityId: data.entityId || null,
+          details: data.details || null,
+          reason: data.reason || null,
+          ipAddress: data.ipAddress || null,
+          previousHash
+        });
 
-    // Create a deterministic representation of the log payload
-    // We exclude auto-generated fields like id and createdAt since we don't know them yet
+        const hash = crypto.createHash("sha256").update(logContent).digest("hex");
+
+        return await prisma.auditLog.create({
+          data: {
+            ...data,
+            previousHash,
+            hash
+          }
+        });
+      });
+    }
+
+    // Pre-tenant / global audit log: use SECURITY DEFINER function
     const logContent = JSON.stringify({
-      schoolId: data.schoolId || null,
+      schoolId: null,
       userId: data.userId || null,
       action: data.action,
       entity: data.entity,
@@ -36,60 +59,81 @@ export async function createAuditLog({ data }: { data: {
       details: data.details || null,
       reason: data.reason || null,
       ipAddress: data.ipAddress || null,
-      previousHash
+      previousHash: null
     });
-
     const hash = crypto.createHash("sha256").update(logContent).digest("hex");
 
-    return await prisma.auditLog.create({
-      data: {
-        ...data,
-        previousHash,
-        hash
-      }
-    });
-  } catch (error) {
-    logger.error({ err: error, action: data.action }, "Failed to create AuditLog");
-    // Fallback: create without hash if chaining fails (e.g. concurrency race)
-    return await prisma.auditLog.create({ data });
+    const rows = await prisma.$queryRawUnsafe<Array<{ log_pre_tenant_audit_log: string }>>(
+      `SELECT log_pre_tenant_audit_log($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) AS log_pre_tenant_audit_log`,
+      data.action,
+      data.entity,
+      null,
+      data.userId || null,
+      data.entityId || null,
+      data.details || null,
+      data.reason || null,
+      data.ipAddress || null,
+      data.device || null,
+      data.impersonatedBy || null,
+      null,
+      hash
+    );
+
+    return {
+      id: rows[0]?.log_pre_tenant_audit_log,
+      ...data,
+      previousHash: null,
+      hash,
+    };
+  } catch (error: any) {
+    const sqlState = error?.code || error?.meta?.code || "UNKNOWN";
+    logger.error({ err: error, sqlState, action: data.action }, "Failed to create AuditLog with hash chain");
+    return null;
   }
 }
 
 export async function verifyAuditChain(schoolId?: string): Promise<{ valid: boolean; brokenAtId?: string }> {
-  const logs = await prisma.auditLog.findMany({
-    where: schoolId ? { schoolId } : undefined,
-    orderBy: { id: "asc" }
-  });
-
-  let expectedPreviousHash: string | null = null;
-
-  for (const log of logs) {
-    if (log.previousHash !== expectedPreviousHash) {
-      return { valid: false, brokenAtId: log.id };
-    }
-
-    const logContent: string = JSON.stringify({
-      schoolId: log.schoolId || null,
-      userId: log.userId || null,
-      action: log.action,
-      entity: log.entity,
-      entityId: log.entityId || null,
-      details: log.details || null,
-      reason: log.reason || null,
-      ipAddress: log.ipAddress || null,
-      previousHash: log.previousHash
+  const runner = async () => {
+    const logs = await prisma.auditLog.findMany({
+      where: schoolId ? { schoolId } : undefined,
+      orderBy: { id: "asc" }
     });
 
-    const calculatedHash: string = crypto.createHash("sha256").update(logContent).digest("hex");
+    let expectedPreviousHash: string | null = null;
 
-    if (calculatedHash !== log.hash) {
-      return { valid: false, brokenAtId: log.id };
+    for (const log of logs) {
+      if (log.previousHash !== expectedPreviousHash) {
+        return { valid: false, brokenAtId: log.id };
+      }
+
+      const logContent: string = JSON.stringify({
+        schoolId: log.schoolId || null,
+        userId: log.userId || null,
+        action: log.action,
+        entity: log.entity,
+        entityId: log.entityId || null,
+        details: log.details || null,
+        reason: log.reason || null,
+        ipAddress: log.ipAddress || null,
+        previousHash: log.previousHash
+      });
+
+      const calculatedHash: string = crypto.createHash("sha256").update(logContent).digest("hex");
+
+      if (calculatedHash !== log.hash) {
+        return { valid: false, brokenAtId: log.id };
+      }
+
+      expectedPreviousHash = log.hash;
     }
 
-    expectedPreviousHash = log.hash;
-  }
+    return { valid: true };
+  };
 
-  return { valid: true };
+  if (schoolId) {
+    return runWithSchoolContext(schoolId, runner);
+  }
+  return runner();
 }
 
 export async function logSecurityEvent(data: {
@@ -101,27 +145,51 @@ export async function logSecurityEvent(data: {
   metadata?: any;
 }) {
   try {
-    const log = await prisma.systemLog.create({
-      data: {
-        level: data.severity === "CRITICAL" ? "FATAL" : data.severity === "HIGH" ? "ERROR" : data.severity === "MEDIUM" ? "WARN" : "INFO",
+    const level = data.severity === "CRITICAL" ? "FATAL" : data.severity === "HIGH" ? "ERROR" : data.severity === "MEDIUM" ? "WARN" : "INFO";
+
+    let log: any;
+    if (data.schoolId) {
+      log = await runWithSchoolContext(data.schoolId, async () => {
+        return await prisma.systemLog.create({
+          data: {
+            level,
+            module: "SECURITY",
+            message: data.eventType,
+            metadata: JSON.stringify({ ip: data.ipAddress, ...data.metadata }),
+            schoolId: data.schoolId,
+            userId: data.userId && data.userId !== "SYSTEM" ? data.userId : undefined
+          },
+        });
+      });
+    } else {
+      const rows = await prisma.$queryRawUnsafe<Array<{ log_pre_tenant_system_log: string }>>(
+        `SELECT log_pre_tenant_system_log($1, $2, $3, $4, $5, $6) AS log_pre_tenant_system_log`,
+        level,
+        "SECURITY",
+        data.eventType,
+        JSON.stringify({ ip: data.ipAddress, ...data.metadata }),
+        null,
+        data.userId && data.userId !== "SYSTEM" ? data.userId : null
+      );
+      log = {
+        id: rows[0]?.log_pre_tenant_system_log,
+        level,
         module: "SECURITY",
         message: data.eventType,
         metadata: JSON.stringify({ ip: data.ipAddress, ...data.metadata }),
-        schoolId: data.schoolId,
-        userId: data.userId
-      },
-    });
+        schoolId: null,
+        userId: data.userId && data.userId !== "SYSTEM" ? data.userId : null,
+      };
+    }
 
     if (data.severity === "CRITICAL") {
-      // Dispatch alert to SUPER_ADMIN
       logger.fatal({ eventType: data.eventType, metadata: data.metadata, userId: data.userId }, "CRITICAL SECURITY EVENT DETECTED - Dispatched Alert");
-      
-      // In a real implementation, this would push to an email/SMS queue:
-      // await bullQueue.add('alert', { type: 'CRITICAL', event: data });
     }
 
     return log;
-  } catch (error) {
-    logger.error({ err: error, data }, "Failed to create SecurityAuditLog");
+  } catch (error: any) {
+    const sqlState = error?.code || error?.meta?.code || "UNKNOWN";
+    logger.error({ err: error, sqlState, data }, "Failed to create SecurityAuditLog");
+    return null;
   }
 }

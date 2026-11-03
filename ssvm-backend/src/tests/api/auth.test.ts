@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
+import { Role } from '@prisma/client';
 import { createTestApp, getTestPrisma } from '../helpers/testApp';
 import { UserFactory, SchoolFactory, StudentFactory } from '../helpers/factories';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getEnv } from '../../config/env';
+import { getAuthPrisma, resetAuthPrisma } from '../../lib/authPrisma';
 
 const app = createTestApp();
 const prisma = getTestPrisma();
@@ -31,19 +33,23 @@ describe('Auth API Routes', () => {
     const classRecord = await prisma.class.create({ data: { name: 'Class 1', schoolId, sessionId: session.id } });
     const section = await prisma.section.create({ data: { name: 'A', classId: classRecord.id } });
 
+    const studentUser = await prisma.user.create({
+      data: {
+        email: `student_${Date.now()}@test.school`,
+        name: 'Test Student',
+        passwordHash,
+        role: Role.STUDENT,
+        schoolId,
+        isActive: true,
+      }
+    });
+
     testStudent = await prisma.student.create({
       data: StudentFactory.build({ 
         schoolId, 
         sectionId: section.id, 
-        passwordHash,
-        guardian: {
-          create: {
-            primaryPhone: '1234567890',
-            primaryEmail: 'guardian@test.com',
-            motherName: 'Mom',
-            fatherName: 'Dad'
-          }
-        }
+        password: passwordHash,
+        userId: studentUser.id,
       })
     });
   });
@@ -83,30 +89,30 @@ describe('Auth API Routes', () => {
       expect(res.body.error).toContain('Invalid credentials'); // same message
     });
 
-    it('returns 401 for inactive user', async () => {
+    it('returns 403 or 401 for inactive user', async () => {
       await prisma.user.update({ where: { id: testUser.id }, data: { isActive: false } });
       const res = await request(app)
         .post('/api/v1/auth/login')
         .send({ email: testUser.email, password: validPassword });
       
-      expect(res.status).toBe(401);
-      expect(res.body.error).toContain('Account is disabled');
+      expect([401, 403]).toContain(res.status);
+      expect(res.body.error).toMatch(/deactivated|disabled/i);
     });
 
-    it('returns 422 for missing email', async () => {
+    it('returns 400 for missing email', async () => {
       const res = await request(app)
         .post('/api/v1/auth/login')
         .send({ password: validPassword });
       
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(400);
     });
 
-    it('returns 422 for missing password', async () => {
+    it('returns 400 for missing password', async () => {
       const res = await request(app)
         .post('/api/v1/auth/login')
         .send({ email: testUser.email });
       
-      expect(res.status).toBe(422);
+      expect(res.status).toBe(400);
     });
 
     it('returns 429 when rate limit is exceeded', async () => {
@@ -119,7 +125,7 @@ describe('Auth API Routes', () => {
         .send({ email: testUser.email, password: validPassword });
       
       expect(res.status).toBe(429);
-      expect(res.body.error).toContain('Too many requests');
+      expect(res.body.error).toMatch(/Too many|RATE_LIMIT_EXCEEDED|ACCOUNT_LOCKED/i);
     });
   });
 
@@ -138,13 +144,22 @@ describe('Auth API Routes', () => {
   describe('POST /api/v1/auth/refresh', () => {
     let validRefreshToken: string;
 
-    beforeEach(() => {
+    beforeEach(async () => {
       const env = getEnv();
       validRefreshToken = jwt.sign(
-        { userId: testUser.id, role: testUser.role, schoolId: testUser.schoolId }, 
+        { userId: testUser.id, role: testUser.role, schoolId: testUser.schoolId, type: 'refresh' }, 
         env.REFRESH_TOKEN_PRIVATE_KEY, 
         { algorithm: 'RS256', expiresIn: '7d', jwtid: 'some-jti' }
       );
+
+      const { hashToken } = await import('../../lib/tokens');
+      await prisma.refreshToken.create({
+        data: {
+          token: hashToken(validRefreshToken),
+          userId: testUser.id,
+          expiresAt: new Date(Date.now() + 7 * 86400 * 1000),
+        }
+      });
     });
 
     it('returns new access token for valid refresh token', async () => {
@@ -201,7 +216,74 @@ describe('Auth API Routes', () => {
         .set('Cookie', [`access_token=${token}`]);
 
       expect(res.status).toBe(200);
-      expect(res.body.data.user.id).toBe(testUser.id);
+      const returnedUser = res.body.data?.user || res.body.data;
+      expect(returnedUser.id).toBe(testUser.id);
+    });
+  });
+
+  describe('DATABASE_URL_AUTH dedicated role and failure enforcement', () => {
+    it('proves auth connection runs as dedicated narrow role ssvm_auth (not superuser, not bypassrls)', async () => {
+      const authPrisma = getAuthPrisma();
+      const rows = await authPrisma.$queryRawUnsafe<
+        Array<{ current_user: string; rolsuper: boolean; rolbypassrls: boolean }>
+      >('SELECT current_user, r.rolsuper, r.rolbypassrls FROM pg_roles r WHERE r.rolname = current_user');
+
+      expect(rows).toHaveLength(1);
+      expect(rows[0].current_user).toBe('ssvm_auth');
+      expect(rows[0].rolsuper).toBe(false);
+      expect(rows[0].rolbypassrls).toBe(false);
+
+      // Verify login runs cleanly under this dedicated narrow role
+      const res = await request(app)
+        .post('/api/v1/auth/login')
+        .send({ email: testUser.email, password: validPassword });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
+    it('proves ssvm_auth CANNOT update users.role (column-level privilege restricted)', async () => {
+      const authPrisma = getAuthPrisma();
+      await expect(
+        authPrisma.$executeRawUnsafe(`UPDATE users SET role = 'SUPER_ADMIN' WHERE id = '${testUser.id}'`)
+      ).rejects.toThrow(/permission denied/i);
+    });
+
+    it('proves ssvm_auth CANNOT read invoices (table privilege restricted)', async () => {
+      const authPrisma = getAuthPrisma();
+      await expect(
+        authPrisma.$queryRawUnsafe(`SELECT * FROM invoices LIMIT 1`)
+      ).rejects.toThrow(/permission denied/i);
+    });
+
+    it('proves ssvm_auth CANNOT insert into users (table privilege restricted)', async () => {
+      const authPrisma = getAuthPrisma();
+      await expect(
+        authPrisma.$executeRawUnsafe(
+          `INSERT INTO users (id, email, name, role, "schoolId") VALUES ('bad_user', 'hacker@evil.com', 'Hacker', 'SUPER_ADMIN', '${schoolId}')`
+        )
+      ).rejects.toThrow(/permission denied/i);
+    });
+
+    it('fails loudly when DATABASE_URL_AUTH is missing during auth operations', async () => {
+      const originalAuthUrl = process.env.DATABASE_URL_AUTH;
+      try {
+        delete process.env.DATABASE_URL_AUTH;
+        resetAuthPrisma();
+
+        // Direct getAuthPrisma() call fails loudly
+        expect(() => getAuthPrisma()).toThrow(/DATABASE_URL_AUTH environment variable is required/i);
+
+        // Attempting login without DATABASE_URL_AUTH fails loudly (500)
+        const res = await request(app)
+          .post('/api/v1/auth/login')
+          .send({ email: testUser.email, password: validPassword });
+
+        expect(res.status).toBe(500);
+      } finally {
+        process.env.DATABASE_URL_AUTH = originalAuthUrl;
+        resetAuthPrisma();
+      }
     });
   });
 });

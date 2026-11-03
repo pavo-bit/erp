@@ -4,7 +4,7 @@ Updated: 2026-11-01
 
 ## Verdicts
 
-**A. Implementation completion:** Not established. The approved requirement denominator is not frozen. Backend install, build, type check, Prisma validation, all seven portal installs/builds/type checks and isolated CSRF/retention tests passed; full workflow coverage is incomplete.
+**A. Implementation completion:** Not established. The approved requirement denominator is not frozen. Backend install, build, type check, Prisma validation, all seven portal installs/builds/type checks and isolated security/workflow tests passed; full workflow coverage is incomplete.
 
 **B. Production readiness:** Not ready. Security review is incomplete, tenant and finance controls are unverified, credential rotation is outstanding, and no clean install or E2E run completed.
 
@@ -18,14 +18,15 @@ Updated: 2026-11-01
 ## Build and test evidence
 
 - `npm ci --no-audit --no-fund` completed in the backend and all seven portals; backend postinstall generates Prisma Client.
-- Backend `npm run type-check`, `npm run build`, `npx prisma validate`, and isolated CSRF/retention/tenant-context tests (9 tests) passed.
+- Backend `npm run type-check`, `npm run build`, `npx prisma validate`, and isolated CSRF/retention/tenant-context/route tests (fresh run 2026-11-01: 6 files, 21 tests) passed. ERP Admin standalone type check passed after correcting the finance-close API paths.
 - All seven portal builds and standalone TypeScript checks passed. Portal lint has configuration gaps in three apps and existing lint errors in the others.
-- Focused ESLint on changed security/payment files passed. Full backend lint failed with 567 existing problems (566 errors, 1 warning).
+- Focused ESLint on changed finance/CRM/inventory/procurement files passed. Full backend lint failed with 549 repository-wide problems (548 errors, 1 warning).
 - Database-backed tests, Prisma migrations, hosted CI and Playwright were not executed.
 
 ## Important remaining issues
 
-- Full route authorization and tenant-isolation audits, regression tests, and seven-portal API/workflow matrix remain incomplete.
+- Full route authorization and tenant-isolation audits, database-backed regression tests, and seven-portal API/workflow matrix remain incomplete.
+- Bank reconciliation and goods receipt now fail closed because their schema cannot store actual line matches/received quantities; implement those workflows with migrations and finance/operations approval.
 - CSRF token propagation is implemented and portal builds/type checks pass, but browser flows remain untested.
 - Seed environment requirements need to be added to a sanitized setup guide before developers run demo seeding.
 - The removed backup may remain in Git history, forks and backups. Rotate affected database/JWT/provider credentials; no history rewrite or credential rotation was performed.

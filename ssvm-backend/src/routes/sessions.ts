@@ -35,17 +35,23 @@ router.delete("/:sessionId", async (req: Request, res: Response): Promise<void> 
     const userId = req.user?.id;
     const { sessionId } = req.params;
 
-    const session = await prisma.userSession.findUnique({
-      where: { sessionId: sessionId as string }
+    const session = await prisma.userSession.findFirst({
+      where: {
+        userId,
+        OR: [
+          { sessionId: sessionId as string },
+          { id: sessionId as string },
+        ],
+      },
     });
 
-    if (!session || session.userId !== userId) {
+    if (!session) {
       res.status(404).json({ success: false, error: "Session not found" });
       return;
     }
 
     await prisma.userSession.update({
-      where: { sessionId: sessionId as string },
+      where: { id: session.id },
       data: { isActive: false }
     });
 

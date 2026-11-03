@@ -1,10 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from './src/lib/prisma';
+
 import express from 'express';
 import { app } from './src/index'; // Warning: this might trigger app.listen if index.ts executes it unconditionally
 
 async function main() {
-  const prisma = new PrismaClient();
-  
   // Count models
   // @ts-ignore
   const models = Object.keys(prisma._baseDmmf.modelMap);

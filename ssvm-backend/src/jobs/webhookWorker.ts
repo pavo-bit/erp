@@ -1,10 +1,10 @@
+import prisma from '../lib/prisma';
 import { Worker, Job } from "bullmq";
-import { PrismaClient } from "@prisma/client";
+
 import { getEnv } from "../config/env";
 import logger from "../lib/logger";
 
 const env = getEnv();
-const prisma = new PrismaClient();
 
 /**
  * Starts the BullMQ worker for the webhook delivery queue.

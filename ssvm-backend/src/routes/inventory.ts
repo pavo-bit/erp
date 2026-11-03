@@ -12,8 +12,9 @@ function resolveSchoolId(req: AuthRequest, requestedSchoolId?: unknown): string 
 }
 
 router.post("/movements", async (req: AuthRequest, res: Response): Promise<void> => {
-  const { itemId, locationId, movementType, quantity, referenceDoc } = req.body;
-  const schoolId = resolveSchoolId(req, req.body?.schoolId);
+  const body = req.body ?? {};
+  const { itemId, locationId, movementType, quantity, referenceDoc } = body;
+  const schoolId = resolveSchoolId(req, body.schoolId);
 
   if (!schoolId) {
     res.status(400).json({ success: false, error: "School scope is required" });
@@ -51,7 +52,7 @@ router.post("/movements", async (req: AuthRequest, res: Response): Promise<void>
       }
 
       const delta = movementType === "INWARD" ? quantity : movementType === "OUTWARD" ? -quantity : quantity;
-      const newQuantity = stock.quantity + delta;
+      const newQuantity = Number(stock.quantity) + delta;
       if (!Number.isFinite(newQuantity) || newQuantity < 0) {
         throw new Error("Insufficient stock for this movement");
       }

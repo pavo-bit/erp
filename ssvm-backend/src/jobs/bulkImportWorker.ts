@@ -1,7 +1,7 @@
 import { Worker, Job } from "bullmq";
 import { getEnv } from "../config/env";
 import logger from "../lib/logger";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import Papa from "papaparse";
 // We don't fetch directly from S3, we assume file is local or we download it. 
 // For simplicity we simulate processing or we can fetch from S3 buffer.
@@ -43,12 +43,13 @@ export function startImportWorker() {
     "importQueue",
     async (job: Job) => {
       const { jobId, fileKey, schoolId, type } = job.data;
-      logger.info({ jobId, type, schoolId }, "Starting bulk import job");
+      return runWithTenantDatabaseTransaction(schoolId, async () => {
+        logger.info({ jobId, type, schoolId }, "Starting bulk import job");
 
-      await prisma.bulkJob.update({
-        where: { id: jobId },
-        data: { status: "PROCESSING", progress: 0 },
-      });
+        await prisma.bulkJob.update({
+          where: { id: jobId },
+          data: { status: "PROCESSING", progress: 0 },
+        });
 
       try {
         await job.updateProgress(5);
@@ -141,9 +142,10 @@ export function startImportWorker() {
           data: { status: "FAILED", errorFile: error.message },
         });
       }
-    },
-    { connection, concurrency: 1 } // Process one import at a time to prevent DB lock
-  );
+    });
+  },
+  { connection, concurrency: 1 } // Process one import at a time to prevent DB lock
+);
 
   importWorker.on("failed", (job, err) => {
     logger.error({ jobId: job?.id, err: err.message }, "Import worker failed");

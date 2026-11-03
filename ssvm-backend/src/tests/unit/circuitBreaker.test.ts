@@ -45,7 +45,7 @@ describe("CircuitBreaker Utility", () => {
 
     const mockFn = vi.fn().mockResolvedValue("Success");
     
-    await expect(cb.fire(mockFn)).rejects.toThrow(/Circuit sms_service is OPEN/);
+    await expect(cb.fire(mockFn)).rejects.toThrow(/Circuit Breaker OPEN for service: sms_service/);
     expect(mockFn).not.toHaveBeenCalled(); // Fast fail without calling upstream
   });
 
@@ -59,6 +59,6 @@ describe("CircuitBreaker Utility", () => {
     await expect(cb.fire(failingFn)).rejects.toThrow("Upstream Error");
     
     // Verify that circuit was tripped
-    expect(mockRedis.set).toHaveBeenCalledWith("cb:open:payment_service", "OPEN", "EX", 60);
+    expect(mockRedis.set).toHaveBeenCalledWith("cb:open:payment_service", "OPEN", "PX", 60);
   });
 });

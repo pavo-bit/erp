@@ -7,7 +7,7 @@ Updated: 2026-11-01
 | Backend dependency installation | PASS | `npm ci --no-audit --no-fund` installed 1,167 packages and invoked Prisma Client generation through the added root `postinstall`. |
 | Backend unit/integration tests | NOT RUN | No PostgreSQL listener was available; Docker daemon access was denied. The default test fixture truncates tables and was not pointed at an unknown database. |
 | Backend type check | PASS | `npm run type-check`. |
-| Backend lint | FAIL | Full ESLint reports 567 problems (566 errors, 1 warning); focused lint over changed security/payment files passes. |
+| Backend lint | FAIL | Full ESLint reports 549 problems (548 errors, 1 warning); focused lint over changed finance/CRM/inventory/procurement routes passes. |
 | Backend build | PASS | `npm run build`. |
 | Prisma validation/migrations | Schema validation PASS; migrations NOT RUN | `npx prisma validate` passed; database unavailable for migration checks. |
 | Frontend clean installs | PASS | `npm ci` completed for all seven portals after lockfile repairs. |
@@ -19,6 +19,6 @@ Updated: 2026-11-01
 | Whitespace/diff validation | PASS | `git diff --check` completed without errors. |
 | Known production fallback scan | PASS | Checked backend source and Prisma seed files for the confirmed CSRF/payment/admin fallback strings; none remain. |
 
-| Isolated security and tenant-context suite | PASS | 9 tests passed: 3 CSRF cases, 3 retention cases and 3 tenant-context cases. |
+| Isolated security and tenant-context suite | PASS | Fresh run 2026-11-01: 6 files, 21 tests passed across CSRF, retention, tenant context, finance-governance, CRM, inventory and procurement route cases. |
 
 The backend test setup now refuses to truncate tables unless an explicitly set `DATABASE_URL_TEST` has a test-marked database name. Do not weaken this guard to make local tests convenient.

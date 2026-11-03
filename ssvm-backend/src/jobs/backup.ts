@@ -63,13 +63,13 @@ export async function performDatabaseBackup(): Promise<void> {
     });
 
     logger.info({ backupId: backupRecord.id, sizeBytes, fileKey }, "Database backup completed successfully");
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ err: error, backupId: backupRecord.id }, "Database backup failed");
     await prisma.systemBackup.update({
       where: { id: backupRecord.id },
       data: {
         status: "FAILED",
-        errorMsg: error.message || "Unknown error during backup",
+        errorMsg: error instanceof Error ? error.message : "Unknown error during backup",
       },
     });
   } finally {

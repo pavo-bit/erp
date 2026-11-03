@@ -136,14 +136,14 @@ router.post("/:id/disburse", authenticate, requirePayrollRole, async (req: AuthR
         entries: [
           {
             accountId: expenseAccount.id,
-            debitAmount: salary.netPay,
+            debitAmount: Number(salary.netPay),
             creditAmount: 0,
             description: "Staff Salary Expense",
           },
           {
             accountId: bankAccount.id,
             debitAmount: 0,
-            creditAmount: salary.netPay,
+            creditAmount: Number(salary.netPay),
             description: "Cash/Bank Outflow",
           }
         ]

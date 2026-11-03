@@ -2,7 +2,7 @@ import { OpenApiGeneratorV31 } from "@asteasolutions/zod-to-openapi";
 import { registry } from "./registry";
 import { registerGeneratedRoutes } from "./generated_routes";
 
-export function generateSpec() {
+export function generateSpec(): any {
   registerGeneratedRoutes();
   const generator = new OpenApiGeneratorV31(registry.definitions);
 

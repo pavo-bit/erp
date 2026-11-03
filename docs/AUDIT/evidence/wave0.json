@@ -1,0 +1,170 @@
+{
+  "gate": "Wave 0",
+  "verdict": "PASSED",
+  "timestamp": "2026-11-02T14:02:00Z",
+  "catalog_metrics": {
+    "total_public_tables": 206,
+    "rls_enabled_and_forced_tables": 174,
+    "additional_role_policies_count": 39,
+    "total_policies": 213,
+    "non_postgres_owned_tables": 0,
+    "role_policies": [
+      { "table": "LedgerAccount", "policy": "trusted_ledger_account", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "LedgerEntry", "policy": "trusted_ledger_entry", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "LedgerTransaction", "policy": "trusted_ledger_tx", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "SequenceCounter", "policy": "trusted_sequence_counter", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "academic_sessions", "policy": "trusted_academic_sessions", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "admissions", "policy": "trusted_admissions", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "alumni", "policy": "auth_alumni", "role": "ssvm_auth", "cmd": "SELECT" },
+      { "table": "alumni", "policy": "trusted_alumni", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "assignments", "policy": "trusted_assignments", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "attendance", "policy": "trusted_attendance", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "audit_logs", "policy": "trusted_audit_logs", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "auth_events", "policy": "trusted_auth_events", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "classes", "policy": "trusted_classes", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "communication_logs", "policy": "trusted_communication_logs", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "departments", "policy": "trusted_departments", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "document_repository", "policy": "trusted_document_repository", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "events", "policy": "trusted_events", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "exam_subjects", "policy": "trusted_exam_subjects", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "exams", "policy": "trusted_exams", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "fee_structures", "policy": "trusted_fee_structures", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "guardians", "policy": "auth_guardians", "role": "ssvm_auth", "cmd": "SELECT" },
+      { "table": "guardians", "policy": "trusted_guardians", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "invoices", "policy": "trusted_invoices", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "notices", "policy": "trusted_notices", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "payment_transactions", "policy": "trusted_payment_tx", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "refresh_tokens", "policy": "auth_refresh_tokens", "role": "ssvm_auth", "cmd": "ALL" },
+      { "table": "sections", "policy": "trusted_sections", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "student_marks", "policy": "trusted_student_marks", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "students", "policy": "auth_student_select", "role": "ssvm_auth", "cmd": "SELECT" },
+      { "table": "students", "policy": "auth_student_update", "role": "ssvm_auth", "cmd": "UPDATE" },
+      { "table": "students", "policy": "trusted_students", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "subjects", "policy": "trusted_subjects", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "system_logs", "policy": "trusted_system_logs", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "teachers", "policy": "trusted_teachers", "role": "ssvm_trusted", "cmd": "SELECT" },
+      { "table": "user_sessions", "policy": "auth_sessions", "role": "ssvm_auth", "cmd": "ALL" },
+      { "table": "user_sessions", "policy": "trusted_user_sessions", "role": "ssvm_trusted", "cmd": "ALL" },
+      { "table": "users", "policy": "auth_user_select", "role": "ssvm_auth", "cmd": "SELECT" },
+      { "table": "users", "policy": "auth_user_update", "role": "ssvm_auth", "cmd": "UPDATE" },
+      { "table": "users", "policy": "trusted_users", "role": "ssvm_trusted", "cmd": "ALL" }
+    ]
+  },
+  "roles_and_privileges": {
+    "provision_script": "ssvm-backend/scripts/db/provision-roles.sql",
+    "roles": {
+      "ssvm_app": { "rolsuper": false, "rolbypassrls": false, "scope": "Runtime strict tenant isolation via current_tenant_id()" },
+      "ssvm_auth": { "rolsuper": false, "rolbypassrls": false, "scope": "Login only; SELECT lookups; column-level UPDATE on passwordHash/lastLogin; no INSERT; no role alteration; no invoices" },
+      "ssvm_trusted": { "rolsuper": false, "rolbypassrls": false, "scope": "Named server background tasks (webhook, logs, search) via DATABASE_URL_TRUSTED" },
+      "ssvm_fixture": { "rolsuper": false, "rolbypassrls": true, "scope": "Test fixtures only" }
+    }
+  },
+  "local_test_evidence": {
+    "R1_parallel": {
+      "command": "npm run test:ci",
+      "exitCode": 0,
+      "testFiles": "27 passed (27)",
+      "tests": "177 passed (177)",
+      "coverage": "Lines 29.4%, Statements 28.07%, Functions 26.91%, Branches 19.95%"
+    },
+    "R2_shuffled_seed_42817": {
+      "command": "npx vitest run --sequence.shuffle --sequence.seed=42817",
+      "exitCode": 0,
+      "testFiles": "27 passed (27)",
+      "tests": "177 passed (177)"
+    },
+    "R3_shuffled_seed_89432": {
+      "command": "npx vitest run --sequence.shuffle --sequence.seed=89432",
+      "exitCode": 0,
+      "testFiles": "27 passed (27)",
+      "tests": "177 passed (177)"
+    },
+    "R4_rls": {
+      "command": "npm run test:rls",
+      "exitCode": 0,
+      "testFiles": "2 passed (2)",
+      "tests": "182 passed (182)"
+    },
+    "tsc_typecheck": {
+      "command": "npm run type-check",
+      "exitCode": 0
+    },
+    "build": {
+      "command": "npm run build",
+      "exitCode": 0
+    }
+  },
+  "ci_summary": {
+    "runId": 41457570173,
+    "headCommit": "7b14661",
+    "prNumber": 2,
+    "url": "https://github.com/pavo-bit/erp/actions/runs/41457570173",
+    "jobs": {
+      "backend-test": {
+        "status": "success",
+        "id": 125318063951,
+        "duration": "3m17s",
+        "details": "177/177 tests passed. Includes parallel suite, coverage ratchet, and shuffled parallel step."
+      },
+      "Migrate and RLS Tests (restricted role)": {
+        "status": "success",
+        "id": 125318063420,
+        "duration": "1m38s",
+        "details": "Restricted role ssvm_app verified; 182/182 RLS & ledger tests passed."
+      },
+      "backend-type-check": {
+        "status": "success",
+        "id": 125318063942,
+        "duration": "1m29s",
+        "details": "tsc --noEmit clean with 0 errors."
+      },
+      "frontend-build (super-admin)": {
+        "status": "success",
+        "id": 125318063929,
+        "duration": "1m3s"
+      },
+      "frontend-build (teacher-portal)": {
+        "status": "success",
+        "id": 125318064073,
+        "duration": "1m10s"
+      },
+      "frontend-build (erp-admin)": {
+        "status": "success",
+        "id": 125318063787,
+        "duration": "1m16s"
+      },
+      "frontend-build (student-portal)": {
+        "status": "success",
+        "id": 125318064295,
+        "duration": "1m16s"
+      },
+      "frontend-build (payment-portal)": {
+        "status": "success",
+        "id": 125318063852,
+        "duration": "1m11s"
+      },
+      "frontend-build (saas-frontend)": {
+        "status": "success",
+        "id": 125318064039,
+        "duration": "45s"
+      },
+      "frontend-build (parent-portal)": {
+        "status": "success",
+        "id": 125318064013,
+        "duration": "1m4s"
+      },
+      "backend-lint": {
+        "status": "failure",
+        "id": 125318063923,
+        "duration": "1m7s",
+        "details": "Documented pre-existing lint errors in app.ts and backup.ts (out of Wave 0 scope)."
+      },
+      "security-scan": {
+        "status": "failure",
+        "id": 125318063818,
+        "duration": "54s",
+        "details": "Documented pre-existing npm audit vulnerabilities in transitive packages (out of Wave 0 scope)."
+      }
+    }
+  }
+}

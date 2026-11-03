@@ -4,6 +4,7 @@ import { AuthRequest, authenticate, requireRole, requireAcademicAdmin, hashPassw
 
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 
+
 const router = Router();
 
 // GET /api/students/me — STUDENT role self-profile
@@ -43,36 +44,47 @@ router.get('/me', authenticate, requireRole('STUDENT'), async (req: AuthRequest,
 // POST /api/students
 router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const { name, rollNo, class: className, section, session, guardianName, guardianPhone } = req.body;
+    const { name, rollNo, class: className, section, session, guardianName, guardianPhone, sectionId } = req.body;
     
-    // Auto-generate dummy admission No and password
-    const admissionNo = `ADM${Math.floor(100000 + Math.random() * 900000)}`;
-    const hashedPassword = await hashPassword(`SSVM@${Math.floor(1000 + Math.random() * 9000)}`);
+    const admissionNo = req.body.admissionNo || `ADM${Math.floor(100000 + Math.random() * 900000)}`;
+    const rawPassword = req.body.password || `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
+    const hashedPassword = await hashPassword(rawPassword);
 
     const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
     if (!schoolId) {
       return res.status(400).json({ success: false, error: "No school found to associate with" });
     }
 
-    // Find or create class/section
-    let sectionRec = await prisma.section.findFirst({
-      where: { name: section, class: { name: className, schoolId } },
-      include: { class: true }
-    });
+    let sectionRec = null;
+    if (sectionId) {
+      sectionRec = await prisma.section.findUnique({
+        where: { id: sectionId },
+        include: { class: true }
+      });
+    }
 
     if (!sectionRec) {
-      let classRec = await prisma.class.findFirst({ where: { name: className, schoolId } });
-      if (!classRec) {
-        // Find session
-        let sessionRec = await prisma.academicSession.findFirst({ where: { name: session || "2025-26", schoolId } });
-        if (!sessionRec) {
-          sessionRec = await prisma.academicSession.create({
-            data: { schoolId, name: session || "2025-26", startDate: new Date("2025-04-01"), endDate: new Date("2026-03-31") }
-          });
+      const clsName = className || "Class 1";
+      const secName = section || "A";
+
+      sectionRec = await prisma.section.findFirst({
+        where: { name: secName, class: { name: clsName, schoolId } },
+        include: { class: true }
+      });
+
+      if (!sectionRec) {
+        let classRec = await prisma.class.findFirst({ where: { name: clsName, schoolId } });
+        if (!classRec) {
+          let sessionRec = await prisma.academicSession.findFirst({ where: { name: session || "2025-26", schoolId } });
+          if (!sessionRec) {
+            sessionRec = await prisma.academicSession.create({
+              data: { schoolId, name: session || "2025-26", startDate: new Date("2025-04-01"), endDate: new Date("2026-03-31") }
+            });
+          }
+          classRec = await prisma.class.create({ data: { schoolId, name: clsName, sessionId: sessionRec.id } });
         }
-        classRec = await prisma.class.create({ data: { schoolId, name: className, sessionId: sessionRec.id } });
+        sectionRec = await prisma.section.create({ data: { classId: classRec.id, name: secName }, include: { class: true } });
       }
-      sectionRec = await prisma.section.create({ data: { classId: classRec.id, name: section }, include: { class: true } });
     }
 
     let guardian = null;
@@ -82,15 +94,28 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
       });
     }
 
+    const studentEmail = `${(admissionNo || `std_${Date.now()}`).toLowerCase().replace(/[^a-z0-9]/g, '')}_${schoolId.slice(-6)}@student.school`;
+    const user = await prisma.user.create({
+      data: {
+        email: studentEmail,
+        name: name || "Student",
+        passwordHash: hashedPassword,
+        role: "STUDENT",
+        schoolId,
+        isActive: true,
+      }
+    });
+
     const student = await prisma.student.create({
       data: {
         schoolId,
         name,
-        rollNo,
+        rollNo: rollNo || "1",
         admissionNo,
         password: hashedPassword,
-        sectionId: sectionRec!.id,
-        guardianId: guardian?.id
+        sectionId: sectionRec?.id,
+        guardianId: guardian?.id,
+        userId: user.id,
       }
     });
 

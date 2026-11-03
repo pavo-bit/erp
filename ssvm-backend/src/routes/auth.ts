@@ -20,8 +20,9 @@ import { injectCsrfToken } from "../middleware/csrf";
 import { logAuthEvent } from "../lib/authEventLogger";
 import { alumniRegisterLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
-import { incrementFailedLogins, resetFailedLogins } from "../lib/redis";
+import { incrementFailedLogins, resetFailedLogins, getFailedLogins } from "../lib/redis";
 import { enqueueNotification } from "../jobs/queue";
+import { getAuthPrisma } from "../lib/authPrisma";
 
 const router = Router();
 
@@ -62,7 +63,8 @@ export async function issueTokenPair(
   const family = options?.family || crypto.randomUUID();
 
   // Store refresh token hash in DB
-  await prisma.refreshToken.create({
+  const authDb = getAuthPrisma();
+  await authDb.refreshToken.create({
     data: {
       token: tokenHash,
       userId: user.id,
@@ -76,18 +78,18 @@ export async function issueTokenPair(
   const absoluteExpiryMs = 90 * 24 * 60 * 60 * 1000; // 90 days
   let sessionId = crypto.randomUUID() as string;
 
-  const existingSession = await prisma.userSession.findFirst({
+  const existingSession = await authDb.userSession.findFirst({
     where: { userId: user.id, deviceFingerprint }
   });
   
   if (existingSession) {
     sessionId = existingSession.sessionId;
-    await prisma.userSession.update({
+    await authDb.userSession.update({
       where: { id: existingSession.id },
       data: { lastSeen: new Date(), ipAddress, isActive: true, refreshFamily: family, expiresAt: new Date(Date.now() + absoluteExpiryMs) }
     });
   } else {
-    await prisma.userSession.create({
+    await authDb.userSession.create({
       data: { userId: user.id, sessionId, refreshFamily: family, deviceFingerprint, ipAddress, lastSeen: new Date(), isActive: true, expiresAt: new Date(Date.now() + absoluteExpiryMs) }
     });
   }
@@ -99,14 +101,14 @@ export async function issueTokenPair(
   else if (user.role === "TEACHER") maxSessions = 5;
   else if (["ADMIN", "ERP_ADMIN", "SUPER_ADMIN", "WEBSITE_ADMIN"].includes(user.role)) maxSessions = 10;
 
-  const activeSessions = await prisma.userSession.findMany({
+  const activeSessions = await authDb.userSession.findMany({
     where: { userId: user.id, isActive: true },
     orderBy: { lastSeen: 'asc' }
   });
 
   if (activeSessions.length > maxSessions) {
     const sessionsToRevoke = activeSessions.slice(0, activeSessions.length - maxSessions);
-    await prisma.userSession.updateMany({
+    await authDb.userSession.updateMany({
       where: { id: { in: sessionsToRevoke.map(s => s.id) } },
       data: { isActive: false }
     });
@@ -146,8 +148,9 @@ export async function issueTokenPair(
 router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Response) => {
   try {
     const { email, password } = req.body;
+    const authDb = getAuthPrisma();
 
-    const user = await prisma.user.findUnique({
+    const user = await authDb.user.findUnique({
       where: { email },
       include: { guardian: { include: { students: true } }, alumni: true },
     });
@@ -163,6 +166,12 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
       return; 
     }
 
+    const priorFailedAttempts = await getFailedLogins(email);
+    if (priorFailedAttempts >= 5) {
+      res.status(429).json({ success: false, error: "Too many failed login attempts. Please try again later." });
+      return;
+    }
+
     const valid = await verifyPassword(password, (user as any).passwordHash, { id: user.id, type: "USER" });
     if (!valid) {
       logger.warn({ email }, "Failed login attempt");
@@ -171,7 +180,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
       
       if (attempts >= 5) {
         // Lockout! Notify ERP_ADMIN
-        const admin = await prisma.user.findFirst({ where: { schoolId: user.schoolId, role: "ERP_ADMIN", isActive: true } });
+        const admin = await authDb.user.findFirst({ where: { schoolId: user.schoolId, role: "ERP_ADMIN", isActive: true } });
         if (admin) {
           await enqueueNotification({
             logId: `lockout-${user.id}-${Date.now()}`,
@@ -192,7 +201,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
     await resetFailedLogins(email);
 
     // Update lastLogin timestamp
-    await prisma.user.update({
+    await authDb.user.update({
       where: { id: user.id },
       data: { lastLogin: new Date() },
     });
@@ -227,35 +236,77 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
 
 router.post("/student/login", async (req: AuthRequest, res: Response) => {
   try {
-    const { admissionNo, password } = req.body;
+    const { admissionNo, schoolCode } = req.body;
+    const password = req.body.password;
 
     if (!admissionNo || !password) {
       res.status(400).json({ success: false, error: "Admission number and password required" });
       return;
     }
 
-    const student = await prisma.student.findUnique({
-      where: { admissionNo },
-      include: { school: true },
+    const authDb = getAuthPrisma();
+
+    let schoolId: string | undefined = req.body.schoolId;
+    if (!schoolId && schoolCode) {
+      const school = await authDb.school.findUnique({ where: { code: schoolCode } });
+      if (!school) {
+        res.status(401).json({ success: false, error: "Invalid school code" });
+        return;
+      }
+      schoolId = school.id;
+    }
+
+    const matchingStudents = await authDb.student.findMany({
+      where: {
+        admissionNo,
+        ...(schoolId ? { schoolId } : {}),
+      },
+      include: { school: true, user: true },
+      take: 2,
     });
 
-    if (!student) { 
-      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", req, success: false, failReason: "user_not_found", metadata: { admissionNo } });
+    if (matchingStudents.length === 0) { 
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", req, success: false, failReason: "user_not_found", metadata: { admissionNo, schoolCode } });
       res.status(401).json({ success: false, error: "Invalid admission number" }); 
       return; 
     }
+
+    if (!schoolId && matchingStudents.length > 1) {
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", req, success: false, failReason: "ambiguous_school", metadata: { admissionNo } });
+      res.status(401).json({ success: false, error: "Multiple students found with this admission number across schools. Please specify schoolCode." });
+      return;
+    }
+
+    const student = matchingStudents[0];
+
+    if (schoolId && student.schoolId !== schoolId) {
+      await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "wrong_school", metadata: { admissionNo, schoolCode } });
+      res.status(401).json({ success: false, error: "Student does not belong to specified school" });
+      return;
+    }
+
     if (!student.isActive) { 
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "account_disabled", metadata: { admissionNo } });
       res.status(403).json({ success: false, error: "Student account deactivated" }); 
       return; 
     }
-    if (!student.password) { 
+
+    // Student must have an existing linked User record in the same school (never create on the fly)
+    if (!student.userId || !student.user || student.user.schoolId !== student.schoolId) {
+      logger.warn({ studentId: student.id, admissionNo }, "Student account not linked to an active user");
+      res.status(401).json({ success: false, error: "Student account not linked to an active user" });
+      return;
+    }
+
+    // passwordHash must never be ""
+    const hashToVerify = student.password || student.user.passwordHash;
+    if (!hashToVerify || hashToVerify === "") { 
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "invalid_credentials", metadata: { admissionNo } });
       res.status(401).json({ success: false, error: "Password not set for this student" }); 
       return; 
     }
 
-    const valid = await verifyPassword(password, student.password, { id: student.id, type: "STUDENT" });
+    const valid = await verifyPassword(password, hashToVerify, { id: student.id, type: "STUDENT" });
     if (!valid) {
       logger.warn({ admissionNo }, "Failed student login attempt");
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: student.id, schoolId: student.schoolId, req, success: false, failReason: "invalid_credentials", metadata: { admissionNo } });
@@ -266,7 +317,7 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
     // Issue tokens using standard process
     await issueTokenPair(res, {
       id: student.userId,
-      email: student.admissionNo || "",
+      email: student.user.email || student.admissionNo || "",
       role: "STUDENT",
       name: student.name,
       schoolId: student.schoolId,
@@ -306,7 +357,8 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
 
     // Look up the hashed token in DB
     const tokenHash = hashToken(refreshTokenCookie);
-    const storedToken = await prisma.refreshToken.findUnique({
+    const authDb = getAuthPrisma();
+    const storedToken = await authDb.refreshToken.findUnique({
       where: { token: tokenHash },
       include: { user: { select: { id: true, email: true, name: true, role: true, isActive: true, schoolId: true, branchId: true } } },
     });
@@ -320,7 +372,7 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
     // Reuse Attack Detection
     if (storedToken.revokedAt) {
       logger.warn({ userId: payload.userId }, "Refresh token reuse detected — revoking all user tokens");
-      await prisma.refreshToken.updateMany({
+      await authDb.refreshToken.updateMany({
         where: { userId: storedToken.userId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
@@ -334,7 +386,7 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
         metadata: { tokenHash }
       });
       // Invalidate the sessions for this family/user
-      await prisma.userSession.updateMany({
+      await authDb.userSession.updateMany({
         where: { userId: storedToken.userId },
         data: { isActive: false }
       });
@@ -361,7 +413,7 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
     // ─── Token Rotation ───
     // 1. Revoke old refresh token
     const newFamilyTag = `rotated_${crypto.randomUUID()}`;
-    await prisma.refreshToken.update({
+    await authDb.refreshToken.update({
       where: { id: storedToken.id },
       data: { revokedAt: new Date() },
     });
@@ -681,8 +733,9 @@ router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSc
 
 router.get("/me", authenticate, injectCsrfToken, async (req: AuthRequest, res: Response) => {
   try {
+    const authDb = getAuthPrisma();
     if (req.user!.role === "STUDENT") {
-      const student = await prisma.student.findUnique({
+      const student = await authDb.student.findUnique({
         where: { id: req.user!.id },
         select: {
           id: true, admissionNo: true, name: true,
@@ -695,7 +748,7 @@ router.get("/me", authenticate, injectCsrfToken, async (req: AuthRequest, res: R
       return;
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await authDb.user.findUnique({
       where: { id: req.user!.id },
       select: {
         id: true, email: true, name: true, role: true, phone: true,

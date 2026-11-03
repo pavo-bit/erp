@@ -1,6 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { getEnv } from "../config/env";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 
 const env = getEnv();
@@ -26,35 +26,42 @@ export function startScanWorker() {
   const worker = new Worker(
     "SCAN_QUEUE",
     async (job: Job) => {
-      const { documentId, fileUrl } = job.data;
+      const { documentId, fileUrl, schoolId } = job.data;
       
-      logger.info({ documentId }, "Starting virus scan");
+      const executeScan = async () => {
+        logger.info({ documentId }, "Starting virus scan");
 
-      await prisma.storageObject.update({
-        where: { id: documentId },
-        data: { scanStatus: "IN_PROGRESS" }
-      });
-
-      const scanResult = await simulateVirusScan(fileUrl);
-
-      await prisma.storageObject.update({
-        where: { id: documentId },
-        data: {
-          scanStatus: scanResult
-        }
-      });
-
-      if (scanResult === "QUARANTINED") {
-        logger.warn({ documentId }, "Document quarantined by virus scanner");
-        const { logSecurityEvent } = await import("../lib/audit");
-        await logSecurityEvent({
-          eventType: "DOCUMENT_QUARANTINED",
-          severity: "HIGH",
-          metadata: { documentId, fileUrl }
+        await prisma.storageObject.update({
+          where: { id: documentId },
+          data: { scanStatus: "IN_PROGRESS" }
         });
-      } else {
-        logger.info({ documentId }, "Document scan complete — CLEAN");
+
+        const scanResult = await simulateVirusScan(fileUrl);
+
+        await prisma.storageObject.update({
+          where: { id: documentId },
+          data: {
+            scanStatus: scanResult
+          }
+        });
+
+        if (scanResult === "QUARANTINED") {
+          logger.warn({ documentId }, "Document quarantined by virus scanner");
+          const { logSecurityEvent } = await import("../lib/audit");
+          await logSecurityEvent({
+            eventType: "DOCUMENT_QUARANTINED",
+            severity: "HIGH",
+            metadata: { documentId, fileUrl }
+          });
+        } else {
+          logger.info({ documentId }, "Document scan complete — CLEAN");
+        }
+      };
+
+      if (schoolId) {
+        return runWithTenantDatabaseTransaction(schoolId, executeScan);
       }
+      return executeScan();
     },
     { connection, concurrency: 5 }
   );

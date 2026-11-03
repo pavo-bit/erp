@@ -14,7 +14,7 @@ The approved requirement denominator and complete semantic route/model inventory
 - Finance-governance route authorization/actor/result handling corrected; unsupported reconciliation no longer writes false success.
 - CRM and inventory route auth/scope controls added.
 - Procurement request and approval trust boundaries improved; unsupported goods receipt no longer reports fake success.
-- Backend type-check/build and Prisma validation passed; focused lint passed; isolated suite passed 16 tests.
+- Backend type-check/build, Prisma validation and ERP Admin standalone type check passed in earlier runs; focused lint passed; fresh isolated suite run on 2026-11-01 passed 6 files and 21 tests.
 
 ## Release blockers
 
