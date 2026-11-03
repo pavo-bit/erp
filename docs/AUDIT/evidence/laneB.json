@@ -1,0 +1,20 @@
+{
+  "lane": "B",
+  "baseCommit": "37db7b8f1135ed867624e5a08ba565dfd4360c28",
+  "entries": [
+    {
+      "command": "git worktree add ..\\erp-lane-b -b lane/b-finance remediation/80pct",
+      "exitCode": 0,
+      "stdoutTail": "Preparing worktree (new branch 'lane/b-finance'); HEAD is now at 37db7b8 Merge pull request #3 from pavo-bit/lane/a-db-spine",
+      "timestampUtc": "2026-11-03 11:36:55 UTC",
+      "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
+    },
+    {
+      "command": "npm run lint",
+      "exitCode": 1,
+      "stdoutTail": "640 problems (639 errors, 1 warning); baseline error count on lane B branch before edits",
+      "timestampUtc": "2026-11-03 11:38:59 UTC",
+      "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
+    }
+  ]
+}
