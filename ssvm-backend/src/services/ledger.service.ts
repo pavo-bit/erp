@@ -1,14 +1,13 @@
-import prisma from '../lib/prisma';
-import { LedgerTransaction, LedgerEntry, LedgerReferenceType, LedgerModule, LedgerSource, LedgerDomainEvent, FinancialEntityType, FinancialAuditAction, Prisma, SystemDomainEventType } from '@prisma/client';
+import prisma, { runWithTenantDatabaseTransaction } from '../lib/prisma';
+import { LedgerReferenceType, LedgerModule, LedgerSource, FinancialEntityType, FinancialAuditAction, Prisma, SystemDomainEventType } from '@prisma/client';
 import * as crypto from 'crypto';
 import { EventStoreService } from './eventStore.service';
-
 
 export interface LedgerEntryInput {
   accountId: string;
   dimensionValueId?: string;
-  debitAmount: number;
-  creditAmount: number;
+  debitAmount: number | Prisma.Decimal;
+  creditAmount: number | Prisma.Decimal;
   description?: string;
 }
 
@@ -34,10 +33,13 @@ export class LedgerService {
    * 2. Hash-Chaining: Transaction is immutably hashed to the previous transaction.
    * 3. Immutability: Event and Audit logs are published simultaneously.
    */
-  static async postTransaction(input: PostTransactionInput) {
+  static async postTransaction(
+    input: PostTransactionInput,
+    existingTransaction?: Prisma.TransactionClient,
+  ) {
     // 1. Double-Entry Arithmetic Validation
-    const totalDebits = input.entries.reduce((sum, entry) => sum + entry.debitAmount, 0);
-    const totalCredits = input.entries.reduce((sum, entry) => sum + entry.creditAmount, 0);
+    const totalDebits = input.entries.reduce((sum, entry) => sum + Number(entry.debitAmount), 0);
+    const totalCredits = input.entries.reduce((sum, entry) => sum + Number(entry.creditAmount), 0);
 
     // Using epsilon to avoid JS floating point errors
     if (Math.abs(totalDebits - totalCredits) > 0.001) {
@@ -48,7 +50,7 @@ export class LedgerService {
       throw new Error(`Invalid Ledger Entry: Total transaction amount must be greater than zero.`);
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const postWithClient = async (tx: Prisma.TransactionClient) => {
       // 2. Fetch Previous Hash for the Hash Chain
       // To ensure strict linearity, we lock or fetch the latest transaction chronologically
       const lastTx = await tx.ledgerTransaction.findFirst({
@@ -131,8 +133,11 @@ export class LedgerService {
       });
 
       return ledgerTxn;
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable, // Strict locking to prevent hash forks
+    };
+
+    if (existingTransaction) return postWithClient(existingTransaction);
+    return runWithTenantDatabaseTransaction(input.schoolId, postWithClient, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
   }
 
@@ -158,7 +163,7 @@ export class LedgerService {
         txnNumber: txn.transactionNumber,
         schoolId: txn.schoolId,
         referenceId: txn.referenceId,
-        entries: txn.LedgerEntry.map((e: any) => ({
+        entries: txn.LedgerEntry.map((e) => ({
           accountId: e.accountId,
           dimensionValueId: e.dimensionValueId,
           debitAmount: Number(e.debitAmount),

@@ -10,11 +10,60 @@
       "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
     },
     {
-      "command": "npm run lint",
+      "command": "npm run lint (baseline)",
       "exitCode": 1,
-      "stdoutTail": "640 problems (639 errors, 1 warning); baseline error count on lane B branch before edits",
+      "stdoutTail": "✖ 640 problems (639 errors, 1 warning)\n  8 errors and 1 warning potentially fixable with the `--fix` option.",
       "timestampUtc": "2026-11-03 11:38:59 UTC",
       "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdoutTail": "Command exited with code 0.",
+      "timestampUtc": "2026-11-03 12:55:34 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "npx vitest run --config vitest.rls.config.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 4 passed (4)\nTests 213 passed (213)\nDuration 5.43s",
+      "timestampUtc": "2026-11-03 12:56:25 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "npx vitest run src/tests/api/payments.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 12 passed (12)\nDuration 9.77s",
+      "timestampUtc": "2026-11-03 12:53:42 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "npx vitest run src/tests/api/bank-reconciliation.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 4 passed (4)\nDuration 6.03s",
+      "timestampUtc": "2026-11-03 13:00:55 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "npx vitest run src/tests/api/",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 10 passed (10)\nTests 70 passed (70)\nDuration 29.31s",
+      "timestampUtc": "2026-11-03 13:01:48 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "npx vitest run src/tests/unit/",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 5 passed (5)\nTests 65 passed (65)\nDuration 12.47s",
+      "timestampUtc": "2026-11-03 13:09:19 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "npm run lint (post-implementation)",
+      "exitCode": 1,
+      "stdoutTail": "✖ 640 problems (639 errors, 1 warning)\n  8 errors and 1 warning potentially fixable with the `--fix` option. No new lint errors added.",
+      "timestampUtc": "2026-11-03 12:54:42 UTC",
+      "commitSha": "HEAD"
     }
   ]
 }
