@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { Student, User, Invoice, PaymentTransaction } from "@prisma/client";
 import prisma, { runWithTenantDatabaseTransaction } from "../../lib/prisma";
 import { runWithSchoolContext } from "../../middleware/school-context.middleware";
 import { randomUUID } from "crypto";
@@ -84,8 +85,8 @@ describe("Tenant Wrapper & RLS Enforcement (as ssvm_app)", () => {
         expect(cat?.id).toBe(categoryA.id);
         throw new Error("Intentional rollback for test");
       });
-    } catch (err: any) {
-      expect(err.message).toBe("Intentional rollback for test");
+    } catch (err: unknown) {
+      expect((err as Error).message).toBe("Intentional rollback for test");
     }
 
     // Verify immediately outside: 0 rows
@@ -159,5 +160,141 @@ describe("Tenant Wrapper & RLS Enforcement (as ssvm_app)", () => {
     const jobB = await simulateWorkerJob(schoolB.id, categoryB.id);
     expect(jobB.id).toBe(categoryB.id);
     expect(jobB.schoolId).toBe(schoolB.id);
+  });
+
+  // (g) runWithTenantDatabaseTransaction cross-school nesting rejection
+  it("(g) allows same-school nesting and rejects different-school nesting inside active transaction", async () => {
+    // 1. Same-school nesting allowed
+    const sameSchoolResult = await runWithTenantDatabaseTransaction(schoolA.id, async (tx1) => {
+      const parentCat = await tx1.feeCategory.findFirst({ where: { id: categoryA.id } });
+      return await runWithTenantDatabaseTransaction(schoolA.id, async (tx2) => {
+        const cat = await tx2.feeCategory.findFirst({ where: { id: categoryA.id } });
+        expect(cat?.id).toBe(parentCat?.id);
+        return cat?.id;
+      });
+    });
+    expect(sameSchoolResult).toBe(categoryA.id);
+
+    // 2. Different-school nesting throws
+    await expect(
+      runWithTenantDatabaseTransaction(schoolA.id, async () => {
+        return await runWithTenantDatabaseTransaction(schoolB.id, async (txB) => {
+          return await txB.feeCategory.findMany();
+        });
+      })
+    ).rejects.toThrow(/Cannot switch tenant context inside active transaction/i);
+  });
+
+  // (h) Soft delete as ssvm_app for Student, User, Invoice, PaymentTransaction
+  describe("(h) Soft delete operations inside and outside runWithTenantDatabaseTransaction", () => {
+    let studentA: Student, studentB: Student;
+    let userA: User, userB: User;
+    let invoiceA: Invoice, invoiceB: Invoice;
+    let paymentA: PaymentTransaction, paymentB: PaymentTransaction;
+
+    async function seedEntities() {
+      const ts = Date.now();
+      userA = await fixturePrisma.user.create({
+        data: { id: `u_sd_a_${ts}`, schoolId: schoolA.id, email: `u_a_${ts}@test.org`, name: "User A", role: "TEACHER", passwordHash: "$argon2id$v=19$m=65536,t=3,p=4$somehash$somehash" }
+      });
+      userB = await fixturePrisma.user.create({
+        data: { id: `u_sd_b_${ts}`, schoolId: schoolB.id, email: `u_b_${ts}@test.org`, name: "User B", role: "TEACHER", passwordHash: "$argon2id$v=19$m=65536,t=3,p=4$somehash$somehash" }
+      });
+      studentA = await fixturePrisma.student.create({
+        data: { id: `s_sd_a_${ts}`, schoolId: schoolA.id, name: "Student A", rollNo: `A-${ts}`, userId: userA.id }
+      });
+      studentB = await fixturePrisma.student.create({
+        data: { id: `s_sd_b_${ts}`, schoolId: schoolB.id, name: "Student B", rollNo: `B-${ts}`, userId: userB.id }
+      });
+      invoiceA = await fixturePrisma.invoice.create({
+        data: { id: `inv_sd_a_${ts}`, schoolId: schoolA.id, studentId: studentA.id, amount: 1000, dueDate: new Date() }
+      });
+      invoiceB = await fixturePrisma.invoice.create({
+        data: { id: `inv_sd_b_${ts}`, schoolId: schoolB.id, studentId: studentB.id, amount: 2000, dueDate: new Date() }
+      });
+      paymentA = await fixturePrisma.paymentTransaction.create({
+        data: { id: `pt_sd_a_${ts}`, schoolId: schoolA.id, invoiceId: invoiceA.id, amountPaid: 1000, transactionId: `tx_a_${ts}` }
+      });
+      paymentB = await fixturePrisma.paymentTransaction.create({
+        data: { id: `pt_sd_b_${ts}`, schoolId: schoolB.id, invoiceId: invoiceB.id, amountPaid: 2000, transactionId: `tx_b_${ts}` }
+      });
+    }
+
+    async function cleanupEntities() {
+      if (paymentA?.id) await fixturePrisma.paymentTransaction.deleteMany({ where: { id: { in: [paymentA.id, paymentB.id] } } });
+      if (invoiceA?.id) await fixturePrisma.invoice.deleteMany({ where: { id: { in: [invoiceA.id, invoiceB.id] } } });
+      if (studentA?.id) await fixturePrisma.student.deleteMany({ where: { id: { in: [studentA.id, studentB.id] } } });
+      if (userA?.id) await fixturePrisma.user.deleteMany({ where: { id: { in: [userA.id, userB.id] } } });
+    }
+
+    it("soft-deletes Student, User, Invoice, PaymentTransaction OUTSIDE transaction (School A context)", async () => {
+      await seedEntities();
+      try {
+        await runWithSchoolContext(schoolA.id, async () => {
+          // 1. Cross-school deletion attempts must fail with P2025
+          await expect(prisma.student.delete({ where: { id: studentB.id } })).rejects.toThrow();
+          await expect(prisma.user.delete({ where: { id: userB.id } })).rejects.toThrow();
+          await expect(prisma.invoice.delete({ where: { id: invoiceB.id } })).rejects.toThrow();
+          await expect(prisma.paymentTransaction.delete({ where: { id: paymentB.id } })).rejects.toThrow();
+
+          // 2. Own-school deletion attempts must succeed as soft-delete
+          const delStudent = await prisma.student.delete({ where: { id: studentA.id } });
+          expect(delStudent.deletedAt).toBeDefined();
+
+          const delUser = await prisma.user.delete({ where: { id: userA.id } });
+          expect(delUser.deletedAt).toBeDefined();
+
+          const delInvoice = await prisma.invoice.delete({ where: { id: invoiceA.id } });
+          expect(delInvoice.deletedAt).toBeDefined();
+
+          const delPayment = await prisma.paymentTransaction.delete({ where: { id: paymentA.id } });
+          expect(delPayment.deletedAt).toBeDefined();
+        });
+
+        // Verify state via fixturePrisma
+        const checkBStudent = await fixturePrisma.student.findUnique({ where: { id: studentB.id } });
+        expect(checkBStudent?.deletedAt).toBeNull();
+
+        const checkAStudent = await fixturePrisma.student.findUnique({ where: { id: studentA.id } });
+        expect(checkAStudent?.deletedAt).not.toBeNull();
+      } finally {
+        await cleanupEntities();
+      }
+    });
+
+    it("soft-deletes Student, User, Invoice, PaymentTransaction INSIDE runWithTenantDatabaseTransaction", async () => {
+      await seedEntities();
+      try {
+        await runWithTenantDatabaseTransaction(schoolA.id, async (tx) => {
+          // 1. Cross-school deletion attempts must fail with P2025
+          await expect(tx.student.delete({ where: { id: studentB.id } })).rejects.toThrow();
+          await expect(tx.user.delete({ where: { id: userB.id } })).rejects.toThrow();
+          await expect(tx.invoice.delete({ where: { id: invoiceB.id } })).rejects.toThrow();
+          await expect(tx.paymentTransaction.delete({ where: { id: paymentB.id } })).rejects.toThrow();
+
+          // 2. Own-school deletion attempts succeed inside transaction
+          const delStudent = await tx.student.delete({ where: { id: studentA.id } });
+          expect(delStudent.deletedAt).toBeDefined();
+
+          const delUser = await tx.user.delete({ where: { id: userA.id } });
+          expect(delUser.deletedAt).toBeDefined();
+
+          const delInvoice = await tx.invoice.delete({ where: { id: invoiceA.id } });
+          expect(delInvoice.deletedAt).toBeDefined();
+
+          const delPayment = await tx.paymentTransaction.delete({ where: { id: paymentA.id } });
+          expect(delPayment.deletedAt).toBeDefined();
+        });
+
+        // Verify state via fixturePrisma
+        const checkBStudent = await fixturePrisma.student.findUnique({ where: { id: studentB.id } });
+        expect(checkBStudent?.deletedAt).toBeNull();
+
+        const checkAStudent = await fixturePrisma.student.findUnique({ where: { id: studentA.id } });
+        expect(checkAStudent?.deletedAt).not.toBeNull();
+      } finally {
+        await cleanupEntities();
+      }
+    });
   });
 });

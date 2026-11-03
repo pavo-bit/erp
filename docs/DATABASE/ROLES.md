@@ -82,6 +82,46 @@ To decouple role permissions from deployment-specific login credentials and pass
   5. **Admin Audit Viewer**: Runs via audited `runWithTrustedDatabaseTransaction({ purpose: "ADMIN_AUDIT", actorId })`.
   6. **Logging**: Callers with known `schoolId` use the tenant wrapper; pre-tenant events use `log_pre_tenant_*` functions.
 
+### 3.4 Database-Level Enforcement of Special Operations
+
+#### 3.4.1 `PAYMENTS_WEBHOOK` Database-Level Enforcement
+Payment webhooks arrive from external gateways (e.g. Razorpay) without a tenant identifier header (`x-school-id`), containing only transaction IDs (`orderId` or `paymentId`).
+1. **RLS Denial on Raw Table Access**:
+   - `payment_transactions` is a tenant table with `ROW LEVEL SECURITY ENABLED` and `FORCED`.
+   - The RLS policy enforces `"schoolId" = current_tenant_id()`.
+   - When a webhook request arrives without tenant context (`current_tenant_id()` is `NULL`), any direct `SELECT`, `UPDATE`, or `DELETE` on `payment_transactions` executed as `ssvm_app` returns **0 rows** (fail-closed).
+2. **Narrow SECURITY DEFINER Function (`resolve_payment_school`)**:
+   - In migration `20261102160000_security_definer_roles_and_guards`, access is controlled via:
+     ```sql
+     CREATE OR REPLACE FUNCTION resolve_payment_school(p_order_id text)
+     RETURNS text LANGUAGE plpgsql SECURITY DEFINER
+     SET search_path = public, pg_temp
+     AS $$
+     DECLARE v_school_id text;
+     BEGIN
+       SELECT "schoolId" INTO v_school_id FROM payment_transactions
+       WHERE "transactionId" = p_order_id OR "id" = p_order_id OR "gatewayPaymentId" = p_order_id
+       LIMIT 1;
+       RETURN v_school_id;
+     END;
+     $$;
+     REVOKE ALL ON FUNCTION resolve_payment_school(text) FROM PUBLIC;
+     GRANT EXECUTE ON FUNCTION resolve_payment_school(text) TO ssvm_app_group, ssvm_trusted_group;
+     ```
+   - **Information Boundary**: The function exposes *only* the `schoolId` string. No monetary values, student IDs, invoice numbers, or payment payloads are revealed.
+   - **Post-Resolution Scoping**: After resolving `schoolId`, the application executes all payment processing inside `runWithTenantDatabaseTransaction(schoolId)` under `SET LOCAL app.current_school_id = schoolId`. If the order ID is invalid or nonexistent, `resolve_payment_school` returns `NULL` and execution terminates without exposing any database records.
+
+#### 3.4.2 `SUPER_ADMIN_SEARCH` Database-Level Enforcement
+A user with `SUPER_ADMIN` role may search across schools, but database-level security strictly prevents unbounded cross-tenant data access:
+1. **Zero Database-Level Bypass**:
+   - Neither `ssvm_app` nor `ssvm_trusted` has `rolbypassrls` (`rolbypassrls = false`).
+   - Tenant tables (`students`, `teachers`, `invoices`, etc.) have no wildcard policy for super-admins in `pg_policy`.
+   - Calling `runWithTrustedDatabaseTransaction({ purpose: "SUPER_ADMIN_SEARCH" })` sets `app.trusted_purpose = 'SUPER_ADMIN_SEARCH'`, but does **NOT** set `app.current_school_id`. Because `current_tenant_id()` remains `NULL`, executing a `SELECT` on any tenant table returns **0 rows**.
+2. **Mandatory Explicit School Iteration**:
+   - To query multiple schools, the application is required to query the global non-tenant `schools` table for active school IDs, and then iterate through them sequentially or concurrently by entering each school's tenant context individually via `runWithSchoolContext(targetSchoolId, ...)` or `runWithTenantDatabaseTransaction(targetSchoolId, ...)`.
+   - Each individual query sets `app.current_school_id = targetSchoolId`, allowing the database RLS engine to restrict rows exclusively to that specific target school.
+   - Any query executed without this explicit context or with an unauthorized purpose throws an exception or returns 0 rows.
+
 ---
 
 ## 4. Security Invariants Verified by Automated Tests
@@ -91,4 +131,6 @@ To decouple role permissions from deployment-specific login credentials and pass
 3. `ssvm_app` cannot create users with `SUPER_ADMIN` or `ERP_ADMIN` role.
 4. `ssvm_app` cannot update `users.role` or `users.schoolId`.
 5. `ssvm_auth` has no table permissions and cannot query `invoices` or any application table directly.
-6. `ssvm_trusted` has zero `USING (true)` policies in `pg_policy`.
+6. `ssvm_trusted` has zero `USING (true)` policies in `pg_policy` and zero total policies.
+7. `PAYMENTS_WEBHOOK`: Querying `payment_transactions` without tenant context returns 0 rows; calling `resolve_payment_school('invalid')` returns `NULL`.
+8. `SUPER_ADMIN_SEARCH`: Querying tenant tables under `SUPER_ADMIN_SEARCH` without tenant context returns 0 rows; calling with invalid purpose throws.

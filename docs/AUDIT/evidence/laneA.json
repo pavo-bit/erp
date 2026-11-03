@@ -295,6 +295,41 @@
       "stdoutTail": "CI Run 41525180831 on PR #3: backend-test PASS (125550959962 in 2m56s); backend-type-check PASS (125550960225 in 1m21s); Migrate and RLS Tests (restricted role) PASS (125550960273 in 1m9s); all 7 frontend-build jobs PASS; backend-lint & security-scan baseline failures recorded in A-to-E.md.",
       "timestampUtc": "2026-11-02 21:08:56 UTC",
       "commitSha": "0da984a"
+    },
+    {
+      "command": "node scripts/generate-tenant-classification.cjs --check",
+      "exitCode": 0,
+      "stdoutTail": "Tenant classification is current: 208 models (127 direct, 50 indirect, 31 global); 177 classified tenant models have migration tables, 0 do not. All remain UNVERIFIED, score 0. RLS coverage across all migrations validated.",
+      "timestampUtc": "2026-11-03 07:11:11 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "npx tsx scripts/test-upgrade-flow.ts",
+      "exitCode": 0,
+      "stdoutTail": "Baseline 4 migrations deployed to clean ssvm_upgrade_test; fixtures inserted (2 schools, students with/without userId, float invoices, same-SKU inventory items, audit rows); prisma migrate deploy succeeded with 0 errors; row counts unchanged; decimal conversions exact; backfilled student users have argon2id hash and mustChangePassword=true; chart of accounts seeded twice idempotently (13 accounts/school); RLS enabled+forced on 177 tenant tables as ssvm_app.",
+      "timestampUtc": "2026-11-03 07:17:37 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:rls\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 4 passed (4); Tests 213 passed (213); 0 failed; duration 3.14s; cross-school transaction throw & same-school nesting verified; soft-delete isolation and P2025 cross-tenant verified; PAYMENTS_WEBHOOK and SUPER_ADMIN_SEARCH db enforcement negative tests passed.",
+      "timestampUtc": "2026-11-03 07:31:47 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "powershell -Command \". ..\\scripts\\test-env.ps1; npm run test:ci\"",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 29 passed (29); Tests 195 passed (195); 0 failed; JUnit written to test-results.xml; coverage 33.19% statements across all files.",
+      "timestampUtc": "2026-11-03 07:33:16 UTC",
+      "commitSha": "HEAD"
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "stdoutTail": "tsc build succeeded with 0 errors.",
+      "timestampUtc": "2026-11-03 07:43:06 UTC",
+      "commitSha": "HEAD"
     }
   ]
 }

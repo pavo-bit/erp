@@ -233,7 +233,7 @@ BEGIN
                  || '_' || substr(md5(st.id), 1, 6) || '@student.school';
     END IF;
 
-    INSERT INTO users (id, "schoolId", email, name, role, "passwordHash", "isActive", "createdAt", "updatedAt")
+    INSERT INTO users (id, "schoolId", email, name, role, "passwordHash", "mustChangePassword", "isActive", "createdAt", "updatedAt")
     VALUES (
       v_user_id,
       st."schoolId",
@@ -241,6 +241,7 @@ BEGIN
       COALESCE(st.name, 'Student'),
       'STUDENT',
       '$argon2id$v=19$m=65536,t=3,p=4$RESET_REQUIRED$RESET_REQUIRED',
+      true,
       true,
       NOW(),
       NOW()
