@@ -23,6 +23,22 @@ const razorpay = env.RAZORPAY_KEY_ID && env.RAZORPAY_KEY_SECRET
 
 const PAYMENT_ADMIN_ROLES = new Set(["SUPER_ADMIN", "ERP_ADMIN", "ACCOUNTANT"]);
 
+export class ChartOfAccountsNotConfiguredError extends Error {
+  public readonly code = "CHART_OF_ACCOUNTS_NOT_CONFIGURED";
+  constructor(schoolId: string) {
+    super(`Required payment ledger accounts are not configured for school ${schoolId}.`);
+    this.name = "ChartOfAccountsNotConfiguredError";
+  }
+}
+
+export class PermanentWebhookError extends Error {
+  public readonly isPermanent = true;
+  constructor(message: string) {
+    super(message);
+    this.name = "PermanentWebhookError";
+  }
+}
+
 function outstandingAmountPaise(invoice: {
   amount: Prisma.Decimal | number | string;
   amountPaid: Prisma.Decimal | number | string;
@@ -35,38 +51,47 @@ function outstandingAmountPaise(invoice: {
 
 async function mayPayInvoice(
   user: NonNullable<AuthRequest["user"]>,
-  invoice: { schoolId: string; studentId: string },
-  client: Prisma.TransactionClient | typeof prisma = prisma
+  invoice: { schoolId: string; studentId: string; student?: { id: string; userId?: string | null } | null },
+  client?: Prisma.TransactionClient
 ): Promise<boolean> {
   if (user.role === "SUPER_ADMIN") return true;
   if (!user.schoolId || user.schoolId !== invoice.schoolId) return false;
   if (PAYMENT_ADMIN_ROLES.has(user.role)) return true;
-  if (user.role === "STUDENT") {
-    const student = await client.student.findFirst({
-      where: {
-        id: invoice.studentId,
-        schoolId: invoice.schoolId,
-        OR: [
-          { userId: user.id },
-          { id: user.id }
-        ]
-      },
-      select: { id: true },
-    });
-    return student !== null;
+
+  const runner = async (tx: Prisma.TransactionClient) => {
+    if (user.role === "STUDENT") {
+      const authUserId = user.userId || user.id;
+      if (invoice.student?.userId) {
+        return invoice.student.userId === authUserId;
+      }
+      const student = await tx.student.findFirst({
+        where: {
+          id: invoice.studentId,
+          schoolId: invoice.schoolId,
+          userId: authUserId,
+        },
+        select: { id: true },
+      });
+      return student !== null;
+    }
+    if (user.role === "PARENT") {
+      const guardian = await tx.guardian.findFirst({
+        where: {
+          userId: user.id,
+          schoolId: invoice.schoolId,
+          students: { some: { id: invoice.studentId, schoolId: invoice.schoolId } },
+        },
+        select: { id: true },
+      });
+      return guardian !== null;
+    }
+    return false;
+  };
+
+  if (client) {
+    return runner(client);
   }
-  if (user.role === "PARENT") {
-    const guardian = await client.guardian.findFirst({
-      where: {
-        userId: user.id,
-        schoolId: invoice.schoolId,
-        students: { some: { id: invoice.studentId, schoolId: invoice.schoolId } },
-      },
-      select: { id: true },
-    });
-    return guardian !== null;
-  }
-  return false;
+  return runWithTenantDatabaseTransaction(invoice.schoolId, runner);
 }
 
 function verifyHmacSignature(payload: Buffer | string, signature: unknown, secret: string): boolean {
@@ -75,6 +100,38 @@ function verifyHmacSignature(payload: Buffer | string, signature: unknown, secre
   const expected = crypto.createHmac("sha256", secret).update(payloadBuffer).digest();
   const supplied = Buffer.from(signature, "hex");
   return supplied.length === expected.length && crypto.timingSafeEqual(expected, supplied);
+}
+
+function isIdempotencyConstraintConflict(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const err = error as { code?: string; meta?: { target?: unknown } };
+  if (err.code !== "P2002") return false;
+  const target = err.meta?.target;
+  const targets = Array.isArray(target) ? target : typeof target === "string" ? [target] : [];
+  return targets.some((t) =>
+    typeof t === "string" && (
+      t.includes("idempotencyKey") ||
+      t.includes("gatewayPaymentId")
+    )
+  );
+}
+
+function isPermanentWebhookError(error: unknown): boolean {
+  if (error instanceof PermanentWebhookError) return true;
+  if (error instanceof Error) {
+    const msg = error.message.toLowerCase();
+    return (
+      msg.includes("unknown order") ||
+      msg.includes("not found") ||
+      msg.includes("mismatch") ||
+      msg.includes("already settled") ||
+      msg.includes("already captured") ||
+      msg.includes("already bound") ||
+      msg.includes("not payable") ||
+      msg.includes("exceeds remaining")
+    );
+  }
+  return false;
 }
 
 async function postPaymentLedgerEntry(
@@ -96,7 +153,11 @@ async function postPaymentLedgerEntry(
   }
 
   if (!bankAccount || !creditAccount) {
-    await seedDefaultChartOfAccounts(tx, invoice.schoolId);
+    try {
+      await seedDefaultChartOfAccounts(tx, invoice.schoolId);
+    } catch (seedErr) {
+      logger.warn({ seedErr, schoolId: invoice.schoolId }, "Unable to seed default chart of accounts");
+    }
     bankAccount = await tx.ledgerAccount.findUnique({
       where: { schoolId_code: { schoolId: invoice.schoolId, code: "1010-BANK" } },
     });
@@ -111,7 +172,7 @@ async function postPaymentLedgerEntry(
   }
 
   if (!bankAccount || !creditAccount) {
-    throw new Error(`Required payment ledger accounts are not configured for school ${invoice.schoolId}.`);
+    throw new ChartOfAccountsNotConfiguredError(invoice.schoolId);
   }
 
   return LedgerService.postTransaction({
@@ -135,49 +196,79 @@ interface CapturePaymentInput {
   signature?: string;
   idempotencyKey: string;
   actorId: string;
+  amountInPaise?: number;
+  currency?: string;
 }
 
 async function applyCapturedPayment(
   tx: Prisma.TransactionClient,
   input: CapturePaymentInput,
-): Promise<{ alreadyProcessed: boolean; receiptNo: string | null; transaction?: any }> {
+): Promise<{ alreadyProcessed: boolean; receiptNo: string | null; transaction?: unknown }> {
   const existingByGateway = await tx.paymentTransaction.findUnique({
     where: { gatewayPaymentId: input.gatewayPaymentId },
   });
   if (existingByGateway) {
     if (existingByGateway.transactionId === input.orderId && existingByGateway.status === "SUCCESS") {
-      return { alreadyProcessed: true, receiptNo: null, transaction: existingByGateway };
+      return { alreadyProcessed: true, receiptNo: existingByGateway.receiptNo, transaction: existingByGateway };
     }
-    throw new Error("Gateway payment is already bound to another transaction.");
+    throw new PermanentWebhookError("Gateway payment is already bound to another transaction.");
   }
 
   const transaction = await tx.paymentTransaction.findFirst({
     where: { transactionId: input.orderId },
   });
-  if (!transaction) throw new Error("Payment order was not found.");
+  if (!transaction) throw new PermanentWebhookError("Payment order was not found.");
   if (transaction.status === "SUCCESS") {
     if (transaction.gatewayPaymentId === input.gatewayPaymentId) {
-      return { alreadyProcessed: true, receiptNo: null, transaction };
+      return { alreadyProcessed: true, receiptNo: transaction.receiptNo, transaction };
     }
-    throw new Error("Payment transaction has already been captured.");
+    throw new PermanentWebhookError("Payment transaction has already been captured.");
   }
   if (transaction.status !== "CREATED") {
-    throw new Error("Payment transaction is not payable.");
+    throw new PermanentWebhookError("Payment transaction is not payable.");
+  }
+
+  // Currency validation
+  if (input.currency && input.currency.toUpperCase() !== "INR") {
+    throw new PermanentWebhookError(`Currency mismatch: expected INR, got ${input.currency}`);
+  }
+
+  // Amount validation
+  const paymentPaise = toPaise(transaction.amountPaid);
+  if (input.amountInPaise !== undefined && input.amountInPaise !== paymentPaise) {
+    throw new PermanentWebhookError(`Amount mismatch: expected ${paymentPaise} paise, got ${input.amountInPaise} paise`);
   }
 
   const invoice = await tx.invoice.findUnique({
     where: { id: transaction.invoiceId },
   });
-  if (!invoice) throw new Error("Invoice not found.");
+  if (!invoice) throw new PermanentWebhookError("Invoice not found.");
 
   const currentPaidPaise = toPaise(invoice.amountPaid);
-  const paymentPaise = toPaise(transaction.amountPaid);
   const totalDuePaise = toPaise(invoice.amount) + toPaise(invoice.fineAmount);
+  const currentRemainingPaise = Math.max(0, totalDuePaise - currentPaidPaise);
+
+  if (currentRemainingPaise === 0 || invoice.status === "PAID") {
+    throw new PermanentWebhookError("Invoice is already settled.");
+  }
+  if (paymentPaise > currentRemainingPaise) {
+    throw new PermanentWebhookError("Payment amount exceeds remaining balance.");
+  }
+
   const newPaidPaise = currentPaidPaise + paymentPaise;
   const remainingPaise = Math.max(0, totalDuePaise - newPaidPaise);
   const newStatus = remainingPaise === 0 ? "PAID" : "PARTIAL";
 
-  const receiptNo = `REC-${Date.now()}`;
+  // Per-school sequential receipt numbering via SequenceCounter in the same transaction
+  const schoolId = invoice.schoolId;
+  const currentYear = new Date().getFullYear();
+  const counterKey = `RECEIPT_${currentYear}`;
+  const counter = await tx.sequenceCounter.upsert({
+    where: { schoolId_key: { schoolId, key: counterKey } },
+    update: { currentValue: { increment: 1 } },
+    create: { schoolId, key: counterKey, currentValue: 1 },
+  });
+  const receiptNo = `REC-${currentYear}-${String(counter.currentValue).padStart(6, "0")}`;
 
   const updatedTx = await tx.paymentTransaction.update({
     where: { id: transaction.id },
@@ -187,6 +278,7 @@ async function applyCapturedPayment(
       status: "SUCCESS",
       paidAt: new Date(),
       idempotencyKey: input.idempotencyKey,
+      receiptNo,
     },
   });
 
@@ -369,7 +461,7 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
 
     if (paymentTx.status === "SUCCESS") {
       if (paymentTx.gatewayPaymentId === razorpay_payment_id) {
-        res.json({ success: true, message: "Payment already verified" });
+        res.json({ success: true, message: "Payment already verified", receiptNo: paymentTx.receiptNo });
       } else {
         res.status(409).json({ success: false, error: "Payment transaction has already been processed" });
       }
@@ -409,8 +501,6 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
         idempotencyKey,
         actorId: req.user?.id || "SYSTEM",
       });
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
 
     res.json({
@@ -419,12 +509,16 @@ router.post("/verify", authenticate, paymentIdempotencyMiddleware, async (req: A
       receiptNo: result.receiptNo,
     });
   } catch (error) {
-    logger.error({ err: error }, "Razorpay Verify Error");
-    const message = error instanceof Error ? error.message : "";
-    if (message.includes("already bound") || message.includes("already processed") || message.includes("not payable")) {
-      res.status(409).json({ success: false, error: "Payment cannot be applied to the current invoice balance" });
+    const errCode = typeof error === "object" && error !== null && "code" in error ? (error as { code?: unknown }).code : undefined;
+    if (error instanceof ChartOfAccountsNotConfiguredError || errCode === "CHART_OF_ACCOUNTS_NOT_CONFIGURED") {
+      res.status(422).json({
+        success: false,
+        error: (error as Error).message,
+        code: "CHART_OF_ACCOUNTS_NOT_CONFIGURED",
+      });
       return;
     }
+    logger.error({ err: error }, "Razorpay Verify Error");
     res.status(500).json({ success: false, error: "Server error verifying payment" });
   }
 });
@@ -445,34 +539,86 @@ router.post("/trigger-late-fines", authenticate, requireRole("SUPER_ADMIN", "ERP
       const fineRule = await tx.fineRule.findFirst({
         where: { schoolId, isActive: true },
       });
-      const fineAmount = fineRule ? fineRule.fineAmount : new Prisma.Decimal(50);
 
-      const overdueFees = await tx.invoice.findMany({
+      // No hard-coded fallback: if no active fine rule, do nothing and report no fine rule
+      if (!fineRule) {
+        return { appliedCount: 0, noRule: true };
+      }
+
+      const now = new Date();
+      // Apply grace days: Invoices are only overdue for fine if now > dueDate + graceDays
+      const graceMs = fineRule.graceDays * 24 * 60 * 60 * 1000;
+      const graceCutoff = new Date(now.getTime() - graceMs);
+
+      // Include PENDING and PARTIAL overdue invoices
+      const overdueInvoices = await tx.invoice.findMany({
         where: {
           schoolId,
-          status: "PENDING",
-          dueDate: { lt: new Date() },
-          fineAmount: new Prisma.Decimal(0),
+          status: { in: ["PENDING", "PARTIAL", "OVERDUE"] },
+          dueDate: { lt: graceCutoff },
         },
       });
 
       let count = 0;
-      for (const fee of overdueFees) {
-        const newRemaining = fee.remainingAmount.add(fineAmount);
+      for (const invoice of overdueInvoices) {
+        // Calculate base fine per period (Decimal math)
+        let baseFine: Prisma.Decimal;
+        if (fineRule.isPercentage) {
+          baseFine = invoice.amount.mul(fineRule.fineAmount).div(100);
+        } else {
+          baseFine = fineRule.fineAmount;
+        }
+
+        // Multiplier based on frequency: ONCE, DAILY, MONTHLY
+        const msOverdue = now.getTime() - (invoice.dueDate.getTime() + graceMs);
+        const daysOverdue = Math.max(1, Math.floor(msOverdue / (24 * 60 * 60 * 1000)));
+
+        let targetFine: Prisma.Decimal;
+        if (fineRule.frequency === "DAILY") {
+          targetFine = baseFine.mul(daysOverdue);
+        } else if (fineRule.frequency === "MONTHLY") {
+          const monthsOverdue = Math.max(1, Math.floor(daysOverdue / 30) + 1);
+          targetFine = baseFine.mul(monthsOverdue);
+        } else {
+          // "ONCE" or default
+          targetFine = baseFine;
+        }
+
+        // Cap fine: cumulative fine cannot exceed invoice total base amount
+        if (targetFine.gt(invoice.amount)) {
+          targetFine = invoice.amount;
+        }
+
+        targetFine = new Prisma.Decimal(targetFine.toFixed(2));
+
+        // Idempotency: re-running changes nothing if current fine is already >= targetFine
+        if (invoice.fineAmount.gte(targetFine)) {
+          continue;
+        }
+
+        const fineDelta = targetFine.sub(invoice.fineAmount);
+        const newRemaining = invoice.remainingAmount.add(fineDelta);
+
         await tx.invoice.update({
-          where: { id: fee.id, schoolId },
+          where: { id: invoice.id, schoolId },
           data: {
-            fineAmount,
+            fineAmount: targetFine,
             remainingAmount: newRemaining,
             status: "OVERDUE",
           },
         });
         count++;
       }
-      return count;
+
+      return { appliedCount: count, noRule: false };
     });
 
-    res.json({ success: true, message: `Updated ${result} overdue fees with late fines.` });
+    if (result.noRule) {
+      res.json({ success: true, message: "no fine rule", count: 0 });
+      return;
+    }
+
+    res.json({ success: true, message: `Updated ${result.appliedCount} overdue fees with late fines.`, count: result.appliedCount });
   } catch (error) {
     logger.error({ err: error }, "Late Fines Execution Error");
     res.status(500).json({ success: false, error: "Failed to process late fines" });
@@ -483,8 +629,12 @@ router.post("/trigger-late-fines", authenticate, requireRole("SUPER_ADMIN", "ERP
 // POST /api/payments/webhook (Razorpay Webhooks)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/webhook", async (req: import("express").Request, res: Response) => {
+  let webhookOrderId: string | undefined;
+  let webhookSchoolId: string | undefined;
+  let webhookGatewayPaymentId: string | undefined;
+
   try {
-    const rawBody = (req as any).rawBody;
+    const rawBody = (req as import("express").Request & { rawBody?: Buffer | string }).rawBody;
     const signature = req.headers["x-razorpay-signature"] as string;
     const secret = env.RAZORPAY_WEBHOOK_SECRET || env.RAZORPAY_KEY_SECRET;
 
@@ -513,25 +663,30 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
     if (webhookBody.event === "payment.captured" || webhookBody.event === "order.paid") {
       const paymentEntity = webhookBody.payload?.payment?.entity;
       if (!paymentEntity) {
-        res.status(200).json({ success: true, message: "Ignored — no payment entity" });
+        res.status(200).json({ success: true, message: "Ignored - no payment entity" });
         return;
       }
 
       const gatewayPaymentId = paymentEntity.id;
       const orderId = paymentEntity.order_id;
-      const razorpayEventId = req.headers["x-razorpay-event-id"] as string;
+      const currency = paymentEntity.currency;
+      const amount = paymentEntity.amount; // paise
+      webhookOrderId = orderId;
+      webhookGatewayPaymentId = gatewayPaymentId;
 
-      const idempotencyKey = razorpayEventId
-        ? crypto.createHash("sha256").update(razorpayEventId).digest("hex")
-        : crypto.createHash("sha256").update(payloadBuffer).digest("hex");
-
-      const lockAcquired = await IdempotencyService.acquireLock("system", idempotencyKey);
-      if (!lockAcquired) {
-        logger.info({ idempotencyKey, gatewayPaymentId }, "Webhook duplicate detected (Redis lock)");
-        res.status(200).json({ success: true, message: "Already processed" });
+      if (!orderId) {
+        logger.error({ gatewayPaymentId }, "Permanent webhook error: missing orderId");
+        await logSecurityEvent({
+          userId: "SYSTEM",
+          eventType: "WEBHOOK_UNKNOWN_ORDER",
+          severity: "HIGH",
+          metadata: { reason: "Missing order_id in webhook payload", gatewayPaymentId },
+        });
+        res.status(200).json({ success: true, message: "Unknown order, acknowledged for ops" });
         return;
       }
 
+      // 1. Resolve school first via resolve_payment_school
       const [resolved] = await prisma.$queryRawUnsafe<Array<{ resolve_payment_school: string | null }>>(
         `SELECT resolve_payment_school($1) AS resolve_payment_school`,
         orderId
@@ -539,20 +694,43 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
       const schoolId = resolved?.resolve_payment_school;
 
       if (!schoolId) {
-        logger.warn({ orderId }, "Transaction not found for webhook orderId");
-        res.status(200).json({ success: true, message: "Transaction not found, acknowledged" });
+        // Unknown order is a permanent error: HTTP 200 + logger.error + ops record
+        logger.error({ orderId, gatewayPaymentId }, "Permanent webhook error: unknown order");
+        await logSecurityEvent({
+          userId: "SYSTEM",
+          eventType: "WEBHOOK_UNKNOWN_ORDER",
+          severity: "HIGH",
+          metadata: { orderId, gatewayPaymentId, reason: "Order not found in database" },
+        });
+        res.status(200).json({ success: true, message: "Transaction not found, acknowledged for ops" });
         return;
       }
 
+      webhookSchoolId = schoolId;
+
+      // 2. Remove "system" idempotency key: scope Redis key by school after resolve_payment_school
+      const razorpayEventId = req.headers["x-razorpay-event-id"] as string;
+      const idempotencyKey = razorpayEventId
+        ? crypto.createHash("sha256").update(razorpayEventId).digest("hex")
+        : crypto.createHash("sha256").update(payloadBuffer).digest("hex");
+
+      const lockAcquired = await IdempotencyService.acquireLock(schoolId, idempotencyKey);
+      if (!lockAcquired) {
+        logger.info({ schoolId, idempotencyKey, gatewayPaymentId }, "Webhook duplicate detected (Redis lock)");
+        res.status(200).json({ success: true, message: "Already processed" });
+        return;
+      }
+
+      // 3. Process captured payment in tenant serializable transaction
       const result = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
         return applyCapturedPayment(tx, {
           orderId,
           gatewayPaymentId,
+          currency,
+          amountInPaise: typeof amount === "number" ? amount : undefined,
           idempotencyKey,
           actorId: "RAZORPAY_WEBHOOK",
         });
-      }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
 
       res.status(200).json({
@@ -567,14 +745,25 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
       const paymentEntity = webhookBody.payload?.payment?.entity;
       const orderId = paymentEntity?.order_id;
       if (orderId) {
+        webhookOrderId = orderId;
         const [resolved] = await prisma.$queryRawUnsafe<Array<{ resolve_payment_school: string | null }>>(
           `SELECT resolve_payment_school($1) AS resolve_payment_school`,
           orderId
         );
-        if (resolved?.resolve_payment_school) {
-          await runWithTenantDatabaseTransaction(resolved.resolve_payment_school, async (tx) => {
+        const schoolId = resolved?.resolve_payment_school;
+        if (schoolId) {
+          webhookSchoolId = schoolId;
+          await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+            const txRecord = await tx.paymentTransaction.findFirst({
+              where: { transactionId: orderId, schoolId },
+            });
+            // Out of order: if already SUCCESS, preserve terminal captured state!
+            if (txRecord?.status === "SUCCESS") {
+              logger.warn({ orderId, schoolId }, "Ignoring payment.failed for already captured transaction");
+              return;
+            }
             await tx.paymentTransaction.updateMany({
-              where: { transactionId: orderId, status: "CREATED" },
+              where: { transactionId: orderId, schoolId, status: "CREATED" },
               data: { status: "FAILED" },
             });
           });
@@ -587,12 +776,37 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
     // All other webhook events
     res.status(200).json({ success: true, message: "Event ignored" });
   } catch (error) {
-    logger.error({ err: error }, "Razorpay Webhook Error");
-    const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
-    if (code === "P2002") {
+    // P2002 duplicate matching only for idempotencyKey / gatewayPaymentId
+    if (isIdempotencyConstraintConflict(error)) {
       res.status(200).json({ success: true, message: "Already processed" });
       return;
     }
+
+    // Permanent error classification (unknown order, invoice not found, amount mismatch, already settled)
+    if (isPermanentWebhookError(error)) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      logger.error({ err: error, orderId: webhookOrderId, schoolId: webhookSchoolId }, `Permanent webhook error: ${errMsg}`);
+      try {
+        await logSecurityEvent({
+          schoolId: webhookSchoolId,
+          userId: "SYSTEM",
+          eventType: "PAYMENTS_WEBHOOK_PERMANENT_ERROR",
+          severity: "HIGH",
+          metadata: {
+            orderId: webhookOrderId,
+            gatewayPaymentId: webhookGatewayPaymentId,
+            reason: errMsg,
+          },
+        });
+      } catch (logErr) {
+        logger.warn({ logErr }, "Failed to persist security event for webhook permanent error");
+      }
+      res.status(200).json({ success: true, message: `Permanent error acknowledged: ${errMsg}` });
+      return;
+    }
+
+    // Transient errors (DB connection, Redis timeout, network) return 5xx
+    logger.error({ err: error, orderId: webhookOrderId, schoolId: webhookSchoolId }, "Transient webhook error");
     res.status(500).json({ success: false, error: "Processing error" });
   }
 });

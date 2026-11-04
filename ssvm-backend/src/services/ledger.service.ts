@@ -2,6 +2,7 @@ import prisma, { runWithTenantDatabaseTransaction } from '../lib/prisma';
 import { LedgerReferenceType, LedgerModule, LedgerSource, FinancialEntityType, FinancialAuditAction, Prisma, SystemDomainEventType } from '@prisma/client';
 import * as crypto from 'crypto';
 import { EventStoreService } from './eventStore.service';
+import { toPaise } from '../lib/money';
 
 export interface LedgerEntryInput {
   accountId: string;
@@ -37,16 +38,15 @@ export class LedgerService {
     input: PostTransactionInput,
     existingTransaction?: Prisma.TransactionClient,
   ) {
-    // 1. Double-Entry Arithmetic Validation
-    const totalDebits = input.entries.reduce((sum, entry) => sum + Number(entry.debitAmount), 0);
-    const totalCredits = input.entries.reduce((sum, entry) => sum + Number(entry.creditAmount), 0);
+    // 1. Double-Entry Arithmetic Validation using integer paise
+    const totalDebitsPaise = input.entries.reduce((sum, entry) => sum + toPaise(entry.debitAmount), 0);
+    const totalCreditsPaise = input.entries.reduce((sum, entry) => sum + toPaise(entry.creditAmount), 0);
 
-    // Using epsilon to avoid JS floating point errors
-    if (Math.abs(totalDebits - totalCredits) > 0.001) {
-      throw new Error(`Ledger Imbalance: Debits (${totalDebits}) do not equal Credits (${totalCredits}).`);
+    if (totalDebitsPaise !== totalCreditsPaise) {
+      throw new Error(`Ledger Imbalance: Debits (${totalDebitsPaise}) do not equal Credits (${totalCreditsPaise}).`);
     }
 
-    if (totalDebits <= 0) {
+    if (totalDebitsPaise <= 0) {
       throw new Error(`Invalid Ledger Entry: Total transaction amount must be greater than zero.`);
     }
 
@@ -73,7 +73,13 @@ export class LedgerService {
         txnNumber,
         schoolId: input.schoolId,
         referenceId: input.referenceId,
-        entries: input.entries,
+        entries: input.entries.map((e) => ({
+          accountId: e.accountId,
+          dimensionValueId: e.dimensionValueId,
+          debitAmount: toPaise(e.debitAmount),
+          creditAmount: toPaise(e.creditAmount),
+          description: e.description,
+        })),
         previousHash,
       });
 
@@ -166,8 +172,8 @@ export class LedgerService {
         entries: txn.LedgerEntry.map((e) => ({
           accountId: e.accountId,
           dimensionValueId: e.dimensionValueId,
-          debitAmount: Number(e.debitAmount),
-          creditAmount: Number(e.creditAmount),
+          debitAmount: toPaise(e.debitAmount),
+          creditAmount: toPaise(e.creditAmount),
           description: e.description,
         })),
         previousHash: txn.previousHash,

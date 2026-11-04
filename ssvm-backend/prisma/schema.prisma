@@ -905,6 +905,7 @@ model Invoice {
   @@index([schoolId, type, status])
   @@index([studentId, status])
   @@index([schoolId, createdAt])
+  @@unique([schoolId, receiptNo])
   @@map("invoices")
 }
 
@@ -1202,6 +1203,7 @@ model PaymentTransaction {
   razorpaySignature String?
   status            String          @default("CREATED")
   paidAt            DateTime?
+  receiptNo         String?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   branchId          String?
@@ -1216,6 +1218,7 @@ model PaymentTransaction {
 
   @@unique([invoiceId, transactionId])
   @@unique([schoolId, idempotencyKey])
+  @@unique([schoolId, receiptNo])
   @@index([invoiceId])
   @@index([transactionId])
   @@index([schoolId, status])
