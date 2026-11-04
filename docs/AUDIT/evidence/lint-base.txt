@@ -1,0 +1,918 @@
+
+> ssvm-backend@1.0.0 lint
+> eslint src/ --max-warnings 0
+
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\bulkImportWorker.ts
+   73:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   82:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   96:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  138:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\exportWorker.ts
+   28:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  177:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\maintenanceWorker.ts
+   80:3   warning  Unused eslint-disable directive (no problems were reported from 'no-constant-condition')
+   83:45  error    Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+   95:48  error    Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+   98:43  error    Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  108:50  error    Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  256:28  error    Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  315:19  error    Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+  325:87  error    Unexpected any. Specify a different type                                                  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\notificationWorker.ts
+   56:45  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   79:15  error  Unexpected lexical declaration in case block  no-case-declarations
+  127:25  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  139:65  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  210:75  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\outboxRelay.ts
+  54:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\queue.ts
+  124:102  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\reconciliationWorker.ts
+  5:10  error  'enqueueNotification' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\scanWorker.ts
+   6:7   error  'env' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  10:34  error  'fileUrl' is defined but never used       @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\softDeleteWorker.ts
+   5:10  error  'Prisma' is defined but never used                                    @typescript-eslint/no-unused-vars
+  45:44  error  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  67:15  error  The value assigned to 'hasMore' is not used in subsequent statements  no-useless-assignment
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\webhookWorker.ts
+  43:25  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\jobs\worker.ts
+   83:32  error  'studentId' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  131:27  error  'studentId' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  131:38  error  'certificateId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\audit.ts
+   88:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  145:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  150:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\authEventLogger.ts
+  14:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  54:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\authPrisma.ts
+   11:92   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   18:89   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   28:91   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:45   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   54:45   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   62:97   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:92   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   79:99   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   84:64   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   95:45   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:93   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:30   error  'query' is defined but never used         @typescript-eslint/no-unused-vars
+  114:83   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:92   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  127:92   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  141:45   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  161:86   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  172:94   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  181:30   error  'query' is defined but never used         @typescript-eslint/no-unused-vars
+  182:110  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  183:86   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  194:30   error  'query' is defined but never used         @typescript-eslint/no-unused-vars
+  195:72   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  203:43   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  206:65   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  207:43   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  215:61   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  239:49   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  244:26   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  245:26   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  251:48   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  252:26   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\encryption.ts
+  45:12  error  'error' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\ledgerEngine.ts
+  69:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\paginate.ts
+   23:10  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   37:7   error  'sortOrder' is never reassigned. Use 'const' instead  prefer-const
+   71:16  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   72:10  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   73:12  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   91:16  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   92:10  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   93:11  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   95:13  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   96:12  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+   97:52  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+  106:19  error  Unexpected any. Specify a different type              @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\prisma.ts
+   13:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   36:27   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   37:20   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   48:39   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   56:31   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   66:39   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  100:48   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:27   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  110:20   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  314:31   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  314:46   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  316:33   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  327:45   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  327:80   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  376:56   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  377:134  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  377:174  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  386:29   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  441:37   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  441:66   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  442:30   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  459:31   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  463:52   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  504:37   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  504:66   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  505:30   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  511:27   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  527:67   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  528:55   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\prismaEncryptionMiddleware.ts
+  15:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  16:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  28:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  28:75  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:66  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  36:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  70:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  82:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\redis.ts
+  162:5  error  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+  212:5  error  There is no `cause` attached to the symptom error being thrown  preserve-caught-error
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\s3.ts
+  6:72  error  'mimetype' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\sms.ts
+  49:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\sse.ts
+   97:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\tokens.ts
+  4:8  error  'logger' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\tracing.ts
+  4:10  error  'Resource' is defined but never used                    @typescript-eslint/no-unused-vars
+  5:10  error  'SemanticResourceAttributes' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\lib\trustedPrisma.ts
+  25:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  29:29  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\auth.ts
+  182:32  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  182:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  182:82  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\closed-period.middleware.ts
+  24:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\errorHandler.ts
+   77:3   error  '_next' is defined but never used                   @typescript-eslint/no-unused-vars
+  123:5   error  'isOperational' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  147:23  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  156:35  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  156:55  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\featureGuard.ts
+  1:10  error  'Request' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\idempotency.ts
+   66:85  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   68:37  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:24  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   81:59  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:86  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  135:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  200:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\metrics.ts
+  159:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\rateLimiter.ts
+   23:61  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   23:75  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   53:94  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   83:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  159:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  188:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\tenant.ts
+   8:3  error  ES2015 module syntax is preferred over namespaces                                                                    @typescript-eslint/no-namespace
+  25:5  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  31:5  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\turnstile.ts
+  15:9  error  'env' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\middleware\upload.ts
+   4:8   error  'prisma' is defined but never used                 @typescript-eslint/no-unused-vars
+  34:14  error  'buffer' is defined but never used                 @typescript-eslint/no-unused-vars
+  60:11  error  'MAX_PDF_SIZE' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  75:19  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  79:28  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  80:11  error  'schoolId' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  80:30  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\openapi\generate.ts
+  5:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\openapi\registry.ts
+  10:7  error  'RegisterSchema' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  11:7  error  'NoticeSchema' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  12:7  error  'EventSchema' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  26:7  error  'BearerAuth' is assigned a value but never used      @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\2fa.ts
+    2:27  error  A `require()` style import is forbidden                    @typescript-eslint/no-require-imports
+  175:16  error  'e' is defined but never used                              @typescript-eslint/no-unused-vars
+  175:19  error  Empty block statement                                      no-empty
+  204:27  error  '_' is assigned a value but never used                     @typescript-eslint/no-unused-vars
+  204:30  error  'twoFactorSecret' is assigned a value but never used       @typescript-eslint/no-unused-vars
+  204:47  error  'twoFactorBackupCodes' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  204:98  error  Unexpected any. Specify a different type                   @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\accessGovernance.ts
+    1:18  error  'Request' is defined but never used       @typescript-eslint/no-unused-vars
+   49:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   72:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   95:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  129:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\ancillary.ts
+    1:18  error  'Request' is defined but never used                     @typescript-eslint/no-unused-vars
+    5:8   error  'logger' is defined but never used                      @typescript-eslint/no-unused-vars
+   33:12  error  'error' is defined but never used                       @typescript-eslint/no-unused-vars
+   33:19  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   48:19  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  100:19  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  116:12  error  'error' is defined but never used                       @typescript-eslint/no-unused-vars
+  116:19  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  136:12  error  'error' is defined but never used                       @typescript-eslint/no-unused-vars
+  136:19  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  158:9   error  'whereClause' is never reassigned. Use 'const' instead  prefer-const
+  158:22  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  173:12  error  'error' is defined but never used                       @typescript-eslint/no-unused-vars
+  173:19  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  193:19  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\audit.ts
+  14:21  error  'severity' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  19:24  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  23:50  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  47:19  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  56:50  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  79:19  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\backups.ts
+  21:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  41:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\billing.ts
+  131:13  error  'result' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  131:59  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  176:19  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\dataExport.ts
+  62:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\governance.ts
+    1:18  error  'Request' is defined but never used       @typescript-eslint/no-unused-vars
+   31:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:12  error  'error' is defined but never used         @typescript-eslint/no-unused-vars
+   78:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  127:12  error  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  127:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  152:12  error  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  152:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\ledgerAccounts.ts
+  48:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\ledgerTransactions.ts
+  54:19  error  Unexpected any. Specify a different type                                    @typescript-eslint/no-explicit-any
+  90:11  error  The value assigned to 'netBalance' is not used in subsequent statements     no-useless-assignment
+  91:11  error  The value assigned to 'normalBalance' is not used in subsequent statements  no-useless-assignment
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\mdm.ts
+    1:18  error  'Request' is defined but never used       @typescript-eslint/no-unused-vars
+   96:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  129:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  140:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  162:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  171:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  190:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\payroll.ts
+   48:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  155:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:20  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\procurement.ts
+    1:18  error  'Request' is defined but never used       @typescript-eslint/no-unused-vars
+   48:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   67:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\purchaseOrders.ts
+   46:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  143:57  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  158:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  209:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\saasSettings.ts
+   30:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   47:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  107:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  138:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\security.ts
+    1:18  error  'Request' is defined but never used              @typescript-eslint/no-unused-vars
+    6:10  error  'generateAccessToken' is defined but never used  @typescript-eslint/no-unused-vars
+    7:10  error  'getEnv' is defined but never used               @typescript-eslint/no-unused-vars
+   12:27  error  A `require()` style import is forbidden          @typescript-eslint/no-require-imports
+   39:19  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   61:19  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+   83:19  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  116:19  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  198:19  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  241:19  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\support.ts
+  10:22  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  46:64  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  70:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\admin\transport.ts
+    1:18  error  'Request' is defined but never used       @typescript-eslint/no-unused-vars
+   61:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   76:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\assets.ts
+   4:37  error  'requireRole' is defined but never used        @typescript-eslint/no-unused-vars
+  58:11  error  'schoolId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  87:11  error  'schoolId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\assignments.ts
+   15:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   20:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   37:75  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   99:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  199:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  204:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\attendance.ts
+   11:18  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   18:47  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   27:57  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   67:23  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+   99:18  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  132:11  error  'schoolId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  140:23  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\auth.ts
+   12:3   error  'verify2FAPendingToken' is defined but never used  @typescript-eslint/no-unused-vars
+   42:32  error  'jti' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  118:36  error  'accessJti' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  175:59  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  209:27  error  '_' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  209:59  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  325:10  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  327:23  error  '_' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  407:52  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  415:11  error  'newFamilyTag' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  422:51  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  669:27  error  '_' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  669:59  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  721:27  error  '_' is assigned a value but never used             @typescript-eslint/no-unused-vars
+  721:50  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+  776:18  error  Unexpected any. Specify a different type           @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\bulk.ts
+    1:18  error  'Request' is defined but never used                 @typescript-eslint/no-unused-vars
+  153:11  error  'insertedCount' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  207:15  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  227:12  error  'e' is defined but never used                       @typescript-eslint/no-unused-vars
+  227:15  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  249:12  error  'e' is defined but never used                       @typescript-eslint/no-unused-vars
+  249:15  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\certificates.ts
+   21:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   84:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\cms.ts
+  3:37  error  'requireRole' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\communications.ts
+    4:8   error  'handlebars' is defined but never used       @typescript-eslint/no-unused-vars
+   61:16  error  'dispatchMessage' is defined but never used  @typescript-eslint/no-unused-vars
+   95:19  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  129:15  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  142:18  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\discipline.ts
+   34:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   48:50  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   68:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  106:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  143:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  161:52  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\events.ts
+  4:37  error  'requireRole' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\exams.ts
+   16:10  error  Empty block statement                     no-empty
+  123:47  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\finance-reconciliation.ts
+   26:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   63:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\finance.ts
+    3:37  error  'requireRole' is defined but never used                               @typescript-eslint/no-unused-vars
+  132:58  error  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  133:58  error  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  181:67  error  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  182:68  error  Unexpected any. Specify a different type                              @typescript-eslint/no-explicit-any
+  184:11  error  The value assigned to 'balance' is not used in subsequent statements  no-useless-assignment
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\gallery.ts
+  8:37  error  'requireRole' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\guardians.ts
+  37:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\health.ts
+  45:14  error  'e' is defined but never used             @typescript-eslint/no-unused-vars
+  57:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\hr.ts
+  133:34  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\invoices.ts
+   22:47  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+   46:55  error  'session' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  101:32  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\library.ts
+    4:37  error  'requireRole' is defined but never used             @typescript-eslint/no-unused-vars
+    4:50  error  'requireOperationsAdmin' is defined but never used  @typescript-eslint/no-unused-vars
+   41:18  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  179:15  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  234:15  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  302:15  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  314:18  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\messages.ts
+   43:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  165:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  199:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  210:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  227:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  248:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\mobile.ts
+   51:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   89:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  117:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  153:19  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\notices.ts
+  3:37  error  'requireRole' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\notifications.ts
+  51:26  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\preferences.ts
+   22:19  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   71:19  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+   84:11  error  'userId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  119:19  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+  149:19  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\reception.ts
+    5:37  error  'requireRole' is defined but never used   @typescript-eslint/no-unused-vars
+  170:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  214:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  252:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\reports.ts
+    2:8   error  'prisma' is defined but never used            @typescript-eslint/no-unused-vars
+  184:65  error  Unexpected any. Specify a different type      @typescript-eslint/no-explicit-any
+  307:13  error  'classId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  307:22  error  'dateStr' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\results.ts
+  5:10  error  'paginateCursor' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\saas.ts
+   19:63  error  'expectedStudents' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   54:12  error  'error' is defined but never used                      @typescript-eslint/no-unused-vars
+  135:12  error  'error' is defined but never used                      @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\scholarships.ts
+    5:58  error  'requireRole' is defined but never used   @typescript-eslint/no-unused-vars
+   28:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\search.ts
+  174:19   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:36   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:54   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:71   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:91   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:110  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:125  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:141  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:160  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:176  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:191  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:209  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  174:226  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  199:36   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  205:36   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  211:38   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  214:40   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  216:36   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  223:42   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  230:40   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  236:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  242:34   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  249:40   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  255:34   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  262:32   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  268:38   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  275:45   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\security.ts
+  1:18  error  'Request' is defined but never used            @typescript-eslint/no-unused-vars
+  4:50  error  'requireSuperAdmin' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\sessions.ts
+   13:5   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   26:19  error  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   34:5   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   67:19  error  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+   75:5   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+   77:5   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+  102:19  error  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\stats.ts
+   29:13  error  'currentSession' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   42:15  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  102:11  error  'currentSession' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  111:13  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  120:15  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  120:23  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  164:9   error  'whereClause' is never reassigned. Use 'const' instead  prefer-const
+  164:22  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  164:48  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  197:30  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\storage.ts
+   2:8   error  'multer' is defined but never used        @typescript-eslint/no-unused-vars
+  23:39  error  'next' is defined but never used          @typescript-eslint/no-unused-vars
+  42:30  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  83:77  error  'next' is defined but never used          @typescript-eslint/no-unused-vars
+  92:28  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\students.ts
+   13:36  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  135:18  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  188:9   error  'dataToUpdate' is never reassigned. Use 'const' instead  prefer-const
+  188:23  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+  208:15  error  Unexpected any. Specify a different type                 @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\teachers.ts
+  17:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  81:27  error  '_' is assigned a value but never used    @typescript-eslint/no-unused-vars
+  82:56  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\timetable.ts
+  4:82  error  'requireSchoolAccess' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\users.ts
+    5:37   error  'AuthRequest' is defined but never used                 @typescript-eslint/no-unused-vars
+   37:118  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   37:128  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   61:84   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   65:9    error  'whereClause' is never reassigned. Use 'const' instead  prefer-const
+   65:22   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+   86:42   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  108:85   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  144:70   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  152:87   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  181:94   error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+  202:102  error  Unexpected any. Specify a different type                @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\routes\webhooks.ts
+    2:10  error  'PrismaClient' is defined but never used  @typescript-eslint/no-unused-vars
+   37:12  error  'error' is defined but never used         @typescript-eslint/no-unused-vars
+   75:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  106:14  error  'error' is defined but never used         @typescript-eslint/no-unused-vars
+  206:44  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\FinancialCloseService.ts
+  225:72  error  'closedById' is defined but never used                                         @typescript-eslint/no-unused-vars
+  285:9   error  The value assigned to 'retainedEarnings' is not used in subsequent statements  no-useless-assignment
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\NotificationRouter.ts
+    1:31  error  'NotificationStatus' is defined but never used                          @typescript-eslint/no-unused-vars
+   22:13  error  The value assigned to 'delivered' is not used in subsequent statements  no-useless-assignment
+   94:25  error  Unexpected any. Specify a different type                                @typescript-eslint/no-explicit-any
+  103:43  error  'payload' is defined but never used                                     @typescript-eslint/no-unused-vars
+  110:47  error  'payload' is defined but never used                                     @typescript-eslint/no-unused-vars
+  117:42  error  'payload' is defined but never used                                     @typescript-eslint/no-unused-vars
+  121:44  error  'payload' is defined but never used                                     @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\SoftDeleteService.ts
+  11:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  31:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  67:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  73:14  error  'error' is defined but never used         @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\audit-hash-chain.service.ts
+  20:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:14  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\auth.service.ts
+   42:20  error  'jti' is assigned a value but never used       @typescript-eslint/no-unused-vars
+   48:31  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  156:30  error  'familyId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\backup.service.ts
+  110:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  157:21  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\communication.service.ts
+   4:10  error  'sendSSEToUser' is defined but never used  @typescript-eslint/no-unused-vars
+  16:26  error  Unexpected any. Specify a different type   @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\config.service.ts
+  49:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\eventStore.service.ts
+   1:8   error  'prisma' is defined but never used        @typescript-eslint/no-unused-vars
+  10:12  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\feature.service.ts
+  219:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  221:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\identity.service.ts
+  29:9  error  'federatedUser' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\integration.service.ts
+  12:98  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  64:45  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\intercompany.service.ts
+   2:10  error  'Prisma' is defined but never used        @typescript-eslint/no-unused-vars
+  50:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  52:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  65:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  67:36  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\ledger.service.ts
+    2:10  error  'LedgerTransaction' is defined but never used  @typescript-eslint/no-unused-vars
+    2:29  error  'LedgerEntry' is defined but never used        @typescript-eslint/no-unused-vars
+    2:91  error  'LedgerDomainEvent' is defined but never used  @typescript-eslint/no-unused-vars
+  161:42  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\policy.service.ts
+   9:98   error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  18:60   error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  39:117  error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+  58:11   error  'logicRules' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  58:66   error  Unexpected any. Specify a different type         @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\projection.service.ts
+  28:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  34:49  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\reconciliation.service.ts
+  233:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  253:53  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  324:55  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  326:16  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\revenue.service.ts
+  85:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  87:38  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\storage.service.ts
+  3:10  error  'getEnv' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\tenant.service.ts
+  12:50  error  'adminUserId' is defined but never used   @typescript-eslint/no-unused-vars
+  41:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\webhook.service.ts
+   9:9   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  16:84  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\services\workflow.service.ts
+    2:10  error  'WorkflowStatus' is defined but never used     @typescript-eslint/no-unused-vars
+    2:26  error  'TaskStatus' is defined but never used         @typescript-eslint/no-unused-vars
+    2:38  error  'WorkflowNodeType' is defined but never used   @typescript-eslint/no-unused-vars
+   43:51  error  Unexpected any. Specify a different type       @typescript-eslint/no-explicit-any
+  158:11  error  'instance' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\api\audit-and-auth-events.test.ts
+  14:17  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\api\auth.test.ts
+   1:44  error  'vi' is defined but never used                            @typescript-eslint/no-unused-vars
+  16:17  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  17:20  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  18:7   error  'validPassword' is never reassigned. Use 'const' instead  prefer-const
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\api\payments.test.ts
+   1:44  error  'vi' is defined but never used                    @typescript-eslint/no-unused-vars
+  14:7   error  'adminCookie' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\api\student-two-schools.test.ts
+  227:11  error  'studentUnlinked' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\api\tenant-isolation.test.ts
+   16:7   error  'adminBCookie' is assigned a value but never used    @typescript-eslint/no-unused-vars
+   19:7   error  'managerBCookie' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   25:7   error  'invoiceAId' is assigned a value but never used      @typescript-eslint/no-unused-vars
+   28:7   error  'docAId' is assigned a value but never used          @typescript-eslint/no-unused-vars
+   31:7   error  'bookAId' is assigned a value but never used         @typescript-eslint/no-unused-vars
+   34:7   error  'examAId' is assigned a value but never used         @typescript-eslint/no-unused-vars
+   35:7   error  'examBId' is assigned a value but never used         @typescript-eslint/no-unused-vars
+   40:7   error  'alumniAId' is assigned a value but never used       @typescript-eslint/no-unused-vars
+   48:7   error  'prAId' is assigned a value but never used           @typescript-eslint/no-unused-vars
+  359:33  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  360:32  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  382:35  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  383:34  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  416:34  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  417:33  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  430:33  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  431:32  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  444:29  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  445:28  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  464:41  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  498:31  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  499:30  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  552:30  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+  553:29  error  Unexpected any. Specify a different type             @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\api\tenant.test.ts
+    1:44  error  'vi' is defined but never used            @typescript-eslint/no-unused-vars
+   79:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:42  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  104:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\api\webhooks.test.ts
+   44:39  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   71:10  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   73:84  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\architecture.test.ts
+   16:15  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+   20:7   error  'testSessionId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  129:48  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+  216:41  error  Unexpected any. Specify a different type            @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\fts_rls.test.ts
+  15:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\helpers\factories.ts
+   6:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  20:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  35:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  50:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\helpers\testApp.ts
+  25:100  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  26:55   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  30:29   error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  81:12   error  'e' is defined but never used             @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\messaging.test.ts
+   11:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:35  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\multitenancy\isolation.test.ts
+   1:32  error  'beforeAll' is defined but never used                  @typescript-eslint/no-unused-vars
+   1:43  error  'afterAll' is defined but never used                   @typescript-eslint/no-unused-vars
+   2:8   error  'request' is defined but never used                    @typescript-eslint/no-unused-vars
+   4:7   error  'app' is assigned a value but never used               @typescript-eslint/no-unused-vars
+   9:9   error  'schoolAToken' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  10:9   error  'schoolBToken' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  12:9   error  'schoolAStudentId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  13:9   error  'schoolAInvoiceId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\security\tenant-isolation.spec.ts
+   11:8   error  'crypto' is defined but never used                        @typescript-eslint/no-unused-vars
+   25:24  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   26:23  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   27:28  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   28:23  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   29:7   error  'schoolAAccountant' is assigned a value but never used    @typescript-eslint/no-unused-vars
+   29:26  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   32:24  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   33:23  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   34:7   error  'schoolBWebsiteAdmin' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   34:28  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+   38:7   error  'schoolBExamId' is defined but never used                 @typescript-eslint/no-unused-vars
+   40:7   error  'runId' is never reassigned. Use 'const' instead          prefer-const
+   69:66  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  179:33  error  Unexpected any. Specify a different type                  @typescript-eslint/no-explicit-any
+  314:13  error  'res' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+  335:19  error  A `require()` style import is forbidden                   @typescript-eslint/no-require-imports
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\setup.ts
+  30:13  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  31:15  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:33  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:43  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:54  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  73:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  73:41  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  73:51  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  73:62  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  91:26  error  A `require()` style import is forbidden   @typescript-eslint/no-require-imports
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\unit\circuitBreaker.test.ts
+  11:18  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\unit\flattenWhere.test.ts
+  46:78  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  72:72  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  73:80  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\MAYURESH\Desktop\all projects\erp\ssvm-backend\src\tests\unit\rbac.test.ts
+    7:7   error  'prisma' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  113:36  error  Unexpected any. Specify a different type     @typescript-eslint/no-explicit-any
+
+G£û 640 problems (639 errors, 1 warning)
+  8 errors and 1 warning potentially fixable with the `--fix` option.
+
