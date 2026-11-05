@@ -1,0 +1,58 @@
+{
+  "lane": "E",
+  "baseCommit": "37db7b8f1135ed867624e5a08ba565dfd4360c28",
+  "entries": [
+    {
+      "command": "npm run lint in ssvm-backend (baseline evaluation at 37db7b8)",
+      "exitCode": 0,
+      "stdoutTail": "ALL: errors=639, warnings=1, total=640; TESTS: errors=97, warnings=0; NON-TESTS: errors=542, warnings=1",
+      "timestampUtc": "2026-11-05 15:50:11 UTC",
+      "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
+    },
+    {
+      "command": "git rm docs/AUDIT/evidence/lint-base.txt docs/AUDIT/evidence/lint-lane-b.txt docs/AUDIT/evidence/test-ci-coverage.txt",
+      "exitCode": 0,
+      "stdoutTail": "rm 'docs/AUDIT/evidence/lint-base.txt'\nrm 'docs/AUDIT/evidence/lint-lane-b.txt'\nrm 'docs/AUDIT/evidence/test-ci-coverage.txt'",
+      "timestampUtc": "2026-11-05 16:08:33 UTC",
+      "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
+    },
+    {
+      "command": "node scripts/check-lint-ratchet.cjs",
+      "exitCode": 0,
+      "stdoutTail": "Evaluation: Current errors: 634 (baseline: 639), Current warnings: 1 (baseline: 1), Total problems: 635 (baseline: 640)\n🎉 LINT IMPROVED: Errors decreased from 639 to 634 (net -5).",
+      "timestampUtc": "2026-11-05 16:13:24 UTC",
+      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
+    },
+    {
+      "command": "npm run type-check",
+      "exitCode": 0,
+      "stdoutTail": "> ssvm-backend@1.0.0 type-check\n> tsc --noEmit\nCommand exited with code 0.",
+      "timestampUtc": "2026-11-05 16:24:00 UTC",
+      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "stdoutTail": "> ssvm-backend@1.0.0 build\n> tsc\nCommand exited with code 0.",
+      "timestampUtc": "2026-11-05 16:29:42 UTC",
+      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
+    },
+    {
+      "command": "npm run db:tenant-classification:check",
+      "exitCode": 0,
+      "stdoutTail": "Tenant classification is current: 208 models (127 direct, 50 indirect, 31 global); 177 classified tenant models have migration tables, 0 do not. All remain UNVERIFIED, score 0.",
+      "timestampUtc": "2026-11-05 16:31:09 UTC",
+      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
+    },
+    {
+      "command": "npm run lint",
+      "exitCode": 0,
+      "stdoutTail": "> ssvm-backend@1.0.0 lint\n> node scripts/check-lint-ratchet.cjs\n[lint-ratchet] Evaluation: Current errors: 634 (baseline: 639), Current warnings: 1 (baseline: 1). 🎉 LINT IMPROVED: Errors decreased from 639 to 634 (net -5).",
+      "timestampUtc": "2026-11-05 16:31:46 UTC",
+      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
+    }
+      "timestampUtc": "2026-11-05 16:31:46 UTC",
+      "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
+    }
+  ]
+}

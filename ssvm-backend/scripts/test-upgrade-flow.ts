@@ -7,10 +7,14 @@ import { seedDefaultChartOfAccounts, DEFAULT_CHART_OF_ACCOUNTS } from "../src/li
 
 const PG_HOST = process.env.PGHOST || "localhost";
 const PG_PORT = process.env.PGPORT || "5433";
-const ADMIN_URL = `postgresql://postgres:postgres@${PG_HOST}:${PG_PORT}/postgres`;
+const PG_USER = process.env.PGUSER || "postgres";
+const PG_PASSWORD = process.env.PGPASSWORD || "postgres";
+const APP_PASSWORD = process.env.APP_DB_PASSWORD || "app_pw";
+
+const ADMIN_URL = process.env.DATABASE_URL_ADMIN || `postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/postgres`;
 const UPGRADE_DB_NAME = "ssvm_upgrade_test";
-const UPGRADE_URL_POSTGRES = `postgresql://postgres:postgres@${PG_HOST}:${PG_PORT}/${UPGRADE_DB_NAME}?schema=public`;
-const UPGRADE_URL_APP = `postgresql://ssvm_app:app_pw@${PG_HOST}:${PG_PORT}/${UPGRADE_DB_NAME}?schema=public`;
+const UPGRADE_URL_POSTGRES = `postgresql://${PG_USER}:${PG_PASSWORD}@${PG_HOST}:${PG_PORT}/${UPGRADE_DB_NAME}?schema=public`;
+const UPGRADE_URL_APP = `postgresql://ssvm_app:${APP_PASSWORD}@${PG_HOST}:${PG_PORT}/${UPGRADE_DB_NAME}?schema=public`;
 
 async function main() {
   console.log("================================================================================");
@@ -93,7 +97,7 @@ async function main() {
   provisionRolesSql = provisionRolesSql
     .replace(/\\if[\s\S]*?\\endif/g, "")
     .concat(`
-      ALTER ROLE ssvm_app WITH PASSWORD 'app_pw';
+      ALTER ROLE ssvm_app WITH PASSWORD '${APP_PASSWORD}';
       ALTER ROLE ssvm_auth WITH PASSWORD 'authpassword';
       ALTER ROLE ssvm_trusted WITH PASSWORD 'trustedpassword';
       ALTER ROLE ssvm_fixture WITH PASSWORD 'fixture_pw';

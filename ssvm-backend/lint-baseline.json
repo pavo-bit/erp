@@ -1,0 +1,7 @@
+{
+  "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28",
+  "command": "npm run lint in ssvm-backend",
+  "errors": 639,
+  "warnings": 1,
+  "totalProblems": 640
+}

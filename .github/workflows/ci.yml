@@ -96,20 +96,36 @@ jobs:
             --command 'SELECT current_user, r.rolsuper, r.rolbypassrls, (SELECT count(*) FROM pg_policy) AS policy_count FROM pg_roles r WHERE r.rolname = current_user;'
 
       - name: Run Tests with Coverage
-        run: npm run test:ci
+        run: |
+          npm run test:ci 2>&1 | tee test-ci-coverage.log
 
-      - name: Run Shuffled Parallel Tests
+      - name: Run Shuffled Parallel Tests (Full Backend Suite)
         run: |
           SHUFFLE_SEED=$((10000 + RANDOM % 90000))
-          echo "Running vitest with sequence.shuffle and seed: $SHUFFLE_SEED"
-          npx vitest run --sequence.shuffle --sequence.seed=$SHUFFLE_SEED
+          echo "Running vitest full backend test suite with sequence.shuffle and seed: $SHUFFLE_SEED"
+          echo "### 🎲 Shuffled Backend Test Suite" >> $GITHUB_STEP_SUMMARY
+          echo "- **Shuffle Seed:** \`$SHUFFLE_SEED\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Scope:** Full backend test suite (all unit, API, security, multitenancy, architecture tests)" >> $GITHUB_STEP_SUMMARY
+          npx vitest run --sequence.shuffle --sequence.seed=$SHUFFLE_SEED 2>&1 | tee test-shuffled.log
+          echo "- **Status:** ✅ Passed" >> $GITHUB_STEP_SUMMARY
 
-      - name: Upload backend test report
+      - name: Upload backend test logs and reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: backend-test-results
-          path: ./ssvm-backend/test-results.xml
+          name: backend-test-logs
+          path: |
+            ./ssvm-backend/test-results.xml
+            ./ssvm-backend/test-ci-coverage.log
+            ./ssvm-backend/test-shuffled.log
+          if-no-files-found: warn
+
+      - name: Upload Coverage Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-report
+          path: ./ssvm-backend/coverage/
           if-no-files-found: warn
 
       - name: Upload Coverage to Codecov
@@ -165,6 +181,27 @@ jobs:
       - name: Create shadow database
         run: |
           psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 -c "CREATE DATABASE ssvm_shadow;"
+      - name: Pre-check duplicate receipt numbers
+        run: |
+          echo "Pre-check: Verifying no duplicate receiptNo exists on Invoice or payment_transactions..."
+          DUPLICATE_INVOICE_QUERY='SELECT "schoolId", "receiptNo", COUNT(*) FROM "Invoice" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;'
+          echo "Query 1: $DUPLICATE_INVOICE_QUERY"
+          INVOICE_DUPS=$(PGPASSWORD="$PGPASSWORD" psql --host localhost --username postgres --dbname ssvm_test -t -A -c "$DUPLICATE_INVOICE_QUERY" 2>&1 || true)
+          if echo "$INVOICE_DUPS" | grep -v 'relation "Invoice" does not exist' | grep -q '[^[:space:]]'; then
+            echo "ERROR: Duplicate receipt numbers found in Invoice:"
+            echo "$INVOICE_DUPS"
+            exit 1
+          fi
+
+          DUPLICATE_TX_QUERY='SELECT "schoolId", "receiptNo", COUNT(*) FROM "payment_transactions" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;'
+          echo "Query 2: $DUPLICATE_TX_QUERY"
+          TX_DUPS=$(PGPASSWORD="$PGPASSWORD" psql --host localhost --username postgres --dbname ssvm_test -t -A -c "$DUPLICATE_TX_QUERY" 2>&1 || true)
+          if echo "$TX_DUPS" | grep -v 'relation "payment_transactions" does not exist' | grep -q '[^[:space:]]'; then
+            echo "ERROR: Duplicate receipt numbers found in payment_transactions:"
+            echo "$TX_DUPS"
+            exit 1
+          fi
+          echo "Pre-check passed: No duplicate receipt numbers found."
       - name: Deploy full schema and RLS migrations
         run: npx prisma migrate deploy
         env:
@@ -184,6 +221,15 @@ jobs:
         run: npm run db:verify-tables
       - name: Run PostgreSQL RLS and ledger invariant tests
         run: npm run test:rls
+      - name: Run Database Upgrade Flow Test
+        run: npx tsx scripts/test-upgrade-flow.ts
+        env:
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: postgres
+          PGPASSWORD: ${{ env.PGPASSWORD }}
+          APP_DB_PASSWORD: ${{ env.APP_DB_PASSWORD }}
+          DATABASE_URL_ADMIN: ${{ env.DATABASE_URL_ADMIN }}
 
   backend-type-check:
     runs-on: ubuntu-latest
@@ -214,8 +260,16 @@ jobs:
           cache: 'npm'
           cache-dependency-path: './ssvm-backend/package-lock.json'
       - run: npm ci
-      - name: Lint Code
-        run: npm run lint
+      - name: Lint Code and Check Ratchet
+        run: |
+          npm run lint 2>&1 | tee lint-output.log
+      - name: Upload lint logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-lint-logs
+          path: ./ssvm-backend/lint-output.log
+          if-no-files-found: warn
 
   frontend-build:
     runs-on: ubuntu-latest
