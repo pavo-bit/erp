@@ -16,6 +16,8 @@ import { getAuthPrisma } from "../lib/authPrisma";
 export interface AuthRequest extends Request {
   user?: {
     id: string;
+    userId?: string;
+    studentId?: string;
     email: string;
     name: string;
     role: string;
@@ -195,6 +197,8 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       if (student) {
         user = {
           id: student.id,
+          userId: userId,
+          studentId: student.id,
           email: student.admissionNo || "",
           name: student.name,
           role: "STUDENT",

@@ -8,6 +8,11 @@ const { prismaMock, txMock } = vi.hoisted(() => {
     inventoryLocation: { findFirst: vi.fn() },
     inventoryStock: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
     stockLedger: { create: vi.fn() },
+    purchaseOrder: { findFirst: vi.fn(), update: vi.fn() },
+    purchaseOrderItem: { findMany: vi.fn(), update: vi.fn() },
+    sequenceCounter: { upsert: vi.fn() },
+    goodsReceipt: { create: vi.fn() },
+    goodsReceiptLine: { create: vi.fn() },
   };
   return {
     txMock: tx,
@@ -25,7 +30,10 @@ const { prismaMock, txMock } = vi.hoisted(() => {
   };
 });
 
-vi.mock("../../lib/prisma", () => ({ default: prismaMock }));
+vi.mock("../../lib/prisma", () => ({
+  default: prismaMock,
+  runWithTenantDatabaseTransaction: vi.fn((_schoolId, callback) => callback(txMock)),
+}));
 vi.mock("../../middleware/auth", () => ({
   authenticate: (req: express.Request, _res: express.Response, next: express.NextFunction) => {
     Object.assign(req, { user: { id: "staff-a", role: "ASSET_MANAGER", schoolId: "school-a" } });
@@ -111,11 +119,35 @@ describe("business route authority boundaries", () => {
     expect(prismaMock.purchaseRequest.create.mock.calls[0][0].data).toMatchObject({ schoolId: "school-a", requesterId: "staff-a", totalEstAmount: 2.5 });
   });
 
-  it("refuses to claim goods receipt without persisted line quantities", async () => {
+  it("refuses to claim goods receipt without persisted line quantities and enforces actor boundary", async () => {
+    txMock.purchaseOrder.findFirst.mockResolvedValue({
+      id: "order-a",
+      schoolId: "school-a",
+      status: "ISSUED",
+      items: [{ id: "line-a", quantity: 10, description: "Paper", goodsReceiptLines: [] }],
+    });
+
+    // 1. Rejects over-receipt (requesting 99 when quantity is 10)
     await request(appFor("/procurement", procurementRoutes))
       .post("/procurement/orders/order-a/receive")
       .send({ receivedById: "attacker", itemsReceived: [{ purchaseOrderItemId: "line-a", quantity: 99 }] })
-      .expect(501);
+      .expect(400);
+
+    // 2. Accepts valid receipt and enforces receivedById from auth (staff-a), ignoring attacker
+    txMock.sequenceCounter.upsert.mockResolvedValue({ currentValue: 1 });
+    txMock.goodsReceipt.create.mockImplementation(({ data }) => Promise.resolve({ id: "gr-1", ...data }));
+    txMock.goodsReceiptLine.create.mockImplementation(({ data }) => Promise.resolve({ id: "grl-1", ...data }));
+    txMock.purchaseOrderItem.findMany.mockResolvedValue([{ id: "line-a", quantity: 10, goodsReceiptLines: [{ receivedQuantity: 5 }] }]);
+
+    await request(appFor("/procurement", procurementRoutes))
+      .post("/procurement/orders/order-a/receive")
+      .send({ receivedById: "attacker", itemsReceived: [{ purchaseOrderItemId: "line-a", quantity: 5 }] })
+      .expect(201);
+
+    expect(txMock.goodsReceipt.create.mock.calls[0][0].data).toMatchObject({
+      schoolId: "school-a",
+      receivedById: "staff-a",
+    });
   });
 
   it("lists accounting periods only for the authenticated school", async () => {
