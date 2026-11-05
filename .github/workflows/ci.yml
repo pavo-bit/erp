@@ -184,7 +184,7 @@ jobs:
       - name: Pre-check duplicate receipt numbers
         run: |
           echo "Pre-check: Verifying no duplicate receipt numbers exist to block unique indexes..."
-          DUPLICATE_INVOICE_QUERY='SELECT "schoolId", "receiptNo", COUNT(*) FROM "Invoice" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;'
+          DUPLICATE_INVOICE_QUERY='SELECT "schoolId", "receiptNo", COUNT(*) FROM "invoices" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;'
           DUPLICATE_TX_QUERY='SELECT "schoolId", "receiptNo", COUNT(*) FROM "payment_transactions" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;'
           echo "Query 1: $DUPLICATE_INVOICE_QUERY"
           echo "Query 2: $DUPLICATE_TX_QUERY"
@@ -192,14 +192,14 @@ jobs:
           PGPASSWORD="$PGPASSWORD" psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 << 'EOF'
           DO $$
           BEGIN
-            IF to_regclass('"Invoice"') IS NOT NULL THEN
-              IF EXISTS (SELECT 1 FROM "Invoice" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1) THEN
-                RAISE EXCEPTION 'Pre-check failed: Duplicate receipt numbers found in Invoice!';
+            IF to_regclass('"invoices"') IS NOT NULL THEN
+              IF EXISTS (SELECT 1 FROM "invoices" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1) THEN
+                RAISE EXCEPTION 'Pre-check failed: Duplicate receipt numbers found in invoices table!';
               END IF;
             END IF;
             IF to_regclass('"payment_transactions"') IS NOT NULL THEN
               IF EXISTS (SELECT 1 FROM "payment_transactions" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1) THEN
-                RAISE EXCEPTION 'Pre-check failed: Duplicate receipt numbers found in payment_transactions!';
+                RAISE EXCEPTION 'Pre-check failed: Duplicate receipt numbers found in payment_transactions table!';
               END IF;
             END IF;
           END $$;
@@ -226,7 +226,7 @@ jobs:
         run: |
           echo "Verifying no duplicate receipt numbers on deployed tables..."
           PGPASSWORD="$PGPASSWORD" psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
-            -c 'SELECT "schoolId", "receiptNo", COUNT(*) FROM "Invoice" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;' \
+            -c 'SELECT "schoolId", "receiptNo", COUNT(*) FROM "invoices" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;' \
             -c 'SELECT "schoolId", "receiptNo", COUNT(*) FROM "payment_transactions" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;'
       - name: Run PostgreSQL RLS and ledger invariant tests
         run: npm run test:rls
