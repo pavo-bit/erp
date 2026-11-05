@@ -183,24 +183,27 @@ jobs:
           psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 -c "CREATE DATABASE ssvm_shadow;"
       - name: Pre-check duplicate receipt numbers
         run: |
-          echo "Pre-check: Verifying no duplicate receiptNo exists on Invoice or payment_transactions..."
+          echo "Pre-check: Verifying no duplicate receipt numbers exist to block unique indexes..."
           DUPLICATE_INVOICE_QUERY='SELECT "schoolId", "receiptNo", COUNT(*) FROM "Invoice" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;'
-          echo "Query 1: $DUPLICATE_INVOICE_QUERY"
-          INVOICE_DUPS=$(PGPASSWORD="$PGPASSWORD" psql --host localhost --username postgres --dbname ssvm_test -t -A -c "$DUPLICATE_INVOICE_QUERY" 2>&1 || true)
-          if echo "$INVOICE_DUPS" | grep -v 'relation "Invoice" does not exist' | grep -q '[^[:space:]]'; then
-            echo "ERROR: Duplicate receipt numbers found in Invoice:"
-            echo "$INVOICE_DUPS"
-            exit 1
-          fi
-
           DUPLICATE_TX_QUERY='SELECT "schoolId", "receiptNo", COUNT(*) FROM "payment_transactions" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;'
+          echo "Query 1: $DUPLICATE_INVOICE_QUERY"
           echo "Query 2: $DUPLICATE_TX_QUERY"
-          TX_DUPS=$(PGPASSWORD="$PGPASSWORD" psql --host localhost --username postgres --dbname ssvm_test -t -A -c "$DUPLICATE_TX_QUERY" 2>&1 || true)
-          if echo "$TX_DUPS" | grep -v 'relation "payment_transactions" does not exist' | grep -q '[^[:space:]]'; then
-            echo "ERROR: Duplicate receipt numbers found in payment_transactions:"
-            echo "$TX_DUPS"
-            exit 1
-          fi
+
+          PGPASSWORD="$PGPASSWORD" psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 << 'EOF'
+          DO $$
+          BEGIN
+            IF to_regclass('"Invoice"') IS NOT NULL THEN
+              IF EXISTS (SELECT 1 FROM "Invoice" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1) THEN
+                RAISE EXCEPTION 'Pre-check failed: Duplicate receipt numbers found in Invoice!';
+              END IF;
+            END IF;
+            IF to_regclass('"payment_transactions"') IS NOT NULL THEN
+              IF EXISTS (SELECT 1 FROM "payment_transactions" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1) THEN
+                RAISE EXCEPTION 'Pre-check failed: Duplicate receipt numbers found in payment_transactions!';
+              END IF;
+            END IF;
+          END $$;
+          EOF
           echo "Pre-check passed: No duplicate receipt numbers found."
       - name: Deploy full schema and RLS migrations
         run: npx prisma migrate deploy
@@ -219,6 +222,12 @@ jobs:
         run: npm run db:verify-diff
       - name: Verify all model tables and payment unique index
         run: npm run db:verify-tables
+      - name: Verify unique receipt numbers on deployed schema
+        run: |
+          echo "Verifying no duplicate receipt numbers on deployed tables..."
+          PGPASSWORD="$PGPASSWORD" psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
+            -c 'SELECT "schoolId", "receiptNo", COUNT(*) FROM "Invoice" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;' \
+            -c 'SELECT "schoolId", "receiptNo", COUNT(*) FROM "payment_transactions" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1;'
       - name: Run PostgreSQL RLS and ledger invariant tests
         run: npm run test:rls
       - name: Run Database Upgrade Flow Test

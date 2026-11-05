@@ -70,3 +70,4 @@ npm run lint
 1. **Zero Increase:** Any commit that raises total errors above `baseline.errors` (639) or warnings above `baseline.warnings` (1) fails CI immediately.
 2. **Downward Ratchet:** When a lane refactors code and resolves baseline lint errors, the lane may ratchet down the baseline in `lint-baseline.json` to permanently lock in the improvement.
 3. **Current State:** With Lane B's cleanup in `src/routes/payments.ts`, the repository currently stands at **634 errors, 1 warning (635 problems)**, an improvement of 5 errors against baseline.
+

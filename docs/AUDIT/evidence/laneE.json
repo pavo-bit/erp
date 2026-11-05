@@ -21,38 +21,42 @@
       "exitCode": 0,
       "stdoutTail": "Evaluation: Current errors: 634 (baseline: 639), Current warnings: 1 (baseline: 1), Total problems: 635 (baseline: 640)\n🎉 LINT IMPROVED: Errors decreased from 639 to 634 (net -5).",
       "timestampUtc": "2026-11-05 16:13:24 UTC",
-      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
+      "commitSha": "32b87640f2fab8bffe078779bfa3c00ab1e2f9d0"
     },
     {
       "command": "npm run type-check",
       "exitCode": 0,
       "stdoutTail": "> ssvm-backend@1.0.0 type-check\n> tsc --noEmit\nCommand exited with code 0.",
       "timestampUtc": "2026-11-05 16:24:00 UTC",
-      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
+      "commitSha": "32b87640f2fab8bffe078779bfa3c00ab1e2f9d0"
     },
     {
       "command": "npm run build",
       "exitCode": 0,
       "stdoutTail": "> ssvm-backend@1.0.0 build\n> tsc\nCommand exited with code 0.",
       "timestampUtc": "2026-11-05 16:29:42 UTC",
-      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
+      "commitSha": "32b87640f2fab8bffe078779bfa3c00ab1e2f9d0"
     },
     {
       "command": "npm run db:tenant-classification:check",
       "exitCode": 0,
       "stdoutTail": "Tenant classification is current: 208 models (127 direct, 50 indirect, 31 global); 177 classified tenant models have migration tables, 0 do not. All remain UNVERIFIED, score 0.",
       "timestampUtc": "2026-11-05 16:31:09 UTC",
-      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
+      "commitSha": "32b87640f2fab8bffe078779bfa3c00ab1e2f9d0"
     },
     {
       "command": "npm run lint",
       "exitCode": 0,
       "stdoutTail": "> ssvm-backend@1.0.0 lint\n> node scripts/check-lint-ratchet.cjs\n[lint-ratchet] Evaluation: Current errors: 634 (baseline: 639), Current warnings: 1 (baseline: 1). 🎉 LINT IMPROVED: Errors decreased from 639 to 634 (net -5).",
       "timestampUtc": "2026-11-05 16:31:46 UTC",
-      "commitSha": "1bcb9562fbabc1c9796a1cc89f21e11a39b812b2"
-    }
-      "timestampUtc": "2026-11-05 16:31:46 UTC",
-      "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
+      "commitSha": "32b87640f2fab8bffe078779bfa3c00ab1e2f9d0"
+    },
+    {
+      "command": "gh run view --job=127414009261 (backend-test on CI run 42075365969)",
+      "exitCode": 0,
+      "stdoutTail": "✓ backend-test in 3m35s (ID 127414009261)\n  ✓ Run Tests with Coverage\n  ✓ Run Shuffled Parallel Tests (Full Backend Suite)\n  ✓ Upload backend test logs and reports\n  ✓ Upload Coverage Artifacts",
+      "timestampUtc": "2026-11-05 17:54:50 UTC",
+      "commitSha": "32b87640f2fab8bffe078779bfa3c00ab1e2f9d0"
     }
   ]
 }

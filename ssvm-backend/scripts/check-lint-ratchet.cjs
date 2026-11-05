@@ -80,3 +80,4 @@ main().catch((err) => {
   console.error('[lint-ratchet] Unexpected error running lint ratchet check:', err);
   process.exit(1);
 });
+
