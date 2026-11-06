@@ -1,0 +1,215 @@
+{
+    "pages":  [
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "(dashboard)/finance/close/page.tsx"
+                  },
+                  {
+                      "classification":  "STATIC-OK",
+                      "portal":  "erp-admin",
+                      "route":  "admin/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/admissions/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/admissions/admissions/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/alumni-mgmt/page.tsx"
+                  },
+                  {
+                      "classification":  "STATIC-OK",
+                      "portal":  "erp-admin",
+                      "route":  "admin/analytics/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/assets/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/assignments/page.tsx"
+                  },
+                  {
+                      "classification":  "STATIC-OK",
+                      "portal":  "erp-admin",
+                      "route":  "admin/attendance/page.tsx"
+                  },
+                  {
+                      "classification":  "STATIC-OK",
+                      "portal":  "erp-admin",
+                      "route":  "admin/attendance/attendance/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/discipline/page.tsx"
+                  },
+                  {
+                      "classification":  "PARTIAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/documents/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/events/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/exams/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/exams/exams/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/faculty/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/fees/page.tsx"
+                  },
+                  {
+                      "classification":  "PARTIAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/fees/defaulters/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/gallery/page.tsx"
+                  },
+                  {
+                      "classification":  "STATIC-OK",
+                      "portal":  "erp-admin",
+                      "route":  "admin/governance/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/hr/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/hr/hr/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/library/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/notices/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/notifications/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/notifications/notifications/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/notifications/templates/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/reception/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/results/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/results/results/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/saas-requests/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/settings/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/site-settings/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/students/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/teachers/page.tsx"
+                  },
+                  {
+                      "classification":  "STATIC-OK",
+                      "portal":  "erp-admin",
+                      "route":  "admin/teachers/teachers/page.tsx"
+                  },
+                  {
+                      "classification":  "STATIC-OK",
+                      "portal":  "erp-admin",
+                      "route":  "admin/timetable/page.tsx"
+                  },
+                  {
+                      "classification":  "STATIC-OK",
+                      "portal":  "erp-admin",
+                      "route":  "admin/timetable/timetable/page.tsx"
+                  },
+                  {
+                      "classification":  "STATIC-OK",
+                      "portal":  "erp-admin",
+                      "route":  "admin/transport/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "admin/users/page.tsx"
+                  },
+                  {
+                      "classification":  "REAL",
+                      "portal":  "erp-admin",
+                      "route":  "set-password/page.tsx"
+                  }
+              ],
+    "portal":  "erp-admin"
+}
