@@ -1,0 +1,35 @@
+{
+  "lane": "D",
+  "baseCommit": "ce5e2e42ad89574fd5c39f1c05f5adca12b28e68",
+  "headCommit": "28f8e6e872c672b1580f4f9f471dc0a1122a27a8",
+  "entries": [
+    {
+      "command": "npm run build && npx tsc --noEmit (in all 7 portals: erp-admin, parent-portal, payment-portal, saas-frontend, student-portal, super-admin, teacher-portal)",
+      "exitCode": 0,
+      "stdoutTail": "All 7 portals built successfully (Static pages generated) and passed TypeScript checks without emit errors.",
+      "timestampUtc": "2026-11-06T18:14:00Z",
+      "commitSha": "28f8e6e872c672b1580f4f9f471dc0a1122a27a8"
+    },
+    {
+      "command": "cd erp-admin; npx vitest run",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 3 passed (3), Tests 8 passed (8): api-hooks-contract.test.ts, api-hooks.test.ts, portal-api-clients.test.ts",
+      "timestampUtc": "2026-11-06T18:28:45Z",
+      "commitSha": "28f8e6e872c672b1580f4f9f471dc0a1122a27a8"
+    },
+    {
+      "command": "cd ssvm-backend; npm run lint",
+      "exitCode": 1,
+      "stdoutTail": "640 problems (639 errors, 1 warning) - matching baseline exactly, 0 new lint errors introduced.",
+      "timestampUtc": "2026-11-06T18:29:39Z",
+      "commitSha": "28f8e6e872c672b1580f4f9f471dc0a1122a27a8"
+    },
+    {
+      "command": "gh run view 42271468507",
+      "exitCode": 0,
+      "stdoutTail": "Run 42271468507 on commit 28f8e6e: backend-test (ID 128076821329) ✓, Migrate and RLS Tests (ID 128076821268) ✓, backend-type-check (ID 128076821082) ✓, frontend-build erp-admin (ID 128076821462) ✓, parent-portal (ID 128076821417) ✓, payment-portal (ID 128076821330) ✓, saas-frontend (ID 128076821370) ✓, student-portal (ID 128076821410) ✓, super-admin (ID 128076821351) ✓, teacher-portal (ID 128076821399) ✓.",
+      "timestampUtc": "2026-11-06T18:35:01Z",
+      "commitSha": "28f8e6e872c672b1580f4f9f471dc0a1122a27a8"
+    }
+  ]
+}
