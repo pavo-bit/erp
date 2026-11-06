@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
+import { runWithTrustedDatabaseTransaction, runWithTenantDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireRole, hashPassword, verifyPassword, signToken } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -897,13 +898,18 @@ router.post("/set-password", async (req: any, res: Response) => {
     if (!token || !password) {
       return res.status(400).json({ success: false, error: "token and password are required" });
     }
-    // password policy
     if (typeof password !== "string" || password.length < 8) {
       return res.status(400).json({ success: false, error: "Password must be at least 8 characters" });
     }
 
     const tokenHash = crypto.createHash("sha256").update(String(token)).digest("hex");
-    const record = await prisma.passwordSetupToken.findUnique({ where: { tokenHash } });
+
+    // Cross-tenant lookup via SECURITY DEFINER helper (bypasses RLS).
+    const rows = await prisma.$queryRawUnsafe<Array<{ auth_find_password_setup_token: any }>>(
+      `SELECT auth_find_password_setup_token($1) AS auth_find_password_setup_token`,
+      tokenHash
+    );
+    const record = rows[0]?.auth_find_password_setup_token;
     if (!record) {
       return res.status(400).json({ success: false, error: "Invalid token" });
     }
@@ -913,32 +919,39 @@ router.post("/set-password", async (req: any, res: Response) => {
     if (record.usedAt) {
       return res.status(400).json({ success: false, error: "Token already used" });
     }
-    if (record.expiresAt < new Date()) {
+    const expiresAt = new Date(record.expiresAt.endsWith('Z') ? record.expiresAt : record.expiresAt + 'Z');
+    if (expiresAt < new Date()) {
       return res.status(400).json({ success: false, error: "Token expired" });
     }
 
-    // Verify user belongs to same school as token (school-scoped)
-    const user = await prisma.user.findUnique({ where: { id: record.userId, schoolId: record.schoolId } });
-    if (!user) {
-      return res.status(400).json({ success: false, error: "Invalid token" });
-    }
+    const schoolId = record.schoolId;
+    const userId = record.userId;
 
-    const hashed = await hashPassword(password);
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { passwordHash: hashed, mustChangePassword: false, passwordChangedAt: new Date() },
+    await runWithTenantDatabaseTransaction(schoolId, async () => {
+      const user = await prisma.user.findUnique({ where: { id: userId, schoolId } });
+      if (!user) {
+        throw new Error("INVALID_TOKEN");
+      }
+      const hashed = await hashPassword(password);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: hashed, mustChangePassword: false, passwordChangedAt: new Date() },
+      });
+      await prisma.passwordSetupToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      });
+      await prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+      await prisma.userSession.updateMany({ where: { userId: user.id }, data: { isActive: false } });
+    }).catch((e: any) => {
+      if (e?.message === "INVALID_TOKEN") {
+        res.status(400).json({ success: false, error: "Invalid token" });
+      } else {
+        throw e;
+      }
     });
 
-    // Consume token
-    await prisma.passwordSetupToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    });
-
-    // Revoke sessions/refresh tokens
-    await prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
-    await prisma.userSession.updateMany({ where: { userId: user.id }, data: { isActive: false } });
-
+    if (res.headersSent) return;
     res.json({ success: true, message: "Password set successfully" });
   } catch (e) {
     logger.error({ err: e }, "Set password error");

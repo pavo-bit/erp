@@ -90,6 +90,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
     { method: "POST", path: "/api/v1/auth/logout" },
     { method: "POST", path: "/api/v1/auth/verify-2fa" },
     { method: "POST", path: "/api/v1/auth/alumni/register" },
+    { method: "POST", path: "/api/v1/auth/set-password" },
   ];
 
   // Check if current route is in the exclusions
