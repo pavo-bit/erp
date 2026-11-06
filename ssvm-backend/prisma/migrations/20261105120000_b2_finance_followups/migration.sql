@@ -1,0 +1,2 @@
+ALTER TABLE "invoices"
+  ADD COLUMN "isOverdue" BOOLEAN NOT NULL DEFAULT false;

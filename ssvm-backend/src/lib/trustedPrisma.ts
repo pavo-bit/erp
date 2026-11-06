@@ -4,6 +4,7 @@ let trustedPrismaClient: PrismaClient | null = null;
 
 export type TrustedPurpose =
   | "PAYMENTS_WEBHOOK"
+  | "SCHEDULED_LATE_FINES"
   | "SUPER_ADMIN_SEARCH"
   | "STUDENT_ENROLLMENT"
   | "ADMIN_AUDIT"

@@ -91,6 +91,7 @@ const TRUSTED_PURPOSES = new Set([
   "ADMIN_AUDIT",
   "SUPER_ADMIN_SEARCH",
   "PAYMENTS_WEBHOOK",
+  "SCHEDULED_LATE_FINES",
 ] as const);
 
 export async function runWithTrustedDatabaseTransaction<T>(

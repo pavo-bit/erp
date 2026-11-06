@@ -34,6 +34,7 @@ const envSchema = z.object({
 
   // ─── Redis (Phase 2+) ───
   REDIS_URL: z.string().optional(),
+  LATE_FINE_JOB_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
 
   // ─── Sentry (Phase 6) ───
   SENTRY_DSN: z.string().optional(),

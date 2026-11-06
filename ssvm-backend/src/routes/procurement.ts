@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import { randomUUID } from "crypto";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 import { AuthRequest, authenticate, requireOperationsAdmin, requireRole } from "../middleware/auth";
 import { z } from "zod";
@@ -93,7 +93,7 @@ router.post("/requests/:id/approve", requireOperationsAdmin("ASSET_MANAGER"), as
     return;
   }
   try {
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await runWithTenantDatabaseTransaction(schoolId, async (tx: Prisma.TransactionClient) => {
       const purchaseRequest = await tx.purchaseRequest.findFirst({
         where: { id: req.params.id as string, schoolId, status: "PENDING_APPROVAL" },
         include: { items: true },
@@ -154,12 +154,218 @@ router.post("/requests/:id/approve", requireOperationsAdmin("ASSET_MANAGER"), as
   }
 });
 
-router.post("/orders/:id/receive", requireOperationsAdmin("ASSET_MANAGER"), async (_req: AuthRequest, res: Response): Promise<void> => {
-  res.status(501).json({
-    success: false,
-    error: "Goods receipt is unavailable until received quantities can be recorded per purchase-order line",
-    code: "GOODS_RECEIPT_UNAVAILABLE",
-  });
+router.post("/orders/:id/receive", requireOperationsAdmin("ASSET_MANAGER"), async (req: AuthRequest, res: Response): Promise<void> => {
+  const schoolId = resolveSchoolId(req, req.body?.schoolId);
+  if (!schoolId) {
+    res.status(400).json({ success: false, error: "School scope is required" });
+    return;
+  }
+
+  const orderId = req.params.id as string;
+  const rawLines = req.body?.lines || req.body?.itemsReceived || req.body?.items;
+  if (!Array.isArray(rawLines) || rawLines.length === 0) {
+    res.status(400).json({ success: false, error: "At least one receipt line is required" });
+    return;
+  }
+
+  const parsedLines: Array<{
+    purchaseOrderItemId: string;
+    receivedQuantity: number;
+    locationId?: string | null;
+    notes?: string | null;
+  }> = [];
+
+  for (const raw of rawLines) {
+    const poItemId = raw.purchaseOrderItemId || raw.itemId;
+    const qty = Number(raw.receivedQuantity ?? raw.quantity);
+    if (!poItemId || typeof poItemId !== "string" || !Number.isFinite(qty) || qty <= 0) {
+      res.status(400).json({ success: false, error: "Invalid line: purchaseOrderItemId and positive receivedQuantity required" });
+      return;
+    }
+    parsedLines.push({
+      purchaseOrderItemId: poItemId,
+      receivedQuantity: qty,
+      locationId: raw.locationId ?? raw.location ?? null,
+      notes: typeof raw.notes === "string" ? raw.notes : null,
+    });
+  }
+
+  try {
+    const result = await runWithTenantDatabaseTransaction(schoolId, async (tx: Prisma.TransactionClient) => {
+      // 1. Fetch Purchase Order within school context
+      const purchaseOrder = await tx.purchaseOrder.findFirst({
+        where: { id: orderId, schoolId },
+        include: {
+          items: {
+            include: {
+              goodsReceiptLines: true,
+            },
+          },
+          purchaseRequest: {
+            include: {
+              items: true,
+            },
+          },
+        },
+      });
+
+      if (!purchaseOrder) {
+        return { status: 404, error: "Purchase order not found in this school" };
+      }
+
+      if (purchaseOrder.status === "CANCELLED" || purchaseOrder.status === "REJECTED") {
+        return { status: 400, error: `Cannot receive goods against a ${purchaseOrder.status} order` };
+      }
+
+      // 2. Validate line items and reject over-receipt
+      for (const line of parsedLines) {
+        const poItem = purchaseOrder.items.find((item) => item.id === line.purchaseOrderItemId);
+        if (!poItem) {
+          return { status: 400, error: `Purchase order item ${line.purchaseOrderItemId} does not belong to this order` };
+        }
+
+        const previouslyReceived = poItem.goodsReceiptLines.reduce(
+          (sum, grl) => sum + Number(grl.receivedQuantity),
+          0
+        );
+        const maxReceivable = Number(poItem.quantity) - previouslyReceived;
+        if (line.receivedQuantity > maxReceivable) {
+          return {
+            status: 400,
+            error: `Over-receipt rejected: item "${poItem.description}" has ${maxReceivable} remaining, but ${line.receivedQuantity} was received`,
+          };
+        }
+      }
+
+      // 3. Generate per-school sequential grNumber via SequenceCounter
+      const currentYear = new Date().getFullYear();
+      const counterKey = `GR_${currentYear}`;
+      const counter = await tx.sequenceCounter.upsert({
+        where: { schoolId_key: { schoolId, key: counterKey } },
+        update: { currentValue: { increment: 1 } },
+        create: { schoolId, key: counterKey, currentValue: 1 },
+      });
+      const grNumber = `GR-${currentYear}-${String(counter.currentValue).padStart(6, "0")}`;
+
+      // 4. Create GoodsReceipt
+      const goodsReceipt = await tx.goodsReceipt.create({
+        data: {
+          schoolId,
+          grNumber,
+          purchaseOrderId: purchaseOrder.id,
+          receivedById: req.user!.id,
+          receivedDate: new Date(),
+          remarks: typeof req.body?.remarks === "string" ? req.body.remarks : null,
+        },
+      });
+
+      // 5. Create GoodsReceiptLines and update InventoryStock + StockLedger in same transaction
+      const createdLines = [];
+      for (const line of parsedLines) {
+        const poItem = purchaseOrder.items.find((item) => item.id === line.purchaseOrderItemId)!;
+        const grLine = await tx.goodsReceiptLine.create({
+          data: {
+            schoolId,
+            goodsReceiptId: goodsReceipt.id,
+            purchaseOrderItemId: poItem.id,
+            receivedQuantity: new Prisma.Decimal(line.receivedQuantity),
+            location: line.locationId || null,
+            notes: line.notes || null,
+          },
+        });
+        createdLines.push(grLine);
+
+        // Find associated inventory item from purchase request
+        const prItem = purchaseOrder.purchaseRequest?.items.find(
+          (pri) => pri.description === poItem.description && pri.itemId
+        );
+        const inventoryItemId = prItem?.itemId;
+
+        let locationId = line.locationId;
+        if (!locationId) {
+          const defaultLoc = await tx.inventoryLocation.findFirst({
+            where: { schoolId, isActive: true },
+            select: { id: true },
+          });
+          locationId = defaultLoc?.id || null;
+        }
+
+        if (inventoryItemId && locationId) {
+          let stock = await tx.inventoryStock.findFirst({
+            where: { itemId: inventoryItemId, locationId, schoolId },
+          });
+          if (!stock) {
+            stock = await tx.inventoryStock.create({
+              data: { schoolId, itemId: inventoryItemId, locationId, quantity: new Prisma.Decimal(0) },
+            });
+          }
+          const updatedQuantity = stock.quantity.add(new Prisma.Decimal(line.receivedQuantity));
+          await tx.inventoryStock.update({
+            where: { id: stock.id },
+            data: { quantity: updatedQuantity },
+          });
+
+          await tx.stockLedger.create({
+            data: {
+              schoolId,
+              itemId: inventoryItemId,
+              locationId,
+              movementType: "INWARD",
+              quantity: new Prisma.Decimal(line.receivedQuantity),
+              balanceAfter: updatedQuantity,
+              referenceDoc: grNumber,
+              performedById: req.user!.id,
+            },
+          });
+        }
+
+        // Update PO item status
+        const totalReceivedNow = poItem.goodsReceiptLines.reduce(
+          (sum, grl) => sum + Number(grl.receivedQuantity),
+          0
+        ) + line.receivedQuantity;
+
+        const newPoItemStatus = totalReceivedNow >= poItem.quantity ? "RECEIVED" : "PARTIALLY_RECEIVED";
+        await tx.purchaseOrderItem.update({
+          where: { id: poItem.id },
+          data: { status: newPoItemStatus },
+        });
+      }
+
+      // 6. Update Purchase Order overall status
+      const allPoItems = await tx.purchaseOrderItem.findMany({
+        where: { poId: purchaseOrder.id },
+        include: { goodsReceiptLines: true },
+      });
+      const allFullyReceived = allPoItems.every((item) => {
+        const total = item.goodsReceiptLines.reduce((sum, l) => sum + Number(l.receivedQuantity), 0);
+        return total >= item.quantity;
+      });
+      const newPoStatus = allFullyReceived ? "FULFILLED" : "PARTIALLY_RECEIVED";
+      await tx.purchaseOrder.update({
+        where: { id: purchaseOrder.id },
+        data: { status: newPoStatus },
+      });
+
+      return {
+        status: 201,
+        data: {
+          goodsReceipt: { ...goodsReceipt, lines: createdLines },
+          purchaseOrderStatus: newPoStatus,
+        },
+      };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+
+    if (result.status !== 201) {
+      res.status(result.status).json({ success: false, error: result.error });
+      return;
+    }
+    res.status(201).json({ success: true, data: result.data });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to process goods receipt";
+    const status = message.includes("not found") ? 404 : message.includes("Over-receipt") || message.includes("invalid") ? 400 : 500;
+    res.status(status).json({ success: false, error: message });
+  }
 });
 
 export default router;

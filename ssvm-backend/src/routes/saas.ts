@@ -1,4 +1,5 @@
 import prisma from '../lib/prisma';
+import crypto from "crypto";
 import { Router } from "express";
 
 import { authenticate, requireRole } from "../middleware/auth";
@@ -94,7 +95,7 @@ router.post("/approve/:id", authenticate, requireRole("SUPER_ADMIN"), async (req
       await seedDefaultChartOfAccounts(tx, school.id);
 
       // 4. Create the ERP Admin User for this School
-      const hashedPassword = await hashPassword("Admin@123");
+      const hashedPassword = await hashPassword(crypto.randomBytes(32).toString("base64url"));
       const adminUser = await tx.user.create({
         data: {
           email: request.email,
@@ -102,6 +103,7 @@ router.post("/approve/:id", authenticate, requireRole("SUPER_ADMIN"), async (req
           name: request.principalName || "",
           role: "ERP_ADMIN",
           schoolId: school.id,
+          mustChangePassword: true,
           phone: request.phone || "",
         },
       });
