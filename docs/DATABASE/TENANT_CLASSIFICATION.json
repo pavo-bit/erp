@@ -1,11 +1,11 @@
 {
   "schema": "ssvm-backend/prisma/schema.prisma",
   "generatedBy": "ssvm-backend/scripts/generate-tenant-classification.cjs",
-  "modelCount": 208,
-  "directCount": 127,
+  "modelCount": 209,
+  "directCount": 128,
   "indirectCount": 50,
   "globalCount": 31,
-  "tenantModelsWithMigrations": 177,
+  "tenantModelsWithMigrations": 178,
   "tenantModelsMissingMigrations": 0,
   "verification": "UNVERIFIED",
   "score": 0,
@@ -4645,6 +4645,41 @@
       "score": 0
     },
     {
+      "model": "PasswordSetupToken",
+      "table": "password_setup_tokens",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "user",
+          "relatedModel": "User",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "userId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
       "model": "PaymentTransaction",
       "table": "payment_transactions",
       "migrationCoverage": "PRESENT",
@@ -6223,6 +6258,13 @@
         {
           "relation": "delegations",
           "relatedModel": "UserDelegation",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "passwordSetupTokens",
+          "relatedModel": "PasswordSetupToken",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
@@ -8165,6 +8207,13 @@
         {
           "relation": "delegationsGiven",
           "relatedModel": "UserDelegation",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "passwordSetupTokens",
+          "relatedModel": "PasswordSetupToken",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
