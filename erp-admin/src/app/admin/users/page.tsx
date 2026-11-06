@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function UserManagement() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [tempPasswordModal, setTempPasswordModal] = useState<string | null>(null);
@@ -19,9 +20,15 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const res = await apiCall("/api/v1/users");
-    if (res.success) setUsers(res.data);
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await apiCall("/api/v1/users");
+      setUsers(Array.isArray(res) ? res : res?.data || []);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchUsers(); }, []);
