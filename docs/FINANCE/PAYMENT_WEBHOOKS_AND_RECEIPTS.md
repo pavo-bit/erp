@@ -87,3 +87,4 @@ If a permanent error (e.g., mismatched payment amount or unknown order ID) retur
 | `payments-webhook-semantics.test.ts` | 1. Duplicate webhook -> 200 + no duplicate ledger entry.<br>2. Out-of-order failure -> preserves captured status.<br>3. Amount mismatch -> 200 permanent error.<br>4. Unknown order -> 200 permanent error.<br>5. Tampered signature -> 400 + CRITICAL alert. | **PASS (5/5)** |
 | `payments-ownership.test.ts` | Student/parent can pay only own invoices; cross-tenant invoice payments rejected with 404. | **PASS (12/12)** |
 | `payments-late-fines.test.ts` | Late fee calculation rules applied without hardcoded defaults; idempotent re-runs. | **PASS (4/4)** |
+

@@ -286,8 +286,8 @@ export function requireRole(...roles: string[]) {
       return;
     }
 
-    // Direct role match
-    if (roles.includes(req.user.role)) {
+    // Direct role match or SUPER_ADMIN platform override
+    if (req.user.role === "SUPER_ADMIN" || roles.includes(req.user.role)) {
       next();
       return;
     }

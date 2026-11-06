@@ -12,8 +12,8 @@
 |---|---|---|---|---|---|
 | **Phase 0** | **Repository Audit & Baseline** | **P0** | Complete audit, baseline documents, model/route/page matrices | **COMPLETED** | 7 authoritative status documents committed. |
 | **Phase 1** | **Authentication, RBAC & Multi-Tenancy** | **P0** | Zero-trust RLS, tenant context, fail-closed transactions, CSRF, refresh tokens | **COMPLETED** | 0 cross-tenant leaks; 408 tests pass; RLS verified on 177 tables; least-privilege roles enforced. |
-| **Phase 2** | **Finance, Payments & Accounting** | **P0** | Exact Decimal money, double-entry ledger balance, sequential receipts, recon, webhooks | **PENDING** | Ledger balance invariant `debits == credits`; idempotent webhooks; recon 200 OK. |
-| **Phase 3** | **Academic & Student Workflows** | **P1** | Admissions, classes, timetables, attendance, exams, report cards, promotion | **PENDING** | End-to-end report card generation; attendance aggregation tests pass. |
+| **Phase 2** | **Finance, Payments & Accounting** | **P0** | Exact Decimal money, double-entry ledger balance, sequential receipts, recon, webhooks | **COMPLETED** | Ledger balance invariant `debits == credits`; idempotent webhooks; recon 200 OK. |
+| **Phase 3** | **Academic & Student Workflows** | **P1** | Admissions, classes, timetables, attendance, exams, report cards, promotion | **COMPLETED** | End-to-end report card generation; attendance aggregation tests pass; timetable collision detection enforced. |
 | **Phase 4** | **HR, Operations, Library & Inventory** | **P1** | Staff profiles, payroll, goods receipts, stock movement, book issue/fines, transport | **PENDING** | Payroll ledger posting verified; GRN stock adjustment tests pass. |
 | **Phase 5** | **Notifications & Communications** | **P1** | Multi-channel router, outbox relay, SMS/Email fallback, in-app SSE dispatch | **PENDING** | Outbox pattern guarantees 0 dropped notifications during provider downtime. |
 | **Phase 6** | **SaaS & Multi-Tenant Platform Admin** | **P1** | School onboarding wizard, subscription plans, tenant quota enforcement, feature flags | **PENDING** | School creation provisions schema defaults, admin account, and COA seed. |
@@ -40,16 +40,16 @@
 - [x] Sequential per-school receipt numbering (`SequenceCounter` key per FY: `REC-YYYY-XXXXXX`).
 - [x] Webhook idempotency and error classification (200 on permanent errors, 5xx on transient).
 - [x] Fine calculation engine with grace periods, flat/percentage options, and cap enforcement.
-- [ ] Implement complete Bank Reconciliation service (`ssvm-backend/src/services/reconciliation.service.ts`) replacing 501 stub.
-- [ ] Complete automated Financial Period Close workflow (`FinancialCloseService.ts`) preventing backdated ledger modifications.
-- [ ] End-to-end refund lifecycle test suite (initiated -> processed -> journal entry reversed).
+- [x] Implement complete Bank Reconciliation service (`ssvm-backend/src/services/reconciliation.service.ts`) replacing 501 stub.
+- [x] Complete automated Financial Period Close workflow (`FinancialCloseService.ts`) preventing backdated ledger modifications.
+- [x] End-to-end refund lifecycle test suite (initiated -> processed -> journal entry reversed).
 
 ### Phase 3: Academic & Student Workflows (P1)
 - [x] Core models: `Class`, `Section`, `Subject`, `Attendance`, `Exam`, `StudentMark`.
-- [ ] Implement automated report card generation service (GPA computation, grading scale mapping).
-- [ ] Implement student academic promotion engine (class progression with prerequisites).
-- [ ] Implement timetable scheduling validation to prevent teacher/classroom double-booking.
-- [ ] Wire `student-portal` and `parent-portal` academic dashboards to real gradebook endpoints.
+- [x] Implement automated report card generation service (GPA computation, grading scale mapping).
+- [x] Implement student academic promotion engine (class progression with prerequisites).
+- [x] Implement timetable scheduling validation to prevent teacher/classroom double-booking.
+- [x] Wire `student-portal` and `parent-portal` academic dashboards to real gradebook endpoints.
 
 ### Phase 4: HR, Operations, Library & Inventory (P1)
 - [x] Goods Receipt (GRN) against Purchase Orders with partial receipt handling and over-receipt prevention.

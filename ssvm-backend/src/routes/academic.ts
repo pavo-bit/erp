@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
+import { evaluateStudentForPromotion, promoteStudentsBatch } from "../services/promotion.service";
 
 const router = Router();
 
@@ -223,6 +224,80 @@ router.delete("/class-teachers/:id", authenticate, requireAcademicAdmin(), async
     res.json({ success: true, data: { message: "Class teacher removed" } });
   } catch (e) {
     logger.error({ err: e }, "Remove class teacher error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// ─── STUDENT ACADEMIC PROMOTION ───
+
+// GET /api/v1/academic/promote/evaluate/:studentId — Evaluate promotion eligibility
+router.get("/promote/evaluate/:studentId", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId!;
+    const studentId = req.params.studentId as string;
+    const { minPassMarks, minAttendance, requireAllPassed } = req.query;
+
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School ID required" });
+      return;
+    }
+
+    const evaluation = await evaluateStudentForPromotion(schoolId, studentId, {
+      minimumPassingPercentage: minPassMarks ? Number(minPassMarks) : undefined,
+      minimumAttendancePercentage: minAttendance ? Number(minAttendance) : undefined,
+      requireAllSubjectsPassed: requireAllPassed !== undefined ? requireAllPassed === "true" : undefined
+    });
+
+    res.json({ success: true, data: evaluation });
+  } catch (e: unknown) {
+    const errorObj = e as { status?: number; message?: string };
+    if (errorObj.status === 404) {
+      res.status(404).json({ success: false, error: errorObj.message });
+      return;
+    }
+    logger.error({ err: e }, "Evaluate student promotion error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// POST /api/v1/academic/promote — Batch promote students with prerequisite checks
+router.post("/promote", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId!;
+    const { studentIds, targetClassId, targetSectionId, criteria, force, remarks } = req.body;
+
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School ID required" });
+      return;
+    }
+
+    if (!studentIds?.length || !targetClassId || !targetSectionId) {
+      res.status(400).json({
+        success: false,
+        error: "studentIds (array), targetClassId, and targetSectionId are required"
+      });
+      return;
+    }
+
+    const result = await promoteStudentsBatch({
+      schoolId,
+      studentIds,
+      targetClassId,
+      targetSectionId,
+      criteria,
+      force: Boolean(force),
+      remarks,
+      promotedById: req.user!.id
+    });
+
+    res.status(200).json(result);
+  } catch (e: unknown) {
+    const errorObj = e as { status?: number; message?: string };
+    if (errorObj.status === 404) {
+      res.status(404).json({ success: false, error: errorObj.message });
+      return;
+    }
+    logger.error({ err: e }, "Batch promotion error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });

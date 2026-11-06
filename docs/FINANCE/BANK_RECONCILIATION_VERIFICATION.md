@@ -61,3 +61,4 @@ powershell -Command ". ..\scripts\test-env.ps1; npx vitest run src/tests/api/ban
 2. `matches BankStatementLine with posted LedgerEntry and creates BankReconciliation record` — **PASSED**
 3. `detects balance discrepancies and flags isMatched = false` — **PASSED**
 4. `scopes reconciliation strictly to authenticated school (RLS isolation)` — **PASSED**
+

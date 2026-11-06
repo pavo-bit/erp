@@ -83,3 +83,4 @@ $$ LANGUAGE plpgsql;
 | **Ledger Invariants** | `src/tests/db/ledger-integrity.test.ts` | 1. Accepts posted transaction only when entries balance.<br>2. Rejects unbalanced transaction at commit.<br>3. Rejects UPDATE and DELETE on posted records. | **PASS (3/3)** |
 | **Money Invariants** | `src/tests/unit/money-invariants.test.ts` | 1. Zero floating point roundoff on fractional paise.<br>2. Exact Decimal representation. | **PASS (4/4)** |
 | **Refund Reversals** | `src/tests/api/payments-refund.test.ts` | Reversing journal entries balance (`debits == credits == refundAmount`). | **PASS (7/7)** |
+

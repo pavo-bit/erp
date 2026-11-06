@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
+import { compileReportCardData } from "../services/report-card.service";
 
 const router = Router();
 
@@ -13,9 +14,6 @@ router.get("/", authenticate, requireTeacherOrAdmin(), requireSchoolAccess(), as
 
     const where: Record<string, unknown> = { schoolId };
     if (classId) where.classId = classId;
-    else {
-      
-    }
 
     const exams = await prisma.exam.findMany({
       where,
@@ -117,10 +115,16 @@ router.get("/:examId/report-card/:studentId", authenticate, async (req: AuthRequ
   try {
     const examId = req.params.examId as string;
     const studentId = req.params.studentId as string;
+    const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId;
+
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School ID required" });
+      return;
+    }
 
     // STUDENT can only see their own report card
     if (req.user!.role === "STUDENT") {
-      const studentIdFromToken = (req.user as any).studentId;
+      const studentIdFromToken = (req.user as { studentId?: string }).studentId;
       if (studentId !== studentIdFromToken) {
         return res.status(403).json({ success: false, error: 'Access denied' });
       }
@@ -138,25 +142,18 @@ router.get("/:examId/report-card/:studentId", authenticate, async (req: AuthRequ
       }
     }
 
-    const [student, exam, marks] = await Promise.all([
-      prisma.student.findUnique({ where: { id: studentId } }),
-      prisma.exam.findUnique({ where: { id: examId }, include: { examSubjects: true } }),
-      prisma.studentMark.findMany({ where: { studentId, examSubject: { examId } }, include: { examSubject: { include: { subject: true } } }, orderBy: { examSubjectId: "asc" } }),
-    ]);
-
-    if (!student || !exam) {
-      res.status(404).json({ success: false, error: "Student or exam not found" }); return;
-    }
-
-    const totalMaxMarks = marks.reduce((s, r) => s + ((r.examSubject?.theoryMaxMarks || 0) + (r.examSubject?.practicalMaxMarks || 0) || r.examSubject?.maxMarks || 100), 0);
-    const totalObtained = marks.reduce((s, r) => s + ((r.theoryMarksObtained || 0) + (r.practicalMarksObtained || 0) || r.marksObtained || 0), 0);
-    const percentage = totalMaxMarks > 0 ? ((totalObtained / totalMaxMarks) * 100).toFixed(1) : "0";
+    const reportCard = await compileReportCardData(schoolId, studentId, examId);
 
     res.json({
       success: true,
-      data: { student, exam, results: marks, summary: { totalMarks: totalMaxMarks, totalObtained, percentage } },
+      data: reportCard
     });
-  } catch (e) {
+  } catch (e: unknown) {
+    const errorObj = e as { status?: number; message?: string };
+    if (errorObj.status === 404) {
+      res.status(404).json({ success: false, error: errorObj.message });
+      return;
+    }
     logger.error({ err: e }, "Report card error");
     res.status(500).json({ success: false, error: "Server error" });
   }
