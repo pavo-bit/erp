@@ -138,6 +138,7 @@ model School {
   usageMetrics                                                          UsageMetric[]
   userConsents                                                          UserConsent[]
   delegations                                                           UserDelegation[]
+  passwordSetupTokens                                                   PasswordSetupToken[]
   vendors                                                               Vendor[]
   visitorLogs                                                           VisitorLog[]
   webhookEndpoints                                                      WebhookEndpoint[]
@@ -306,6 +307,7 @@ model User {
   userConsents            UserConsent[]
   delegationsReceived     UserDelegation[]         @relation("DelegateeRelation")
   delegationsGiven        UserDelegation[]         @relation("DelegatorRelation")
+  passwordSetupTokens     PasswordSetupToken[]
   userDevices             UserDevice[]
   sessions                UserSession[]
   webhookEndpoints        WebhookEndpoint[]
@@ -3235,6 +3237,24 @@ model UserDelegation {
 
   @@index([schoolId, delegateeId, isActive])
   @@map("user_delegations")
+}
+
+model PasswordSetupToken {
+  id        String    @id @default(cuid())
+  schoolId  String
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  createdBy String?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+  @@index([userId])
+  @@map("password_setup_tokens")
 }
 
 model MasterCountry {

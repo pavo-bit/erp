@@ -729,6 +729,13 @@ BEGIN
   EXECUTE format('ALTER TABLE %I.%I FORCE ROW LEVEL SECURITY', 'public', 'OutboxMessage');
   EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', 'school_isolation', 'public', 'OutboxMessage');
   EXECUTE format('CREATE POLICY %I ON %I.%I FOR ALL USING (EXISTS (SELECT 1 FROM "DomainEvent" AS "tenant_ref_0" WHERE "OutboxMessage"."domainEventId" = "tenant_ref_0"."id" AND "tenant_ref_0"."schoolId" = current_tenant_id())) WITH CHECK (EXISTS (SELECT 1 FROM "DomainEvent" AS "tenant_ref_0" WHERE "OutboxMessage"."domainEventId" = "tenant_ref_0"."id" AND "tenant_ref_0"."schoolId" = current_tenant_id()))', 'school_isolation', 'public', 'OutboxMessage');
+  IF to_regclass(format('%I.%I', 'public', 'password_setup_tokens')) IS NULL THEN
+    RAISE EXCEPTION 'Classified tenant table public.password_setup_tokens is missing; apply the complete baseline schema before tenant RLS.';
+  END IF;
+  EXECUTE format('ALTER TABLE %I.%I ENABLE ROW LEVEL SECURITY', 'public', 'password_setup_tokens');
+  EXECUTE format('ALTER TABLE %I.%I FORCE ROW LEVEL SECURITY', 'public', 'password_setup_tokens');
+  EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I', 'school_isolation', 'public', 'password_setup_tokens');
+  EXECUTE format('CREATE POLICY %I ON %I.%I FOR ALL USING ("schoolId" = current_tenant_id()) WITH CHECK ("schoolId" = current_tenant_id())', 'school_isolation', 'public', 'password_setup_tokens');
   IF to_regclass(format('%I.%I', 'public', 'payment_transactions')) IS NULL THEN
     RAISE EXCEPTION 'Classified tenant table public.payment_transactions is missing; apply the complete baseline schema before tenant RLS.';
   END IF;

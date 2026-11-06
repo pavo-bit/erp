@@ -890,4 +890,60 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
   }
 });
 
+// POST /api/v1/auth/set-password - Public endpoint to consume a password setup token
+router.post("/set-password", async (req: any, res: Response) => {
+  try {
+    const { token, password } = req.body || {};
+    if (!token || !password) {
+      return res.status(400).json({ success: false, error: "token and password are required" });
+    }
+    // password policy
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ success: false, error: "Password must be at least 8 characters" });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(String(token)).digest("hex");
+    const record = await prisma.passwordSetupToken.findUnique({ where: { tokenHash } });
+    if (!record) {
+      return res.status(400).json({ success: false, error: "Invalid token" });
+    }
+    if (record.revokedAt) {
+      return res.status(400).json({ success: false, error: "Token revoked" });
+    }
+    if (record.usedAt) {
+      return res.status(400).json({ success: false, error: "Token already used" });
+    }
+    if (record.expiresAt < new Date()) {
+      return res.status(400).json({ success: false, error: "Token expired" });
+    }
+
+    // Verify user belongs to same school as token (school-scoped)
+    const user = await prisma.user.findUnique({ where: { id: record.userId, schoolId: record.schoolId } });
+    if (!user) {
+      return res.status(400).json({ success: false, error: "Invalid token" });
+    }
+
+    const hashed = await hashPassword(password);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: hashed, mustChangePassword: false, passwordChangedAt: new Date() },
+    });
+
+    // Consume token
+    await prisma.passwordSetupToken.update({
+      where: { id: record.id },
+      data: { usedAt: new Date() },
+    });
+
+    // Revoke sessions/refresh tokens
+    await prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+    await prisma.userSession.updateMany({ where: { userId: user.id }, data: { isActive: false } });
+
+    res.json({ success: true, message: "Password set successfully" });
+  } catch (e) {
+    logger.error({ err: e }, "Set password error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
 export default router;
