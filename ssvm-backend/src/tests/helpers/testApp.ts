@@ -1,6 +1,6 @@
 import express, { Express } from 'express';
 import { app } from '../../app'; // Import the main app (you might need to adjust export in index.ts)
-import prisma from '../../lib/prisma';
+import { getTrustedPrisma } from '../../lib/prisma';
 import jwt from 'jsonwebtoken';
 import { Role } from '@prisma/client';
 import { getEnv } from '../../config/env';
@@ -13,7 +13,7 @@ export function createTestApp(): Express {
 }
 
 export function getTestPrisma() {
-  return prisma;
+  return getTrustedPrisma();
 }
 
 export async function createTestUser(role: Role = Role.ERP_ADMIN, schoolId?: string) {
@@ -22,7 +22,7 @@ export async function createTestUser(role: Role = Role.ERP_ADMIN, schoolId?: str
   // Use a deterministic email or random one
   const email = `testuser_${Date.now()}@example.com`;
   
-  const user = await prisma.user.create({
+  const user = await getTestPrisma().user.create({
     data: {
       email,
       passwordHash: 'hashedpassword',
@@ -53,7 +53,7 @@ export async function createTestUser(role: Role = Role.ERP_ADMIN, schoolId?: str
 }
 
 export async function createTestSchool() {
-  return prisma.school.create({
+  return getTestPrisma().school.create({
     data: {
       code: `SCH-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
       name: `Test School ${Date.now()}`,
@@ -64,7 +64,7 @@ export async function createTestSchool() {
 }
 
 export async function createTestStudent(sectionId: string, schoolId: string) {
-  return prisma.student.create({
+  return getTestPrisma().student.create({
     data: {
       admissionNo: `ADM-${Date.now()}`,
       rollNo: '1',

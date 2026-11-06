@@ -113,6 +113,7 @@ jobs:
             echo "DATABASE_URL_TEST=postgresql://$APP_DB_ROLE:$app_password@localhost:$PG_PORT/$APP_DB_NAME?schema=public"
             echo "DATABASE_URL=postgresql://$APP_DB_ROLE:$app_password@localhost:$PG_PORT/$APP_DB_NAME?schema=public"
             echo "TRUSTED_DATABASE_URL=postgresql://$TRUSTED_DB_ROLE:$trusted_password@localhost:$PG_PORT/$APP_DB_NAME?schema=public"
+            echo "WORKER_DATABASE_ADMIN_URL=$DIRECT_URL"
           } >> "$GITHUB_ENV"
 
       - name: Check tenant classification
@@ -174,6 +175,20 @@ jobs:
           GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO :"trusted_db_role";
           SQL
 
+      - name: Audit restricted app role and main-test policy count
+        run: |
+          app_state="$(psql "$DATABASE_URL_TEST" --no-psqlrc --set=ON_ERROR_STOP=1 --tuples-only --no-align --field-separator='|' \
+            --command "SELECT current_user, r.rolsuper, r.rolbypassrls, (SELECT count(*) FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public') FROM pg_roles r WHERE r.rolname = current_user;")"
+          echo "backend-test database role and public pg_policy count: $app_state"
+          expected_state="${APP_DB_ROLE}|f|f|0"
+          if [[ "$app_state" != "$expected_state" ]]; then
+            echo "Expected restricted app role/policy state '$expected_state'." >&2
+            exit 1
+          fi
+
+      - name: Create fresh isolated worker template
+        run: node scripts/prepare-worker-test-template.cjs
+
       - name: Run Tests with Coverage
         run: npm run test:ci
 
@@ -223,6 +238,8 @@ jobs:
         working-directory: ./ssvm-backend
     env:
       PGPASSWORD: ${{ github.run_id }}-postgres-ci
+      APP_DB_ROLE: ssvm_app_lane_a
+      TRUSTED_DB_ROLE: ssvm_trusted_lane_a
       DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5541/ssvm_test_lane_a?schema=public
       SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5541/ssvm_shadow_lane_a?schema=public
       REDIS_URL: redis://localhost:6391/1
@@ -300,6 +317,8 @@ jobs:
             ON ALL TABLES IN SCHEMA public TO ssvm_trusted_lane_a;
           GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO ssvm_trusted_lane_a;
           SQL
+      - name: Create fresh RLS template after catalog validation
+        run: node scripts/prepare-rls-test-template.cjs
       - name: Run PostgreSQL RLS and ledger invariant tests (Lane A, separate gate)
         run: npm run test:rls
 

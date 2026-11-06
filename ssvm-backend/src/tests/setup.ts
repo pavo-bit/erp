@@ -1,6 +1,5 @@
 import { beforeAll, beforeEach, afterAll, vi } from 'vitest';
-import { execSync } from 'child_process';
-import prisma from '../lib/prisma';
+import prisma, { getTrustedPrisma } from '../lib/prisma';
 import Redis from 'ioredis-mock';
 
 // Mock Redis globally
@@ -126,14 +125,69 @@ process.env.RAZORPAY_KEY_SECRET = crypto.randomBytes(32).toString('hex');
 process.env.RAZORPAY_WEBHOOK_SECRET = crypto.randomBytes(32).toString('hex');
 
 beforeAll(async () => {
-  try {
-    console.log('Running Prisma migrations for test DB...');
-    // We try to deploy migrations to the test DB
-    // execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-    // Note: Skipped in this setup file due to environment differences. 
-    // Usually best to run `dotenv -e .env.test -- npx prisma migrate deploy` in a global setup script.
-  } catch (e) {
-    console.error('Migration failed in setup:', e);
+  const [appRole] = await prisma.$queryRaw<Array<{
+    roleName: string;
+    databaseName: string;
+    isSuperuser: boolean;
+    bypassRls: boolean;
+  }>>`
+    SELECT current_user AS "roleName",
+           current_database() AS "databaseName",
+           rolsuper AS "isSuperuser",
+           rolbypassrls AS "bypassRls"
+    FROM pg_roles
+    WHERE rolname = current_user
+  `;
+
+  if (!appRole) {
+    throw new Error('Could not resolve the PostgreSQL application role for this test run.');
+  }
+  if (appRole.databaseName !== testDatabaseName) {
+    throw new Error(`Test connection selected ${appRole.databaseName}, expected ${testDatabaseName}.`);
+  }
+  if (process.env.APP_DB_ROLE && appRole.roleName !== process.env.APP_DB_ROLE) {
+    throw new Error(`Test connection used ${appRole.roleName}, expected restricted role ${process.env.APP_DB_ROLE}.`);
+  }
+  if (appRole.isSuperuser || appRole.bypassRls) {
+    throw new Error(
+      `Application tests require NOSUPERUSER/NOBYPASSRLS; connected as ${appRole.roleName} ` +
+      `(rolsuper=${appRole.isSuperuser}, rolbypassrls=${appRole.bypassRls}).`
+    );
+  }
+
+  if (process.env.REQUIRE_TRUSTED_DATABASE_URL === 'true') {
+    const trustedUrl = process.env.TRUSTED_DATABASE_URL;
+    if (!trustedUrl) {
+      throw new Error('TRUSTED_DATABASE_URL is required when REQUIRE_TRUSTED_DATABASE_URL=true.');
+    }
+    const trustedDatabaseName = decodeURIComponent(new URL(trustedUrl).pathname.slice(1));
+    if (trustedDatabaseName !== testDatabaseName) {
+      throw new Error('TRUSTED_DATABASE_URL must target the same isolated test database as DATABASE_URL_TEST.');
+    }
+
+    const [trustedRole] = await getTrustedPrisma().$queryRaw<Array<{
+      roleName: string;
+      databaseName: string;
+      isSuperuser: boolean;
+      bypassRls: boolean;
+    }>>`
+      SELECT current_user AS "roleName",
+             current_database() AS "databaseName",
+             rolsuper AS "isSuperuser",
+             rolbypassrls AS "bypassRls"
+      FROM pg_roles
+      WHERE rolname = current_user
+    `;
+
+    if (
+      !trustedRole ||
+      trustedRole.roleName === appRole.roleName ||
+      trustedRole.databaseName !== testDatabaseName ||
+      trustedRole.isSuperuser ||
+      !trustedRole.bypassRls
+    ) {
+      throw new Error('Trusted fixture connection must use a distinct NOSUPERUSER/BYPASSRLS role on the test database.');
+    }
   }
 });
 
@@ -149,15 +203,14 @@ beforeEach(async () => {
     .map(({ tablename }) => '"' + tablename + '"')
     .join(', ');
 
-  try {
-    if (tables !== '') {
-      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
-    }
-  } catch (error) {
-    console.log({ error });
+  if (tables !== '') {
+    await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
   }
 });
 
 afterAll(async () => {
-  await prisma.$disconnect();
+  await Promise.all([
+    prisma.$disconnect(),
+    ...(process.env.REQUIRE_TRUSTED_DATABASE_URL === 'true' ? [getTrustedPrisma().$disconnect()] : []),
+  ]);
 });
