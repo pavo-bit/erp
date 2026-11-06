@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole, requireFinanceAdmin } from "../middleware/auth";
 import logger from "../lib/logger";
@@ -48,8 +49,8 @@ router.get("/defaulters", authenticate, requireFinanceAdmin(), async (req: AuthR
 // POST /api/finance/generate-monthly-fees
 router.post("/generate-monthly-fees", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
-    if (!schoolId) { res.status(400).json({ success: false, error: "School ID missing" }); return; }
+    const schoolId = req.user?.role === "SUPER_ADMIN" ? (req.body.schoolId || req.user.schoolId) : req.user?.schoolId;
+    if (!schoolId) { res.status(400).json({ success: false, error: "School scope is required" }); return; }
 
     // Logic: Fetch all active students, fetch fee structures for their class/section, create invoices
     const activeStudents = await prisma.student.findMany({
@@ -94,10 +95,12 @@ router.post("/generate-monthly-fees", authenticate, requireFinanceAdmin(), async
               studentId: student.id,
               schoolId: schoolId,
               amount: structure.amount,
+              amountPaid: new Prisma.Decimal(0),
+              remainingAmount: structure.amount,
+              fineAmount: new Prisma.Decimal(0),
               type: "MONTHLY",
               status: "PENDING",
               dueDate,
-              // session: student?.session,
               description: `Monthly Fee - ${new Date().toLocaleString('default', { month: 'long' })} ${currentYear}`
             }
           });

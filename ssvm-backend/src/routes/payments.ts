@@ -3,6 +3,7 @@ import { Router, Response } from "express";
 import Razorpay from "razorpay";
 import crypto from "crypto";
 import { Prisma } from "@prisma/client";
+import { z } from "zod";
 import { AuthRequest, authenticate, requireRole } from "../middleware/auth";
 import { getEnv } from "../config/env";
 import { LedgerService } from "../services/ledger.service";
@@ -547,6 +548,176 @@ router.post("/trigger-late-fines", authenticate, requireRole("SUPER_ADMIN", "ERP
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// POST /api/payments/refund (Refund Lifecycle & Double-Entry Reversal)
+// ─────────────────────────────────────────────────────────────────────────────
+const refundSchema = z.object({
+  paymentTransactionId: z.string().min(1),
+  amount: z.number().positive().optional(),
+  reason: z.string().min(3),
+});
+
+router.post(
+  "/refund",
+  authenticate,
+  requireRole("SUPER_ADMIN", "ERP_ADMIN", "ACCOUNTANT"),
+  async (req: AuthRequest, res: Response) => {
+    try {
+      const parsed = refundSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ success: false, error: "Validation failed", details: parsed.error.flatten().fieldErrors });
+        return;
+      }
+
+      const { paymentTransactionId, amount, reason } = parsed.data;
+      const targetTransaction = await prisma.paymentTransaction.findUnique({
+        where: { id: paymentTransactionId },
+        include: { invoice: true },
+      });
+
+      if (!targetTransaction) {
+        res.status(404).json({ success: false, error: "Payment transaction not found" });
+        return;
+      }
+
+      const schoolId = targetTransaction.schoolId || targetTransaction.invoice.schoolId;
+      if (req.user?.role !== "SUPER_ADMIN" && req.user?.schoolId !== schoolId) {
+        res.status(403).json({ success: false, error: "Unauthorized access to this school's transactions" });
+        return;
+      }
+
+      if (targetTransaction.status !== "SUCCESS") {
+        res.status(400).json({ success: false, error: "Only successful payments can be refunded" });
+        return;
+      }
+
+      const txPaidPaise = toPaise(targetTransaction.amountPaid);
+      const refundPaise = amount !== undefined ? toPaise(amount) : txPaidPaise;
+
+      if (refundPaise <= 0 || refundPaise > txPaidPaise) {
+        res.status(400).json({ success: false, error: `Refund amount must be between 1 paise and ${fromPaise(txPaidPaise)}` });
+        return;
+      }
+
+      // Check existing refunds for this payment
+      const existingRefunds = await prisma.paymentTransaction.findMany({
+        where: {
+          invoiceId: targetTransaction.invoiceId,
+          status: "REFUNDED",
+          gatewayPaymentId: { startsWith: `rfnd_${targetTransaction.id}` },
+        },
+      });
+      const alreadyRefundedPaise = existingRefunds.reduce((sum, r) => sum + toPaise(r.amountPaid), 0);
+      if (alreadyRefundedPaise + refundPaise > txPaidPaise) {
+        res.status(400).json({
+          success: false,
+          error: `Cumulative refund exceeds payment amount. Max refundable: ${fromPaise(txPaidPaise - alreadyRefundedPaise)}`,
+        });
+        return;
+      }
+
+      const result = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+        const invoice = await tx.invoice.findUniqueOrThrow({
+          where: { id: targetTransaction.invoiceId },
+        });
+
+        // 1. Create refund PaymentTransaction record
+        const refundTxId = `REF-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+        const refundTx = await tx.paymentTransaction.create({
+          data: {
+            invoiceId: invoice.id,
+            amountPaid: fromPaise(refundPaise),
+            gateway: targetTransaction.gateway,
+            status: "REFUNDED",
+            transactionId: refundTxId,
+            gatewayPaymentId: `rfnd_${targetTransaction.id}_${Date.now()}`,
+            schoolId,
+            paidAt: new Date(),
+          },
+        });
+
+        // 2. Adjust invoice amounts
+        const currentPaidPaise = toPaise(invoice.amountPaid);
+        const newPaidPaise = Math.max(0, currentPaidPaise - refundPaise);
+        const totalDuePaise = toPaise(invoice.amount) + toPaise(invoice.fineAmount);
+        const newRemainingPaise = Math.max(0, totalDuePaise - newPaidPaise);
+        const newStatus = newPaidPaise === 0 ? "UNPAID" : "PARTIAL";
+
+        const updatedInvoice = await tx.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            amountPaid: fromPaise(newPaidPaise),
+            remainingAmount: fromPaise(newRemainingPaise),
+            status: newStatus,
+          },
+        });
+
+        // 3. Post General Ledger Reversal: Debit Revenue (4000-TUIT), Credit Bank (1010-BANK)
+        let bankAccount = await tx.ledgerAccount.findUnique({
+          where: { schoolId_code: { schoolId, code: "1010-BANK" } },
+        });
+        let creditAccount = await tx.ledgerAccount.findUnique({
+          where: { schoolId_code: { schoolId, code: "4000-TUIT" } },
+        });
+        if (!creditAccount) {
+          creditAccount = await tx.ledgerAccount.findUnique({
+            where: { schoolId_code: { schoolId, code: "1200-AR" } },
+          });
+        }
+        if (!bankAccount || !creditAccount) {
+          await seedDefaultChartOfAccounts(tx, schoolId);
+          bankAccount = await tx.ledgerAccount.findUnique({
+            where: { schoolId_code: { schoolId, code: "1010-BANK" } },
+          });
+          creditAccount = await tx.ledgerAccount.findUnique({
+            where: { schoolId_code: { schoolId, code: "4000-TUIT" } },
+          });
+        }
+
+        if (bankAccount && creditAccount) {
+          await LedgerService.postTransaction(
+            {
+              schoolId,
+              referenceType: "PAYMENT",
+              referenceId: refundTx.id,
+              sourceModule: "FEES",
+              description: `Refund for payment ${targetTransaction.id}: ${reason}`,
+              postingDate: new Date(),
+              createdBy: req.user?.id || "SYSTEM",
+              entries: [
+                { accountId: creditAccount.id, debitAmount: fromPaise(refundPaise), creditAmount: 0 },
+                { accountId: bankAccount.id, debitAmount: 0, creditAmount: fromPaise(refundPaise) },
+              ],
+            },
+            tx,
+          );
+        }
+
+        return { refundTx, updatedInvoice };
+      });
+
+      logger.info(
+        { refundId: result.refundTx.id, invoiceId: result.updatedInvoice.id, amount: fromPaise(refundPaise) },
+        "Payment refunded successfully",
+      );
+
+      res.status(200).json({
+        success: true,
+        message: "Refund processed successfully",
+        data: {
+          refundTransactionId: result.refundTx.id,
+          refundAmount: fromPaise(refundPaise),
+          invoiceStatus: result.updatedInvoice.status,
+          remainingAmount: result.updatedInvoice.remainingAmount,
+        },
+      });
+    } catch (error) {
+      logger.error({ err: error }, "Error processing refund");
+      res.status(500).json({ success: false, error: "Failed to process refund" });
+    }
+  },
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/payments/webhook (Razorpay Webhooks)
 // ─────────────────────────────────────────────────────────────────────────────
 router.post("/webhook", async (req: import("express").Request, res: Response) => {
@@ -691,6 +862,92 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
         }
       }
       res.status(200).json({ success: true, message: "Payment failed event recorded" });
+      return;
+    }
+
+    if (webhookBody.event === "refund.processed" || webhookBody.event === "payment.refunded") {
+      const refundEntity = webhookBody.payload?.refund?.entity || webhookBody.payload?.payment?.entity;
+      const paymentId = refundEntity?.payment_id || refundEntity?.id;
+      const refundAmountPaise = refundEntity?.amount;
+      if (paymentId) {
+        webhookGatewayPaymentId = paymentId;
+        const [resolved] = await prisma.$queryRawUnsafe<Array<{ resolve_payment_school: string | null }>>(
+          `SELECT resolve_payment_school($1) AS resolve_payment_school`,
+          paymentId
+        );
+        const schoolId = resolved?.resolve_payment_school;
+        if (schoolId) {
+          webhookSchoolId = schoolId;
+          await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+            const txRecord = await tx.paymentTransaction.findFirst({
+              where: { gatewayPaymentId: paymentId, schoolId, status: "SUCCESS" },
+              include: { invoice: true },
+            });
+            if (txRecord && txRecord.status === "SUCCESS") {
+              const rPaise = refundAmountPaise ? Number(refundAmountPaise) : toPaise(txRecord.amountPaid);
+              const currentPaidPaise = toPaise(txRecord.invoice.amountPaid);
+              const newPaidPaise = Math.max(0, currentPaidPaise - rPaise);
+              const totalDuePaise = toPaise(txRecord.invoice.amount) + toPaise(txRecord.invoice.fineAmount);
+              const newRemainingPaise = Math.max(0, totalDuePaise - newPaidPaise);
+              const newStatus = newPaidPaise === 0 ? "UNPAID" : "PARTIAL";
+
+              await tx.invoice.update({
+                where: { id: txRecord.invoiceId },
+                data: {
+                  amountPaid: fromPaise(newPaidPaise),
+                  remainingAmount: fromPaise(newRemainingPaise),
+                  status: newStatus,
+                },
+              });
+
+              const refundTxId = `REF-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+              const refTx = await tx.paymentTransaction.create({
+                data: {
+                  invoiceId: txRecord.invoiceId,
+                  amountPaid: fromPaise(rPaise),
+                  gateway: "RAZORPAY",
+                  status: "REFUNDED",
+                  transactionId: refundTxId,
+                  gatewayPaymentId: `rfnd_${txRecord.id}_${Date.now()}`,
+                  schoolId,
+                  paidAt: new Date(),
+                },
+              });
+
+              let bankAccount = await tx.ledgerAccount.findUnique({
+                where: { schoolId_code: { schoolId, code: "1010-BANK" } },
+              });
+              let creditAccount = await tx.ledgerAccount.findUnique({
+                where: { schoolId_code: { schoolId, code: "4000-TUIT" } },
+              });
+              if (!creditAccount) {
+                creditAccount = await tx.ledgerAccount.findUnique({
+                  where: { schoolId_code: { schoolId, code: "1200-AR" } },
+                });
+              }
+              if (bankAccount && creditAccount) {
+                await LedgerService.postTransaction(
+                  {
+                    schoolId,
+                    referenceType: "PAYMENT",
+                    referenceId: refTx.id,
+                    sourceModule: "FEES",
+                    description: `Webhook: Refund processed for payment ${paymentId}`,
+                    postingDate: new Date(),
+                    createdBy: "RAZORPAY_WEBHOOK",
+                    entries: [
+                      { accountId: creditAccount.id, debitAmount: fromPaise(rPaise), creditAmount: 0 },
+                      { accountId: bankAccount.id, debitAmount: 0, creditAmount: fromPaise(rPaise) },
+                    ],
+                  },
+                  tx,
+                );
+              }
+            }
+          });
+        }
+      }
+      res.status(200).json({ success: true, message: "Refund event processed" });
       return;
     }
 
