@@ -11,6 +11,7 @@ import { getEnv } from "../config/env";
 import logger from "../lib/logger";
 import { getRedisClient, isRedisAvailable } from "../lib/redis";
 import { enqueueNotification } from "./queue";
+import { assessLateFinesDaily } from "./lateFines";
 
 const execAsync = promisify(exec);
 const env = getEnv();
@@ -40,6 +41,10 @@ export function startMaintenanceWorker(): Worker | undefined {
 
         case "validate-backup":
           await validateBackupRestore();
+          break;
+
+        case "assess-late-fines":
+          await assessLateFinesDaily();
           break;
 
         default:

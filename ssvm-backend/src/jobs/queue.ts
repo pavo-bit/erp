@@ -66,6 +66,14 @@ async function scheduleMaintenanceJobs() {
     );
   }
 
+  if (env.LATE_FINE_JOB_ENABLED) {
+    await maintenanceQueue.upsertJobScheduler(
+      "daily-late-fines",
+      { pattern: "0 1 * * *" },
+      { name: "assess-late-fines" }
+    );
+  }
+
   logger.info("Maintenance jobs scheduled");
 }
 

@@ -44,10 +44,8 @@ export default function ExamsGradingPage() {
   const fetchExams = async () => {
     try {
       const res = await apiCall("/api/v1/exams", "GET");
-      if (res.success && res.data) {
-        setExams(res.data);
-        if (res.data.length > 0) setSelectedExamId(res.data[0].id);
-      }
+      setExams(res || []);
+      if (res?.length > 0) setSelectedExamId(res[0].id);
     } catch (e) {
       console.error(e);
     } finally {
@@ -89,7 +87,7 @@ export default function ExamsGradingPage() {
       }));
 
       const res = await apiCall(`/api/v1/exams/${selectedExamId}/marks`, "POST", { marks: payload });
-      if (res.success) {
+      {
         setSuccess(true);
         setTimeout(() => setSuccess(false), 3000);
       }

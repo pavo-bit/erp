@@ -132,14 +132,14 @@ export default function StudentLogin() {
 
   // Load preference
   useEffect(() => {
-    const pref = localStorage.getItem("ssvm_large_text");
+    const pref = sessionStorage.getItem("ssvm_large_text");
     if (pref === "true") setIsLargeText(true);
   }, []);
 
   const toggleLargeText = () => {
     const newVal = !isLargeText;
     setIsLargeText(newVal);
-    localStorage.setItem("ssvm_large_text", String(newVal));
+    sessionStorage.setItem("ssvm_large_text", String(newVal));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -149,9 +149,9 @@ export default function StudentLogin() {
     
     try {
       if (requires2FA) {
-        const res = await apiCall("/api/v1/auth/verify-2fa", "POST", { tempToken, otp });
-        if (res.success && res.data.user.role === "STUDENT") {
-          login(res.data.token, res.data.user);
+        const res = await apiCall("/api/v1/2fa/validate", "POST", { pendingToken: tempToken, token: otp });
+        if (res?.user?.role === "STUDENT") {
+          login(res.token, res.user);
         } else {
           throw new Error("Invalid OTP or unauthorized access.");
         }
@@ -166,8 +166,8 @@ export default function StudentLogin() {
         return;
       }
 
-      if (res.success && res.data.user.role === "STUDENT") {
-        login(res.data.token, res.data.user);
+      if (res?.user?.role === "STUDENT") {
+        login(res.token, res.user);
       } else {
         throw new Error("Unauthorized access.");
       }

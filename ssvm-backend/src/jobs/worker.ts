@@ -10,6 +10,7 @@ import { startExportWorker } from "./exportWorker";
 import { startMaintenanceWorker } from "./maintenanceWorker";
 import { startSoftDeleteCleanupWorker } from "./softDeleteWorker";
 import { generatePDF, defaultReceiptTemplate, defaultReportCardTemplate } from "../routes/reports";
+import { compileReportCardData, reportCardTemplateHtml } from "../services/report-card.service";
 import { storageService } from "../services/storage.service";
 import { sendSSEToUser } from "../lib/sse";
 
@@ -105,28 +106,34 @@ export function startWorkers() {
           };
           pdfBuffer = await generatePDF(defaultReceiptTemplate, data);
           fileName = `Receipt-${data.receiptNo}.pdf`;
-        } else if (type === "report_card" || !type) {
-          const data = {
-            schoolName: "SSVM College Square",
-            schoolAddress: "123 Education Hub, Knowledge City",
-            examName: "Term 1 Final Examination",
-            academicSession: "2026-2027",
-            studentName: "Aarav Sharma",
-            className: "Class X-A",
-            rollNo: "12",
-            attendance: "94.5%",
-            subjects: [
-              { name: "Mathematics", maxMarks: 100, marksObtained: 95, grade: "A+" },
-              { name: "Science", maxMarks: 100, marksObtained: 88, grade: "A+" }
-            ],
-            totalMarks: 462,
-            maxTotal: 500,
-            percentage: "92.4",
-            finalGrade: "A+",
-            remarks: "Outstanding!"
-          };
-          pdfBuffer = await generatePDF(defaultReportCardTemplate, data);
-          fileName = `ReportCard-${data.studentName.replace(/\s+/g, '_')}.pdf`;
+        } else if (type === "report_card" || type === "report-card" || !type) {
+          let data = job.data.reportData;
+          if (!data && studentId && job.data.examId && schoolId) {
+            data = await compileReportCardData(schoolId, studentId, job.data.examId);
+          }
+          if (data) {
+            pdfBuffer = await generatePDF(reportCardTemplateHtml, data);
+            fileName = `ReportCard-${(data.student?.name || "Student").replace(/\s+/g, '_')}.pdf`;
+          } else {
+            const fallbackData = {
+              schoolName: "SSVM College Square",
+              schoolAddress: "123 Education Hub, Knowledge City",
+              examName: "Examination",
+              academicSession: "2026-2027",
+              studentName: "Student",
+              className: "Class",
+              rollNo: "1",
+              attendance: "100%",
+              subjects: [],
+              totalMarks: 0,
+              maxTotal: 100,
+              percentage: "0",
+              finalGrade: "N/A",
+              remarks: "N/A"
+            };
+            pdfBuffer = await generatePDF(defaultReportCardTemplate, fallbackData);
+            fileName = `ReportCard-${Date.now()}.pdf`;
+          }
         } else if (type === "certificate") {
           const { qrHash, studentId, certificateId } = job.data;
           const data = {

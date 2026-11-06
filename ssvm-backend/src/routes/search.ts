@@ -15,8 +15,12 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string || undefined) : req.user!.schoolId;
-    if (!schoolId && req.user!.role !== "SUPER_ADMIN") {
+    const schoolId = req.user!.role === "SUPER_ADMIN" && req.user!.impersonated ? req.user!.schoolId : req.user!.schoolId;
+    if (req.user!.role === "SUPER_ADMIN" && !req.user!.impersonated) {
+      res.status(403).json({ success: false, error: "School data requires an audited impersonation session" });
+      return;
+    }
+    if (!schoolId) {
       res.status(400).json({ success: false, error: "School ID required" }); return;
     }
 
@@ -173,7 +177,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
 
     let students: any[], teachers: any[], guardians: any[], invoices: any[], assignments: any[], admissions: any[], events: any[], notices: any[], attendance: any[], results: any[], alumni: any[], documents: any[], commLogs: any[];
 
-    if (req.user!.role === "SUPER_ADMIN" && !schoolId) {
+    if (req.user!.role === "SUPER_ADMIN" && (!req.user!.impersonated || !schoolId)) {
       const activeSchools = await prisma.school.findMany({ where: { isActive: true }, select: { id: true } });
       const perSchool = await Promise.all(activeSchools.map(s => searchSchool(s.id)));
       students = perSchool.flatMap(r => r[0]).slice(0, 5);

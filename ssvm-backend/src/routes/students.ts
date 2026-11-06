@@ -109,7 +109,7 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
     const student = await prisma.student.create({
       data: {
         schoolId,
-        name,
+        name: name || "Student",
         rollNo: rollNo || "1",
         admissionNo,
         password: hashedPassword,

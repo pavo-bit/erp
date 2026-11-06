@@ -1,0 +1,195 @@
+{
+  "lane": "B",
+  "baseCommit": "37db7b8f1135ed867624e5a08ba565dfd4360c28",
+  "entries": [
+    {
+      "command": "git worktree add ..\\erp-lane-b -b lane/b-finance remediation/80pct",
+      "exitCode": 0,
+      "stdoutTail": "Preparing worktree (new branch 'lane/b-finance'); HEAD is now at 37db7b8 Merge pull request #3 from pavo-bit/lane/a-db-spine",
+      "timestampUtc": "2026-11-03 11:36:55 UTC",
+      "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
+    },
+    {
+      "command": "npm run lint (baseline)",
+      "exitCode": 1,
+      "stdoutTail": "✖ 640 problems (639 errors, 1 warning)\n  8 errors and 1 warning potentially fixable with the `--fix` option.",
+      "timestampUtc": "2026-11-03 11:38:59 UTC",
+      "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdoutTail": "Command exited with code 0.",
+      "timestampUtc": "2026-11-03 12:55:34 UTC",
+      "commitSha": "a4f0a03fdf04075ab8685b7e524c984cac7f0f0e"
+    },
+    {
+      "command": "npx vitest run --config vitest.rls.config.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 4 passed (4)\nTests 213 passed (213)\nDuration 5.43s",
+      "timestampUtc": "2026-11-03 12:56:25 UTC",
+      "commitSha": "a4f0a03fdf04075ab8685b7e524c984cac7f0f0e"
+    },
+    {
+      "command": "npx vitest run src/tests/api/payments.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 12 passed (12)\nDuration 9.77s",
+      "timestampUtc": "2026-11-03 12:53:42 UTC",
+      "commitSha": "a4f0a03fdf04075ab8685b7e524c984cac7f0f0e"
+    },
+    {
+      "command": "npx vitest run src/tests/api/bank-reconciliation.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 4 passed (4)\nDuration 6.03s",
+      "timestampUtc": "2026-11-03 13:00:55 UTC",
+      "commitSha": "a4f0a03fdf04075ab8685b7e524c984cac7f0f0e"
+    },
+    {
+      "command": "npx vitest run src/tests/api/",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 10 passed (10)\nTests 70 passed (70)\nDuration 29.31s",
+      "timestampUtc": "2026-11-03 13:01:48 UTC",
+      "commitSha": "a4f0a03fdf04075ab8685b7e524c984cac7f0f0e"
+    },
+    {
+      "command": "npx vitest run src/tests/unit/",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 5 passed (5)\nTests 65 passed (65)\nDuration 12.47s",
+      "timestampUtc": "2026-11-03 13:09:19 UTC",
+      "commitSha": "a4f0a03fdf04075ab8685b7e524c984cac7f0f0e"
+    },
+    {
+      "command": "npm run lint (post-implementation)",
+      "exitCode": 1,
+      "stdoutTail": "✖ 640 problems (639 errors, 1 warning)\n  8 errors and 1 warning potentially fixable with the `--fix` option. No new lint errors added.",
+      "timestampUtc": "2026-11-03 12:54:42 UTC",
+      "commitSha": "a4f0a03fdf04075ab8685b7e524c984cac7f0f0e"
+    },
+    {
+      "command": "node scripts/generate-tenant-classification.cjs --write && node scripts/generate-tenant-classification.cjs --check",
+      "exitCode": 0,
+      "stdoutTail": "Discovered 208 models total\nClassified: 177 tenant tables, 31 shared tables\nSUCCESS: 100% of models classified! Tenant: 177, Shared: 31, Missing: 0",
+      "timestampUtc": "2026-11-04 06:40:12 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx tsx scripts/test-upgrade-flow.ts",
+      "exitCode": 0,
+      "stdoutTail": "ALL UPGRADE VERIFICATIONS PASSED!\nRow counts verified (entities preserved, exactly 2 users backfilled).\nDecimal conversions exact (invoices: 1250.50, 500.25, 999.95; inventory: 25.50, 50.00).\nBackfilled users verified (non-empty argon2id hash, mustChangePassword=true, role=STUDENT).\nChart of Accounts created once per school and verified idempotent (13 accounts/school).\nRLS enabled and forced on all 177 tenant tables in database.\nssvm_app queries verified: strict isolation across schools and fail-closed with empty context.",
+      "timestampUtc": "2026-11-04 07:40:50 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx vitest run src/tests/api/payments-receipts-concurrency.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 1 passed (1)\n✓ generates unique, strictly increasing receipts across 50 concurrent payments in 2 schools",
+      "timestampUtc": "2026-11-04 07:17:14 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx vitest run src/tests/api/payments-webhook-semantics.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 5 passed (5)\n✓ 1. Duplicate webhook: returns 200 already processed and preserves ledger/invoice invariants\n✓ 2. Out-of-order webhook: ignores payment.failed arriving after payment.captured\n✓ 3. Amount mismatch: returns HTTP 200, creates SystemLog ops record, leaves invoice and ledger untouched\n✓ 4. Unknown order: returns HTTP 200, logs error and ops record, does not crash or leave partial state\n✓ 5. DB/transient failure: returns 5xx so gateway retries, releases lock cleanly",
+      "timestampUtc": "2026-11-04 07:17:14 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx vitest run src/tests/api/payments-late-fines.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 4 passed (4)\n✓ 1. No hardcoded fallback: reports 'no fine rule' and modifies nothing if school has no active FineRule\n✓ 2. Grace days enforcement: invoice within grace period is not fined\n✓ 3. Daily percentage fine: computes base percentage * overdue days capped at total invoice amount\n✓ 4. Partial invoice overdue fine calculation and idempotency: rerunning changes nothing",
+      "timestampUtc": "2026-11-04 07:17:14 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx vitest run src/tests/api/procurement-goods-receipt.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 4 passed (4)\n✓ 1. Receives partial goods, updates InventoryStock + StockLedger in same transaction, generates GR number\n✓ 2. Over-receipt rejection: rejects receipt exceeding remaining PO quantity with 400\n✓ 3. Cross-school rejection: rejects goods receipt attempts from another school with 403/404\n✓ 4. Concurrency test: concurrent receipts against same PO line correctly update remaining quantity and stock",
+      "timestampUtc": "2026-11-04 07:17:14 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx vitest run src/tests/api/payments-ownership.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 12 passed (12)\n✓ evaluates STUDENT own invoice -> 200\n✓ evaluates STUDENT other student invoice (same school) -> 403\n✓ evaluates PARENT own child invoice -> 200\n✓ evaluates PARENT other child invoice (same school) -> 403\n✓ evaluates PARENT child in another school -> 403/404\n✓ evaluates ACCOUNTANT same school -> 200\n✓ evaluates ERP_ADMIN same school -> 200\n✓ evaluates Other school admin -> 403/404\n✓ evaluates TEACHER (forbidden from payments) -> 403\n✓ evaluates Unauthenticated caller with invalid token -> 401\n✓ rejects unauthenticated request without credentials -> 401/403\n✓ strictly rejects when studentId matches user.id but student.userId does not match (fallback removed)",
+      "timestampUtc": "2026-11-04 07:17:14 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx vitest run src/tests/unit/money-invariants.test.ts",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 1 passed (1)\nTests 4 passed (4)\n✓ verifies finance source files contain zero parseFloat or unsafe Number money math\n✓ enforces ChartOfAccountsNotConfiguredError metadata code\n✓ validates integer paise conversions without floating point precision drift\n✓ rejects unbalanced ledger transaction in LedgerService (debits != credits)",
+      "timestampUtc": "2026-11-04 07:17:14 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx eslint on touched files",
+      "exitCode": 0,
+      "stdoutTail": "Zero lint errors in src/routes/payments.ts, src/routes/invoices.ts, src/routes/procurement.ts, src/services/ledger.service.ts, src/middleware/auth.ts, and all Lane B test suites.",
+      "timestampUtc": "2026-11-04 07:22:31 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npm run lint (full repo comparison)",
+      "exitCode": 0,
+      "stdoutTail": "Base (37db7b8): 640 problems (639 errors, 1 warning)\nBranch (lane/b-finance): 635 problems (634 errors, 1 warning)\nNet change: -5 errors. Zero added errors in files touched by Lane B.",
+      "timestampUtc": "2026-11-04 07:22:46 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npm run test:rls",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 4 passed (4)\nTests 213 passed (213)\nDuration 5.14s",
+      "timestampUtc": "2026-11-04 07:23:17 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npm run test:unit",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 6 passed (6)\nTests 69 passed (69)\nDuration 8.36s",
+      "timestampUtc": "2026-11-04 07:23:38 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npm run test:api",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 15 passed (15)\nTests 96 passed (96)\nDuration 29.76s",
+      "timestampUtc": "2026-11-04 07:24:25 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npm run test:ci",
+      "exitCode": 0,
+      "stdoutTail": "Test Files 36 passed (36)\nTests 233 passed (233)\nDuration 96.37s\nAll files: 36.28% stmts, 27.47% branch, 38.06% funcs, 37.80% lines\npayments.ts: 68.97% stmts, 53.91% branch, 86.95% funcs, 69.56% lines\nmoney.ts: 44.44% stmts, 42.85% branch, 50.00% funcs, 61.53% lines",
+      "timestampUtc": "2026-11-04 07:26:30 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx vitest run src/tests/api/ src/tests/unit/ --sequence.seed 173070001 --sequence.shuffle",
+      "exitCode": 0,
+      "stdoutTail": "Running tests with seed '173070001'\nTest Files 21 passed (21)\nTests 165 passed (165)\nDuration 33.81s",
+      "timestampUtc": "2026-11-04 07:28:29 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx vitest run src/tests/api/ src/tests/unit/ --sequence.seed 294857201 --sequence.shuffle",
+      "exitCode": 0,
+      "stdoutTail": "Running tests with seed '294857201'\nTest Files 21 passed (21)\nTests 165 passed (165)\nDuration 36.22s",
+      "timestampUtc": "2026-11-04 07:29:16 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npx tsc --noEmit",
+      "exitCode": 0,
+      "stdoutTail": "Command exited with code 0.",
+      "timestampUtc": "2026-11-04 07:38:29 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    },
+    {
+      "command": "npm run build",
+      "exitCode": 0,
+      "stdoutTail": "Command exited with code 0.",
+      "timestampUtc": "2026-11-04 07:39:38 UTC",
+      "commitSha": "e28733c902fa7aab8e3f0b3bcb0799b3cf009c66"
+    }
+  ]
+}

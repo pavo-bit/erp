@@ -16,6 +16,8 @@ import { getAuthPrisma } from "../lib/authPrisma";
 export interface AuthRequest extends Request {
   user?: {
     id: string;
+    userId?: string;
+    studentId?: string;
     email: string;
     name: string;
     role: string;
@@ -195,6 +197,8 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       if (student) {
         user = {
           id: student.id,
+          userId: userId,
+          studentId: student.id,
           email: student.admissionNo || "",
           name: student.name,
           role: "STUDENT",
@@ -282,32 +286,10 @@ export function requireRole(...roles: string[]) {
       return;
     }
 
-    // Direct role match
-    if (roles.includes(req.user.role)) {
+    // Direct role match or SUPER_ADMIN platform override
+    if (req.user.role === "SUPER_ADMIN" || roles.includes(req.user.role)) {
       next();
       return;
-    }
-
-    // Phase 3: JIT Access Delegation Check
-    try {
-      const validRoles = roles.filter((r) => Object.values(Role).includes(r as Role)) as Role[];
-      if (validRoles.length > 0) {
-        const activeDelegation = await prisma.userDelegation.findFirst({
-          where: {
-            delegateeId: req.user.id,
-            isActive: true,
-            endDate: { gt: new Date() }, // Just-In-Time Expiration Check
-            role: { in: validRoles } // Check if delegated role matches required roles
-          }
-        });
-
-        if (activeDelegation) {
-          next();
-          return;
-        }
-      }
-    } catch (err) {
-      logger.error({ err }, "Error checking user delegations");
     }
 
     res.status(403).json({ success: false, error: "Forbidden — insufficient permissions" });
@@ -319,43 +301,43 @@ export function requireSuperAdmin() {
 }
 
 export function requireAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN");
+  return requireRole("ERP_ADMIN");
 }
 
 export function requireTeacherOrAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "TEACHER");
+  return requireRole("ERP_ADMIN", "TEACHER");
 }
 
 export function requireFinanceAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "ACCOUNTANT");
+  return requireRole("ERP_ADMIN", "ACCOUNTANT");
 }
 
 export function requireContentAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN");
+  return requireRole("ERP_ADMIN", "WEBSITE_ADMIN");
 }
 
 export function requireHRAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "HR");
+  return requireRole("ERP_ADMIN", "HR");
 }
 
 export function requireAcademicAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN");
+  return requireRole("ERP_ADMIN");
 }
 
 export function requireOperationsAdmin(...roles: string[]) {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", ...roles);
+  return requireRole("ERP_ADMIN", ...roles);
 }
 
 export function requireLibraryAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "LIBRARIAN");
+  return requireRole("ERP_ADMIN", "LIBRARIAN");
 }
 
 export function requireAdmissionsAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "RECEPTIONIST");
+  return requireRole("ERP_ADMIN", "RECEPTIONIST");
 }
 
 export function requireCommunicationsAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "RECEPTIONIST", "HR");
+  return requireRole("ERP_ADMIN", "RECEPTIONIST", "HR");
 }
 
 // ═══════════════════════════════════════════

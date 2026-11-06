@@ -38,7 +38,7 @@ export default function TeacherDiscipline() {
     try {
       setLoading(true);
       const res = await apiCall("/api/v1/discipline/incidents", "GET");
-      if (res.success) setIncidents(res.data);
+      setIncidents(res || []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -50,7 +50,7 @@ export default function TeacherDiscipline() {
     try {
       // Fetch students for the dropdown
       const res = await apiCall("/api/v1/students?limit=100", "GET");
-      if (res.success) setStudents(res.data.items || []);
+      setStudents(res.items || []);
     } catch (err) {
       console.error(err);
     }
@@ -60,16 +60,14 @@ export default function TeacherDiscipline() {
     e.preventDefault();
     try {
       setSubmitting(true);
-      const res = await apiCall("/api/v1/discipline/incidents", "POST", {
+      await apiCall("/api/v1/discipline/incidents", "POST", {
         studentId, type, severity, title, description, incidentDate: new Date().toISOString()
       });
-      if (res.success) {
+      {
         setIsModalOpen(false);
         fetchIncidents();
         // reset
         setStudentId(""); setTitle(""); setDescription("");
-      } else {
-        alert(res.error || "Failed to log incident");
       }
     } catch (err: any) {
       alert(err.message || "Error logging incident");

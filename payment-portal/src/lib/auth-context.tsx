@@ -30,14 +30,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function initAuth() {
       try {
         const res = await apiCall("/api/v1/auth/me");
-        if (res.success && res.data.role === "STUDENT") {
+        if (res?.role === "STUDENT") {
           // Since the endpoint /api/auth/me returns the user, but we logged in via /api/auth/student/login
           // wait, /api/auth/me returns the standard User. But the student token has studentId as `userId` and role `STUDENT`.
           // We need to fetch the student profile directly.
           // For the scope of this portal, we'll rely on the token data or a specific me endpoint if needed.
           // Let's just set the student using the token data we stored, or fetch via /api/students/:id.
           
-          setStudent(res.data);
+          setStudent(res);
         } else {
           throw new Error("Not logged in as student");
         }

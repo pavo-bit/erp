@@ -12,6 +12,7 @@ const app = createTestApp();
 const prisma = getTestPrisma();
 
 describe('Auth API Routes', () => {
+  beforeAll(() => { getEnv(); });
   let schoolId: string;
   let testUser: any;
   let testStudent: any;

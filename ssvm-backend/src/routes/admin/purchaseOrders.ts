@@ -1,9 +1,15 @@
 import { Router, Response } from "express";
+import { Prisma } from "@prisma/client";
 import { AuthRequest, authenticate, requireRole } from "../../middleware/auth";
-import prisma from "../../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../../lib/prisma";
 import logger from "../../lib/logger";
+import { withSerializableRetry } from "../../lib/serializableRetry";
 
 const router = Router();
+
+class GoodsReceiptError extends Error {
+  constructor(message: string, readonly status: number) { super(message); this.name = "GoodsReceiptError"; }
+}
 
 const requireProcurementRole = requireRole("SUPER_ADMIN", "ADMIN", "ERP_ADMIN", "FINANCE_ADMIN");
 const requireApproverRole = requireRole("SUPER_ADMIN", "FINANCE_ADMIN");
@@ -124,23 +130,11 @@ router.post("/:id/receive", authenticate, requireProcurementRole, async (req: Au
       return;
     }
 
-    const po = await prisma.purchaseOrder.findFirst({
-      where: { id, schoolId },
-      include: { items: true },
-    });
+    const result = await withSerializableRetry(() => runWithTenantDatabaseTransaction(schoolId, async (tx: Prisma.TransactionClient) => {
+      const po = await tx.purchaseOrder.findFirst({ where: { id, schoolId }, include: { items: true } });
+      if (!po) throw new GoodsReceiptError("Purchase Order not found", 404);
+      if (po.status !== "APPROVED") throw new GoodsReceiptError("Only APPROVED Purchase Orders can be received", 409);
 
-    if (!po) {
-      res.status(404).json({ success: false, error: "Purchase Order not found" });
-      return;
-    }
-
-    if (po.status !== "APPROVED") {
-      res.status(400).json({ success: false, error: "Only APPROVED Purchase Orders can be received" });
-      return;
-    }
-
-    // Process GRN and Stock Update within a Transaction
-    const result = await prisma.$transaction(async (tx: any) => {
       // 1. Create Goods Receipt
       const grNumber = `GRN-${schoolId.substring(0, 4).toUpperCase()}-${Date.now()}`;
       const grn = await tx.goodsReceipt.create({
@@ -158,14 +152,16 @@ router.post("/:id/receive", authenticate, requireProcurementRole, async (req: Au
         const poItem = po.items.find((i: any) => i.id === rxItem.poItemId);
         if (!poItem) continue;
 
-        const quantity = Number(rxItem.quantity);
-        if (quantity <= 0) continue;
+        let quantity: Prisma.Decimal;
+        try { quantity = new Prisma.Decimal(rxItem.quantity); }
+        catch { throw new GoodsReceiptError(`Invalid quantity for received PO item ${poItem.id}`, 400); }
+        if (!quantity.isFinite() || quantity.lte(0)) throw new GoodsReceiptError(`Quantity must be positive for received PO item ${poItem.id}`, 400);
 
         // Note: For a robust system, we would map poItem to an actual InventoryItem (itemId).
         // Since PurchaseOrderItem doesn't have an explicit itemId in the schema, 
         // we'll assume the client provides the mapping via rxItem.itemId
         if (!rxItem.itemId) {
-          throw new Error(`Inventory itemId is missing for received PO item ${poItem.id}`);
+          throw new GoodsReceiptError(`Inventory itemId is missing for received PO item ${poItem.id}`, 400);
         }
 
         // Upsert Inventory Stock
@@ -201,14 +197,18 @@ router.post("/:id/receive", authenticate, requireProcurementRole, async (req: Au
       });
 
       return grn;
-    });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
 
     logger.info({ poId: id, grnId: result.id, receivedBy: userId }, "Goods Receipt Note (GRN) generated successfully");
 
     res.status(201).json({ success: true, goodsReceipt: result });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, "Error receiving purchase order");
-    res.status(500).json({ success: false, error: error.message || "Server error" });
+    if (error instanceof GoodsReceiptError) {
+      res.status(error.status).json({ success: false, error: error.message });
+      return;
+    }
+    res.status(500).json({ success: false, error: "Server error receiving purchase order" });
   }
 });
 

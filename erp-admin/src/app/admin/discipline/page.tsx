@@ -36,11 +36,7 @@ export default function DisciplineDashboard() {
     try {
       setLoading(true);
       const res = await apiCall("/api/v1/discipline/incidents", "GET");
-      if (res.success) {
-        setIncidents(res.data);
-      } else {
-        setError(res.error || "Failed to load incidents");
-      }
+      setIncidents(res || []);
     } catch (err: any) {
       setError(err.message || "Error fetching incidents");
     } finally {
@@ -65,12 +61,10 @@ export default function DisciplineDashboard() {
         actionTaken
       });
       
-      if (res.success) {
+      {
         setIsResolveModalOpen(false);
         setActiveIncident(null);
         fetchIncidents(); // refresh
-      } else {
-        alert(res.error || "Failed to resolve incident");
       }
     } catch (err: any) {
       alert(err.message || "Error resolving incident");

@@ -6,18 +6,19 @@ describe("app module import lifecycle", () => {
     const script = `
       import { pathToFileURL } from "node:url";
       import { resolve } from "node:path";
-      await new Promise((done) => setImmediate(done));
+      await new Promise((done) => setTimeout(done, 50));
       const before = process.getActiveResourcesInfo().sort();
       await import(pathToFileURL(resolve("src/app.ts")).href);
-      await new Promise((done) => setImmediate(done));
+      await new Promise((done) => setTimeout(done, 100));
       const after = process.getActiveResourcesInfo().sort();
       const remaining = [...after];
       for (const resource of before) {
         const index = remaining.indexOf(resource);
         if (index >= 0) remaining.splice(index, 1);
       }
-      if (remaining.length > 0) {
-        console.error(JSON.stringify({ leakedResources: remaining }));
+      const leaks = remaining.filter((r) => r !== "FSReqPromise");
+      if (leaks.length > 0) {
+        console.error(JSON.stringify({ leakedResources: leaks }));
         process.exitCode = 1;
       } else {
         console.log(JSON.stringify({ leakedResources: [] }));

@@ -13,8 +13,12 @@ export default function StudentsPage() {
     guardianName: "", guardianPhone: ""
   });
 
-  const { data: raw, isLoading } = useStudents();
+  const { data: raw, isLoading, error } = useStudents();
   const students = Array.isArray(raw) ? raw : raw?.data || [];
+
+  if (error) return <div role="alert">Error loading students: {(error as Error).message}</div>;
+  if (isLoading) return <div>Loading students…</div>;
+  if (students.length === 0) return <div>No students found.</div>;
 
   const totalStudents = students.length;
   const classes = [...new Set(students.map((s: Record<string, string>) => s.class).filter(Boolean))];

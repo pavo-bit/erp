@@ -25,7 +25,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
 
   const handleLogout = async () => {
-    await apiCall('/api/auth/logout', 'POST');
+    await apiCall('/api/v1/auth/logout', 'POST');
     router.push('/login');
   };
 

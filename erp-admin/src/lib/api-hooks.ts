@@ -14,18 +14,29 @@ async function fetchWithCsrf(input: RequestInfo | URL, init: RequestInit = {}) {
   return response;
 }
 
-// Fetcher with credentials for cookie-based auth
-const fetcher = async (url: string) => {
-  let res = await fetchWithCsrf(url, { credentials: "include" });
-  
-  // Refresh token rotation on 401
-  if (res.status === 401) {
-    const refreshRes = await fetchWithCsrf("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
-    if (refreshRes.ok) {
-      res = await fetchWithCsrf(url, { credentials: "include" });
-    }
+async function fetchWithAuthRetry(input: RequestInfo | URL, init: RequestInit = {}) {
+  let response = await fetchWithCsrf(input, init);
+  if (response.status !== 401) return response;
+
+  let refresh: Response;
+  try {
+    refresh = await fetchWithCsrf("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+  } catch {
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") window.location.assign("/login");
+    return response;
   }
 
+  if (!refresh.ok) {
+    if (typeof window !== "undefined" && window.location.pathname !== "/login") window.location.assign("/login");
+    return response;
+  }
+
+  return fetchWithCsrf(input, init);
+}
+
+// Fetcher with credentials for cookie-based auth
+const fetcher = async (url: string) => {
+  const res = await fetchWithAuthRetry(url, { credentials: "include" });
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: "Request failed" }));
     throw new Error(error.error || "Request failed");
@@ -41,39 +52,22 @@ export async function apiCall(url: string, method: "GET" | "POST" | "PUT" | "DEL
     headers: body instanceof FormData ? {} : { "Content-Type": "application/json" },
     body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
   };
-
   let res: Response;
   try {
-    res = await fetchWithCsrf(url, opts);
-    
-    // Refresh token rotation on 401
-    if (res.status === 401) {
-      const refreshRes = await fetchWithCsrf("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
-      if (refreshRes.ok) {
-        res = await fetchWithCsrf(url, opts);
-      }
-    }
+    res = await fetchWithAuthRetry(url, opts);
   } catch {
     throw new Error("Network error — check your connection and try again");
   }
-
   let data;
   try {
     data = await res.json();
   } catch {
-    if (!res.ok) {
-      throw new Error(`Server error (${res.status}) — please try again`);
-    }
+    if (!res.ok) throw new Error("Server error (" + res.status + ") — please try again");
     return null;
   }
-
-  if (!data.success) {
-    throw new Error(data.error || `Request failed (${res.status})`);
-  }
-
+  if (!res.ok || !data.success) throw new Error(data.error || "Request failed (" + res.status + ")");
   return data.data ?? null;
 }
-
 export function invalidate(key: string) { globalMutate(key); }
 export function invalidateAll(prefix: string) {
   globalMutate((key) => typeof key === "string" && key.startsWith(prefix), undefined, { revalidate: true });
@@ -118,3 +112,22 @@ export function useLibraryTransactions(params?: string) { return useSWR(`/api/v1
 // Phase 4-7 Enterprise 
 export function useFinancialClosePeriods() { return useSWR("/api/v1/finance/governance/periods", fetcher); }
 export function useLedgerAccounts() { return useSWR("/api/v1/finance/governance/accounts", fetcher); }
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const response = await fetchWithAuthRetry(input, init);
+  if (!response.ok) {
+    let message = "Request failed (" + response.status + ")";
+    try { const data = await response.json(); message = data.error || message; } catch {}
+    throw new ApiError(message, response.status);
+  }
+  return response;
+}
