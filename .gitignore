@@ -53,3 +53,6 @@ test-run*.txt
 docker-compose.override.yml
 
 tsconfig.tsbuildinfo
+
+*.tsbuildinfo
+
