@@ -28,9 +28,7 @@ export default function FeesPage() {
       setLoading(true);
       // Fetch from the robust Phase E backend Ledger
       const res = await apiCall(`/api/v1/invoices?studentId=${studentId}`);
-      if (res.data) {
-        setInvoices(res.data);
-      }
+      setInvoices(res || []);
     } catch (e) {
       console.error("Failed to fetch invoices", e);
     } finally {
@@ -52,7 +50,7 @@ export default function FeesPage() {
         transactionId: `pay_${Math.random().toString(36).substring(2, 10)}`
       });
 
-      if (res.success) {
+      {
         // Optimistic update
         setInvoices(prev => prev.map(inv => 
           inv.id === invId 

@@ -21,9 +21,7 @@ export default function ActivityFeed() {
     async function fetchActivity() {
       try {
         const res = await apiCall("/api/v1/stats/activity-feed?limit=10");
-        if (res.success) {
-          setActivities(res.data);
-        }
+        setActivities(res || []);
       } catch (err) {
         console.error("Failed to load activity", err);
       } finally {

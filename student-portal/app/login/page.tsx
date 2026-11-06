@@ -17,20 +17,15 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await apiCall('/api/auth/student/login', 'POST', {
+      const result = await apiCall('/api/v1/auth/student/login', 'POST', {
         admissionNo,
         password,
       });
 
-      if (result.success) {
-        // Check if password change required
-        if (result.data?.mustChangePassword) {
-          router.push('/profile?forceChange=true');
-        } else {
-          router.push('/dashboard');
-        }
+      if (result?.mustChangePassword) {
+        router.push('/profile?forceChange=true');
       } else {
-        setError(result.error || 'Login failed');
+        router.push('/dashboard');
       }
     } catch (err) {
       setError('An error occurred. Please try again.');

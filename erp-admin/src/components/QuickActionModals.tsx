@@ -132,7 +132,7 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
             const res = await apiCall(endpoint, "POST", payload);
             
             if (validateOnly) {
-              setValidationReport(res.data?.report || []);
+              setValidationReport(res?.report || []);
               setIsValidated(true);
             } else {
               if (type === "students") invalidateAll("/api/v1/students");

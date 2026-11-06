@@ -29,11 +29,7 @@ export default function ParentBehaviorTimeline() {
     try {
       setLoading(true);
       const res = await apiCall("/api/v1/discipline/incidents", "GET");
-      if (res.success) {
-        setIncidents(res.data);
-      } else {
-        setError(res.error || "Failed to load behavior logs");
-      }
+      setIncidents(res || []);
     } catch (err: any) {
       setError(err.message || "Error fetching logs");
     } finally {

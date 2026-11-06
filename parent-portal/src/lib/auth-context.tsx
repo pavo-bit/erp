@@ -43,10 +43,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function initAuth() {
       try {
         const res = await apiCall("/api/v1/auth/me");
-        if (res.success && res.data.role === "PARENT") {
-          setUser(res.data);
-          if (res.data.guardian?.students?.length > 0) {
-            setSelectedStudentId(res.data.guardian.students[0].id);
+        if (res?.role === "PARENT") {
+          setUser(res);
+          if (res.guardian?.students?.length > 0) {
+            setSelectedStudentId(res.guardian.students[0].id);
           }
         } else {
           throw new Error("Not a parent");

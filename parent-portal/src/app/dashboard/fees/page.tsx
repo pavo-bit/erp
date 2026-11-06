@@ -16,8 +16,8 @@ export default function FeesModule() {
       if (!selectedStudentId) return;
       setLoading(true);
       try {
-        const res = await apiCall(`/api/invoices?studentId=${selectedStudentId}`);
-        if (res.success) setInvoices(res.data || []);
+        const res = await apiCall(`/api/v1/invoices?studentId=${selectedStudentId}`);
+        setInvoices(res || []);
       } catch (err) {
         console.error(err);
       } finally {

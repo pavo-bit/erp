@@ -39,10 +39,7 @@ export default function UserManagement() {
       if (editingUser) {
         await apiCall(`/api/v1/users/${editingUser.id}`, "PUT", formData);
       } else {
-        const res = await apiCall("/api/v1/users", "POST", formData);
-        if (res.data?.tempPassword) {
-          setTempPasswordModal(res.data.tempPassword);
-        }
+        await apiCall("/api/v1/users", "POST", formData);
       }
       setIsModalOpen(false);
       fetchUsers();
@@ -59,10 +56,7 @@ export default function UserManagement() {
 
   const handleResetPassword = async (id: string) => {
     if (!confirm("Are you sure you want to reset this user's password?")) return;
-    const res = await apiCall(`/api/v1/users/${id}/reset-password`, "PUT");
-    if (res.data?.tempPassword) {
-      setTempPasswordModal(res.data.tempPassword);
-    }
+    await apiCall(`/api/v1/users/${id}/reset-password`, "PUT");
   };
 
   const openNew = () => {
