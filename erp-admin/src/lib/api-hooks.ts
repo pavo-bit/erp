@@ -118,3 +118,39 @@ export function useLibraryTransactions(params?: string) { return useSWR(`/api/v1
 // Phase 4-7 Enterprise 
 export function useFinancialClosePeriods() { return useSWR("/api/v1/finance/governance/periods", fetcher); }
 export function useLedgerAccounts() { return useSWR("/api/v1/finance/governance/accounts", fetcher); }
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (typeof window !== "undefined") {
+    const token = window.sessionStorage.getItem("csrfToken");
+    if (token && !["GET", "HEAD", "OPTIONS"].includes((init.method || "GET").toUpperCase())) headers.set("X-CSRF-Token", token);
+  }
+  let res = await fetch(input, { ...init, headers, credentials: init.credentials ?? "include" });
+  const token = res.headers.get("X-CSRF-Token");
+  if (token && typeof window !== "undefined") window.sessionStorage.setItem("csrfToken", token);
+
+  if (res.status === 401) {
+    const refreshRes = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include" });
+    if (refreshRes.ok) {
+      res = await fetch(input, { ...init, headers, credentials: init.credentials ?? "include" });
+    } else {
+      if (typeof window !== "undefined") window.location.href = "/login";
+      throw new ApiError("Unauthorized", 401);
+    }
+  }
+  if (!res.ok) {
+    let msg = `Request failed (${res.status})`;
+    try { const d = await res.json(); msg = d.error || msg; } catch {}
+    throw new ApiError(msg, res.status);
+  }
+  return res;
+}
