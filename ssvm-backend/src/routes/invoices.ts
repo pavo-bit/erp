@@ -67,7 +67,7 @@ router.post("/", authenticate, requireFinanceAdmin(), async (req: AuthRequest, r
 });
 
 // PUT /api/invoices/:id/pay
-router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "SUPER_ADMIN", "PARENT", "STUDENT"), async (req: AuthRequest, res: Response) => {
+router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "PARENT", "STUDENT"), async (req: AuthRequest, res: Response) => {
   try {
     const { amountPaid, gateway, transactionId } = req.body;
     if (!amountPaid) {
@@ -76,6 +76,7 @@ router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "SUP
 
     const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id as string } });
     if (!invoice) { res.status(404).json({ success: false, error: "Invoice not found" }); return; }
+    if (!req.user?.schoolId || invoice.schoolId !== req.user.schoolId) { res.status(404).json({ success: false, error: "Invoice not found" }); return; }
 
     const currentPaidPaise = toPaise(invoice.amountPaid);
     const paymentPaise = toPaise(amountPaid);
@@ -100,7 +101,7 @@ router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "SUP
 
       // 2. Update Invoice
       return await tx.invoice.update({
-        where: { id: invoice.id },
+        where: { id: invoice.id, schoolId: req.user!.schoolId! },
         data: {
           amountPaid: fromPaise(newPaidPaise),
           remainingAmount: fromPaise(remainingPaise),

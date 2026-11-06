@@ -533,91 +533,12 @@ router.post("/trigger-late-fines", authenticate, requireRole("SUPER_ADMIN", "ERP
       res.status(400).json({ success: false, error: "School scope is required" });
       return;
     }
-
-    const result = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
-      // Check if fine rule is configured for school
-      const fineRule = await tx.fineRule.findFirst({
-        where: { schoolId, isActive: true },
-      });
-
-      // No hard-coded fallback: if no active fine rule, do nothing and report no fine rule
-      if (!fineRule) {
-        return { appliedCount: 0, noRule: true };
-      }
-
-      const now = new Date();
-      // Apply grace days: Invoices are only overdue for fine if now > dueDate + graceDays
-      const graceMs = fineRule.graceDays * 24 * 60 * 60 * 1000;
-      const graceCutoff = new Date(now.getTime() - graceMs);
-
-      // Include PENDING and PARTIAL overdue invoices
-      const overdueInvoices = await tx.invoice.findMany({
-        where: {
-          schoolId,
-          status: { in: ["PENDING", "PARTIAL", "OVERDUE"] },
-          dueDate: { lt: graceCutoff },
-        },
-      });
-
-      let count = 0;
-      for (const invoice of overdueInvoices) {
-        // Calculate base fine per period (Decimal math)
-        let baseFine: Prisma.Decimal;
-        if (fineRule.isPercentage) {
-          baseFine = invoice.amount.mul(fineRule.fineAmount).div(100);
-        } else {
-          baseFine = fineRule.fineAmount;
-        }
-
-        // Multiplier based on frequency: ONCE, DAILY, MONTHLY
-        const msOverdue = now.getTime() - (invoice.dueDate.getTime() + graceMs);
-        const daysOverdue = Math.max(1, Math.floor(msOverdue / (24 * 60 * 60 * 1000)));
-
-        let targetFine: Prisma.Decimal;
-        if (fineRule.frequency === "DAILY") {
-          targetFine = baseFine.mul(daysOverdue);
-        } else if (fineRule.frequency === "MONTHLY") {
-          const monthsOverdue = Math.max(1, Math.floor(daysOverdue / 30) + 1);
-          targetFine = baseFine.mul(monthsOverdue);
-        } else {
-          // "ONCE" or default
-          targetFine = baseFine;
-        }
-
-        // Cap fine: cumulative fine cannot exceed invoice total base amount
-        if (targetFine.gt(invoice.amount)) {
-          targetFine = invoice.amount;
-        }
-
-        targetFine = new Prisma.Decimal(targetFine.toFixed(2));
-
-        // Idempotency: re-running changes nothing if current fine is already >= targetFine
-        if (invoice.fineAmount.gte(targetFine)) {
-          continue;
-        }
-
-        const fineDelta = targetFine.sub(invoice.fineAmount);
-        const newRemaining = invoice.remainingAmount.add(fineDelta);
-
-        await tx.invoice.update({
-          where: { id: invoice.id, schoolId },
-          data: {
-            fineAmount: targetFine,
-            remainingAmount: newRemaining,
-            status: "OVERDUE",
-          },
-        });
-        count++;
-      }
-
-      return { appliedCount: count, noRule: false };
-    });
-
+    const { applyLateFinesForSchool } = await import("../jobs/lateFines");
+    const result = await runWithTenantDatabaseTransaction(schoolId, (tx) => applyLateFinesForSchool(tx, schoolId));
     if (result.noRule) {
       res.json({ success: true, message: "no fine rule", count: 0 });
       return;
     }
-
     res.json({ success: true, message: `Updated ${result.appliedCount} overdue fees with late fines.`, count: result.appliedCount });
   } catch (error) {
     logger.error({ err: error }, "Late Fines Execution Error");

@@ -27,7 +27,7 @@ describe('Late Fines Engine (B4)', () => {
     studentId = student.id;
   });
 
-  it('1. No hardcoded fallback: reports "no fine rule" and modifies nothing if school has no active FineRule', async () => {
+  it('1. No hardcoded fallback: reports "no fine rule" and preserves payment amounts/status without an active FineRule', async () => {
     // Overdue invoice exists
     const overdueDate = new Date(Date.now() - 15 * 86400000); // 15 days ago
     const invoice = await prisma.invoice.create({
@@ -56,6 +56,7 @@ describe('Late Fines Engine (B4)', () => {
     expect(Number(freshInv!.fineAmount)).toBe(0);
     expect(Number(freshInv!.remainingAmount)).toBe(1000);
     expect(freshInv!.status).toBe('PENDING');
+    expect(freshInv!.isOverdue).toBe(true);
   });
 
   it('2. Respects grace days: only invoices past dueDate + graceDays are fined', async () => {
@@ -113,7 +114,8 @@ describe('Late Fines Engine (B4)', () => {
     const checkPast = await prisma.invoice.findUnique({ where: { id: invPastGrace.id } });
     expect(Number(checkPast!.fineAmount)).toBe(100);
     expect(Number(checkPast!.remainingAmount)).toBe(600); // 500 + 100
-    expect(checkPast!.status).toBe('OVERDUE');
+    expect(checkPast!.status).toBe('PENDING');
+    expect(checkPast!.isOverdue).toBe(true);
   });
 
   it('3. Supports percentage fine, DAILY frequency scaling, and cap invariant', async () => {
@@ -205,10 +207,14 @@ describe('Late Fines Engine (B4)', () => {
     const checkPending1 = await prisma.invoice.findUnique({ where: { id: pendingInv.id } });
     expect(Number(checkPending1!.fineAmount)).toBe(50);
     expect(Number(checkPending1!.remainingAmount)).toBe(1050);
+    expect(checkPending1!.status).toBe('PENDING');
+    expect(checkPending1!.isOverdue).toBe(true);
 
     const checkPartial1 = await prisma.invoice.findUnique({ where: { id: partialInv.id } });
     expect(Number(checkPartial1!.fineAmount)).toBe(50);
     expect(Number(checkPartial1!.remainingAmount)).toBe(750);
+    expect(checkPartial1!.status).toBe('PARTIAL');
+    expect(checkPartial1!.isOverdue).toBe(true);
 
     // Second execution (re-run): idempotent! 0 invoices updated, amounts unchanged!
     const res2 = await request(app)

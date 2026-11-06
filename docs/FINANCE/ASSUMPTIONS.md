@@ -14,6 +14,7 @@ This document records the foundational financial domain rules and architectural 
 
 ## 2. Invoicing, Overdue Statuses & Late Fine Engine
 - **Eligible Overdue Statuses**: Late fines evaluate invoices with status `PENDING`, `PARTIAL`, or `OVERDUE`. Settled (`PAID`) or voided (`CANCELLED`, `VOID`) invoices are strictly excluded.
+- **Payment Status Preservation**: Overdue state is tracked separately in `Invoice.isOverdue`; assessing a fine must preserve `PENDING` or `PARTIAL` so partial-payment status is not lost.
 - **Grace Period**: Fines are assessed only if $\text{current\_time} > \text{dueDate} + (\text{graceDays} \times 86400000\text{ ms})$. Invoices within the grace period incur 0 fine.
 - **Rule Prerequisite (No Hardcoded Fallbacks)**: If a school has no active `FineRule` configured, the engine performs no mutations and safely reports `{ success: true, count: 0, message: "No active fine rule configured for school" }`.
 - **Calculation Modes**:
@@ -25,6 +26,8 @@ This document records the foundational financial domain rules and architectural 
   - `MONTHLY`: Scaled by the number of 30-day overdue intervals beyond the grace period.
 - **Cap Invariant**: The cumulative fine amount on any invoice cannot exceed the original invoice base amount ($\text{fineAmount} \le \text{amount}$).
 - **Idempotency**: Repeated executions within the same overdue period do not duplicate or incrementally inflate fines; only changes in overdue intervals or unapplied amounts produce deltas.
+- **Scheduled Assessment**: The daily assessment is disabled by default and runs only when `LATE_FINE_JOB_ENABLED=true`; it uses the school's active fine rule and does nothing when none is configured.
+- **Open Question — Ledger Treatment**: Should late fines post to the general ledger, and which revenue account and recognition date apply? This requires finance-owner approval. **Do not post fines to the ledger until approved.**
 
 ---
 
@@ -34,6 +37,7 @@ This document records the foundational financial domain rules and architectural 
   - Sequence counters are tracked per-school and financial year using `SequenceCounter` (`schoolId`, key `RECEIPT_{YYYY}`).
   - Generation occurs atomically within the payment transaction under serializable isolation, preventing collision or gaps.
   - Unique constraint `(schoolId, receiptNo)` is enforced on both `invoices` and `payment_transactions`.
+  - The receipt-index migration reports duplicate `(schoolId, receiptNo)` groups before creating either unique index and stops for manual resolution.
 - **Goods Receipts (GRN)**:
   - Format: `GR-{YYYY}-{SEQ:6}`.
   - Generated inside the same transaction as PO line updates, inventory stock adjustments, and stock ledger entries.

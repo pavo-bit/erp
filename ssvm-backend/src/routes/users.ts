@@ -1,6 +1,7 @@
 import { createAuditLog } from "../lib/audit";
 import { Router, Response } from "express";
 import { z } from "zod";
+import crypto from "crypto";
 import prisma from "../lib/prisma";
 import { authenticate, requireRole, AuthRequest, hashPassword } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
@@ -8,25 +9,27 @@ import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 const router = Router();
 
 // Zod schemas for validation
+export const ASSIGNABLE_ROLES: Record<string, readonly string[]> = {
+  ERP_ADMIN: ["WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"],
+};
+export function isLastSchoolAdminDemotion(targetRole: string, nextRole: string | undefined, activeAdminCount: number): boolean {
+  return targetRole === "ERP_ADMIN" && nextRole !== undefined && nextRole !== "ERP_ADMIN" && activeAdminCount <= 1;
+}
+const SCHOOL_USER_ROLES = ASSIGNABLE_ROLES.ERP_ADMIN;
+
 const createUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(1),
-  role: z.enum(["SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"]),
+  role: z.enum(["WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"]),
   phone: z.string().optional(),
   branchId: z.string().optional(),
   employeeId: z.string().optional(),
   department: z.string().optional(),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number")
-    .optional(), // Can provide one, or system generates it
 });
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
-  role: z.enum(["SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"]).optional(),
+  role: z.enum(["WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"]).optional(),
   phone: z.string().optional(),
   branchId: z.string().optional(),
   employeeId: z.string().optional(),
@@ -52,13 +55,10 @@ async function logAudit(schoolId: string, userId: string, action: string, entity
   }
 }
 
-// Generates a temporary password (e.g. Temp@1234)
-function generateTempPassword() {
-  return "Temp@" + Math.floor(1000 + Math.random() * 9000);
-}
+function generateTempPassword() { return crypto.randomBytes(32).toString("base64url"); }
 
 // GET /api/users - List all users
-router.get("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
+router.get("/", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const { role, status, search } = req.query;
     
@@ -105,7 +105,7 @@ router.get("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (re
 });
 
 // POST /api/users - Create new user
-router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
+router.post("/", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const data = createUserSchema.parse(req.body);
 
@@ -114,9 +114,9 @@ router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (r
       return res.status(400).json({ success: false, error: "Email already exists" });
     }
 
-    // Workflow: Generate Temp Password if not provided
-    const isTempPassword = !data.password;
-    const plainPassword = data.password || generateTempPassword();
+    // Until invitation delivery is configured, create a cryptographically random
+    // one-time secret and never expose it through the API.
+    const plainPassword = generateTempPassword();
     const hashedPassword = await hashPassword(plainPassword);
 
     const user = await prisma.user.create({
@@ -124,19 +124,19 @@ router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (r
         ...data,
         passwordHash: hashedPassword,
         schoolId: req.user.schoolId,
+        mustChangePassword: true,
       },
       select: { id: true, email: true, name: true, role: true }
     });
 
     // Audit Trail
-    await logAudit(req.user.schoolId, req.user.userId, "USER_CREATED", "USER", user.id, { role: user.role, email: user.email }, req);
+    await logAudit(req.user.schoolId, req.user.id, "USER_CREATED", "USER", user.id, { role: user.role, email: user.email }, req);
 
     res.status(201).json({ 
       success: true, 
       data: { 
         user, 
-        tempPassword: isTempPassword ? plainPassword : null,
-        message: isTempPassword ? "User created with temporary password. Please share this securely." : "User created successfully."
+        message: "User created. Password setup must be provisioned securely."
       } 
     });
   } catch (error) {
@@ -149,25 +149,30 @@ router.post("/", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (r
 });
 
 // PUT /api/users/:id - Edit user
-router.put("/:id", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
+router.put("/:id", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const data = updateUserSchema.parse(req.body);
     const userId = req.params.id;
 
     const oldUser = await prisma.user.findUnique({ where: { id: userId, schoolId: req.user.schoolId } });
     if (!oldUser) return res.status(404).json({ success: false, error: "User not found" });
-
+    if (oldUser.role === "ERP_ADMIN" && data.role) {
+      const activeAdminCount = await prisma.user.count({ where: { schoolId: req.user.schoolId, role: "ERP_ADMIN", isActive: true } });
+      if (isLastSchoolAdminDemotion(oldUser.role, data.role, activeAdminCount)) return res.status(409).json({ success: false, error: "Cannot demote the last school administrator" });
+    }
+    if (oldUser.role === "SUPER_ADMIN" || oldUser.role === "ERP_ADMIN") return res.status(403).json({ success: false, error: "Protected administrator account" });
+    if (data.role && !SCHOOL_USER_ROLES.includes(data.role)) return res.status(403).json({ success: false, error: "Role is not assignable" });
     const user = await prisma.user.update({
-      where: { id: userId },
+      where: { id: userId, schoolId: req.user.schoolId },
       data,
       select: { id: true, name: true, role: true }
     });
 
     // Audit Trail
     if (oldUser.role !== user.role) {
-      await logAudit(req.user.schoolId, req.user.userId, "ROLE_CHANGED", "USER", user.id, { oldRole: oldUser.role, newRole: user.role }, req);
+      await logAudit(req.user.schoolId, req.user.id, "ROLE_CHANGED", "USER", user.id, { before: { role: oldUser.role }, after: { role: user.role } }, req);
     } else {
-      await logAudit(req.user.schoolId, req.user.userId, "USER_EDITED", "USER", user.id, data, req);
+      await logAudit(req.user.schoolId, req.user.id, "USER_EDITED", "USER", user.id, data, req);
     }
 
     res.json({ success: true, data: user });
@@ -178,18 +183,21 @@ router.put("/:id", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async 
 });
 
 // PUT /api/users/:id/status - Disable/Enable User
-router.put("/:id/status", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
+router.put("/:id/status", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const { isActive } = req.body;
     if (typeof isActive !== "boolean") return res.status(400).json({ success: false, error: "isActive must be a boolean" });
 
+    const target = await prisma.user.findFirst({ where: { id: req.params.id, schoolId: req.user.schoolId } });
+    if (!target) return res.status(404).json({ success: false, error: "User not found" });
+    if (target.id === req.user.id || target.role === "SUPER_ADMIN" || target.role === "ERP_ADMIN") return res.status(403).json({ success: false, error: "Protected administrator account" });
     const user = await prisma.user.update({
       where: { id: req.params.id, schoolId: req.user.schoolId },
       data: { isActive },
       select: { id: true, email: true, isActive: true }
     });
 
-    await logAudit(req.user.schoolId, req.user.userId, isActive ? "ACCOUNT_ENABLED" : "ACCOUNT_DISABLED", "USER", user.id, { isActive }, req);
+    await logAudit(req.user.schoolId, req.user.id, isActive ? "ACCOUNT_ENABLED" : "ACCOUNT_DISABLED", "USER", user.id, { isActive }, req);
 
     res.json({ success: true, data: user });
   } catch (error) {
@@ -199,23 +207,26 @@ router.put("/:id/status", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"),
 });
 
 // PUT /api/users/:id/reset-password - Reset password to temp
-router.put("/:id/reset-password", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
+router.put("/:id/reset-password", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const tempPassword = generateTempPassword();
     const hashedPassword = await hashPassword(tempPassword);
 
+    const target = await prisma.user.findFirst({ where: { id: req.params.id, schoolId: req.user.schoolId } });
+    if (!target || target.role === "SUPER_ADMIN" || target.role === "ERP_ADMIN") return res.status(404).json({ success: false, error: "User not found" });
     const user = await prisma.user.update({
       where: { id: req.params.id, schoolId: req.user.schoolId },
-      data: { passwordHash: hashedPassword },
+      data: { passwordHash: hashedPassword, mustChangePassword: true, passwordChangedAt: new Date() },
       select: { id: true, email: true }
     });
 
-    await logAudit(req.user.schoolId, req.user.userId, "PASSWORD_RESET", "USER", user.id, { resetBy: req.user.email }, req);
+    await prisma.refreshToken.updateMany({ where: { userId: user.id, isRevoked: false }, data: { isRevoked: true, revokedAt: new Date() } });
+    await logAudit(req.user.schoolId, req.user.id, "PASSWORD_RESET", "USER", user.id, { resetBy: req.user.email }, req);
 
     res.json({ 
       success: true, 
-      data: { tempPassword },
-      message: "Password reset successful. Share this temporary password securely." 
+      data: { userId: user.id },
+      message: "Password reset. Password setup must be provisioned securely."
     });
   } catch (error) {
     console.error(error);

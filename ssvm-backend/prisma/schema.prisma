@@ -879,6 +879,7 @@ model Invoice {
   type                    FeeType                  @default(MONTHLY)
   description             String?
   status                  InvoiceStatus            @default(PENDING)
+  isOverdue               Boolean                  @default(false)
   dueDate                 DateTime
   paidDate                DateTime?
   receiptNo               String?
