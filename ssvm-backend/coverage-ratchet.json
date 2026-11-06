@@ -1,6 +1,44 @@
 {
-  "lines": 29.4,
-  "statements": 28.07,
-  "functions": 26.91,
-  "branches": 19.95
+  "lines": 29.97,
+  "statements": 28.61,
+  "functions": 27.45,
+  "branches": 20.72,
+  "modules": {
+    "src/lib/prisma.ts": {
+      "lines": 55.26,
+      "statements": 54.8,
+      "functions": 45.16,
+      "branches": 48.4
+    },
+    "src/routes/payments.ts": {
+      "lines": 30.64,
+      "statements": 30.48,
+      "functions": 25,
+      "branches": 28.44
+    },
+    "src/routes/auth.ts": {
+      "lines": 46.23,
+      "statements": 44.3,
+      "functions": 40,
+      "branches": 36.21
+    },
+    "src/middleware/auth*.ts": {
+      "lines": 58.12,
+      "statements": 57.31,
+      "functions": 80,
+      "branches": 52.54
+    },
+    "src/lib/money.ts": {
+      "lines": 0,
+      "statements": 0,
+      "functions": 0,
+      "branches": 0
+    },
+    "src/services/BankReconciliationService.ts": {
+      "lines": 0,
+      "statements": 0,
+      "functions": 0,
+      "branches": 0
+    }
+  }
 }

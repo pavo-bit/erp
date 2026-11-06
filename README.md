@@ -17,7 +17,7 @@ For local development prerequisites and current limitations, see `docs/CLEAN_INS
 
 ## 📚 Complete Documentation
 
-**👉 See:** [`SSVM-PROJECT-DOCUMENTATION.md`](SSVM-PROJECT-DOCUMENTATION.md)
+**👉 See:** [`docs/IMPLEMENTATION_MASTER_TRACKER.md`](docs/IMPLEMENTATION_MASTER_TRACKER.md)
 
 This file contains everything:
 - Complete setup instructions
@@ -69,7 +69,7 @@ This repository does not provide default production-capable login credentials. P
 1. **Check Docker:** `check-docker-status.bat`
 2. **Test Connections:** `test-connections.bat`
 3. **View Logs:** `docker compose logs -f`
-4. **Read Docs:** [`SSVM-PROJECT-DOCUMENTATION.md`](SSVM-PROJECT-DOCUMENTATION.md)
+4. **Read Docs:** [`docs/IMPLEMENTATION_MASTER_TRACKER.md`](docs/IMPLEMENTATION_MASTER_TRACKER.md)
 
 ---
 

@@ -13,9 +13,39 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  receipt-duplicate-precheck:
+    name: Receipt Duplicate Pre-Check (Real DB)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Pre-check duplicate receipt numbers
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 << 'EOF'
+          DO $$
+          BEGIN
+            IF to_regclass('"invoices"') IS NOT NULL THEN
+              IF EXISTS (SELECT 1 FROM "invoices" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1) THEN
+                RAISE EXCEPTION 'Pre-check failed: Duplicate receipt numbers found in invoices table!';
+              END IF;
+            END IF;
+            IF to_regclass('"payment_transactions"') IS NOT NULL THEN
+              IF EXISTS (SELECT 1 FROM "payment_transactions" WHERE "receiptNo" IS NOT NULL GROUP BY "schoolId", "receiptNo" HAVING COUNT(*) > 1) THEN
+                RAISE EXCEPTION 'Pre-check failed: Duplicate receipt numbers found in payment_transactions table!';
+              END IF;
+            END IF;
+          END $$;
+          EOF
+          echo "Pre-check passed: No duplicate receipt numbers found."
+
   test-and-build:
     name: Build & Test Backend
     runs-on: ubuntu-latest
+    needs: receipt-duplicate-precheck
 
     steps:
       - name: Checkout Source Code
@@ -26,7 +56,7 @@ jobs:
         with:
           node-version: 20
           cache: 'npm'
-          cache-dependency-path: './ssvm-backend/package-lock.json'
+          cache-dependency-path: 'ssvm-backend/package-lock.json'
 
       - name: Install Dependencies
         working-directory: ./ssvm-backend

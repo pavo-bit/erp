@@ -1,15 +1,26 @@
 name: Continuous Integration
 
 on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'lane/**'
+      - 'remediation/**'
   pull_request:
     branches:
       - main
       - develop
       - 'remediation/**'
+      - 'lane/**'
 
 jobs:
   backend-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       postgres:
         image: postgres:16-alpine
@@ -95,8 +106,8 @@ jobs:
           PGPASSWORD="$APP_DB_PASSWORD" psql --host localhost --username ssvm_app --dbname ssvm_test \
             --command 'SELECT current_user, r.rolsuper, r.rolbypassrls, (SELECT count(*) FROM pg_policy) AS policy_count FROM pg_roles r WHERE r.rolname = current_user;'
 
-      - name: Run Tests with Coverage
-        run: npm run test:ci
+      - name: Run Tests with Coverage (Shard ${{ matrix.shard }}/4)
+        run: npx vitest run --coverage --reporter=default --reporter=junit --outputFile=test-results-${{ matrix.shard }}.xml --shard=${{ matrix.shard }}/4 --no-file-parallelism
 
       - name: Run Shuffled Parallel Tests
         run: |
@@ -235,6 +246,16 @@ jobs:
       - run: npm ci
       - name: Build Next.js App
         run: npm run build
+
+  e2e-harness:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: E2E harness (non-blocking)
+        run: |
+          echo "E2E harness placeholder - docker-compose.e2e.yml present"
+          test -f docker-compose.e2e.yml
 
   security-scan:
     runs-on: ubuntu-latest

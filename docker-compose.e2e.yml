@@ -1,0 +1,38 @@
+version: '3.9'
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ssvm
+      POSTGRES_PASSWORD: ssvm
+      POSTGRES_DB: ssvm_e2e
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ssvm']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6380:6379'
+
+  backend:
+    build:
+      context: ./ssvm-backend
+    environment:
+      DATABASE_URL: postgresql://ssvm:ssvm@postgres:5432/ssvm_e2e?schema=public
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: test
+    ports:
+      - '4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    command: npm run start
+
+  # Playwright runner can be invoked from host against backend URL.
