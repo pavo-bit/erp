@@ -132,14 +132,14 @@ export default function StudentLogin() {
 
   // Load preference
   useEffect(() => {
-    const pref = localStorage.getItem("ssvm_large_text");
+    const pref = sessionStorage.getItem("ssvm_large_text");
     if (pref === "true") setIsLargeText(true);
   }, []);
 
   const toggleLargeText = () => {
     const newVal = !isLargeText;
     setIsLargeText(newVal);
-    localStorage.setItem("ssvm_large_text", String(newVal));
+    sessionStorage.setItem("ssvm_large_text", String(newVal));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
