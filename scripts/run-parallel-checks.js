@@ -192,6 +192,17 @@ const tasks = [
     env: { ...testEnv, VITEST_POOL_ID: 'cash' },
     mandatory: true,
   },
+  // 8. Business Modules Completion Tests (Phases 2, 3, 4, 5, 6)
+  {
+    id: 'business-modules-tests',
+    name: 'Business Modules Completion Tests (Phases 2, 3, 4, 5, 6)',
+    category: 'INTEGRATION',
+    cwd: path.join(rootDir, 'ssvm-backend'),
+    command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
+    args: ['vitest', 'run', 'src/tests/api/business-modules-completion.test.ts'],
+    env: { ...testEnv, VITEST_POOL_ID: 'biz' },
+    mandatory: true,
+  },
 ];
 
 const results = [];

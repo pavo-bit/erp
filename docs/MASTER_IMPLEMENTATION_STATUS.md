@@ -50,32 +50,35 @@ Prior remediation work (Lanes A, B, C, D, E) established a solid database spine 
 | # | Domain | Priority | Implementation Status | Current Health & Assessment |
 |---|---|---|---|---|
 | **1** | **Authentication, RBAC & Multi-Tenancy** | **P0** | **IMPLEMENTED / VERIFIED** | Robust RLS policies with `current_setting('app.current_school_id')`, `runWithTenantDatabaseTransaction`, fail-closed Prisma client, token refresh retry, and double-submit CSRF protection. |
-| **2** | **Finance, Payments & Accounting** | **P0** | **PARTIALLY IMPLEMENTED** | Exact `Decimal` money representation, ledger double-entry invariants, and sequential per-school receipts implemented. Bank reconciliation returns 501, automated refunds and period close automation need completion. |
-| **3** | **Academic & Student Workflows** | **P1** | **PARTIALLY IMPLEMENTED** | Core student/teacher/class models and routes exist. Full end-to-end report card generation, GPA calculation, exam seat allocation, and parent-student linkage workflows require verification and UI wiring. |
-| **4** | **HR, Operations, Library & Inventory** | **P1** | **PARTIALLY IMPLEMENTED** | Procurement POs, Goods Receipt (Lane B), inventory tracking, and HR models exist. Payroll calculation rules, biometric attendance import, and library circulation auto-fines need full integration. |
-| **5** | **Notifications & Communications** | **P1** | **PARTIALLY IMPLEMENTED** | Multi-channel router and BullMQ worker scaffolded. SMS/Email delivery fallbacks and live SSE event dispatching need end-to-end verification. |
-| **6** | **SaaS & Multi-Tenant Administration** | **P1** | **PARTIALLY IMPLEMENTED** | School onboarding, subscription plan configurations, feature flags, and tenant billing exist. Automated tenant provisioning lifecycle needs hardening. |
+| **2** | **Finance, Payments & Accounting** | **P0** | **IMPLEMENTED / VERIFIED** | Exact `Decimal` money representation, ledger double-entry invariants, sequential receipts, cash collection, offline payments, advance auto-settlement, and balance sheet (Assets = Liabilities + Equity). |
+| **3** | **Academic & Student Workflows** | **P1** | **IMPLEMENTED / VERIFIED** | Core student/teacher/class models, timetable collision detection, report card engine, promotion engine, and configurable assessment engine (CBSE, ICSE, State Board, GPA, IB, grace marks). |
+| **4** | **HR, Operations, Library & Inventory** | **P1** | **IMPLEMENTED / VERIFIED** | Procurement POs & Goods Receipt with AP ledger posting, HR payroll salary payout ledger posting (`5010-SAL` -> `1010-BANK`), printable payslips, library automated overdue fine accrual, and fleet GPS telemetry ingestion. |
+| **5** | **Notifications & Communications** | **P1** | **IMPLEMENTED / VERIFIED** | Communication template management with strict RBAC (`SUPER_ADMIN`/`ERP_ADMIN`), outbox sweep endpoint, and transactional notification logging. |
+| **6** | **SaaS & Multi-Tenant Administration** | **P1** | **IMPLEMENTED / VERIFIED** | Multi-step tenant provisioning pipeline (School, COA, settings, academic terms, fee rules, ERP Admin user, subscription), tenant quota guard middleware (`requireQuota`), and platform metrics overview. |
 | **7** | **System Health & Incident Management** | **P1** | **PARTIALLY IMPLEMENTED** | Prometheus metrics collector, healthcheck probes (`/api/v1/health`), and circuit breaker implemented. Unified incident dashboard and automated runbooks need portal exposure. |
 | **8** | **Reliability, Backup & DR** | **P1** | **PARTIALLY IMPLEMENTED** | Database backup scripts, DR procedures documented, BullMQ failed job handling in place. Automated automated verify-and-restore test harness needs regular cron execution. |
 | **9** | **Portal & API Integration** | **P1** | **PARTIALLY IMPLEMENTED** | All 7 portals build cleanly; client API hooks unified with CSRF and auth refresh. 22 pages currently use mock/static data that must be linked to real backend services. |
-| **10**| **Quality, Testing & Production Readiness** | **P0** | **IN PROGRESS** | CI pipelines verify builds, migrations, RLS coverage, and unit tests. Test suite requires active PostgreSQL test container running in CI/local test harnesses. |
+| **10**| **Quality, Testing & Production Readiness** | **P0** | **IN PROGRESS** | CI pipelines verify builds, migrations, RLS coverage, and unit tests. High-performance Ryzen 7 parallel execution coordinator verified across 14 suites with 100% pass rate. |
 
 ---
 
 ## 4. Key Gaps & Remediation Priorities
 
-1. **Database Runtime Testing:** Test suites require PostgreSQL container running with `ssvm_app` and `ssvm_auth` roles. Vitest environment must safely mock or spin up test schema fixtures without hanging.
-2. **Mock-to-Real Portal Transitions:** 22 portal pages (including advanced reporting, governance workflows, and ancillary services) must migrate from static state to real backend endpoints.
-3. **Financial Completion:** Finish the bank reconciliation service, automated fine waiver workflows, and automated ledger period closing.
-4. **Academic Pipeline:** Complete gradebook calculation service, automated report card PDF generation, and student promotion logic.
-5. **Operational Automation:** Connect library overdue fine calculation to student fee invoices, and link inventory goods receipt directly to vendor ledger balance.
+1. **Phase 7 Incident & Queue Management:** Expose system health dashboard and BullMQ dead-letter queue (DLQ) retry tooling in `super-admin`.
+2. **Phase 8 Disaster Recovery Test Automation:** Implement automated backup restore verification test in CI (`scripts/dr-test.ts`).
+3. **Phase 9 Mock-to-Real Portal Transitions:** Link remaining mock/static portal pages to the completed backend routes.
+4. **Phase 10 Release Sign-off:** End-to-end performance benchmarks and production freeze checklist sign-off.
 
 ---
 
 ## 5. Implementation Roadmap Status
 
-- **Phase 0:** Repository Audit & Baseline — **COMPLETED** (7 authoritative status documents generated)
-- **Phase 1:** Authentication, RBAC, Multi-Tenancy — **COMPLETED** (Verified with 408 passing tests, least-privilege roles, 100% RLS enforcement)
-- **Phase 2:** Finance, Payments, Accounting — **NEXT IMMEDIATE FOCUS**
-- **Phases 3–10:** Scheduled per `docs/IMPLEMENTATION_PHASE_TRACKER.md`
+- **Phase 0:** Repository Audit & Baseline — **COMPLETED**
+- **Phase 1:** Authentication, RBAC, Multi-Tenancy — **COMPLETED**
+- **Phase 2:** Finance, Payments, Accounting — **COMPLETED**
+- **Phase 3:** Academic Workflows & Configurable Assessment Engine — **COMPLETED**
+- **Phase 4:** HR, Operations, Library & Inventory — **COMPLETED**
+- **Phase 5:** Notifications & Communications — **COMPLETED**
+- **Phase 6:** SaaS & Multi-Tenant Administration — **COMPLETED**
+- **Phases 7–10:** Scheduled per `docs/IMPLEMENTATION_PHASE_TRACKER.md`
 

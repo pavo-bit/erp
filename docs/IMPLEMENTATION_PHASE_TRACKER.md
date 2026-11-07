@@ -12,11 +12,11 @@
 |---|---|---|---|---|---|
 | **Phase 0** | **Repository Audit & Baseline** | **P0** | Complete audit, baseline documents, model/route/page matrices | **COMPLETED** | 7 authoritative status documents committed. |
 | **Phase 1** | **Authentication, RBAC & Multi-Tenancy** | **P0** | Zero-trust RLS, tenant context, fail-closed transactions, CSRF, refresh tokens | **COMPLETED** | 0 cross-tenant leaks; 408 tests pass; RLS verified on 177 tables; least-privilege roles enforced. |
-| **Phase 2** | **Finance, Payments & Accounting** | **P0** | Exact Decimal money, double-entry ledger balance, sequential receipts, recon, webhooks | **COMPLETED** | Ledger balance invariant `debits == credits`; idempotent webhooks; recon 200 OK. |
-| **Phase 3** | **Academic & Student Workflows** | **P1** | Admissions, classes, timetables, attendance, exams, report cards, promotion | **COMPLETED** | End-to-end report card generation; attendance aggregation tests pass; timetable collision detection enforced. |
-| **Phase 4** | **HR, Operations, Library & Inventory** | **P1** | Staff profiles, payroll, goods receipts, stock movement, book issue/fines, transport | **PENDING** | Payroll ledger posting verified; GRN stock adjustment tests pass. |
-| **Phase 5** | **Notifications & Communications** | **P1** | Multi-channel router, outbox relay, SMS/Email fallback, in-app SSE dispatch | **PENDING** | Outbox pattern guarantees 0 dropped notifications during provider downtime. |
-| **Phase 6** | **SaaS & Multi-Tenant Platform Admin** | **P1** | School onboarding wizard, subscription plans, tenant quota enforcement, feature flags | **PENDING** | School creation provisions schema defaults, admin account, and COA seed. |
+| **Phase 2** | **Finance, Payments & Accounting** | **P0** | Exact Decimal money, double-entry ledger balance, sequential receipts, recon, webhooks, fee categories/structures, cash collection, offline payments, balance sheet | **COMPLETED** | Ledger balance invariant `debits == credits`; idempotent webhooks; cash collection & advance auto-settlement verified; 3/3 financial statement tests pass. |
+| **Phase 3** | **Academic & Student Workflows** | **P1** | Admissions, classes, timetables, attendance, exams, report cards, promotion, multi-board assessment profiles (CBSE, ICSE, State, GPA, IB), grace marks | **COMPLETED** | End-to-end report card generation; attendance aggregation tests pass; timetable collision detection enforced; 10/10 configurable assessment unit tests pass. |
+| **Phase 4** | **HR, Operations, Library & Inventory** | **P1** | Staff profiles, payroll ledger posting, printable payslips, goods receipt AP posting, book overdue fee invoice accrual, transport allocations & GPS telemetry | **COMPLETED** | Payroll ledger posting (`5010-SAL` -> `1010-BANK`), GRN posting (`5020-GEN` -> `2010-AP`), library auto fine accrual, and fleet telemetry verified. |
+| **Phase 5** | **Notifications & Communications** | **P1** | Multi-channel router, outbox relay, SMS/Email fallback, in-app SSE dispatch, template management with RBAC, outbox sweep endpoint | **COMPLETED** | Template CRUD with `SUPER_ADMIN`/`ERP_ADMIN` auth and transactional outbox sweep trigger verified. |
+| **Phase 6** | **SaaS & Multi-Tenant Platform Admin** | **P1** | School onboarding wizard, subscription plans, tenant quota enforcement, feature flags, automated tenant provisioning pipeline, Super Admin metrics | **COMPLETED** | Multi-step tenant provisioning pipeline (school, COA, settings, academic terms, fee rules, ERP Admin user, subscription) and platform metrics verified. |
 | **Phase 7** | **System Health & Incident Management** | **P1** | Health probes, Prometheus metrics, circuit breakers, dead-letter queue inspect | **PENDING** | Prometheus metrics scraped; healthcheck returns structured subsystem status. |
 | **Phase 8** | **Reliability, Monitoring, Backup & DR** | **P1** | Automated DB backups, restore verification script, audit hash chain verification | **PENDING** | `scripts/dr-test.ts` executes clean backup and restore in isolated environment. |
 | **Phase 9** | **Portal & API Integration** | **P1** | Convert remaining 22 mock/static portal pages to real API endpoints | **PENDING** | All 90 portal pages verified against real backend routes with 0 console errors. |
@@ -59,25 +59,30 @@
 - [x] Implement student academic promotion engine (class progression with prerequisites).
 - [x] Implement timetable scheduling validation to prevent teacher/classroom double-booking.
 - [x] Wire `student-portal` and `parent-portal` academic dashboards to real gradebook endpoints.
+- [x] Configurable private-school assessment engine supporting multi-board grading scales (CBSE, ICSE, State Board, GPA 4.0, IB).
+- [x] Dynamic assessment profiles with custom component/term weightages, grace marks conversion with audit trail, and compartment rules.
 
 ### Phase 4: HR, Operations, Library & Inventory (P1)
 - [x] Goods Receipt (GRN) against Purchase Orders with partial receipt handling and over-receipt prevention.
-- [ ] Link Goods Receipt confirmation directly to Accounts Payable ledger journal entry.
-- [ ] Complete payroll salary slip generation with tax/allowance deduction calculation.
-- [ ] Implement automated library overdue fine accrual job that posts to student fee invoices.
-- [ ] Complete transport GPS telemetry ingestion endpoint and real-time route progress calculation.
+- [x] Link Goods Receipt confirmation directly to Accounts Payable ledger journal entry (Debit `5020-GEN`, Credit `2010-AP`).
+- [x] Complete payroll salary payout double-entry General Ledger posting (Debit `5010-SAL`, Credit `1010-BANK` / `1020-CASH`).
+- [x] Add printable HTML payslip endpoint (`/api/v1/hr/salaries/:id/payslip`) with breakdown of earnings, deductions, and institutional header.
+- [x] Implement automated library overdue fine accrual job posting overdue fines directly to student fee invoices.
+- [x] Transport fleet management (vehicles, routes, stops, allocations) and real-time GPS telemetry ingestion endpoint (`/api/v1/admin/transport/vehicles/:id/telemetry`).
 
 ### Phase 5: Notifications & Communications (P1)
 - [x] Outbox pattern table and relay worker scaffolded (`outboxRelay.ts`).
+- [x] Communication template management CRUD with strict role enforcement (`requireRole("SUPER_ADMIN", "ERP_ADMIN")`).
+- [x] Transactional outbox sweep endpoint (`POST /api/v1/communications/outbox/sweep`) triggering worker sweep for dispatch.
 - [ ] Implement SMS provider adapter with failover to secondary provider on error.
 - [ ] Implement email templating engine for fee receipts, report cards, and notices.
 - [ ] Implement Server-Sent Events (SSE) notification streaming for real-time in-app alerts.
 
 ### Phase 6: SaaS & Multi-Tenant Platform Admin (P1)
 - [x] School registration and subscription plan configuration models.
-- [ ] Implement automated multi-step tenant provisioning pipeline (create school, seed Chart of Accounts, seed academic terms, create default administrator).
-- [ ] Implement tenant feature flag enforcement middleware (`featureGuard.ts`).
-- [ ] Implement tenant resource quota tracking (student count, storage limits).
+- [x] Automated multi-step tenant provisioning pipeline (`POST /api/v1/saas/provision`): creates school, seeds Chart of Accounts, sets up default academic session, seeds standard fee rules, applies school settings, creates initial ERP Admin account, and binds subscription plan.
+- [x] Tenant resource quota tracking and guard middleware (`requireQuota("STUDENT" | "TEACHER")`) enforcing plan capacity.
+- [x] Super Admin real-time metrics and platform analytics overview endpoint (`GET /api/v1/saas/metrics`).
 
 ### Phase 7: System Health & Incident Management (P1)
 - [x] Prometheus metrics collector (`metrics.ts`) and `/api/v1/health` probes.

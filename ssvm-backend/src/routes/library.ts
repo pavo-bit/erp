@@ -1,4 +1,5 @@
 import { Router, Response } from "express";
+import { Prisma } from "@prisma/client";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireRole, requireOperationsAdmin, requireLibraryAdmin } from "../middleware/auth";
@@ -379,6 +380,49 @@ router.post("/fines/calculate", authenticate, requireLibraryAdmin(), async (req:
             fineAmount: calculatedFine
           }
         });
+
+        // Sync to Student Fee Invoice (Phase 4 integration)
+        if (issue.userType === "STUDENT" && calculatedFine > 0) {
+          const existingInvoice = await prisma.invoice.findFirst({
+            where: {
+              schoolId,
+              studentId: issue.userId,
+              description: `Library Fine for Book Issue ID: ${issue.id}`,
+              status: { in: ["PENDING", "OVERDUE", "PARTIAL"] },
+            },
+          });
+
+          if (existingInvoice) {
+            const fineDecimal = new Prisma.Decimal(calculatedFine);
+            await prisma.invoice.update({
+              where: { id: existingInvoice.id },
+              data: {
+                amount: fineDecimal,
+                remainingAmount: fineDecimal.sub(existingInvoice.amountPaid),
+                status: "OVERDUE",
+                isOverdue: true,
+              },
+            });
+          } else {
+            const fineDecimal = new Prisma.Decimal(calculatedFine);
+            await prisma.invoice.create({
+              data: {
+                schoolId,
+                studentId: issue.userId,
+                amount: fineDecimal,
+                amountPaid: new Prisma.Decimal(0),
+                remainingAmount: fineDecimal,
+                fineAmount: new Prisma.Decimal(0),
+                type: "MISCELLANEOUS",
+                status: "OVERDUE",
+                isOverdue: true,
+                dueDate: now,
+                description: `Library Fine for Book Issue ID: ${issue.id}`,
+              },
+            });
+          }
+        }
+
         updatedCount++;
       }
     }

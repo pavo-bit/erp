@@ -3,6 +3,16 @@ import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
 import { evaluateStudentForPromotion, promoteStudentsBatch } from "../services/promotion.service";
+import {
+  DEFAULT_CBSE_PROFILE,
+  DEFAULT_ICSE_PROFILE,
+  CBSE_GRADING_SCALE,
+  ICSE_GRADING_SCALE,
+  STATE_BOARD_GRADING_SCALE,
+  GPA_4_GRADING_SCALE,
+  IB_GRADING_SCALE,
+  AssessmentProfile,
+} from "../services/gradebook.service";
 
 const router = Router();
 
@@ -300,6 +310,59 @@ router.post("/promote", authenticate, requireAcademicAdmin(), async (req: AuthRe
     logger.error({ err: e }, "Batch promotion error");
     res.status(500).json({ success: false, error: "Server error" });
   }
+});
+
+// ─── CONFIGURABLE ASSESSMENT PROFILES & SCALES (Phase 3 Enhancement) ───
+
+// GET /api/v1/academic/assessment-profiles
+router.get("/assessment-profiles", authenticate, requireTeacherOrAdmin(), requireSchoolAccess(), async (req: AuthRequest, res: Response) => {
+  try {
+    const profiles: AssessmentProfile[] = [
+      DEFAULT_CBSE_PROFILE,
+      DEFAULT_ICSE_PROFILE,
+      {
+        name: "State Board Secondary",
+        board: "STATE_BOARD",
+        gradingScale: STATE_BOARD_GRADING_SCALE,
+        passingRules: {
+          minOverallPercentage: 35.0,
+          minSubjectPercentage: 35.0,
+          maxCompartmentAllowed: 2,
+          allowGraceMarks: 5,
+        },
+      },
+      {
+        name: "International Baccalaureate (IB)",
+        board: "IB",
+        gradingScale: IB_GRADING_SCALE,
+        passingRules: {
+          minOverallPercentage: 40.0,
+          minSubjectPercentage: 40.0,
+          maxCompartmentAllowed: 0,
+          allowGraceMarks: 0,
+        },
+      },
+    ];
+
+    res.json({ success: true, data: profiles });
+  } catch (e) {
+    logger.error({ err: e }, "Get assessment profiles error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/v1/academic/grading-scales
+router.get("/grading-scales", authenticate, requireTeacherOrAdmin(), async (_req: AuthRequest, res: Response) => {
+  res.json({
+    success: true,
+    data: {
+      CBSE: CBSE_GRADING_SCALE,
+      ICSE: ICSE_GRADING_SCALE,
+      STATE_BOARD: STATE_BOARD_GRADING_SCALE,
+      GPA_4: GPA_4_GRADING_SCALE,
+      IB: IB_GRADING_SCALE,
+    },
+  });
 });
 
 export default router;

@@ -41,6 +41,15 @@ const allocateStudentSchema = z.object({
   status: z.enum(['ACTIVE', 'PAUSED', 'CANCELLED']).default('ACTIVE'),
 });
 
+// In-memory telemetry cache for live vehicle GPS coordinates
+const vehicleTelemetryStore = new Map<string, {
+  latitude: number;
+  longitude: number;
+  speed?: number;
+  heading?: number;
+  recordedAt: Date;
+}>();
+
 // Middleware: Strictly Admin and Super Admin
 router.use(authenticate);
 router.use(requireRole(Role.SUPER_ADMIN, Role.ERP_ADMIN));
@@ -168,6 +177,88 @@ router.post('/allocate', async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     res.status(400).json({ success: false, error: error.message });
   }
+});
+
+router.get('/allocations', async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId!;
+    const { studentId, stopId } = req.query as Record<string, string | undefined>;
+    const where: any = { schoolId };
+    if (studentId) where.studentId = studentId;
+    if (stopId) where.stopId = stopId;
+
+    const allocations = await prisma.transportAllocation.findMany({
+      where,
+      include: {
+        student: { select: { id: true, name: true, rollNo: true } },
+        stop: { select: { id: true, name: true, pickupTime: true, dropoffTime: true, fare: true, route: { select: { id: true, name: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ success: true, data: allocations });
+  } catch (error: any) {
+    logger.error({ err: error }, 'Failed to fetch transport allocations');
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+});
+
+// =====================================
+// TELEMETRY & GPS REAL-TIME TRACKING
+// =====================================
+
+router.post('/vehicles/:id/telemetry', async (req: AuthRequest, res: Response) => {
+  try {
+    const vehicleId = req.params.id as string;
+    const { latitude, longitude, speed, heading } = req.body;
+
+    if (latitude === undefined || longitude === undefined) {
+      res.status(400).json({ success: false, error: 'latitude and longitude are required' });
+      return;
+    }
+
+    const vehicle = await prisma.transportVehicle.findUnique({
+      where: { id: vehicleId },
+      select: { id: true, schoolId: true, registrationNumber: true },
+    });
+
+    if (!vehicle) {
+      res.status(404).json({ success: false, error: 'Vehicle not found' });
+      return;
+    }
+
+    const telemetryData = {
+      latitude: Number(latitude),
+      longitude: Number(longitude),
+      speed: speed !== undefined ? Number(speed) : undefined,
+      heading: heading !== undefined ? Number(heading) : undefined,
+      recordedAt: new Date(),
+    };
+
+    vehicleTelemetryStore.set(vehicleId, telemetryData);
+
+    res.json({
+      success: true,
+      message: 'Telemetry ingested successfully',
+      vehicleId,
+      location: telemetryData,
+    });
+  } catch (e) {
+    logger.error({ err: e }, 'Ingest vehicle telemetry error');
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
+
+router.get('/vehicles/:id/location', async (req: AuthRequest, res: Response) => {
+  const vehicleId = req.params.id as string;
+  const telemetry = vehicleTelemetryStore.get(vehicleId);
+
+  if (!telemetry) {
+    res.status(404).json({ success: false, error: 'No telemetry reported for this vehicle yet' });
+    return;
+  }
+
+  res.json({ success: true, data: telemetry });
 });
 
 export default router;

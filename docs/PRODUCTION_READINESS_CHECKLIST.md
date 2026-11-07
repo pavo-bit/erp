@@ -44,8 +44,12 @@
   - Webhooks enforce unique transaction ID locking.
   - Permanent errors (unknown invoice, mismatched currency) return HTTP 200 + error log to prevent gateway retries.
   - Transient errors (DB timeout, network drop) return HTTP 5xx to trigger gateway retry.
-- [ ] **Closed Period Ledger Lock:**
+- [x] **Closed Period Ledger Lock:**
   - Modifying journal entries or invoices in a locked financial period strictly rejected (`FinancialCloseService`).
+- [x] **Subsystem Ledger Integration:**
+  - HR Payroll payout posts balanced double-entry transactions (Debit `5010-SAL`, Credit `1010-BANK`).
+  - Procurement Goods Receipt posts balanced double-entry transactions (Debit `5020-GEN`, Credit `2010-AP`).
+  - Cash collection fee receipts post balanced double-entry transactions (Debit `1020-CASH`, Credit `4000-TUIT` / `1200-AR` / `2100-ADV`).
 
 ---
 

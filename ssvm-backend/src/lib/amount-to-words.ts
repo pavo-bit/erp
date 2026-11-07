@@ -123,3 +123,4 @@ function amountToWordsHelper(n: number): string {
   if (n < 100) return twoDigitsToWords(n);
   return threeDigitsToWords(n);
 }
+

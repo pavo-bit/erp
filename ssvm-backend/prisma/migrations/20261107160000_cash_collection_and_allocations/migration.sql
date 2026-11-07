@@ -114,3 +114,4 @@ CREATE POLICY "school_isolation" ON "student_advance_credits" FOR ALL
 GRANT ALL ON TABLE "fee_receipts" TO ssvm_app_group, ssvm_fixture_group;
 GRANT ALL ON TABLE "payment_allocations" TO ssvm_app_group, ssvm_fixture_group;
 GRANT ALL ON TABLE "student_advance_credits" TO ssvm_app_group, ssvm_fixture_group;
+

@@ -4,6 +4,7 @@ import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import { Prisma } from "@prisma/client";
 import { AuthRequest, authenticate, requireOperationsAdmin, requireRole } from "../middleware/auth";
 import { z } from "zod";
+import { LedgerService } from "../services/ledger.service";
 
 const router = Router();
 router.use(authenticate);
@@ -347,11 +348,49 @@ router.post("/orders/:id/receive", requireOperationsAdmin("ASSET_MANAGER"), asyn
         data: { status: newPoStatus },
       });
 
+      // 7. Post double-entry journal entry to General Ledger: Debit 5020-GEN, Credit 2010-AP
+      let totalReceivedValue = new Prisma.Decimal(0);
+      for (const line of parsedLines) {
+        const poItem = purchaseOrder.items.find((item) => item.id === line.purchaseOrderItemId);
+        if (poItem) {
+          totalReceivedValue = totalReceivedValue.add(poItem.unitPrice.mul(new Prisma.Decimal(line.receivedQuantity)));
+        }
+      }
+
+      if (totalReceivedValue.gt(0)) {
+        const genAcc = await tx.ledgerAccount.findUnique({
+          where: { schoolId_code: { schoolId, code: "5020-GEN" } },
+        });
+        const apAcc = await tx.ledgerAccount.findUnique({
+          where: { schoolId_code: { schoolId, code: "2010-AP" } },
+        });
+
+        if (genAcc && apAcc) {
+          await LedgerService.postTransaction(
+            {
+              schoolId,
+              referenceType: "INVENTORY",
+              referenceId: goodsReceipt.id,
+              sourceModule: "INVENTORY",
+              description: `Goods Receipt ${grNumber} against PO ${purchaseOrder.poNumber}`,
+              postingDate: new Date(),
+              createdBy: req.user!.id,
+              entries: [
+                { accountId: genAcc.id, debitAmount: totalReceivedValue, creditAmount: 0 },
+                { accountId: apAcc.id, debitAmount: 0, creditAmount: totalReceivedValue },
+              ],
+            },
+            tx
+          );
+        }
+      }
+
       return {
         status: 201,
         data: {
           goodsReceipt: { ...goodsReceipt, lines: createdLines },
           purchaseOrderStatus: newPoStatus,
+          ledgerPosted: totalReceivedValue.gt(0),
         },
       };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
