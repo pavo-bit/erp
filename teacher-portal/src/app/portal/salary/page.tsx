@@ -1,8 +1,12 @@
 "use client";
 
-import { Wallet, Download, Receipt, Sparkles } from "lucide-react";
+import { Wallet, Download, Receipt } from "lucide-react";
+import { useSalaries } from "@/lib/api-hooks";
 
 export default function SalaryPage() {
+  const { data: salaryData, isLoading } = useSalaries();
+  const salaryRecords = Array.isArray(salaryData) ? salaryData : [];
+
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto animate-fade-in space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -10,7 +14,7 @@ export default function SalaryPage() {
           <h1 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent flex items-center gap-2">
             <Wallet className="text-emerald-600" /> Payroll & Compensation
           </h1>
-          <p className="text-slate-500 mt-1">View your cryptographic ledger-backed payslips and tax documents.</p>
+          <p className="text-slate-500 mt-1">View your cryptographic ledger-backed payslips and disbursement records.</p>
         </div>
       </div>
 
@@ -22,42 +26,40 @@ export default function SalaryPage() {
               <h2 className="font-bold text-lg text-slate-800">Recent Payslips</h2>
             </div>
             
-            <div className="divide-y divide-slate-100">
-              {[
-                { month: "September 2025", amount: "₹45,000", status: "Disbursed", date: "Oct 1, 2025" },
-                { month: "August 2025", amount: "₹45,000", status: "Disbursed", date: "Sep 1, 2025" },
-                { month: "July 2025", amount: "₹45,000", status: "Disbursed", date: "Aug 1, 2025" },
-              ].map((slip, i) => (
-                <div key={i} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                      <Receipt className="w-6 h-6" />
+            {isLoading ? (
+              <div className="p-12 text-center text-slate-500">Loading payroll records...</div>
+            ) : salaryRecords.length === 0 ? (
+              <div className="p-12 text-center text-slate-500">
+                <Receipt className="w-10 h-10 mx-auto text-slate-400 mb-2" />
+                <p className="font-semibold text-slate-700">No Disbursed Payslips</p>
+                <p className="text-sm text-slate-500 mt-1">Disbursed salary records will appear here upon payroll processing.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {salaryRecords.map((slip: any, i: number) => (
+                  <div key={slip.id || i} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <Receipt className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800">{slip.month || "Current Month"}</h3>
+                        <p className="text-sm text-slate-500 mt-0.5">Status: {slip.status || "DISBURSED"}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-800">{slip.month}</h3>
-                      <p className="text-sm text-slate-500 mt-0.5">Credited on {slip.date}</p>
+                    <div className="flex flex-col items-end">
+                      <span className="text-lg font-black text-slate-900">₹{Number(slip.netSalary || slip.amount || 0).toLocaleString()}</span>
+                      <button
+                        onClick={() => window.open(`/api/v1/hr/salaries/${slip.id}/payslip`, "_blank")}
+                        className="text-sm text-emerald-600 font-bold flex items-center gap-1 hover:text-emerald-700 mt-1"
+                      >
+                        <Download className="w-3.5 h-3.5" /> View Payslip
+                      </button>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end">
-                    <span className="text-lg font-black text-slate-900">{slip.amount}</span>
-                    <button className="text-sm text-emerald-600 font-bold flex items-center gap-1 hover:text-emerald-700 mt-1">
-                      <Download className="w-3.5 h-3.5" /> Download PDF
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        <div className="space-y-6">
-          <div className="relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-slate-900 to-indigo-900 border border-slate-800 text-white shadow-2xl">
-            <div className="absolute top-0 right-0 p-4 opacity-10">
-              <Sparkles className="w-24 h-24" />
-            </div>
-            <h3 className="font-bold text-indigo-300 mb-2">YTD Earnings</h3>
-            <div className="text-4xl font-black mb-1">₹4,05,000</div>
-            <p className="text-sm text-slate-400">Financial Year 2025-2026</p>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

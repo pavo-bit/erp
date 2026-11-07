@@ -132,3 +132,6 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
 export function useSchools(params?: string) { return useSWR("/api/v1/schools" + (params ? "?" + params : ""), fetcher); }
 export function useSuperAdminStats() { return useSWR("/api/v1/stats/detailed", fetcher); }
 export function useDataRetentionPolicies() { return useSWR("/api/v1/admin/governance-workflows/retention-policies", fetcher); }
+export function useSaasMetrics() { return useSWR("/api/v1/saas/metrics", fetcher); }
+export function useShfiOverview() { return useSWR("/api/v1/shfi/health/overview", fetcher); }
+export function useShfiIncidents() { return useSWR("/api/v1/shfi/incidents", fetcher); }

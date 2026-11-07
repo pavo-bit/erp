@@ -105,6 +105,8 @@ export async function createApp(): Promise<Express> {
   const billingRoutes = (await import("./routes/admin/billing")).default;
   const payrollRoutes = (await import("./routes/admin/payroll")).default;
   const resultsRoutes = (await import("./routes/results")).default;
+  const shfiRoutes = (await import("./routes/admin/shfi")).default;
+  const supportRoutes = (await import("./routes/support")).default;
   const { metricsMiddleware, getMetrics } = await import("./middleware/metrics");
   const swaggerUi = (await import("swagger-ui-express")).default;
   const { generateSpec } = await import("./openapi/generate");
@@ -459,6 +461,8 @@ app.use("/api/v1/sse", sseRoutes);
 
 app.use("/api/health", healthRoutes);
 app.use("/api/v1/health", healthRoutes);
+app.use("/api/v1/shfi", shfiRoutes);
+app.use("/api/v1/support", supportRoutes);
 
 app.use('/api/v1/certificates', certificatesRoutes);
 app.use('/api/v1/preferences', preferencesRoutes);

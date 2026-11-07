@@ -122,6 +122,20 @@ To prevent coupling and maintain architectural integrity, modules must interact 
 - **Primary Service:** `NotificationRouter.ts`, `communication.service.ts`, `outboxRelay.ts`.
 - **Reliability:** Outbox pattern ensures transactional message dispatch without loss during network failures.
 
+### 3.9. System Health, Failure Investigation & Incident Management (SHFI)
+- **Scope:** Centralized diagnostic event ingestion, deterministic failure classification, state machine incident lifecycle, health telemetry, and disaster recovery.
+- **Key Services:** `DiagnosticEventService`, `IncidentClassificationService`, `IncidentService`, `HealthMonitorService`.
+- **Diagnostic Pipeline:**
+  `Signal -> Validated Evidence -> Correlation -> Classification -> Investigation -> Action -> Resolution -> Verification`.
+- **Deterministic Classification:** Categorizes failures into 12 core domains (`DATABASE`, `REDIS`, `QUEUE`, `LEDGER_RECONCILIATION`, `PAYMENT_PROVIDER`, `WEBHOOK`, `TENANT_CONTEXT`, `AUTHENTICATION`, `AUTHORIZATION`, `STORAGE`, `NOTIFICATION_PROVIDER`, `UNKNOWN`) with certainty levels (`CONFIRMED`, `PROBABLE`, `UNKNOWN`) without any external LLM dependencies.
+- **Incident Lifecycle State Machine:**
+  `DETECTED -> CLASSIFIED -> INVESTIGATING -> MITIGATED -> RESOLVED -> CLOSED` (with branches for `ACKNOWLEDGED`, `ACTION_REQUIRED`, `SUPPRESSED`, and `REOPENED`).
+- **Security & Tenancy:**
+  - Strict recursive payload sanitization strips passwords, tokens, API keys, and payment card details (PAN/CVV) before logging.
+  - Fail-closed tenant boundaries: `ERP_ADMIN` queries are automatically scoped to their school; Parents and Teachers access safe support ticket abstractions (`/api/v1/support`) with zero internal stack or database error exposure.
+- **Automated Disaster Recovery (DR) Engine:**
+  - Automated isolated restore verification harness (`scripts/dr-test.js`) continuously proves cold recovery capabilities across 205 tables, ensuring compliance with strict SLAs (RTO < 120m, RPO < 15m).
+
 ---
 
 ## 4. Frontend Application Boundaries

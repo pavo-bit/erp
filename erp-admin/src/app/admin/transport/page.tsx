@@ -1,20 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
-// Assume generic fetcher is implemented in api-hooks
-// import { fetchTransportVehicles, fetchTransportRoutes } from "@/lib/api-hooks";
+import { useTransportVehicles, useTransportRoutes } from "@/lib/api-hooks";
 
 export default function TransportLogisticsPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("fleet");
   
-  // Dummy data for visual representation until hooked up to actual SWR hooks
-  const vehicles = [
-    { id: "1", vehicleNumber: "DL-1V-4422", type: "BUS", capacity: 40, status: "ACTIVE" },
-    { id: "2", vehicleNumber: "HR-26-XX-11", type: "VAN", capacity: 12, status: "MAINTENANCE" },
-  ];
+  const { data: vehiclesData, isLoading: vehiclesLoading } = useTransportVehicles();
+  const { data: routesData, isLoading: routesLoading } = useTransportRoutes();
+
+  const vehicles = Array.isArray(vehiclesData) ? vehiclesData : [];
+  const routes = Array.isArray(routesData) ? routesData : [];
 
   return (
     <div className="flex flex-col h-full space-y-6">
@@ -34,21 +33,17 @@ export default function TransportLogisticsPage() {
         </div>
         
         <div className="flex gap-4">
-          <button className="px-6 py-3 rounded-xl text-[14px] font-bold text-[var(--color-text-secondary)] bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)] hover:text-white hover:border-blue-500/50 transition-all">
-            GPS Telemetry 📡
-          </button>
           <button className="px-6 py-3 rounded-xl text-[14px] font-bold text-white bg-gradient-to-r from-blue-600 to-cyan-500 shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:scale-[1.02] transition-transform">
             + Add Vehicle
           </button>
         </div>
       </div>
 
-      {/* Analytics Gamified Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+      {/* Analytics Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         {[
-          { label: "Active Fleet", value: "14", icon: "🚌", gradient: "from-blue-600 to-cyan-500" },
-          { label: "Total Routes", value: "8", icon: "🗺️", gradient: "from-emerald-500 to-teal-400" },
-          { label: "Students Allocated", value: "482", icon: "🧑‍🎓", gradient: "from-purple-500 to-fuchsia-500" },
+          { label: "Active Fleet Vehicles", value: vehicles.length, icon: "🚌", gradient: "from-blue-600 to-cyan-500" },
+          { label: "Configured Routes", value: routes.length, icon: "🗺️", gradient: "from-emerald-500 to-teal-400" },
         ].map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
             className="p-6 rounded-[1.5rem] relative overflow-hidden group border border-[var(--color-border-dark)] bg-[var(--color-bg-card)]">
@@ -90,24 +85,32 @@ export default function TransportLogisticsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--color-border-dark)]">
-                  {vehicles.map(v => (
-                    <tr key={v.id} className="hover:bg-[var(--color-bg-dark)]/50 transition-colors">
-                      <td className="p-4 font-black text-white">{v.vehicleNumber}</td>
-                      <td className="p-4">
-                        <div className="text-[13px] font-bold text-white">{v.type}</div>
-                        <div className="text-[11px] text-[var(--color-text-secondary)]">{v.capacity} Seats</div>
-                      </td>
-                      <td className="p-4">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
-                          ${v.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
-                          {v.status}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right">
-                        <button className="text-[var(--color-text-secondary)] hover:text-white transition-colors">•••</button>
+                  {vehicles.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="p-8 text-center text-[var(--color-text-secondary)]">
+                        No fleet vehicles configured yet.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    vehicles.map((v: any) => (
+                      <tr key={v.id} className="hover:bg-[var(--color-bg-dark)]/50 transition-colors">
+                        <td className="p-4 font-black text-white">{v.registrationNo || v.vehicleNumber || "Fleet Vehicle"}</td>
+                        <td className="p-4">
+                          <div className="text-[13px] font-bold text-white">{v.type || "BUS"}</div>
+                          <div className="text-[11px] text-[var(--color-text-secondary)]">{v.capacity || 40} Seats</div>
+                        </td>
+                        <td className="p-4">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+                            ${(v.status || 'ACTIVE') === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                            {v.status || 'ACTIVE'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <button className="text-[var(--color-text-secondary)] hover:text-white transition-colors">•••</button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

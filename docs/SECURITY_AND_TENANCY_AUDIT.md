@@ -115,6 +115,15 @@ The application defines seven distinct user roles:
 - The ERP features an immutable audit log (`AuditLog` table) secured with cryptographic hash chaining (`audit-hash-chain.service.ts`).
 - Each audit log entry calculates `SHA-256(previous_hash + current_entry_payload)`, preventing retroactive log tampering by rogue administrators.
 
+### 3.4. Diagnostic Data Sanitization & Tenant-Scoped Incident Isolation
+- **Recursive Payload Sanitization:** All raw error payloads, stack traces, and request contexts captured by `DiagnosticEventService` undergo recursive redaction before persistence or caching.
+  - Redacted keys: `password`, `token`, `secret`, `authorization`, `cookie`, `apiKey`, `creditCard`, `pan`, `cvv`, `cardNumber`, `ssn`.
+- **Tenant-Scoped Incident Isolation:**
+  - `ERP_ADMIN` access to `/api/v1/shfi/*` is forced to `schoolId = req.user.schoolId`. School administrators can never query, observe, or update incidents belonging to other schools.
+  - End-user support facade (`/api/v1/support`): Parents, students, and teachers submit inquiries without direct visibility into internal diagnostic events, database queries, or server stack traces. Responses provide safe reference tokens and generic operational status.
+- **Traceability & Request Binding:**
+  - `addResponseHeaders` injects `X-Correlation-ID` and `X-Request-ID` across all HTTP responses, linking client telemetry with server diagnostic events without exposing sensitive metadata.
+
 ---
 
 ## 4. Threat & Vulnerability Assessment
@@ -127,4 +136,6 @@ The application defines seven distinct user roles:
 | **Brute Force & Credential Stuffing** | Redis sliding-window rate limiters on `/auth/login` and `/auth/password-reset`. | **VERIFIED** |
 | **Financial State Tampering** | Double-entry ledger invariants enforced via database triggers and application transactions. | **VERIFIED** |
 | **Session Hijacking** | HttpOnly, Secure, SameSite cookies for refresh tokens; IP / User-Agent pinning in `UserSession`. | **VERIFIED** |
+| **Diagnostic Data Leakage** | Recursive sanitization redacting credentials, tokens, PAN, CVV from telemetry and error traces. | **VERIFIED** |
+| **Cross-Tenant Diagnostic Visibility** | Automatic `schoolId` scoping on SHFI admin routes; safe support inquiry facade for end-users. | **VERIFIED** |
 

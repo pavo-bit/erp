@@ -203,6 +203,28 @@ const tasks = [
     env: { ...testEnv, VITEST_POOL_ID: 'biz' },
     mandatory: true,
   },
+  // 9. Phase 7 SHFI Incident Management & Health Tests
+  {
+    id: 'shfi-center-tests',
+    name: 'SHFI Incident & Health Centre Tests (Phase 7)',
+    category: 'INTEGRATION',
+    cwd: path.join(rootDir, 'ssvm-backend'),
+    command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
+    args: ['vitest', 'run', 'src/tests/api/shfi-center.test.ts'],
+    env: { ...testEnv, VITEST_POOL_ID: 'shfi' },
+    mandatory: true,
+  },
+  // 10. Phase 8 Disaster Recovery & Isolated Restore Verification
+  {
+    id: 'dr-restore-verification',
+    name: 'DR Isolated Restore & RTO/RPO Verification (Phase 8)',
+    category: 'INTEGRATION',
+    cwd: rootDir,
+    command: 'node',
+    args: ['scripts/dr-test.js'],
+    env: { ...testEnv },
+    mandatory: true,
+  },
 ];
 
 const results = [];

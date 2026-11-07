@@ -112,6 +112,10 @@ export function useLibraryTransactions(params?: string) { return useSWR(`/api/v1
 // Phase 4-7 Enterprise 
 export function useFinancialClosePeriods() { return useSWR("/api/v1/finance/governance/periods", fetcher); }
 export function useLedgerAccounts() { return useSWR("/api/v1/finance/governance/accounts", fetcher); }
+export function useTransportVehicles() { return useSWR("/api/v1/admin/transport/vehicles", fetcher); }
+export function useTransportRoutes() { return useSWR("/api/v1/admin/transport/routes", fetcher); }
+export function useShfiIncidents() { return useSWR("/api/v1/shfi/incidents", fetcher); }
+export function useShfiOverview() { return useSWR("/api/v1/shfi/health/overview", fetcher); }
 
 export class ApiError extends Error {
   status: number;

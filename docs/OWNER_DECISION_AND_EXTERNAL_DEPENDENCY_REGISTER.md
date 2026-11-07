@@ -60,3 +60,26 @@
 2. **Sequential Receipts:** Receipts must never use non-deterministic timestamps (e.g. `REC-${Date.now()}`). All receipts must pull atomically from `SequenceCounter` inside the payment transaction.
 3. **Audit Immutability:** Audit log rows are append-only. No application role (including `ssvm_app` and `ERP_ADMIN`) possesses `UPDATE` or `DELETE` grants on the `AuditLog` table.
 
+---
+
+## 4. Production Promotion Prerequisite Checklist: External Cloud Credentials
+
+The platform core logic, RLS security policies, financial double-entry ledger, academic grading engine, portal UIs, SHFI center, and disaster recovery harnesses have been fully verified (16/16 parallel tasks passing).
+
+Prior to transitioning the deployment from **Controlled Pilot** to **Public Multi-Tenant Production**, the system owner must provide the following external production credentials and infrastructure bindings:
+
+1. **Payment Gateway (Razorpay Production):**
+   - Environment variables: `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET`.
+   - Setup: Production Merchant ID activated with net banking, UPI, and debit/credit card clearance; webhook endpoint configured for `https://api.ssvm.edu/api/v1/webhooks/razorpay`.
+2. **Cloud Object Storage (AWS S3 or Cloudflare R2):**
+   - Environment variables: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`, `AWS_S3_BUCKET`, `AWS_S3_ENDPOINT`.
+   - Setup: Private bucket with CORS policy restricting reads/writes to ERP origins, presigned URL generation enabled.
+3. **SMS Notification Provider (Twilio or Gupshup):**
+   - Environment variables: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` (or Indian DLT registration Entity ID, Header ID, Template IDs).
+   - Setup: Production messaging service with high-throughput shortcode or verified alphanumeric sender.
+4. **Transactional Email Service (Amazon SES or SendGrid):**
+   - Environment variables: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`.
+   - Setup: Verified sending domain with DKIM, SPF, and DMARC DNS records configured.
+5. **Production Domain & TLS:**
+   - Wildcard SSL/TLS certificate for `*.ssvm.edu` bound to the reverse proxy (Nginx or Cloudflare) to route tenant subdomains to the modular monolith gateway.
+
