@@ -31,8 +31,8 @@ describe("Academic Report Card Compilation, Attendance Aggregation, and Security
 
   beforeAll(async () => {
     // 1. Schools
-    const schoolA = await createTestSchool(`ReportCard School A ${uid}`);
-    const schoolB = await createTestSchool(`ReportCard School B ${uid}`);
+    const schoolA = await createTestSchool();
+    const schoolB = await createTestSchool();
     schoolAId = schoolA.id;
     schoolBId = schoolB.id;
 

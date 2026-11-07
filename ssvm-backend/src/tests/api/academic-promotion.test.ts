@@ -31,8 +31,8 @@ describe("Student Academic Promotion Engine and Invariant Verification", () => {
 
   beforeAll(async () => {
     // 1. Schools
-    const schoolA = await createTestSchool(`Promo School A ${uid}`);
-    const schoolB = await createTestSchool(`Promo School B ${uid}`);
+    const schoolA = await createTestSchool();
+    const schoolB = await createTestSchool();
     schoolAId = schoolA.id;
     schoolBId = schoolB.id;
 

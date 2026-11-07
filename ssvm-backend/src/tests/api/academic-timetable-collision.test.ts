@@ -30,13 +30,13 @@ describe("Academic Timetable Collision Detection and Isolation", () => {
 
   beforeAll(async () => {
     // 1. Schools
-    const schoolA = await createTestSchool(`Timetable School A ${uid}`);
-    const schoolB = await createTestSchool(`Timetable School B ${uid}`);
+    const schoolA = await createTestSchool();
+    const schoolB = await createTestSchool();
     schoolAId = schoolA.id;
     schoolBId = schoolB.id;
 
     // 2. Admin User
-    const adminA = await createTestUser(Role.ADMIN, schoolAId);
+    const adminA = await createTestUser(Role.ERP_ADMIN, schoolAId);
     adminAToken = adminA.token;
 
     // 3. Academic Session & Class
