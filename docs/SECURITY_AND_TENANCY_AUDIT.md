@@ -65,12 +65,13 @@ The ERP enforces a **Defense-in-Depth Multi-Tenancy Strategy** operating across 
   - If `schoolId` is missing or `null`, the client fails closed rather than querying across all schools.
 
 ### 1.3. Tenant Classification Verification
-- Validated via `scripts/generate-tenant-classification.cjs --check`:
-  - **Total Models:** 208
-  - **Direct Tenant Models:** 127
+- Validated via `node ssvm-backend/scripts/generate-tenant-classification.cjs --check`:
+  - **Total Models:** 211 (208 baseline + 3 cash collection models)
+  - **Direct Tenant Models:** 130 (127 baseline + `FeeReceipt`, `PaymentAllocation`, `StudentAdvanceCredit`)
   - **Indirect Tenant Models:** 50
   - **Global Models:** 31
-  - **Covered Tables:** 177 classified tenant models possess verified RLS policies.
+  - **Covered Tables with Forced RLS:** 180 classified tenant models possess verified RLS policies (`relrowsecurity = true`, `relforcerowsecurity = true`).
+  - **Cross-Tenant Data Leakage:** 0 leaks detected across all multi-tenancy verification suites.
 
 ---
 

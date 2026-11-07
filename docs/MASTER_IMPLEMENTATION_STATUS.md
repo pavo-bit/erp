@@ -12,10 +12,10 @@
 
 SSVM College Square ERP is a comprehensive, multi-school Software-as-a-Service (SaaS) educational resource planning platform designed to serve educational institutions with multiple schools, campuses, branches, and stakeholders. The platform comprises:
 - An **Express/TypeScript backend** (`ssvm-backend/`) with comprehensive middleware, ORM (Prisma), background processing (BullMQ / Redis), structured observability, and the **System Health, Failure Investigation & Incident Management Centre (SHFI)**.
-- A **PostgreSQL database** with 208 models, 177 tenant-classified tables, and strict Row Level Security (RLS) policies.
+- A **PostgreSQL database** with 211 Prisma models, 208 physical tables (205 baseline + 3 cash collection), and 180 tenant-classified tables with strict Row Level Security (RLS) policies.
 - **Seven Next.js frontend applications** covering all administrative, academic, financial, operational, and stakeholder touchpoints.
 - **Docker-based infrastructure** orchestrating the database, Redis, PgBouncer, Prometheus, Grafana, Alertmanager, and all application portals.
-- **Automated Disaster Recovery & Verification Harness** (`scripts/dr-test.js`) guaranteeing cold restore RTO < 120 minutes (measured ~6.5 seconds) and RPO < 15 minutes.
+- **Automated Disaster Recovery & Verification Harness** (`scripts/dr-test.js`) guaranteeing cold restore RTO < 120 minutes (measured ~6.5 seconds in local test harness) and RPO < 15 minutes.
 
 All 10 implementation phases specified in the Master Implementation Plan have been executed and verified. The platform is functionally complete and ready for controlled multi-school pilot rollout.
 
@@ -26,21 +26,23 @@ All 10 implementation phases specified in the Master Implementation Plan have be
 | Metric Category | Verified Value | Evidence / Command Reference |
 |---|---|---|
 | **Git Working Branch** | `lane/d-portals` | `git status` |
-| **Prisma Models (Total)** | **208** models | `schema.prisma` model inspection |
-| **Direct Tenant Models** | **127** models (explicit `schoolId`) | `schema.prisma` analysis |
-| **Indirect Tenant Models** | **50** models (join/child tables) | `generate-tenant-classification.cjs` |
-| **Global Models** | **31** models (system/platform) | `generate-tenant-classification.cjs` |
-| **Database Migrations** | **7** active migrations (including cash collection & allocations) | `ssvm-backend/prisma/migrations/` |
+| **Prisma Models (Total)** | **211** models | `schema.prisma` model inspection |
+| **Direct Tenant Models** | **130** models (explicit `schoolId`) | `generate-tenant-classification.cjs --check` |
+| **Indirect Tenant Models** | **50** models (join/child tables) | `generate-tenant-classification.cjs --check` |
+| **Global Models** | **31** models (system/platform) | `generate-tenant-classification.cjs --check` |
+| **Total Tenant Models with RLS** | **180** models (130 direct + 50 indirect) | All 180 verified with PostgreSQL RLS enforced |
+| **Physical Database Tables** | **208** tables | 205 baseline tables + 3 cash collection tables (`fee_receipts`, `payment_allocations`, `student_advance_credits`) |
+| **Database Migrations** | **7** active migrations | `ssvm-backend/prisma/migrations/` |
 | **Backend Route Groups** | **66** route group mounts | `ssvm-backend/src/app.ts` (includes `/api/v1/shfi`, `/api/v1/support`) |
 | **Backend Route Handlers** | **380+** distinct route declarations | Route authorization & handler inspection |
 | **Backend Services** | **34** service modules | `ssvm-backend/src/services/` (includes SHFI & Health Monitor) |
 | **Backend Jobs / Workers** | **13** worker and job definitions | `ssvm-backend/src/jobs/` |
 | **Frontend Applications** | **7** portals | `erp-admin`, `super-admin`, `teacher-portal`, `student-portal`, `parent-portal`, `payment-portal`, `saas-frontend` |
-| **Portal Pages (Total)** | **90+** distinct page routes | Portal app directory inspection |
+| **Portal Pages (Total)** | **90** distinct page routes | Portal app directory inspection |
 | **Portal Build & Typecheck** | **7 / 7 (100%)** passing clean | `npx tsc --noEmit` across all 7 portals |
-| **Portal Real API Coverage** | **100% of primary operational routes** | No mock data fallback in production workflows |
+| **Portal Real API Coverage** | **85 / 90 pages connected** (5 static informational) | Zero mock operational data in production workflows |
 | **Parallel Verification Suite** | **16 / 16 (100%)** passing clean | `node scripts/run-parallel-checks.js` (AMD Ryzen 7 optimized) |
-| **Disaster Recovery SLA** | **RTO: 6.45s (SLA < 120m), RPO: 20ms (SLA < 15m)** | `scripts/dr-test.js` against ephemeral DB |
+| **Disaster Recovery Baseline** | **RTO: 6.45s (schema DDL), 205-208 tables restored** | `scripts/dr-test.js` against ephemeral DB |
 
 ---
 
