@@ -147,6 +147,9 @@ model School {
   inventoryCategories                                                   InventoryCategory[]
   inventoryItems                                                        InventoryItem[]
   inventoryStocks                                                       InventoryStock[]
+  feeReceipts                                                           FeeReceipt[]
+  paymentAllocations                                                    PaymentAllocation[]
+  advanceCredits                                                        StudentAdvanceCredit[]
 
   @@map("schools")
 }
@@ -524,6 +527,8 @@ model Student {
   scholarships               Scholarship[]
   marks                      StudentMark[]
   timelines                  StudentTimeline[]
+  feeReceipts                FeeReceipt[]
+  advanceCredits             StudentAdvanceCredit[]
   branch                     Branch?                     @relation(fields: [branchId], references: [id])
   guardian                   Guardian?                   @relation(fields: [guardianId], references: [id])
   school                     School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -896,6 +901,7 @@ model Invoice {
   school                  School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   student                 Student                  @relation(fields: [studentId], references: [id], onDelete: Cascade)
   transactions            PaymentTransaction[]
+  allocations             PaymentAllocation[]
 
   @@index([studentId])
   @@index([schoolId])
@@ -1216,6 +1222,8 @@ model PaymentTransaction {
   processedAt       DateTime?
   invoice           Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   FailedWebhook     FailedWebhook[]
+  receipts          FeeReceipt[]
+  allocations       PaymentAllocation[]
 
   @@unique([invoiceId, transactionId])
   @@unique([schoolId, idempotencyKey])
@@ -3986,3 +3994,82 @@ model ConfigHistory {
   @@index([configurationId])
   @@map("config_history")
 }
+
+model FeeReceipt {
+  id                   String              @id @default(cuid())
+  schoolId             String
+  studentId            String
+  receiptNo            String
+  paymentTransactionId String?
+  totalAmount          Decimal             @db.Decimal(14, 2)
+  paymentMethod        String              // CASH, CHEQUE, DD, COUNTER_UPI, BANK_TRANSFER
+  cashierId            String
+  cashierName          String
+  instrumentNo         String?             // Cheque no / UPI ref / DD no
+  instrumentDate       DateTime?
+  issuingBank          String?
+  status               String              @default("COMPLETED") // COMPLETED, PENDING_CLEARANCE, BOUNCED, CANCELLED
+  paidAt               DateTime            @default(now())
+  metadataSnapshot     Json?               // Student info, class, section, invoices breakdown snapshot
+  reprintCount         Int                 @default(0)
+  lastReprintedAt      DateTime?
+  lastReprintedById    String?
+  isCancelled          Boolean             @default(false)
+  cancelledAt          DateTime?
+  cancelledById        String?
+  cancellationReason   String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  school               School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student              Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  paymentTransaction   PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id], onDelete: SetNull)
+  allocations          PaymentAllocation[]
+
+  @@unique([schoolId, receiptNo])
+  @@index([schoolId, studentId])
+  @@index([schoolId, paidAt])
+  @@index([schoolId, cashierId])
+  @@index([schoolId, paymentMethod])
+  @@map("fee_receipts")
+}
+
+model PaymentAllocation {
+  id                   String              @id @default(cuid())
+  schoolId             String
+  receiptId            String
+  paymentTransactionId String?
+  invoiceId            String
+  allocatedAmount      Decimal             @db.Decimal(14, 2)
+  principalPaid        Decimal             @default(0) @db.Decimal(14, 2)
+  finePaid             Decimal             @default(0) @db.Decimal(14, 2)
+  previousBalance      Decimal             @db.Decimal(14, 2)
+  remainingBalance     Decimal             @db.Decimal(14, 2)
+  createdAt            DateTime            @default(now())
+  school               School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  receipt              FeeReceipt          @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  invoice              Invoice             @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paymentTransaction   PaymentTransaction? @relation(fields: [paymentTransactionId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, invoiceId])
+  @@index([receiptId])
+  @@index([paymentTransactionId])
+  @@map("payment_allocations")
+}
+
+model StudentAdvanceCredit {
+  id              String   @id @default(cuid())
+  schoolId        String
+  studentId       String
+  amount          Decimal  @db.Decimal(14, 2)
+  remainingCredit Decimal  @db.Decimal(14, 2)
+  sourceReceiptNo String
+  status          String   @default("ACTIVE") // ACTIVE, EXHAUSTED, REFUNDED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, studentId, status])
+  @@map("student_advance_credits")
+}
+

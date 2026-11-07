@@ -38,6 +38,7 @@ export async function createApp(): Promise<Express> {
   const financeRoutes = (await import("./routes/finance")).default;
   const scholarshipRoutes = (await import("./routes/scholarships")).default;
   const reconciliationRoutes = (await import("./routes/finance-reconciliation")).default;
+  const financeCashierRoutes = (await import("./routes/finance-cashier")).default;
   const attendanceRoutes = (await import("./routes/attendance")).default;
   const assignmentRoutes = (await import("./routes/assignments")).default;
   const galleryRoutes = (await import("./routes/gallery")).default;
@@ -401,6 +402,7 @@ app.use("/api/v1/invoices", invoiceRoutes);
 app.use("/api/v1/finance", financeRoutes);
 app.use("/api/v1/finance/scholarships", scholarshipRoutes);
 app.use("/api/v1/finance/reconciliation", reconciliationRoutes);
+app.use("/api/v1/finance/cash", financeCashierRoutes);
 app.use("/api/v1/attendance", attendanceRoutes);
 app.use("/api/v1/gallery", uploadLimiter, galleryRoutes);
 app.use("/api/v1/users", userRoutes);

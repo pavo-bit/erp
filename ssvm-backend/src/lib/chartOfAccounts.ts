@@ -13,6 +13,7 @@ export const DEFAULT_CHART_OF_ACCOUNTS: DefaultAccountDefinition[] = [
   { code: "1020-CASH", name: "Cash in Hand", category: "ASSET", type: "CASH" },
   { code: "1200-AR", name: "Accounts Receivable (Students/Fees)", category: "ASSET", type: "RECEIVABLE" },
   { code: "2010-AP", name: "Accounts Payable (Vendors)", category: "LIABILITY", type: "PAYABLE" },
+  { code: "2100-ADV", name: "Student Advance Fee Deposits", category: "LIABILITY", type: "PAYABLE" },
   { code: "3010-RETAINED", name: "Retained Earnings", category: "EQUITY", type: "REVENUE" },
   { code: "4000-TUIT", name: "Tuition Fees Revenue", category: "REVENUE", type: "REVENUE" },
   { code: "4010-ADM", name: "Admission Fees Revenue", category: "REVENUE", type: "REVENUE" },

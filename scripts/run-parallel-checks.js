@@ -40,6 +40,22 @@ console.log(`Active Concurrency:  ${concurrency} simultaneous workers`);
 console.log(`Log Directory:       ${logDir}`);
 console.log('------------------------------------------------------------------------\n');
 
+// Common test environment variables
+const testEnv = {
+  ...process.env,
+  DATABASE_URL: 'postgresql://ssvm_app:app_pw@localhost:5433/ssvm_test?schema=public',
+  DATABASE_URL_TEST: 'postgresql://ssvm_app:app_pw@localhost:5433/ssvm_test?schema=public',
+  DATABASE_URL_TEST_FIXTURE: 'postgresql://ssvm_fixture:fixture_pw@localhost:5433/ssvm_test?schema=public',
+  DATABASE_URL_AUTH: 'postgresql://ssvm_auth:authpassword@localhost:5433/ssvm_test?schema=public',
+  DATABASE_URL_TRUSTED: 'postgresql://ssvm_trusted:trustedpassword@localhost:5433/ssvm_test?schema=public',
+  DATABASE_URL_ADMIN: 'postgresql://postgres:postgres@localhost:5433/postgres',
+  DIRECT_URL: 'postgresql://postgres:postgres@localhost:5433/ssvm_test?schema=public',
+  REDIS_URL_TEST: 'redis://localhost:6379/1',
+  REDIS_URL: 'redis://localhost:6379/1',
+  JWT_SECRET: 'test-jwt-secret-key-ssvm-college-square-test-environment-32chars',
+  NODE_OPTIONS: `${process.env.NODE_OPTIONS || ''} --preserve-symlinks --preserve-symlinks-main`.trim(),
+};
+
 // Task definitions
 const tasks = [
   // 1. Backend Type Check
@@ -134,16 +150,7 @@ const tasks = [
     cwd: path.join(rootDir, 'ssvm-backend'),
     command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
     args: ['vitest', 'run', 'src/tests/unit/'],
-    env: {
-      ...process.env,
-      DATABASE_URL: 'postgresql://ssvm_app:app_pw@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_TEST: 'postgresql://ssvm_app:app_pw@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_TEST_FIXTURE: 'postgresql://ssvm_fixture:fixture_pw@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_AUTH: 'postgresql://ssvm_auth:authpassword@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_TRUSTED: 'postgresql://ssvm_trusted:trustedpassword@localhost:5433/ssvm_test?schema=public',
-      REDIS_URL_TEST: 'redis://localhost:6379/1',
-      REDIS_URL: 'redis://localhost:6379/1',
-    },
+    env: { ...testEnv, VITEST_POOL_ID: 'unit' },
     mandatory: true,
   },
   // 5. Phase 3 Academic Integration Tests (Timetable, Report Card, Promotion)
@@ -160,16 +167,7 @@ const tasks = [
       'src/tests/api/academic-report-card.test.ts',
       'src/tests/api/academic-promotion.test.ts',
     ],
-    env: {
-      ...process.env,
-      DATABASE_URL: 'postgresql://ssvm_app:app_pw@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_TEST: 'postgresql://ssvm_app:app_pw@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_TEST_FIXTURE: 'postgresql://ssvm_fixture:fixture_pw@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_AUTH: 'postgresql://ssvm_auth:authpassword@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_TRUSTED: 'postgresql://ssvm_trusted:trustedpassword@localhost:5433/ssvm_test?schema=public',
-      REDIS_URL_TEST: 'redis://localhost:6379/1',
-      REDIS_URL: 'redis://localhost:6379/1',
-    },
+    env: { ...testEnv, VITEST_POOL_ID: 'acad' },
     mandatory: true,
   },
   // 6. Phase 2 Financial Tests (Refunds & Invariants)
@@ -180,24 +178,31 @@ const tasks = [
     cwd: path.join(rootDir, 'ssvm-backend'),
     command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
     args: ['vitest', 'run', 'src/tests/api/payments-refund.test.ts'],
-    env: {
-      ...process.env,
-      DATABASE_URL: 'postgresql://ssvm_app:app_pw@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_TEST: 'postgresql://ssvm_app:app_pw@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_TEST_FIXTURE: 'postgresql://ssvm_fixture:fixture_pw@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_AUTH: 'postgresql://ssvm_auth:authpassword@localhost:5433/ssvm_test?schema=public',
-      DATABASE_URL_TRUSTED: 'postgresql://ssvm_trusted:trustedpassword@localhost:5433/ssvm_test?schema=public',
-      REDIS_URL_TEST: 'redis://localhost:6379/1',
-      REDIS_URL: 'redis://localhost:6379/1',
-    },
+    env: { ...testEnv, VITEST_POOL_ID: 'fin' },
+    mandatory: true,
+  },
+  // 7. Phase 2 Addendum Cash Collection & Offline Payments (17 tests)
+  {
+    id: 'cash-collection-tests',
+    name: 'Cash Collection & Offline Payments (17 tests)',
+    category: 'INTEGRATION',
+    cwd: path.join(rootDir, 'ssvm-backend'),
+    command: process.platform === 'win32' ? 'npx.cmd' : 'npx',
+    args: ['vitest', 'run', 'src/tests/api/cash-collection.test.ts'],
+    env: { ...testEnv, VITEST_POOL_ID: 'cash' },
     mandatory: true,
   },
 ];
 
 const results = [];
 let activeWorkers = 0;
+let activeDbWorkers = 0;
 let queueIndex = 0;
 const startTime = Date.now();
+
+function isDbTask(task) {
+  return task.category === 'INTEGRATION' || task.category === 'UNIT_TESTS';
+}
 
 function runNext(resolve) {
   if (queueIndex >= tasks.length && activeWorkers === 0) {
@@ -206,8 +211,16 @@ function runNext(resolve) {
   }
 
   while (activeWorkers < concurrency && queueIndex < tasks.length) {
+    const nextTask = tasks[queueIndex];
+    if (isDbTask(nextTask) && activeDbWorkers > 0) {
+      break;
+    }
+
     const task = tasks[queueIndex++];
     activeWorkers++;
+    if (isDbTask(task)) {
+      activeDbWorkers++;
+    }
 
     const logFile = path.join(logDir, `${task.id}.log`);
     const logStream = fs.createWriteStream(logFile, { flags: 'w' });
@@ -227,6 +240,9 @@ function runNext(resolve) {
 
     child.on('close', (code) => {
       activeWorkers--;
+      if (isDbTask(task)) {
+        activeDbWorkers--;
+      }
       const durationMs = Date.now() - taskStart;
       const durationSec = (durationMs / 1000).toFixed(2);
       const passed = code === 0;
@@ -250,6 +266,9 @@ function runNext(resolve) {
 
     child.on('error', (err) => {
       activeWorkers--;
+      if (isDbTask(task)) {
+        activeDbWorkers--;
+      }
       const durationSec = ((Date.now() - taskStart) / 1000).toFixed(2);
       console.error(`[ERROR] ${task.name}: ${err.message}`);
       results.push({

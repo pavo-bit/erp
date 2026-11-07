@@ -169,6 +169,10 @@ export async function initWorkerDatabase(workerId: string): Promise<string> {
     return workerUrl;
   } catch (err: unknown) {
     console.warn("Notice: worker DB initialization fallback to base URL:", String(err));
-    return getBaseTestUrl();
+    const baseUrl = getBaseTestUrl();
+    process.env.DATABASE_URL = baseUrl;
+    process.env.DATABASE_URL_TEST = baseUrl;
+    process.env.DIRECT_URL = baseUrl;
+    return baseUrl;
   }
 }

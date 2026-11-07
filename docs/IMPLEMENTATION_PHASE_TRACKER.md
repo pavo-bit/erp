@@ -43,6 +43,15 @@
 - [x] Implement complete Bank Reconciliation service (`ssvm-backend/src/services/reconciliation.service.ts`) replacing 501 stub.
 - [x] Complete automated Financial Period Close workflow (`FinancialCloseService.ts`) preventing backdated ledger modifications.
 - [x] End-to-end refund lifecycle test suite (initiated -> processed -> journal entry reversed).
+- [x] **Phase 2 Addendum: Manual Cash Collection & Offline Payments**:
+  - [x] Migration `20261107160000_cash_collection_and_allocations` creating `fee_receipts`, `payment_allocations`, `student_advance_credits` with RLS forced and role grants.
+  - [x] Deterministic allocation engine supporting multi-invoice settlement, partial payments, and excess advance credits.
+  - [x] General Ledger double-entry posting: Debit `1020-CASH` / `1010-BANK`, Credit `4000-TUIT` / `1200-AR` / `2100-ADV` (`debits === credits`).
+  - [x] Official PDF receipt generation with institutional branding, amount in Indian English words, computer-generated disclaimer, and offline cryptographic QR code.
+  - [x] Duplicate reprint audit tracking with `DUPLICATE COPY` watermark.
+  - [x] Dedicated ERP Admin Fee Collection UI (`ERP Admin -> Finance -> Fee Collection -> Record Payment`).
+  - [x] Daily cash register & shift reconciliation reporting.
+  - [x] 17/17 integration tests passing in `cash-collection.test.ts`.
 
 ### Phase 3: Academic & Student Workflows (P1)
 - [x] Core models: `Class`, `Section`, `Subject`, `Attendance`, `Exam`, `StudentMark`.

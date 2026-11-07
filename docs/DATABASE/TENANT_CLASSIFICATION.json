@@ -1,11 +1,11 @@
 {
   "schema": "ssvm-backend/prisma/schema.prisma",
   "generatedBy": "ssvm-backend/scripts/generate-tenant-classification.cjs",
-  "modelCount": 208,
-  "directCount": 127,
+  "modelCount": 211,
+  "directCount": 130,
   "indirectCount": 50,
   "globalCount": 31,
-  "tenantModelsWithMigrations": 177,
+  "tenantModelsWithMigrations": 180,
   "tenantModelsMissingMigrations": 0,
   "verification": "UNVERIFIED",
   "score": 0,
@@ -2311,6 +2311,59 @@
       "score": 0
     },
     {
+      "model": "FeeReceipt",
+      "table": "fee_receipts",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "student",
+          "relatedModel": "Student",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "studentId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "paymentTransaction",
+          "relatedModel": "PaymentTransaction",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "paymentTransactionId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "allocations",
+          "relatedModel": "PaymentAllocation",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
       "model": "FeeStructure",
       "table": "fee_structures",
       "migrationCoverage": "PRESENT",
@@ -3243,6 +3296,13 @@
         {
           "relation": "transactions",
           "relatedModel": "PaymentTransaction",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "allocations",
+          "relatedModel": "PaymentAllocation",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
@@ -4645,6 +4705,63 @@
       "score": 0
     },
     {
+      "model": "PaymentAllocation",
+      "table": "payment_allocations",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "receipt",
+          "relatedModel": "FeeReceipt",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "receiptId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "invoice",
+          "relatedModel": "Invoice",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "invoiceId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "paymentTransaction",
+          "relatedModel": "PaymentTransaction",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "paymentTransactionId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
       "model": "PaymentTransaction",
       "table": "payment_transactions",
       "migrationCoverage": "PRESENT",
@@ -4667,6 +4784,20 @@
         {
           "relation": "FailedWebhook",
           "relatedModel": "FailedWebhook",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "receipts",
+          "relatedModel": "FeeReceipt",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "allocations",
+          "relatedModel": "PaymentAllocation",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
@@ -6289,6 +6420,27 @@
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
+        },
+        {
+          "relation": "feeReceipts",
+          "relatedModel": "FeeReceipt",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "paymentAllocations",
+          "relatedModel": "PaymentAllocation",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "advanceCredits",
+          "relatedModel": "StudentAdvanceCredit",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
         }
       ],
       "verification": "UNVERIFIED",
@@ -6779,6 +6931,20 @@
           "referencedFields": []
         },
         {
+          "relation": "feeReceipts",
+          "relatedModel": "FeeReceipt",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "advanceCredits",
+          "relatedModel": "StudentAdvanceCredit",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
           "relation": "branch",
           "relatedModel": "Branch",
           "cardinality": "one",
@@ -6839,6 +7005,41 @@
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "StudentAdvanceCredit",
+      "table": "student_advance_credits",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "student",
+          "relatedModel": "Student",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "studentId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
         }
       ],
       "verification": "UNVERIFIED",

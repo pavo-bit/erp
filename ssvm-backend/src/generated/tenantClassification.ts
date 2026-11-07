@@ -2300,6 +2300,59 @@ export const TENANT_CLASSIFICATION = {
     "verification": "UNVERIFIED",
     "score": 0
   },
+  "FeeReceipt": {
+    "model": "FeeReceipt",
+    "table": "fee_receipts",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "student",
+        "relatedModel": "Student",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "studentId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "paymentTransaction",
+        "relatedModel": "PaymentTransaction",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "paymentTransactionId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "allocations",
+        "relatedModel": "PaymentAllocation",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
   "FeeStructure": {
     "model": "FeeStructure",
     "table": "fee_structures",
@@ -3233,6 +3286,13 @@ export const TENANT_CLASSIFICATION = {
       {
         "relation": "transactions",
         "relatedModel": "PaymentTransaction",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "allocations",
+        "relatedModel": "PaymentAllocation",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
@@ -4634,6 +4694,63 @@ export const TENANT_CLASSIFICATION = {
     "verification": "UNVERIFIED",
     "score": 0
   },
+  "PaymentAllocation": {
+    "model": "PaymentAllocation",
+    "table": "payment_allocations",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "receipt",
+        "relatedModel": "FeeReceipt",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "receiptId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "invoice",
+        "relatedModel": "Invoice",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "invoiceId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "paymentTransaction",
+        "relatedModel": "PaymentTransaction",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "paymentTransactionId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
   "PaymentTransaction": {
     "model": "PaymentTransaction",
     "table": "payment_transactions",
@@ -4657,6 +4774,20 @@ export const TENANT_CLASSIFICATION = {
       {
         "relation": "FailedWebhook",
         "relatedModel": "FailedWebhook",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "receipts",
+        "relatedModel": "FeeReceipt",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "allocations",
+        "relatedModel": "PaymentAllocation",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
@@ -6279,6 +6410,27 @@ export const TENANT_CLASSIFICATION = {
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
+      },
+      {
+        "relation": "feeReceipts",
+        "relatedModel": "FeeReceipt",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "paymentAllocations",
+        "relatedModel": "PaymentAllocation",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "advanceCredits",
+        "relatedModel": "StudentAdvanceCredit",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
       }
     ],
     "verification": "UNVERIFIED",
@@ -6769,6 +6921,20 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": []
       },
       {
+        "relation": "feeReceipts",
+        "relatedModel": "FeeReceipt",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "advanceCredits",
+        "relatedModel": "StudentAdvanceCredit",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
         "relation": "branch",
         "relatedModel": "Branch",
         "cardinality": "one",
@@ -6829,6 +6995,41 @@ export const TENANT_CLASSIFICATION = {
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
+  "StudentAdvanceCredit": {
+    "model": "StudentAdvanceCredit",
+    "table": "student_advance_credits",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "student",
+        "relatedModel": "Student",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "studentId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
       }
     ],
     "verification": "UNVERIFIED",
@@ -8868,6 +9069,7 @@ export const TENANT_MODEL_NAMES = [
   "FailedWebhook",
   "FederatedUser",
   "FeeCategory",
+  "FeeReceipt",
   "FeeStructure",
   "FinancialApprovalPolicy",
   "FinancialAudit",
@@ -8919,6 +9121,7 @@ export const TENANT_MODEL_NAMES = [
   "NotificationTemplate",
   "OnboardingProgress",
   "OutboxMessage",
+  "PaymentAllocation",
   "PaymentTransaction",
   "PermissionGroup",
   "PipelineStage",
@@ -8951,6 +9154,7 @@ export const TENANT_MODEL_NAMES = [
   "StockLedger",
   "StorageObject",
   "Student",
+  "StudentAdvanceCredit",
   "StudentFinancialProjection",
   "StudentMark",
   "StudentTimeline",
@@ -9047,6 +9251,7 @@ export const TENANT_RLS_MODELS = [
   "FailedWebhook",
   "FederatedUser",
   "FeeCategory",
+  "FeeReceipt",
   "FeeStructure",
   "FinancialApprovalPolicy",
   "FinancialAudit",
@@ -9098,6 +9303,7 @@ export const TENANT_RLS_MODELS = [
   "NotificationTemplate",
   "OnboardingProgress",
   "OutboxMessage",
+  "PaymentAllocation",
   "PaymentTransaction",
   "PermissionGroup",
   "PipelineStage",
@@ -9130,6 +9336,7 @@ export const TENANT_RLS_MODELS = [
   "StockLedger",
   "StorageObject",
   "Student",
+  "StudentAdvanceCredit",
   "StudentFinancialProjection",
   "StudentMark",
   "StudentTimeline",
@@ -9226,6 +9433,7 @@ export const TENANT_RLS_TABLES = [
   "FailedWebhook",
   "FederatedUser",
   "fee_categories",
+  "fee_receipts",
   "fee_structures",
   "FinancialApprovalPolicy",
   "FinancialAudit",
@@ -9277,6 +9485,7 @@ export const TENANT_RLS_TABLES = [
   "notification_templates",
   "onboarding_progress",
   "OutboxMessage",
+  "payment_allocations",
   "payment_transactions",
   "permission_groups",
   "PipelineStage",
@@ -9309,6 +9518,7 @@ export const TENANT_RLS_TABLES = [
   "StockLedger",
   "storage_objects",
   "students",
+  "student_advance_credits",
   "StudentFinancialProjection",
   "student_marks",
   "student_timeline",
