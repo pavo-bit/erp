@@ -518,7 +518,8 @@ describe("Phase 2 Addendum: Manual Cash Collection, Offline Payments & Official 
   // 6. Daily Cash Register
   describe("6. Daily Cash Register and Shift Handover", () => {
     it("aggregates daily collections by cashier and payment mode", async () => {
-      const todayStr = new Date().toISOString().split("T")[0];
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
       const res = await request(app)
         .get(`/api/v1/finance/cash/daily-register?date=${todayStr}`)
         .set("Authorization", `Bearer ${accountantAToken}`);

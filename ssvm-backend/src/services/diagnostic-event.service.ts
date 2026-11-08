@@ -6,6 +6,9 @@
 import { z } from "zod";
 import crypto from "crypto";
 import logger from "../lib/logger";
+import prisma from "../lib/prisma";
+import { getRedisClient, isRedisAvailable } from "../lib/redis";
+import { runWithSchoolContext, runAsSuperAdmin } from "../middleware/school-context.middleware";
 import {
   DiagnosticEvent,
   DiagnosticEventSeverity,
@@ -23,7 +26,8 @@ export const diagnosticEventInputSchema = z.object({
   environment: z.string().default(process.env.NODE_ENV || "development"),
   severity: z.enum(["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"]).default("INFO"),
   errorCode: z.string().min(1),
-  sanitizedDescription: z.string().min(1),
+  sanitizedDescription: z.string().optional(),
+  rawDescription: z.string().optional(),
   requestId: z.string().nullable().optional(),
   traceId: z.string().nullable().optional(),
   correlationId: z.string().optional(),
@@ -32,12 +36,115 @@ export const diagnosticEventInputSchema = z.object({
   evidence: z.record(z.string(), z.any()).default({}),
   stateTransition: z.string().nullable().optional(),
   processingAttempt: z.number().int().min(1).default(1),
-});
+}).transform((data) => ({
+  ...data,
+  sanitizedDescription: data.sanitizedDescription || data.rawDescription || "Diagnostic event recorded",
+}));
 
 export class DiagnosticEventService {
   // In-memory ring buffer for low-latency diagnostic exploration (max 2,000 recent events)
   private static eventBuffer: DiagnosticEvent[] = [];
   private static readonly MAX_BUFFER_SIZE = 2000;
+  private static readonly REDIS_EVENTS_KEY = "shfi:events";
+
+  /**
+   * Persist diagnostic event durably to Redis and PostgreSQL.
+   */
+  public static async persistEvent(event: DiagnosticEvent): Promise<void> {
+    const serialized = JSON.stringify(event);
+
+    // 1. Redis ring list
+    try {
+      if (isRedisAvailable()) {
+        const redis = getRedisClient();
+        if (redis) {
+          await redis.lpush(this.REDIS_EVENTS_KEY, serialized);
+          await redis.ltrim(this.REDIS_EVENTS_KEY, 0, this.MAX_BUFFER_SIZE - 1);
+        }
+      }
+    } catch (err: any) {
+      logger.warn({ err: err.message, eventId: event.id }, "Failed to persist diagnostic event to Redis");
+    }
+
+    // 2. PostgreSQL system_logs for MEDIUM, HIGH, CRITICAL events
+    if (["MEDIUM", "HIGH", "CRITICAL"].includes(event.severity)) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `SELECT log_pre_tenant_system_log(
+             $1, $2, $3, $4,
+             CASE WHEN $5::text IS NOT NULL AND EXISTS (SELECT 1 FROM schools WHERE id = $5) THEN $5 ELSE NULL END,
+             $6
+           )`,
+          event.severity,
+          "SHFI_EVENT",
+          event.id,
+          serialized,
+          event.schoolId || null,
+          null
+        );
+      } catch (err: any) {
+        logger.warn({ err: err.message, eventId: event.id }, "Failed to persist diagnostic event to PostgreSQL");
+      }
+    }
+  }
+
+  /**
+   * Hydrate events from Redis or PostgreSQL on application startup.
+   */
+  public static async initialize(): Promise<number> {
+    let hydratedCount = 0;
+
+    // 1. Try Redis first
+    try {
+      if (isRedisAvailable()) {
+        const redis = getRedisClient();
+        if (redis) {
+          const rawList = await redis.lrange(this.REDIS_EVENTS_KEY, 0, this.MAX_BUFFER_SIZE - 1);
+          if (rawList && rawList.length > 0) {
+            for (const item of rawList) {
+              try {
+                const parsed = JSON.parse(item) as DiagnosticEvent;
+                if (!this.eventBuffer.some((e) => e.id === parsed.id)) {
+                  this.eventBuffer.push(parsed);
+                  hydratedCount++;
+                }
+              } catch (e) {}
+            }
+            logger.info({ hydratedCount }, "SHFI Diagnostic Events hydrated from Redis");
+            return hydratedCount;
+          }
+        }
+      }
+    } catch (err: any) {
+      logger.warn({ err: err.message }, "Failed to hydrate diagnostic events from Redis — falling back to database");
+    }
+
+    // 2. Fallback to PostgreSQL system_logs
+    try {
+      const rows = await (prisma as any).$transaction(async (tx: any) => {
+        await tx.$executeRawUnsafe(`SELECT set_config('app.trusted_purpose', 'ADMIN_AUDIT', true);`);
+        return tx.$queryRawUnsafe(
+          `SELECT metadata FROM system_logs WHERE module = 'SHFI_EVENT' ORDER BY "createdAt" DESC LIMIT 500`
+        );
+      });
+
+      for (const row of (rows as any[])) {
+        if (!row.metadata) continue;
+        try {
+          const parsed = JSON.parse(row.metadata) as DiagnosticEvent;
+          if (!this.eventBuffer.some((e) => e.id === parsed.id)) {
+            this.eventBuffer.push(parsed);
+            hydratedCount++;
+          }
+        } catch (e) {}
+      }
+      logger.info({ hydratedCount }, "SHFI Diagnostic Events hydrated from PostgreSQL");
+    } catch (err: any) {
+      logger.warn({ err: err.message }, "Failed to hydrate diagnostic events from PostgreSQL");
+    }
+
+    return hydratedCount;
+  }
 
   /**
    * Deep recursive sanitization of diagnostic payloads.
@@ -113,6 +220,9 @@ export class DiagnosticEventService {
     if (this.eventBuffer.length > this.MAX_BUFFER_SIZE) {
       this.eventBuffer.pop();
     }
+
+    // Persist durably
+    void this.persistEvent(event);
 
     logger.info(
       {

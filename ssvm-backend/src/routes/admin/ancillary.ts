@@ -2,12 +2,14 @@ import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../../lib/prisma';
 import { authenticate, AuthRequest, requireRole } from '../../middleware/auth';
+import { requireModule } from '../../middleware/moduleGuard';
 import logger from '../../lib/logger';
 import { Role } from '@prisma/client';
 
 const router = Router();
 
 router.use(authenticate);
+router.use('/hostel', requireModule('HOSTEL'));
 
 // =====================================
 // HOSTEL ERP

@@ -72,6 +72,11 @@ model School {
   auditLogs                                                             AuditLog[]
   bookIssues                                                            BookIssue[]
   books                                                                 Book[]
+  bookCopies                                                            BookCopy[]
+  borrowingPolicies                                                     BorrowingPolicy[]
+  bookRequests                                                          BookRequest[]
+  bookRenewals                                                          BookRenewal[]
+  libraryAuditEvents                                                    LibraryAuditEvent[]
   branches                                                              Branch[]
   brandSettings                                                         BrandSettings?
   bulkJobs                                                              BulkJob[]
@@ -520,6 +525,7 @@ model Student {
   StudentFinancialProjection StudentFinancialProjection?
   submissions                AssignmentSubmission[]
   attendance                 Attendance[]
+  bookRequests               BookRequest[]
   hostelAllocations          HostelAllocation[]
   incidentReports            IncidentReport[]
   invoices                   Invoice[]
@@ -1479,44 +1485,186 @@ model NotificationTemplate {
 }
 
 model Book {
-  id            String      @id @default(cuid())
-  schoolId      String
-  title         String
-  author        String
-  isbn          String?
-  publisher     String?
-  category      String      @default("General")
-  totalCopies   Int         @default(1)
-  available     Int         @default(1)
-  shelfLocation String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  issues        BookIssue[]
-  school        School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id              String        @id @default(cuid())
+  schoolId        String
+  title           String
+  author          String
+  isbn            String?
+  publisher       String?
+  category        String        @default("General")
+  subject         String?
+  language        String?       @default("English")
+  description     String?
+  edition         String?
+  publicationYear Int?
+  coverImage      String?
+  isArchived      Boolean       @default(false)
+  totalCopies     Int           @default(1)
+  available       Int           @default(1)
+  shelfLocation   String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  issues          BookIssue[]
+  copies          BookCopy[]
+  requests        BookRequest[]
+  school          School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, category])
   @@index([title])
   @@map("books")
 }
 
+model BookCopy {
+  id              String      @id @default(cuid())
+  schoolId        String
+  bookId          String
+  copyNumber      Int         @default(1)
+  accessionNumber String
+  barcode         String?
+  shelfLocation   String?
+  condition       String      @default("GOOD") // NEW, GOOD, FAIR, POOR, DAMAGED
+  status          String      @default("AVAILABLE") // AVAILABLE, ISSUED, RESERVED, UNDER_REPAIR, DAMAGED, LOST, WITHDRAWN
+  acquiredAt      DateTime?   @default(now())
+  price           Decimal?    @db.Decimal(10, 2)
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  book            Book        @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  school          School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  issues          BookIssue[]
+
+  @@unique([schoolId, accessionNumber])
+  @@index([schoolId, status])
+  @@index([bookId])
+  @@map("book_copies")
+}
+
+model BorrowingPolicy {
+  id                    String   @id @default(cuid())
+  schoolId              String
+  name                  String
+  targetGroup           String   @default("STUDENT") // STUDENT_PRIMARY, STUDENT_MIDDLE, STUDENT_SECONDARY, STUDENT_SENIOR, STUDENT, TEACHER, STAFF, ALL
+  maxActiveBooks        Int      @default(3)
+  maxDurationDays       Int      @default(14)
+  durationUnit          String   @default("CALENDAR_DAYS") // CALENDAR_DAYS, WORKING_DAYS
+  renewalAllowance      Boolean  @default(true)
+  maxRenewalCount       Int      @default(2)
+  renewalDurationDays   Int      @default(7)
+  dailyFineRate         Decimal  @default(5.00) @db.Decimal(10, 2)
+  gracePeriodDays       Int      @default(2)
+  countHolidays         Boolean  @default(false)
+  blockOverdueBorrowing Boolean  @default(true)
+  blockFineBorrowing    Boolean  @default(true)
+  allowReservations     Boolean  @default(true)
+  isDefault             Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  school                School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, targetGroup])
+  @@map("borrowing_policies")
+}
+
+model BookRequest {
+  id           String    @id @default(cuid())
+  schoolId     String
+  bookId       String
+  studentId    String
+  requestedAt  DateTime  @default(now())
+  status       String    @default("SUBMITTED") // SUBMITTED, UNDER_REVIEW, APPROVED, REJECTED, CANCELLED
+  reviewNotes  String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  book         Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status])
+  @@index([studentId])
+  @@index([bookId])
+  @@map("book_requests")
+}
+
 model BookIssue {
-  id         String    @id @default(cuid())
-  bookId     String
-  schoolId   String
-  userId     String
-  userType   String    @default("STUDENT")
-  issueDate  DateTime  @default(now())
-  dueDate    DateTime
-  returnDate DateTime?
-  status     String    @default("ISSUED")
-  fineAmount Float     @default(0)
-  createdAt  DateTime  @default(now())
-  book       Book      @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  school     School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id                    String        @id @default(cuid())
+  bookId                String
+  copyId                String?
+  schoolId              String
+  userId                String
+  userType              String        @default("STUDENT")
+  issueCardNumber       String?
+  issueDate             DateTime      @default(now())
+  dueDate               DateTime
+  returnDate            DateTime?
+  status                String        @default("ISSUED") // ISSUED, OVERDUE, RETURNED, RETURNED_DAMAGED, LOST, OTHER_RESOLVED
+  fineAmount            Float         @default(0)
+  fineWaived            Boolean       @default(false)
+  fineWaiveReason       String?
+  conditionOnReturn     String?       // GOOD, MINOR_DAMAGE, MAJOR_DAMAGE, LOST
+  damageNotes           String?
+  returnNotes           String?
+  issuedById            String?
+  receivedById          String?
+  renewalCount          Int           @default(0)
+  maxRenewalsAllowed    Int           @default(2)
+  overdueDaysCalculated Int           @default(0)
+  policySnapshot        Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @default(now()) @updatedAt
+
+  book                  Book          @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  copy                  BookCopy?     @relation(fields: [copyId], references: [id], onDelete: SetNull)
+  school                School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  renewals              BookRenewal[]
 
   @@index([schoolId, status])
   @@index([userId])
+  @@index([copyId])
   @@map("book_issues")
+}
+
+model BookRenewal {
+  id              String    @id @default(cuid())
+  schoolId        String
+  issueId         String
+  renewalNumber   Int
+  renewalDate     DateTime  @default(now())
+  previousDueDate DateTime
+  newDueDate      DateTime
+  renewedById     String?
+  reason          String?
+  createdAt       DateTime  @default(now())
+
+  issue           BookIssue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  school          School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([issueId])
+  @@index([schoolId])
+  @@map("book_renewals")
+}
+
+model LibraryAuditEvent {
+  id          String   @id @default(cuid())
+  schoolId    String
+  action      String   // ISSUE_BOOK, RETURN_BOOK, RENEW_BOOK, WAIVE_FINE, ASSESS_FINE, REPORT_LOST, ARCHIVE_BOOK
+  entityType  String   // Book, BookCopy, BookIssue, BorrowingPolicy
+  entityId    String
+  performedBy String
+  actorRole   String?
+  details     Json?
+  createdAt   DateTime @default(now())
+
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, action])
+  @@index([entityId])
+  @@map("library_audit_events")
 }
 
 model SystemBackup {

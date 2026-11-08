@@ -73,14 +73,18 @@
 - [x] **Metrics & Observability:**
   - Prometheus metrics exporter mounted at `/metrics` (request duration, status codes, active connections, queue depth).
   - Standardized health check probes mounted at `/api/v1/health` (liveness, readiness, deep storage read/write/unlink probes).
-  - Centralized System Health, Failure Investigation & Incident Management Centre (SHFI) with deterministic classification and 11-stage state machine.
+  - Centralized System Health, Failure Investigation & Incident Management Centre (SHFI) with deterministic classification and durable Redis + PostgreSQL `system_logs` persistence surviving container restarts.
 - [x] **Fault Tolerance & Circuit Breaking:**
   - Circuit breaker protects backend from cascading failures when third-party gateways (Razorpay, SMS) are degraded.
   - Failed background jobs automatically routed to Dead Letter Queue (DLQ) with retry metadata.
-- [x] **Automated Backup & Disaster Recovery (DR):**
+- [x] **Automated Backup & Disaster Recovery (DR) & PITR:**
   - Daily automated PostgreSQL backup script configured.
-  - Automated restore test script (`scripts/dr-test.js`) verifies database recovery from backup against an isolated ephemeral database.
-  - Verified RTO of 6.45s (SLA < 120m) and RPO of 20ms (SLA < 15m) across all 205 tables.
+  - Automated restore test script (`scripts/dr-test.js`) verifies database recovery from backup against an isolated ephemeral database across all 208 physical tables (RTO: 6.55s, RPO: 374ms).
+  - Local PostgreSQL WAL Archiving and Point-In-Time Recovery harness (`scripts/wal-pitr-test.js`) verified with zero transaction loss at target LSN (RTO: 170ms, RPO: 1537ms).
+- [x] **Fail-Closed Environment Validation:**
+  - Multi-profile CLI validator (`scripts/validate-env.js`) enforces strict non-default secrets, valid encryption keys, and masked logging across development, test, pilot, and production profiles.
+- [x] **Operational Runbooks:**
+  - 6 production runbooks in `docs/runbooks/` covering SHFI response, DB restore, outages, security incidents, deployment, and queues.
 - [x] **Database Connection Pool Sizing:**
   - PgBouncer configured to manage application connection concurrency safely within PostgreSQL limits.
 

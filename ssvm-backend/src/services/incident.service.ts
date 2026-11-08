@@ -5,6 +5,9 @@
 
 import crypto from "crypto";
 import logger from "../lib/logger";
+import prisma from "../lib/prisma";
+import { getRedisClient, isRedisAvailable } from "../lib/redis";
+import { runWithSchoolContext, runAsSuperAdmin } from "../middleware/school-context.middleware";
 import {
   PlatformIncident,
   DiagnosticEvent,
@@ -20,6 +23,107 @@ export class IncidentService {
 
   // Deduplication window in milliseconds (15 minutes)
   private static readonly DEDUPLICATION_WINDOW_MS = 15 * 60 * 1000;
+
+  private static readonly REDIS_INCIDENTS_KEY = "shfi:incidents";
+
+  /**
+   * Persist incident state durably to Redis and PostgreSQL system_logs.
+   * Multi-instance safe and restart-durable.
+   */
+  public static async persistIncident(incident: PlatformIncident): Promise<void> {
+    const serialized = JSON.stringify(incident);
+
+    // 1. Redis durable cache
+    try {
+      if (isRedisAvailable()) {
+        const redis = getRedisClient();
+        if (redis) {
+          await redis.hset(this.REDIS_INCIDENTS_KEY, incident.id, serialized);
+        }
+      }
+    } catch (err: any) {
+      logger.warn({ err: err.message, incidentId: incident.id }, "Failed to persist incident to Redis");
+    }
+
+    // 2. PostgreSQL durable system_logs backing via SECURITY DEFINER function
+    try {
+      await prisma.$executeRawUnsafe(
+        `SELECT log_pre_tenant_system_log(
+           $1, $2, $3, $4,
+           CASE WHEN $5::text IS NOT NULL AND EXISTS (SELECT 1 FROM schools WHERE id = $5) THEN $5 ELSE NULL END,
+           $6
+         )`,
+        incident.severity,
+        "SHFI_INCIDENT",
+        incident.id,
+        serialized,
+        incident.schoolId || null,
+        null
+      );
+    } catch (err: any) {
+      logger.warn({ err: err.message, incidentId: incident.id }, "Failed to persist incident to PostgreSQL");
+    }
+  }
+
+  /**
+   * Hydrate incidents from Redis or PostgreSQL on application startup.
+   */
+  public static async initialize(): Promise<number> {
+    let hydratedCount = 0;
+
+    // 1. Attempt hydration from Redis hash
+    try {
+      if (isRedisAvailable()) {
+        const redis = getRedisClient();
+        if (redis) {
+          const rawEntries = await redis.hgetall(this.REDIS_INCIDENTS_KEY);
+          if (rawEntries && Object.keys(rawEntries).length > 0) {
+            for (const [id, rawJson] of Object.entries(rawEntries)) {
+              try {
+                const parsed = JSON.parse(rawJson) as PlatformIncident;
+                this.incidentMap.set(id, parsed);
+                hydratedCount++;
+              } catch (parseErr) {
+                logger.warn({ id, parseErr }, "Corrupted incident JSON in Redis");
+              }
+            }
+            logger.info({ hydratedCount }, "SHFI Incidents hydrated from Redis cache");
+            return hydratedCount;
+          }
+        }
+      }
+    } catch (err: any) {
+      logger.warn({ err: err.message }, "Failed to hydrate incidents from Redis — falling back to database");
+    }
+
+    // 2. Fallback hydration from PostgreSQL system_logs
+    try {
+      const rows = await (prisma as any).$transaction(async (tx: any) => {
+        await tx.$executeRawUnsafe(`SELECT set_config('app.trusted_purpose', 'ADMIN_AUDIT', true);`);
+        return tx.$queryRawUnsafe(
+          `SELECT metadata FROM system_logs WHERE module = 'SHFI_INCIDENT' ORDER BY "createdAt" DESC LIMIT 1000`
+        );
+      });
+
+      for (const row of (rows as any[])) {
+        if (!row.metadata) continue;
+        try {
+          const parsed = JSON.parse(row.metadata) as PlatformIncident;
+          if (!this.incidentMap.has(parsed.id)) {
+            this.incidentMap.set(parsed.id, parsed);
+            hydratedCount++;
+          }
+        } catch (e) {
+          // Ignore malformed log entry
+        }
+      }
+      logger.info({ hydratedCount }, "SHFI Incidents hydrated from PostgreSQL system_logs");
+    } catch (err: any) {
+      logger.warn({ err: err.message }, "Failed to hydrate incidents from PostgreSQL");
+    }
+
+    return hydratedCount;
+  }
 
   /**
    * Process an incoming diagnostic event:
@@ -71,6 +175,7 @@ export class IncidentService {
         { incidentId: existing.id, eventCount: existing.eventCount, eventId: event.id },
         "Deduplicated diagnostic event onto existing incident"
       );
+      void this.persistIncident(existing);
       return existing;
     }
 
@@ -127,6 +232,7 @@ export class IncidentService {
       "New SHFI incident opened"
     );
 
+    void this.persistIncident(newIncident);
     return newIncident;
   }
 
@@ -190,6 +296,7 @@ export class IncidentService {
     };
 
     this.incidentMap.set(incidentId, incident);
+    void this.persistIncident(incident);
     return incident;
   }
 
@@ -265,6 +372,7 @@ export class IncidentService {
       metadata,
     });
 
+    void this.persistIncident(incident);
     return incident;
   }
 
@@ -304,6 +412,7 @@ export class IncidentService {
       metadata: assignedTo,
     });
 
+    void this.persistIncident(incident);
     return incident;
   }
 
@@ -337,6 +446,7 @@ export class IncidentService {
       metadata: { reason },
     });
 
+    void this.persistIncident(incident);
     return incident;
   }
 

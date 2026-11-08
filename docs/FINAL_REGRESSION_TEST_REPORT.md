@@ -56,3 +56,4 @@ To achieve sustained 40–60% CPU utilization without memory exhaustion on the h
 1. **Ephemeral Disaster Recovery Testing:** `scripts/dr-test.js` connects as database administrator, creates an ephemeral database (`ssvm_dr_verify_<timestamp>`), executes restore verification, validates table counts, and drops the database in the `finally` block. This guarantees zero contamination of the baseline test database.
 2. **Fail-Closed Tenant Transactions:** All multi-invoice, cash payment, and payroll integration tests run within `runWithTenantDatabaseTransaction(schoolId, async (tx) => { ... })`. Mismatched tenant transactions fail closed before any SQL write is sent to PostgreSQL.
 3. **Sequential Receipts Testing:** Concurrent test requests to `CashCollectionService.recordCashPayment` confirmed atomic increment of `SequenceCounter`, ensuring receipts never collide under parallel test execution.
+

@@ -104,3 +104,4 @@ At the end of each business day:
 - **Disaster Recovery:** Cold restore verified across 205–208 tables.
 - **Frontend Portals:** 7/7 portals typecheck clean with real API integrations.
 - **Action Required for Public Production:** Supply third-party production credentials (Razorpay live keys, AWS S3 bucket, SMS provider) as detailed in `FINAL_RELEASE_BLOCKER_REGISTER.md`.
+

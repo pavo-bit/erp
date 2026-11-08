@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { Activity, BarChart3, TrendingUp, Users, ShieldAlert, CheckCircle2 } from "lucide-react";
 import { useSaasMetrics, useShfiOverview } from "@/lib/api";
+import GrafanaDashboardSection from "@/components/GrafanaDashboardSection";
 
 export default function AnalyticsPage() {
   const { data: metricsData, isLoading: metricsLoading } = useSaasMetrics();
@@ -89,6 +90,9 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* Embedded Live Grafana Telemetry Suite */}
+      <GrafanaDashboardSection />
     </div>
   );
 }

@@ -112,6 +112,17 @@ export async function createApp(): Promise<Express> {
   const { generateSpec } = await import("./openapi/generate");
   const { isRedisAvailable } = await import("./lib/redis");
   const prisma = (await import("./lib/prisma")).default;
+  const { IncidentService } = await import("./services/incident.service");
+  const { DiagnosticEventService } = await import("./services/diagnostic-event.service");
+
+  try {
+    await Promise.all([
+      IncidentService.initialize(),
+      DiagnosticEventService.initialize(),
+    ]);
+  } catch (err: any) {
+    logger.warn({ err: err?.message }, "Non-fatal error hydrating SHFI state on startup");
+  }
 
 const httpRequestDurationMicroseconds = new client.Histogram({
   name: 'ssvm_http_request_duration_seconds',
@@ -405,6 +416,7 @@ app.use("/api/v1/finance", financeRoutes);
 app.use("/api/v1/finance/scholarships", scholarshipRoutes);
 app.use("/api/v1/finance/reconciliation", reconciliationRoutes);
 app.use("/api/v1/finance/cash", financeCashierRoutes);
+app.use("/api/v1/finance/fee-collection", financeCashierRoutes);
 app.use("/api/v1/attendance", attendanceRoutes);
 app.use("/api/v1/gallery", uploadLimiter, galleryRoutes);
 app.use("/api/v1/users", userRoutes);
@@ -491,6 +503,7 @@ app.get("/api/docs/spec.json", (req, res) => {
 app.get("/metrics", getMetrics);
 
 // Admin Routes
+app.use("/api/v1/admin/transport", transportRoutes);
 app.use("/api/v1/admin/queues", bullBoardRoutes);
 app.use("/api/v1/admin/backups", backupsRoutes);
 app.use("/api/v1/admin/audit", auditRoutes);

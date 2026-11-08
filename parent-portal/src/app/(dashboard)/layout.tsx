@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import useSWR from "swr";
 import { 
   LayoutDashboard, 
   CalendarCheck, 
@@ -15,18 +16,26 @@ import {
   Menu,
   X,
   UserCircle,
-  Shield
+  Shield,
+  Bus
 } from "lucide-react";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
+  // Dynamic modular entitlement resolution
+  const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((r) => r.json()).then((d) => d.data ?? d);
+  const { data: moduleData } = useSWR("/api/v1/schools/me/modules", fetcher);
+
+  const isTransportEnabled = moduleData?.modules?.some((m: any) => m.module?.code === "TRANSPORT" && m.isEnabled) ?? true;
+
   const navItems = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Attendance", href: "/attendance", icon: CalendarCheck },
     { name: "Results & Marks", href: "/results", icon: GraduationCap },
     { name: "Fees & Invoices", href: "/fees", icon: Wallet },
+    ...(isTransportEnabled ? [{ name: "Transport & Bus", href: "/transport", icon: Bus }] : []),
     { name: "Assignments", href: "/assignments", icon: BookOpen },
     { name: "Behavior", href: "/behavior", icon: Shield },
     { name: "Timetable", href: "/timetable", icon: Calendar },

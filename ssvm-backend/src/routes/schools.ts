@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireSuperAdmin, requireAllowedIp } from "../middleware/auth";
+import { ModuleRegistryService } from "../services/module-registry.service";
 import { seedDefaultChartOfAccounts } from "../lib/chartOfAccounts";
 
 const router = Router();
@@ -20,6 +21,32 @@ router.get("/", authenticate, requireSuperAdmin(), async (_req: AuthRequest, res
     res.json({ success: true, data: schools });
   } catch (e) {
     logger.error({ err: e }, "List schools error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/v1/schools/me/modules — Get current school's entitled and active modules
+router.get("/me/modules", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user?.schoolId || (req.headers['x-school-id'] as string) || (req.headers['x-tenant-id'] as string);
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School context required" });
+      return;
+    }
+
+    const entitlements = await ModuleRegistryService.getSchoolEntitlements(schoolId);
+    const registry = ModuleRegistryService.getAllModules();
+
+    res.json({
+      success: true,
+      data: {
+        schoolId,
+        modules: entitlements,
+        registry,
+      },
+    });
+  } catch (e: any) {
+    logger.error({ err: e }, "Get school modules error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });

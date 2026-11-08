@@ -3,6 +3,7 @@ import request from "supertest";
 import { Role, Prisma } from "@prisma/client";
 import { createTestApp, getTestPrisma, createTestUser, createTestSchool } from "../helpers/testApp";
 import { seedDefaultChartOfAccounts } from "../../lib/chartOfAccounts";
+import { ModuleRegistryService } from "../../services/module-registry.service";
 
 const app = createTestApp();
 const prisma = getTestPrisma();
@@ -23,6 +24,11 @@ describe("Master Execution Verification: Business Modules Completion (Phases 2, 
     const school = await createTestSchool();
     schoolId = school.id;
     await seedDefaultChartOfAccounts(prisma, schoolId);
+    await ModuleRegistryService.setSchoolModules(
+      schoolId,
+      { TRANSPORT: true, LIBRARY: true },
+      'TEST_SETUP'
+    );
 
     // 2. Setup Users
     const admin = await createTestUser(Role.ERP_ADMIN, schoolId);

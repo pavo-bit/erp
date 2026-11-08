@@ -10,12 +10,38 @@ const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((r)
 
 export default function TransportTrackingPage() {
   const { user } = useAuth();
-  const { data: allocationsData, isLoading } = useSWR("/api/v1/transport/allocations", fetcher);
+  const { data: moduleData } = useSWR("/api/v1/schools/me/modules", fetcher);
+  const { data: allocationsData, error: allocError, isLoading } = useSWR("/api/v1/transport/allocations", fetcher);
+
+  // Check Scenario 1: School does not have Transport module enabled
+  const isTransportDisabled =
+    moduleData?.modules?.some((m: any) => m.module?.code === "TRANSPORT" && !m.isEnabled) ||
+    allocError?.code === "MODULE_DISABLED";
 
   const allocations = Array.isArray(allocationsData) ? allocationsData : [];
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const activeAllocation = allocations[selectedIndex];
+  const vehicleId = activeAllocation?.stop?.route?.vehicleId || activeAllocation?.stop?.route?.vehicle?.id || activeAllocation?.vehicle?.id;
+
+  // Poll live GPS telemetry every 5 seconds when vehicle assigned
+  const { data: liveLocation } = useSWR(
+    vehicleId ? `/api/v1/transport/vehicles/${vehicleId}/location` : null,
+    fetcher,
+    { refreshInterval: 5000 }
+  );
+
+  if (isTransportDisabled) {
+    return (
+      <div className="p-12 text-center glass-card border border-amber-200 dark:border-amber-800 rounded-3xl max-w-lg mx-auto mt-10">
+        <div className="text-5xl mb-3">🚫</div>
+        <h3 className="text-lg font-bold text-amber-800 dark:text-amber-200">Transport Service Not Subscribed</h3>
+        <p className="text-sm text-slate-500 mt-2">
+          Your school has not enabled the Transport & Fleet GPS module. Please contact the school administrative office for transport inquiries.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -70,8 +96,13 @@ export default function TransportTrackingPage() {
               </motion.div>
               <h3 className="text-lg font-bold">Route Active</h3>
               <p className="text-sm text-slate-500 max-w-xs mx-auto mt-2">
-                Bus {activeAllocation?.vehicle?.registrationNo || "Assigned Vehicle"} - Route {activeAllocation?.route?.name || "School Commute"}
+                Bus {activeAllocation?.stop?.route?.vehicle?.registrationNumber || activeAllocation?.vehicle?.registrationNo || "Assigned Vehicle"} - Route {activeAllocation?.stop?.route?.name || activeAllocation?.route?.name || "School Commute"}
               </p>
+              {liveLocation && (
+                <div className="mt-3 text-xs font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 py-1.5 px-3 rounded-full inline-block border border-emerald-200 dark:border-emerald-800">
+                  Live GPS: {Number(liveLocation.latitude).toFixed(4)}°, {Number(liveLocation.longitude).toFixed(4)}° | {liveLocation.speed ?? 0} km/h
+                </div>
+              )}
             </div>
           </div>
 

@@ -107,6 +107,11 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
     return next();
   }
 
+  // Machine-to-machine IoT telemetry requests carrying X-Device-Token or targeting telemetry endpoints
+  if ((req.headers["x-device-token"] || req.path.endsWith("/telemetry")) && !hasAuthCookie) {
+    return next();
+  }
+
   // Validate CSRF token using doubleCsrfProtection
   doubleCsrfProtection(req, res, (err) => {
     if (err && err === invalidCsrfTokenError) {

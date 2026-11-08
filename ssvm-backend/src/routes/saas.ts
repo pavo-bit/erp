@@ -8,6 +8,7 @@ import { saasRequestLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
 import { hashPassword } from "../middleware/auth";
 import { seedDefaultChartOfAccounts } from "../lib/chartOfAccounts";
+import { ModuleRegistryService } from "../services/module-registry.service";
 
 const router = Router();
 
@@ -408,6 +409,73 @@ router.get("/metrics", authenticate, requireRole("SUPER_ADMIN"), async (_req, re
   } catch (error: any) {
     console.error("Super Admin Metrics Error:", error);
     res.status(500).json({ success: false, error: "Failed to fetch platform metrics" });
+  }
+});
+
+// =====================================
+// MODULAR SAAS ENTITLEMENTS (SUPER ADMIN)
+// =====================================
+
+// GET /api/v1/saas/modules/registry — Central Module Registry
+router.get("/modules/registry", authenticate, requireRole("SUPER_ADMIN"), async (_req, res) => {
+  try {
+    const modules = ModuleRegistryService.getAllModules();
+    res.json({ success: true, data: modules });
+  } catch (error: any) {
+    console.error("Fetch module registry error:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch module registry" });
+  }
+});
+
+// GET /api/v1/saas/schools/:id/modules — School module entitlements
+router.get("/schools/:id/modules", authenticate, requireRole("SUPER_ADMIN"), async (req, res) => {
+  try {
+    const schoolId = req.params.id as string;
+    const entitlements = await ModuleRegistryService.getSchoolEntitlements(schoolId);
+    const registry = ModuleRegistryService.getAllModules();
+    res.json({
+      success: true,
+      data: {
+        schoolId,
+        modules: entitlements,
+        registry,
+      },
+    });
+  } catch (error: any) {
+    console.error("Fetch school modules error:", error);
+    res.status(500).json({ success: false, error: "Failed to fetch school modules" });
+  }
+});
+
+// PUT /api/v1/saas/schools/:id/modules — Update school module entitlement
+router.put("/schools/:id/modules", authenticate, requireRole("SUPER_ADMIN"), async (req, res) => {
+  try {
+    const schoolId = req.params.id as string;
+    const { modules, moduleId, enabled } = req.body;
+
+    if (modules && typeof modules === "object") {
+      for (const [modId, isEnabled] of Object.entries(modules)) {
+        await ModuleRegistryService.setSchoolEntitlement(schoolId, modId, Boolean(isEnabled));
+      }
+    } else if (moduleId !== undefined && enabled !== undefined) {
+      await ModuleRegistryService.setSchoolEntitlement(schoolId, moduleId, Boolean(enabled));
+    } else {
+      res.status(400).json({ success: false, error: "Invalid payload: provide 'modules' object or 'moduleId' and 'enabled'" });
+      return;
+    }
+
+    const updated = await ModuleRegistryService.getSchoolEntitlements(schoolId);
+    res.json({
+      success: true,
+      message: "School module entitlements updated successfully",
+      data: {
+        schoolId,
+        modules: updated,
+      },
+    });
+  } catch (error: any) {
+    console.error("Update school modules error:", error);
+    res.status(400).json({ success: false, error: error.message || "Failed to update school modules" });
   }
 });
 
