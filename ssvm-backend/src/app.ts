@@ -104,6 +104,8 @@ export async function createApp(): Promise<Express> {
   const ledgerTransactionsRoutes = (await import("./routes/admin/ledgerTransactions")).default;
   const billingRoutes = (await import("./routes/admin/billing")).default;
   const payrollRoutes = (await import("./routes/admin/payroll")).default;
+  const importRoutes = (await import("./routes/admin/import")).default;
+  const admissionsBulkRoutes = (await import("./routes/admin/admissions-bulk")).default;
   const resultsRoutes = (await import("./routes/results")).default;
   const shfiRoutes = (await import("./routes/admin/shfi")).default;
   const supportRoutes = (await import("./routes/support")).default;
@@ -517,6 +519,10 @@ app.use("/api/v1/admin/ledger/accounts", ledgerAccountsRoutes);
 app.use("/api/v1/admin/ledger/transactions", ledgerTransactionsRoutes);
 app.use("/api/v1/admin/billing", billingRoutes);
 app.use("/api/v1/admin/payroll", payrollRoutes);
+app.use("/api/v1/admin/import", importRoutes);
+app.use("/api/v1/import", importRoutes);
+app.use("/api/v1/admin/admissions/bulk", admissionsBulkRoutes);
+app.use("/api/v1/admissions/bulk", admissionsBulkRoutes);
 app.use("/api/v1/backups", backupRoutes);
 
 // ═══════════════════════════════════════════

@@ -18,7 +18,7 @@ router.get("/", async (req, res: Response) => {
     const result = await paginatedQuery(
       prisma.alumni,
       where,
-      { user: { select: { id: true, name: true, email: true, avatar: true } }, contributions: { orderBy: { date: "desc" }, take: 5 } },
+      { user: { select: { id: true, name: true, avatar: true } }, contributions: { orderBy: { date: "desc" }, take: 5 } },
       paginationParams
     );
     res.json(result);
@@ -26,7 +26,7 @@ router.get("/", async (req, res: Response) => {
 });
 
 // Admin updates alumni
-router.put("/", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.put("/", authenticate, requireRole("ERP_ADMIN", "SUPER_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
     const { id, isFeatured, currentRole, company, achievement } = req.body;
     if (!id) { res.status(400).json({ success: false, error: "ID required" }); return; }
@@ -46,7 +46,7 @@ router.get("/contributions", async (req, res: Response) => {
   } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
 });
 
-router.post("/contributions", authenticate, requireRole("ADMIN", "ALUMNI"), async (req: AuthRequest, res: Response) => {
+router.post("/contributions", authenticate, requireRole("ERP_ADMIN", "SUPER_ADMIN", "ALUMNI"), async (req: AuthRequest, res: Response) => {
   try {
     const { alumniId, amount, purpose, date } = req.body;
     if (!alumniId || !amount || !purpose) { res.status(400).json({ success: false, error: "Required fields missing" }); return; }

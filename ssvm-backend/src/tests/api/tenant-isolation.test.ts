@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { Role } from "@prisma/client";
 import { createTestApp, getTestPrisma, createTestUser, createTestSchool } from "../helpers/testApp";
+import { ModuleRegistryService } from "../../services/module-registry.service";
 
 const app = createTestApp();
 const prisma = getTestPrisma();
@@ -54,6 +55,10 @@ describe("Multi-Tenant Isolation across Core Modules (Restricted Role)", () => {
     const schoolB = await createTestSchool();
     schoolAId = schoolA.id;
     schoolBId = schoolB.id;
+
+    // Enable LIBRARY module for tenant schools in this suite
+    await ModuleRegistryService.setSchoolEntitlement(schoolAId, "LIBRARY", true, "SUPER_ADMIN");
+    await ModuleRegistryService.setSchoolEntitlement(schoolBId, "LIBRARY", true, "SUPER_ADMIN");
 
     // 2. Users
     const adminA = await createTestUser(Role.ERP_ADMIN, schoolAId);

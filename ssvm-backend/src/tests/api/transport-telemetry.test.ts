@@ -9,6 +9,7 @@ import request from "supertest";
 import { createTestApp, createTestUser, getTestPrisma } from "../helpers/testApp";
 import { Role } from "@prisma/client";
 import { generateVehicleHardwareToken, vehicleTelemetryStore } from "../../routes/admin/transport";
+import { ModuleRegistryService } from "../../services/module-registry.service";
 
 describe("Transport Telemetry & Hardware Device Authentication", () => {
   const prisma = getTestPrisma();
@@ -35,6 +36,9 @@ describe("Transport Telemetry & Hardware Device Authentication", () => {
         { id: schoolBId, name: "Transport Test School B", code: `TSB-${Date.now()}` },
       ],
     });
+
+    await ModuleRegistryService.setSchoolModules(schoolAId, { TRANSPORT: true }, 'TEST_SETUP');
+    await ModuleRegistryService.setSchoolModules(schoolBId, { TRANSPORT: true }, 'TEST_SETUP');
 
     const superAdmin = await createTestUser(Role.SUPER_ADMIN);
     superAdminToken = superAdmin.token;

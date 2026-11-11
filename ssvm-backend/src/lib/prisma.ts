@@ -127,7 +127,11 @@ function asRecord(value: unknown): UnknownRecord | undefined {
 }
 
 function getTenantClassification(modelName: string) {
-  return TENANT_CLASSIFICATION[modelName as keyof typeof TENANT_CLASSIFICATION];
+  if (!modelName) return undefined;
+  const direct = TENANT_CLASSIFICATION[modelName as keyof typeof TENANT_CLASSIFICATION];
+  if (direct) return direct;
+  const normalized = modelName.charAt(0).toUpperCase() + modelName.slice(1);
+  return TENANT_CLASSIFICATION[normalized as keyof typeof TENANT_CLASSIFICATION];
 }
 
 function buildTenantWhere(modelName: string, schoolId: string): UnknownRecord {

@@ -1,6 +1,5 @@
 import prisma, { runWithTenantDatabaseTransaction } from '../lib/prisma';
 import crypto from "crypto";
-import { getTrustedPrisma } from "../lib/trustedPrisma";
 import { Router } from "express";
 
 import { authenticate, requireRole } from "../middleware/auth";

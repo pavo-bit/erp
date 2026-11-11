@@ -125,6 +125,7 @@ process.env.ACCESS_TOKEN_PUBLIC_KEY = publicKey;
 process.env.REFRESH_TOKEN_PRIVATE_KEY = privateKey;
 process.env.REFRESH_TOKEN_PUBLIC_KEY = publicKey;
 process.env.FIELD_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+process.env.DEVICE_TOKEN_SECRET = 'test-device-token-secret-for-hardware';
 process.env.RAZORPAY_KEY_ID = 'rzp_test_codex';
 process.env.RAZORPAY_KEY_SECRET = crypto.randomBytes(32).toString('hex');
 process.env.RAZORPAY_WEBHOOK_SECRET = crypto.randomBytes(32).toString('hex');

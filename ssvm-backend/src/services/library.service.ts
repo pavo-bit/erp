@@ -6,7 +6,7 @@
  */
 
 import { PrismaClient, Prisma } from "@prisma/client";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 
 export interface BookCatalogueInput {
@@ -56,69 +56,74 @@ export class LibraryService {
 
     // Seed default baseline policies if none configured
     if (policies.length === 0) {
-      const defaultPolicies = [
-        {
-          name: "Standard Student Policy",
-          targetGroup: "STUDENT",
-          maxActiveBooks: 3,
-          maxDurationDays: 14,
-          durationUnit: "CALENDAR_DAYS",
-          renewalAllowance: true,
-          maxRenewalCount: 2,
-          renewalDurationDays: 7,
-          dailyFineRate: new Prisma.Decimal(5.0),
-          gracePeriodDays: 2,
-          countHolidays: false,
-          blockOverdueBorrowing: true,
-          blockFineBorrowing: true,
-          allowReservations: true,
-          isDefault: true,
-        },
-        {
-          name: "Primary Wing Policy (Classes 1-5)",
-          targetGroup: "STUDENT_PRIMARY",
-          maxActiveBooks: 2,
-          maxDurationDays: 7,
-          durationUnit: "CALENDAR_DAYS",
-          renewalAllowance: true,
-          maxRenewalCount: 1,
-          renewalDurationDays: 5,
-          dailyFineRate: new Prisma.Decimal(2.0),
-          gracePeriodDays: 3,
-          countHolidays: false,
-          blockOverdueBorrowing: true,
-          blockFineBorrowing: false,
-          allowReservations: true,
-          isDefault: false,
-        },
-        {
-          name: "Faculty & Staff Borrowing Policy",
-          targetGroup: "TEACHER",
-          maxActiveBooks: 10,
-          maxDurationDays: 30,
-          durationUnit: "CALENDAR_DAYS",
-          renewalAllowance: true,
-          maxRenewalCount: 3,
-          renewalDurationDays: 15,
-          dailyFineRate: new Prisma.Decimal(0.0),
-          gracePeriodDays: 5,
-          countHolidays: false,
-          blockOverdueBorrowing: false,
-          blockFineBorrowing: false,
-          allowReservations: true,
-          isDefault: false,
-        },
-      ];
+      policies = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+        const existing = await tx.borrowingPolicy.findMany({ where: { schoolId }, orderBy: { createdAt: "asc" } });
+        if (existing.length > 0) return existing;
 
-      for (const p of defaultPolicies) {
-        await prisma.borrowingPolicy.create({
-          data: { ...p, schoolId },
+        const defaultPolicies = [
+          {
+            name: "Standard Student Policy",
+            targetGroup: "STUDENT",
+            maxActiveBooks: 3,
+            maxDurationDays: 14,
+            durationUnit: "CALENDAR_DAYS",
+            renewalAllowance: true,
+            maxRenewalCount: 2,
+            renewalDurationDays: 7,
+            dailyFineRate: new Prisma.Decimal(5.0),
+            gracePeriodDays: 2,
+            countHolidays: false,
+            blockOverdueBorrowing: true,
+            blockFineBorrowing: true,
+            allowReservations: true,
+            isDefault: true,
+          },
+          {
+            name: "Primary Wing Policy (Classes 1-5)",
+            targetGroup: "STUDENT_PRIMARY",
+            maxActiveBooks: 2,
+            maxDurationDays: 7,
+            durationUnit: "CALENDAR_DAYS",
+            renewalAllowance: true,
+            maxRenewalCount: 1,
+            renewalDurationDays: 5,
+            dailyFineRate: new Prisma.Decimal(2.0),
+            gracePeriodDays: 3,
+            countHolidays: false,
+            blockOverdueBorrowing: true,
+            blockFineBorrowing: false,
+            allowReservations: true,
+            isDefault: false,
+          },
+          {
+            name: "Faculty & Staff Borrowing Policy",
+            targetGroup: "TEACHER",
+            maxActiveBooks: 10,
+            maxDurationDays: 30,
+            durationUnit: "CALENDAR_DAYS",
+            renewalAllowance: true,
+            maxRenewalCount: 3,
+            renewalDurationDays: 15,
+            dailyFineRate: new Prisma.Decimal(0.0),
+            gracePeriodDays: 5,
+            countHolidays: false,
+            blockOverdueBorrowing: false,
+            blockFineBorrowing: false,
+            allowReservations: true,
+            isDefault: false,
+          },
+        ];
+
+        for (const p of defaultPolicies) {
+          await tx.borrowingPolicy.create({
+            data: { ...p, schoolId },
+          });
+        }
+
+        return tx.borrowingPolicy.findMany({
+          where: { schoolId },
+          orderBy: { createdAt: "asc" },
         });
-      }
-
-      policies = await prisma.borrowingPolicy.findMany({
-        where: { schoolId },
-        orderBy: { createdAt: "asc" },
       });
     }
 
@@ -126,21 +131,23 @@ export class LibraryService {
   }
 
   static async upsertBorrowingPolicy(schoolId: string, data: any) {
-    if (data.id) {
-      return prisma.borrowingPolicy.update({
-        where: { id: data.id },
+    return runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+      if (data.id) {
+        return tx.borrowingPolicy.update({
+          where: { id: data.id },
+          data: {
+            ...data,
+            dailyFineRate: data.dailyFineRate ? new Prisma.Decimal(data.dailyFineRate) : undefined,
+          },
+        });
+      }
+      return tx.borrowingPolicy.create({
         data: {
           ...data,
-          dailyFineRate: data.dailyFineRate ? new Prisma.Decimal(data.dailyFineRate) : undefined,
+          schoolId,
+          dailyFineRate: new Prisma.Decimal(data.dailyFineRate || 5.0),
         },
       });
-    }
-    return prisma.borrowingPolicy.create({
-      data: {
-        ...data,
-        schoolId,
-        dailyFineRate: new Prisma.Decimal(data.dailyFineRate || 5.0),
-      },
     });
   }
 
@@ -241,7 +248,7 @@ export class LibraryService {
   static async createBook(schoolId: string, input: BookCatalogueInput) {
     const initialCopiesCount = Math.max(1, input.initialCopies || 1);
 
-    return prisma.$transaction(async (tx) => {
+    return runWithTenantDatabaseTransaction(schoolId, async (tx) => {
       const book = await tx.book.create({
         data: {
           schoolId,
@@ -330,7 +337,7 @@ export class LibraryService {
   }
 
   static async addBookCopy(schoolId: string, bookId: string, copyData: { shelfLocation?: string; condition?: string; customAccession?: string; price?: number }) {
-    return prisma.$transaction(async (tx) => {
+    return runWithTenantDatabaseTransaction(schoolId, async (tx) => {
       const book = await tx.book.findFirst({ where: { id: bookId, schoolId } });
       if (!book) throw new Error("Book not found");
 
@@ -393,7 +400,7 @@ export class LibraryService {
    */
 
   static async issueBook(schoolId: string, input: IssueBookInput, librarianId: string) {
-    return prisma.$transaction(async (tx) => {
+    return runWithTenantDatabaseTransaction(schoolId, async (tx) => {
       // 1. Validate Member
       let memberName = "";
       let memberCode = "";
@@ -585,7 +592,7 @@ export class LibraryService {
    */
 
   static async returnBook(schoolId: string, issueId: string, input: ReturnBookInput, librarianId: string) {
-    return prisma.$transaction(async (tx) => {
+    return runWithTenantDatabaseTransaction(schoolId, async (tx) => {
       const issue = await tx.bookIssue.findFirst({
         where: { id: issueId, schoolId },
         include: { book: true, copy: true },
@@ -716,7 +723,7 @@ export class LibraryService {
    */
 
   static async renewBook(schoolId: string, issueId: string, reason: string, librarianId: string) {
-    return prisma.$transaction(async (tx) => {
+    return runWithTenantDatabaseTransaction(schoolId, async (tx) => {
       const issue = await tx.bookIssue.findFirst({
         where: { id: issueId, schoolId },
         include: { book: true, copy: true },
@@ -805,27 +812,31 @@ export class LibraryService {
     });
     if (existing) throw new Error("You already have an active pending request for this title.");
 
-    return prisma.bookRequest.create({
-      data: {
-        schoolId,
-        studentId,
-        bookId,
-        status: "SUBMITTED",
-        expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000), // 7-day request window
-      },
-      include: { book: true },
+    return runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+      return tx.bookRequest.create({
+        data: {
+          schoolId,
+          studentId,
+          bookId,
+          status: "SUBMITTED",
+          expiresAt: new Date(Date.now() + 7 * 24 * 3600 * 1000), // 7-day request window
+        },
+        include: { book: true },
+      });
     });
   }
 
   static async reviewStudentRequest(schoolId: string, requestId: string, status: "APPROVED" | "REJECTED" | "CANCELLED", notes: string, librarianId: string) {
-    return prisma.bookRequest.update({
-      where: { id: requestId },
-      data: {
-        status,
-        reviewNotes: notes,
-        reviewedById: librarianId,
-        reviewedAt: new Date(),
-      },
+    return runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+      return tx.bookRequest.update({
+        where: { id: requestId },
+        data: {
+          status,
+          reviewNotes: notes,
+          reviewedById: librarianId,
+          reviewedAt: new Date(),
+        },
+      });
     });
   }
 

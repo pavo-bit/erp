@@ -8,7 +8,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../../.env.test") });
 export function getBaseTestUrl(): string {
   return (
     process.env.DATABASE_URL_TEST ||
-    "postgresql://postgres:postgres@localhost:5433/ssvm_test?schema=public"
+    "postgresql://ssvm_app:app_pw@127.0.0.1:5433/ssvm_test?schema=public"
   );
 }
 
@@ -33,7 +33,7 @@ export function getWorkerFixtureDatabaseUrl(workerId: string): string {
 export function getWorkerAuthDatabaseUrl(workerId: string): string {
   const authUrl =
     process.env.DATABASE_URL_AUTH ||
-    "postgresql://ssvm_auth:authpassword@localhost:5433/ssvm_test?schema=public";
+    "postgresql://ssvm_auth:authpassword@127.0.0.1:5433/ssvm_test?schema=public";
   const parsed = new URL(authUrl);
   parsed.pathname = `/${getWorkerDatabaseName(workerId)}`;
   return parsed.toString();
@@ -42,7 +42,7 @@ export function getWorkerAuthDatabaseUrl(workerId: string): string {
 export function getWorkerTrustedDatabaseUrl(workerId: string): string {
   const trustedUrl =
     process.env.DATABASE_URL_TRUSTED ||
-    "postgresql://ssvm_trusted:trustedpassword@localhost:5433/ssvm_test?schema=public";
+    "postgresql://ssvm_trusted:trustedpassword@127.0.0.1:5433/ssvm_test?schema=public";
   const parsed = new URL(trustedUrl);
   parsed.pathname = `/${getWorkerDatabaseName(workerId)}`;
   return parsed.toString();

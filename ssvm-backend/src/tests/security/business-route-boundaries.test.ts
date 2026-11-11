@@ -1,6 +1,7 @@
 import express from "express";
 import request from "supertest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 
 const { prismaMock, txMock } = vi.hoisted(() => {
   const tx = {
@@ -13,6 +14,7 @@ const { prismaMock, txMock } = vi.hoisted(() => {
     sequenceCounter: { upsert: vi.fn() },
     goodsReceipt: { create: vi.fn() },
     goodsReceiptLine: { create: vi.fn() },
+    ledgerAccount: { findUnique: vi.fn() },
   };
   return {
     txMock: tx,
@@ -124,7 +126,7 @@ describe("business route authority boundaries", () => {
       id: "order-a",
       schoolId: "school-a",
       status: "ISSUED",
-      items: [{ id: "line-a", quantity: 10, description: "Paper", goodsReceiptLines: [] }],
+      items: [{ id: "line-a", quantity: 10, unitPrice: new Prisma.Decimal(10), description: "Paper", goodsReceiptLines: [] }],
     });
 
     // 1. Rejects over-receipt (requesting 99 when quantity is 10)

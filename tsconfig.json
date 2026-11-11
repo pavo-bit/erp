@@ -7,16 +7,18 @@
     "baseUrl": ".",
     "paths": {
       "@prisma/client": [
-        "ssvm-backend/node_modules/@prisma/client/index.d.ts",
-        "ssvm-backend/node_modules/@prisma/client"
+        "ssvm-backend/node_modules/@prisma/client",
+        "ssvm-backend/node_modules/@prisma/client/default.d.ts",
+        "ssvm-backend/node_modules/@prisma/client/index.d.ts"
       ],
       ".prisma/client": [
-        "ssvm-backend/node_modules/.prisma/client/index.d.ts",
-        "ssvm-backend/node_modules/.prisma/client"
+        "ssvm-backend/node_modules/.prisma/client",
+        "ssvm-backend/node_modules/.prisma/client/default.d.ts",
+        "ssvm-backend/node_modules/.prisma/client/index.d.ts"
       ],
       "ioredis": [
-        "ssvm-backend/node_modules/ioredis/built/index.d.ts",
-        "ssvm-backend/node_modules/ioredis"
+        "ssvm-backend/node_modules/ioredis",
+        "ssvm-backend/node_modules/ioredis/built/index.d.ts"
       ],
       "@/*": ["ssvm-backend/src/*"]
     },
@@ -35,7 +37,6 @@
   ],
   "exclude": [
     "node_modules",
-    "ssvm-backend/node_modules",
     "erp-admin",
     "super-admin",
     "student-portal",

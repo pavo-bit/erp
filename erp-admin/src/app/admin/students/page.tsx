@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PageHeader, StatCard, StatusBadge } from "@/components/DashboardLayout";
+import { StatCard, StatusBadge } from "@/components/DashboardLayout";
+import { SharedDataEntryHeader } from "@/components/import/SharedDataEntryHeader";
 import { useStudents, apiCall, invalidate, invalidateAll } from "@/lib/api-hooks";
 
 export default function StudentsPage() {
@@ -47,14 +48,16 @@ export default function StudentsPage() {
 
   return (
     <>
-      <PageHeader 
-        title="Student Directory" 
-        subtitle="Manage student records, classes, and sections" 
-        action={
-          <button onClick={() => setShowModal(true)} className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white border-none cursor-pointer gradient-btn font-[var(--font-heading)]">
-            + Add Student
-          </button>
-        }
+      <SharedDataEntryHeader
+        title="Student Directory"
+        description="Manage student records, academic placements, and enrollments."
+        moduleId="students"
+        entityName="Student"
+        onAddNew={() => setShowModal(true)}
+        onImportSuccess={() => {
+          invalidateAll("/api/v1/students");
+          setTimeout(() => window.location.reload(), 500);
+        }}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

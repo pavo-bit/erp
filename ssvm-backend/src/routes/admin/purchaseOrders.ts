@@ -208,6 +208,11 @@ router.post("/:id/receive", authenticate, requireProcurementRole, async (req: Au
       res.status(error.status).json({ success: false, error: error.message });
       return;
     }
+    const errCode = (error as any)?.code;
+    if (errCode === "P2034" || errCode === "P2002" || errCode === "40001") {
+      res.status(409).json({ success: false, error: "Concurrent purchase order modification conflict" });
+      return;
+    }
     res.status(500).json({ success: false, error: "Server error receiving purchase order" });
   }
 });
