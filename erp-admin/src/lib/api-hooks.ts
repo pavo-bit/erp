@@ -131,6 +131,11 @@ export function useSchoolModules() { return useSWR("/api/v1/schools/me/modules",
 export function useShfiIncidents() { return useSWR("/api/v1/shfi/incidents", fetcher); }
 export function useShfiOverview() { return useSWR("/api/v1/shfi/health/overview", fetcher); }
 
+// Admissions & Paper Forms
+export function useAdmissionOverview() { return useSWR("/api/v1/admin/admissions/bulk/overview", fetcher); }
+export function useAdmissionFee() { return useSWR("/api/v1/admin/admissions/bulk/fee", fetcher); }
+export function useAdmissionRegister(params?: string) { return useSWR(`/api/v1/admin/admissions/bulk/register${params ? `?${params}` : ""}`, fetcher); }
+
 export class ApiError extends Error {
   status: number;
   constructor(message: string, status: number) {

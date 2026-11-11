@@ -11,13 +11,15 @@ import multer from "multer";
 import crypto from "crypto";
 import { AuthRequest, authenticate, requireRole } from "../../middleware/auth";
 import logger from "../../lib/logger";
-import prisma from "../../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../../lib/prisma";
 import { AdmissionType, OfflineApprovalAttestation } from "../../services/admissions-bulk/admission-types";
 import { AdmissionTemplateRegistry } from "../../services/admissions-bulk/admission-template-registry";
 import { AdmissionPaperFormsService } from "../../services/admissions-bulk/admission-paper-forms.service";
 import { AdmissionWorkbookParser } from "../../services/admissions-bulk/admission-workbook-parser";
 import { AdmissionValidationEngine } from "../../services/admissions-bulk/admission-validation-engine";
 import { AdmissionRegistrationService } from "../../services/admissions-bulk/admission-registration-service";
+import { AdmissionFeeConfigService } from "../../services/admissions-bulk/admission-fee-config.service";
+import { AdmissionPdfService } from "../../services/admissions-bulk/admission-pdf.service";
 
 const router = Router();
 
@@ -99,31 +101,68 @@ router.get("/templates/:type/download", adminGuard, async (req: AuthRequest, res
 
 /**
  * GET /api/v1/admin/admissions/bulk/forms/:type/print
- * Renders complete printable A4 HTML Paper Form for offline admissions
+ * Renders complete printable A4 HTML Paper Form for offline admissions.
+ * Accurately displays the active application fee snapshot.
  */
 router.get("/forms/:type/print", adminGuard, async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId!;
-    const type = (req.params.type as string).toUpperCase();
+    const type = (req.params.type as string).toUpperCase() as "NEW" | "READMISSION" | "TRANSFER";
     const session = req.query.session as string | undefined;
+    const formNumber = req.query.formNumber as string | undefined;
+    const feeParam = req.query.fee ? parseInt(req.query.fee as string, 10) : undefined;
 
-    let html = "";
-    if (type === "NEW") {
-      html = await AdmissionPaperFormsService.renderNewAdmissionForm(schoolId, { academicSession: session });
-    } else if (type === "READMISSION") {
-      html = await AdmissionPaperFormsService.renderReAdmissionForm(schoolId, { academicSession: session });
-    } else if (type === "TRANSFER") {
-      html = await AdmissionPaperFormsService.renderTransferAdmissionForm(schoolId, { academicSession: session });
-    } else {
+    if (!["NEW", "READMISSION", "TRANSFER"].includes(type)) {
       res.status(400).json({ success: false, error: "Invalid form type. Choose NEW, READMISSION, or TRANSFER." });
       return;
     }
+
+    const html = await AdmissionPaperFormsService.renderForm(schoolId, type, {
+      academicSession: session,
+      formNumber,
+      applicationFee: feeParam,
+    });
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.send(html);
   } catch (err: any) {
     logger.error({ err }, "Failed to render paper admission form");
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * GET /api/v1/admin/admissions/bulk/forms/:type/pdf
+ * Generates and downloads genuine standards-compliant binary PDF (%PDF-1.4)
+ */
+router.get("/forms/:type/pdf", adminGuard, async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId!;
+    const type = (req.params.type as string).toUpperCase() as "NEW" | "READMISSION" | "TRANSFER";
+    const session = req.query.session as string | undefined;
+    const formNumber = req.query.formNumber as string | undefined;
+    const feeParam = req.query.fee ? parseInt(req.query.fee as string, 10) : undefined;
+
+    if (!["NEW", "READMISSION", "TRANSFER"].includes(type)) {
+      res.status(400).json({ success: false, error: "Invalid form type. Choose NEW, READMISSION, or TRANSFER." });
+      return;
+    }
+
+    const pdfBuffer = await AdmissionPdfService.generateFormPdf(schoolId, type, {
+      academicSession: session,
+      formNumber,
+      applicationFee: feeParam,
+    });
+
+    const filename = `SSVM_Admission_Form_${type}_${session || "2026-2027"}.pdf`;
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Content-Length", pdfBuffer.length);
+    res.send(pdfBuffer);
+  } catch (err: any) {
+    logger.error({ err }, "Failed to generate admission form PDF");
+    res.status(500).json({ success: false, error: err.message || "Failed to generate PDF." });
   }
 });
 
@@ -293,6 +332,345 @@ router.get("/history/:jobId", adminGuard, async (req: AuthRequest, res: Response
       },
     });
   } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// 5. APPLICATION FEE CONFIGURATION & IMMUTABLE ISSUANCE
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/admin/admissions/bulk/fee
+ * Retrieves current institutional application fee and fee modification audit history
+ */
+router.get("/fee", adminGuard, async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId!;
+    const currentFee = await AdmissionFeeConfigService.getApplicationFee(schoolId);
+    const history = await AdmissionFeeConfigService.getFeeAuditHistory(schoolId);
+
+    res.json({
+      success: true,
+      data: {
+        currentFee,
+        applicationFee: currentFee,
+        currency: "INR",
+        defaultFee: AdmissionFeeConfigService.DEFAULT_FEE,
+        history,
+      },
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Failed to get admission application fee");
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+/**
+ * PUT /api/v1/admin/admissions/bulk/fee
+ * Updates application fee with required permission check, audit log, and reason tracking
+ */
+router.put("/fee", [authenticate, requireRole("SUPER_ADMIN", "ADMIN", "ERP_ADMIN")], async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId!;
+    const userId = req.user!.id;
+    const rawAmount = req.body.amount ?? req.body.applicationFee;
+    const amount = typeof rawAmount === "string" ? parseInt(rawAmount, 10) : rawAmount;
+    const { reason } = req.body;
+
+    if (amount === undefined || typeof amount !== "number" || amount < 0 || !Number.isInteger(amount)) {
+      res.status(400).json({
+        success: false,
+        error: "Valid non-negative integer amount required for application fee.",
+      });
+      return;
+    }
+
+    const result = await AdmissionFeeConfigService.updateApplicationFee(
+      schoolId,
+      userId,
+      amount,
+      reason
+    );
+
+    res.json({
+      success: true,
+      data: {
+        ...result,
+        applicationFee: result.newFee,
+      },
+      message: `Application fee successfully updated to ₹${result.newFee}.`,
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Failed to update admission fee");
+    res.status(400).json({ success: false, error: err.message || "Failed to update application fee." });
+  }
+});
+
+/**
+ * POST /api/v1/admin/admissions/bulk/forms/issue
+ * Issues an official paper form and captures immutable fee snapshot
+ */
+router.post("/forms/issue", adminGuard, async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId!;
+    const userId = req.user!.id;
+    const { formType = "NEW", applicantName, academicSession } = req.body;
+
+    const snapshot = await AdmissionFeeConfigService.issueForm(
+      schoolId,
+      userId,
+      formType,
+      applicantName,
+      academicSession
+    );
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...snapshot,
+        applicationFee: snapshot.feeAmount,
+      },
+      message: `Issued official admission form ${snapshot.formNumber} with fee snapshot ₹${snapshot.feeAmount}.`,
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Failed to issue admission form");
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// 6. CANONICAL STUDENT ADMISSION REGISTER
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/admin/admissions/bulk/register
+ * Server-side search, filtering, and pagination for canonical Student Admission Register
+ */
+router.get("/register", adminGuard, async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId!;
+    const page = Math.max(1, parseInt((req.query.page as string) || "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || "20", 10)));
+    const skip = (page - 1) * limit;
+
+    const {
+      search,
+      classId,
+      className,
+      sectionId,
+      sessionId,
+      gender,
+      admissionType,
+      status,
+      sortBy = "admissionNo",
+      sortOrder = "desc",
+    } = req.query as Record<string, string | undefined>;
+
+    const where: any = {
+      schoolId,
+      deletedAt: null,
+    };
+
+    if (gender && gender !== "ALL") {
+      where.gender = gender;
+    }
+
+    if (status === "ACTIVE") {
+      where.isActive = true;
+    } else if (status === "INACTIVE") {
+      where.isActive = false;
+    }
+
+    if (search && search.trim()) {
+      const q = search.trim();
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { admissionNo: { contains: q, mode: "insensitive" } },
+        { rollNo: { contains: q, mode: "insensitive" } },
+        { guardian: { primaryName: { contains: q, mode: "insensitive" } } },
+        { guardian: { primaryPhone: { contains: q, mode: "insensitive" } } },
+      ];
+    }
+
+    if (classId) {
+      where.sectionRef = { classId };
+    } else if (className && className !== "ALL") {
+      where.sectionRef = { class: { name: className } };
+    }
+
+    if (sectionId && sectionId !== "ALL") {
+      where.sectionId = sectionId;
+    }
+
+    if (sessionId && sessionId !== "ALL") {
+      where.sectionRef = {
+        ...(where.sectionRef || {}),
+        class: {
+          ...(where.sectionRef?.class || {}),
+          sessionId,
+        },
+      };
+    }
+
+    const [total, students] = await Promise.all([
+      prisma.student.count({ where }),
+      prisma.student.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: {
+          [sortBy === "name" ? "name" : sortBy === "createdAt" ? "createdAt" : "admissionNo"]:
+            sortOrder === "asc" ? "asc" : "desc",
+        },
+        include: {
+          sectionRef: {
+            include: {
+              class: {
+                include: {
+                  session: true,
+                },
+              },
+            },
+          },
+          guardian: {
+            select: {
+              id: true,
+              primaryName: true,
+              primaryPhone: true,
+              primaryEmail: true,
+              primaryRelation: true,
+            },
+          },
+          user: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+              isActive: true,
+            },
+          },
+          timelines: {
+            orderBy: { date: "desc" },
+            take: 2,
+          },
+        },
+      }),
+    ]);
+
+    // Format output with computed admission type and placement details
+    const formatted = students.map((s) => {
+      const hasReadmissionTimeline = s.timelines.some((t) => t.type === "READMISSION");
+      const hasTransferTimeline = s.timelines.some((t) => t.type === "TRANSFER_ADMISSION");
+      const computedAdmissionType = hasReadmissionTimeline
+        ? "READMISSION"
+        : hasTransferTimeline
+        ? "TRANSFER"
+        : "NEW";
+
+      return {
+        id: s.id,
+        name: s.name,
+        admissionNo: s.admissionNo || "PENDING",
+        rollNo: s.rollNo,
+        gender: s.gender,
+        dob: s.dob ? s.dob.toISOString().split("T")[0] : null,
+        bloodGroup: s.bloodGroup,
+        className: s.sectionRef?.class.name || "Unallocated",
+        sectionName: s.sectionRef?.name || "-",
+        sessionName: s.sectionRef?.class.session?.name || "Current",
+        classId: s.sectionRef?.class.id || null,
+        sectionId: s.sectionId,
+        guardianName: s.guardian?.primaryName || "N/A",
+        guardianPhone: s.guardian?.primaryPhone || "N/A",
+        guardianRelation: s.guardian?.primaryRelation || "GUARDIAN",
+        userEmail: s.user?.email || null,
+        admissionType: computedAdmissionType,
+        status: s.isActive ? "ACTIVE" : "INACTIVE",
+        registeredAt: s.createdAt,
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        students: formatted,
+        pagination: {
+          total,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit) || 1,
+        },
+      },
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Failed to fetch student admission register");
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// 7. ADMISSION OVERVIEW & RE-ADMISSION RECORDS
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/v1/admin/admissions/bulk/overview
+ * High-level admission metrics and summary statistics
+ */
+router.get("/overview", adminGuard, async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.schoolId!;
+
+    const [totalStudents, totalAdmissions, currentFee, recentStudents] = await Promise.all([
+      prisma.student.count({ where: { schoolId, deletedAt: null } }),
+      prisma.admission.count({ where: { schoolId } }),
+      AdmissionFeeConfigService.getApplicationFee(schoolId),
+      prisma.student.findMany({
+        where: { schoolId, deletedAt: null },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+        include: {
+          sectionRef: { include: { class: true } },
+          guardian: true,
+        },
+      }),
+    ]);
+
+    const formsIssuedCount = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+      return tx.auditLog.count({
+        where: { schoolId, action: "ADMISSION_FORM_ISSUED" },
+      });
+    });
+
+    const bulkBatchesCount = await prisma.bulkJob.count({
+      where: { schoolId, type: { startsWith: "ADMISSION_BULK_" } },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalStudents,
+        totalStudentsRegistered: totalStudents,
+        totalAdmissions,
+        activeAdmissions: totalAdmissions,
+        currentFee,
+        applicationFee: currentFee,
+        formsIssuedCount,
+        totalFormsIssued: formsIssuedCount,
+        bulkBatchesCount,
+        recentStudents: recentStudents.map((s) => ({
+          id: s.id,
+          name: s.name,
+          admissionNo: s.admissionNo || "N/A",
+          className: s.sectionRef?.class.name || "N/A",
+          sectionName: s.sectionRef?.name || "-",
+          guardianName: s.guardian?.primaryName || "N/A",
+          createdAt: s.createdAt,
+        })),
+      },
+    });
+  } catch (err: any) {
+    logger.error({ err }, "Failed to fetch admission overview");
     res.status(500).json({ success: false, error: err.message });
   }
 });

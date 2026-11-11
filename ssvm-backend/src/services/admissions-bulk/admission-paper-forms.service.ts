@@ -16,12 +16,14 @@
 
 import handlebars from "handlebars";
 import prisma from "../../lib/prisma";
+import { AdmissionFeeConfigService } from "./admission-fee-config.service";
 
 export interface PaperFormOptions {
   schoolName?: string;
   affiliationNumber?: string;
   academicSession?: string;
   applicationFee?: number;
+  formNumber?: string;
   formVersion?: string;
 }
 
@@ -239,11 +241,30 @@ export class AdmissionPaperFormsService {
   `;
 
   /**
+   * Resolves the immutable application fee for a form:
+   * 1. Explicit override if provided.
+   * 2. Snapshot fee if issued form number is provided.
+   * 3. Current active institutional fee from configuration.
+   */
+  public static async resolveFormFee(schoolId: string, options: PaperFormOptions = {}): Promise<number> {
+    if (options.applicationFee !== undefined) {
+      return options.applicationFee;
+    }
+    if (options.formNumber) {
+      const snapshot = await AdmissionFeeConfigService.getIssuedFormSnapshot(schoolId, options.formNumber);
+      if (snapshot && snapshot.feeAmount !== undefined) {
+        return snapshot.feeAmount;
+      }
+    }
+    return AdmissionFeeConfigService.getApplicationFee(schoolId);
+  }
+
+  /**
    * Render New Admission Paper Form HTML
    */
   public static async renderNewAdmissionForm(schoolId: string, options: PaperFormOptions = {}): Promise<string> {
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
-    const fee = options.applicationFee ?? 200;
+    const fee = await this.resolveFormFee(schoolId, options);
     const version = options.formVersion || "v1.0.0-ADM";
     const sessionName = options.academicSession || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
@@ -428,6 +449,22 @@ export class AdmissionPaperFormsService {
             <span style="margin-left: 8px;">[ ] Passport Photos (4)</span>
           </div>
 
+          <div class="section-title">Institutional Facilities &amp; Special Requirements</div>
+          <div class="grid-3" style="font-size: 9px;">
+            <div class="field-row">
+              <span class="field-label">School Transport Facility:</span>
+              <div class="field-input-box">[ ] Yes  [ ] No (Route/Stop: ___________)</div>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Hostel / Boarding Facility:</span>
+              <div class="field-input-box">[ ] Yes  [ ] No (Dorm / Room: _________)</div>
+            </div>
+            <div class="field-row">
+              <span class="field-label">Dietary / Medical Needs:</span>
+              <div class="field-input-box">[ ] None  [ ] Specified: ______________</div>
+            </div>
+          </div>
+
           <div class="declaration-text">
             <strong>Parent / Guardian Declaration:</strong> I hereby declare that the particulars furnished above are true and correct to the best of my knowledge and belief. I agree to abide by the rules, academic standards, and disciplinary code of the institution. I acknowledge that registration does not guarantee admission until approved offline by the School Admission Committee.
           </div>
@@ -450,13 +487,24 @@ export class AdmissionPaperFormsService {
           <div class="office-use-box">
             <div class="office-title">For Official School Office Use Only (Physical Register Verification)</div>
             <div class="grid-4" style="font-size: 9.5px;">
-              <div><strong>Application No:</strong> _________________</div>
+              <div><strong>Application No:</strong> {{#if formNumber}}{{formNumber}}{{else}}_________________{{/if}}</div>
+              <div><strong>Admission Date:</strong> _________________</div>
+              <div><strong>Allotted Class & Sec:</strong> _____________</div>
+              <div><strong>Allotted Roll No:</strong> ________________</div>
+            </div>
+            <div class="grid-4" style="font-size: 9.5px; margin-top: 4px;">
               <div><strong>Verified By:</strong> ____________________</div>
               <div><strong>Approval Status:</strong> [ ] Approved [ ] Rejected</div>
-              <div><strong>Offline Register Ref:</strong> ______________</div>
+              <div><strong>Fee Receipt / Ref No:</strong> ____________</div>
+              <div><strong>Permanent Admission No:</strong> _________</div>
             </div>
             <div style="margin-top: 4px; font-size: 8.5px; color: #475569; font-style: italic;">
               * Note: Permanent SSVM Admission/Registration Number (ADM-YYYY-XXXX) is allocated atomically upon digital verification of offline approval register. Blank forms do not carry preassigned numbers.
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #cbd5e1;">
+              <span style="font-size: 8.5px; color: #64748b;">Physical Institutional Seal Required</span>
+              <span style="font-weight: 700; font-size: 9.5px; color: #047857;">Application Fee: ₹{{fee}} (Non-refundable)</span>
+              <span style="font-size: 9px; font-weight: 700;">Signature of Principal / Admission Incharge</span>
             </div>
           </div>
 
@@ -478,6 +526,7 @@ export class AdmissionPaperFormsService {
       sessionName,
       fee,
       version,
+      formNumber: options.formNumber || "",
       printDate: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
     });
   }
@@ -487,6 +536,7 @@ export class AdmissionPaperFormsService {
    */
   public static async renderReAdmissionForm(schoolId: string, options: PaperFormOptions = {}): Promise<string> {
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    const fee = await this.resolveFormFee(schoolId, options);
     const version = options.formVersion || "v1.0.0-READM";
     const sessionName = options.academicSession || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
@@ -500,6 +550,7 @@ export class AdmissionPaperFormsService {
       </head>
       <body>
         <div class="form-container">
+          <div class="fee-notice">Application Fee: ₹{{fee}} (Non-refundable)</div>
           <div class="form-header">
             <div class="institution-name">{{schoolName}}</div>
             <div class="institution-subtitle">Affiliation / Institutional Code: {{affiliation}} | Academic Session: {{sessionName}}</div>
@@ -594,12 +645,17 @@ export class AdmissionPaperFormsService {
           </div>
 
           <div class="office-use-box">
-            <div class="office-title">Office Re-Admission Approval & Verification</div>
+            <div class="office-title">Office Re-Admission Approval &amp; Verification</div>
             <div class="grid-4" style="font-size: 9.5px;">
-              <div><strong>Dues Clearance Status:</strong> [ ] Cleared</div>
-              <div><strong>Approval Authority:</strong> _________________</div>
-              <div><strong>Date of Approval:</strong> _________________</div>
-              <div><strong>Offline Register Ref:</strong> ________________</div>
+              <div><strong>Dues Clearance:</strong> [ ] Cleared</div>
+              <div><strong>Allotted Class &amp; Sec:</strong> _____________</div>
+              <div><strong>Allotted Roll No:</strong> ________________</div>
+              <div><strong>Approval Authority:</strong> ______________</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #cbd5e1;">
+              <span style="font-size: 8.5px; color: #64748b;">Physical Office Seal Required</span>
+              <span style="font-weight: 700; font-size: 9.5px; color: #1e3a8a;">Application Fee: ₹{{fee}} (Non-refundable)</span>
+              <span style="font-size: 9px; font-weight: 700;">Signature of Principal / Incharge</span>
             </div>
           </div>
 
@@ -619,7 +675,9 @@ export class AdmissionPaperFormsService {
       schoolName: school?.name || options.schoolName || "Shri Shiksha Vikash Mandir (SSVM)",
       affiliation: school?.code || options.affiliationNumber || "SSVM-ODISHA",
       sessionName,
+      fee,
       version,
+      formNumber: options.formNumber || "",
       printDate: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
     });
   }
@@ -629,6 +687,7 @@ export class AdmissionPaperFormsService {
    */
   public static async renderTransferAdmissionForm(schoolId: string, options: PaperFormOptions = {}): Promise<string> {
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    const fee = await this.resolveFormFee(schoolId, options);
     const version = options.formVersion || "v1.0.0-TRANS";
     const sessionName = options.academicSession || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
@@ -642,6 +701,7 @@ export class AdmissionPaperFormsService {
       </head>
       <body>
         <div class="form-container">
+          <div class="fee-notice">Application Fee: ₹{{fee}} (Non-refundable)</div>
           <div class="form-header">
             <div class="institution-name">{{schoolName}}</div>
             <div class="institution-subtitle">Affiliation / Institutional Code: {{affiliation}} | Academic Session: {{sessionName}}</div>
@@ -745,12 +805,23 @@ export class AdmissionPaperFormsService {
           </div>
 
           <div class="office-use-box">
-            <div class="office-title">Office Transfer Verification & Registration Endorsement</div>
+            <div class="office-title">Office Transfer Verification &amp; Registration Endorsement</div>
             <div class="grid-4" style="font-size: 9.5px;">
               <div><strong>Original TC Verified:</strong> [ ] Yes  [ ] No</div>
+              <div><strong>Allotted Class &amp; Sec:</strong> _____________</div>
+              <div><strong>Allotted Roll No:</strong> ________________</div>
               <div><strong>Verified By:</strong> ____________________</div>
-              <div><strong>Approving Authority:</strong> ______________</div>
+            </div>
+            <div class="grid-4" style="font-size: 9.5px; margin-top: 4px;">
+              <div><strong>Approval Authority:</strong> ______________</div>
+              <div><strong>Approval Date:</strong> _________________</div>
               <div><strong>Offline Register Ref:</strong> _______________</div>
+              <div><strong>New Admission No:</strong> _______________</div>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 6px; padding-top: 4px; border-top: 1px dashed #cbd5e1;">
+              <span style="font-size: 8.5px; color: #64748b;">Physical Office Seal Required</span>
+              <span style="font-weight: 700; font-size: 9.5px; color: #065f46;">Application Fee: ₹{{fee}} (Non-refundable)</span>
+              <span style="font-size: 9px; font-weight: 700;">Signature of Principal / Incharge</span>
             </div>
           </div>
 
@@ -770,9 +841,28 @@ export class AdmissionPaperFormsService {
       schoolName: school?.name || options.schoolName || "Shri Shiksha Vikash Mandir (SSVM)",
       affiliation: school?.code || options.affiliationNumber || "SSVM-ODISHA",
       sessionName,
+      fee,
       version,
+      formNumber: options.formNumber || "",
       printDate: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
     });
+  }
+
+  /**
+   * Universal helper to render any of the three admission forms
+   */
+  public static async renderForm(
+    schoolId: string,
+    formType: "NEW" | "READMISSION" | "TRANSFER",
+    options: PaperFormOptions = {}
+  ): Promise<string> {
+    if (formType === "READMISSION") {
+      return this.renderReAdmissionForm(schoolId, options);
+    }
+    if (formType === "TRANSFER") {
+      return this.renderTransferAdmissionForm(schoolId, options);
+    }
+    return this.renderNewAdmissionForm(schoolId, options);
   }
 }
 
