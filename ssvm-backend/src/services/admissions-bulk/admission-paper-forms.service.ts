@@ -241,15 +241,53 @@ export class AdmissionPaperFormsService {
   `;
 
   /**
-   * Resolves the immutable application fee for a form:
-   * 1. Explicit override if provided.
-   * 2. Snapshot fee if issued form number is provided.
-   * 3. Current active institutional fee from configuration.
+   * Authoritatively resolves form metadata and immutable fee:
+   * 1. If formNumber is provided, loads the snapshot from tenant-scoped AuditLog.
+   *    Validates that the snapshot belongs to the school and matches requested formType.
+   *    Uses snapshot feeAmount, academicSession, and applicantName.
+   * 2. If formNumber is not provided, loads the currently active fee for the school
+   *    from tenant configuration.
+   * 3. Completely ignores and rejects caller-supplied fee overrides.
    */
-  public static async resolveFormFee(schoolId: string, options: PaperFormOptions = {}): Promise<number> {
-    if (options.applicationFee !== undefined) {
-      return options.applicationFee;
+  public static async resolveFormOptions(
+    schoolId: string,
+    formType: "NEW" | "READMISSION" | "TRANSFER",
+    options: PaperFormOptions = {}
+  ): Promise<{
+    fee: number;
+    sessionName: string;
+    formNumber: string;
+    applicantName?: string;
+    isIssued: boolean;
+  }> {
+    if (options.formNumber) {
+      const snapshot = await AdmissionFeeConfigService.getIssuedFormSnapshot(schoolId, options.formNumber);
+      if (!snapshot) {
+        throw new Error(`Issued admission form ${options.formNumber} not found for this institution.`);
+      }
+      if (snapshot.formType !== formType) {
+        throw new Error(`Form type mismatch: issued form is ${snapshot.formType} but requested ${formType}.`);
+      }
+      return {
+        fee: snapshot.feeAmount,
+        sessionName: snapshot.academicSession || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+        formNumber: snapshot.formNumber,
+        applicantName: snapshot.applicantName,
+        isIssued: true,
+      };
     }
+
+    const currentFee = await AdmissionFeeConfigService.getApplicationFee(schoolId);
+    return {
+      fee: currentFee,
+      sessionName: options.academicSession || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+      formNumber: "",
+      applicantName: undefined,
+      isIssued: false,
+    };
+  }
+
+  public static async resolveFormFee(schoolId: string, options: PaperFormOptions = {}): Promise<number> {
     if (options.formNumber) {
       const snapshot = await AdmissionFeeConfigService.getIssuedFormSnapshot(schoolId, options.formNumber);
       if (snapshot && snapshot.feeAmount !== undefined) {
@@ -264,9 +302,12 @@ export class AdmissionPaperFormsService {
    */
   public static async renderNewAdmissionForm(schoolId: string, options: PaperFormOptions = {}): Promise<string> {
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
-    const fee = await this.resolveFormFee(schoolId, options);
+    const resolved = await this.resolveFormOptions(schoolId, "NEW", options);
     const version = options.formVersion || "v1.0.0-ADM";
-    const sessionName = options.academicSession || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+    const sessionName = resolved.sessionName;
+    const fee = resolved.fee;
+    const formNumber = resolved.formNumber;
+    const applicantName = resolved.applicantName;
 
     const templateHtml = `
       <!DOCTYPE html>
@@ -536,9 +577,12 @@ export class AdmissionPaperFormsService {
    */
   public static async renderReAdmissionForm(schoolId: string, options: PaperFormOptions = {}): Promise<string> {
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
-    const fee = await this.resolveFormFee(schoolId, options);
+    const resolved = await this.resolveFormOptions(schoolId, "READMISSION", options);
     const version = options.formVersion || "v1.0.0-READM";
-    const sessionName = options.academicSession || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+    const sessionName = resolved.sessionName;
+    const fee = resolved.fee;
+    const formNumber = resolved.formNumber;
+    const applicantName = resolved.applicantName;
 
     const templateHtml = `
       <!DOCTYPE html>
@@ -687,9 +731,12 @@ export class AdmissionPaperFormsService {
    */
   public static async renderTransferAdmissionForm(schoolId: string, options: PaperFormOptions = {}): Promise<string> {
     const school = await prisma.school.findUnique({ where: { id: schoolId } });
-    const fee = await this.resolveFormFee(schoolId, options);
+    const resolved = await this.resolveFormOptions(schoolId, "TRANSFER", options);
     const version = options.formVersion || "v1.0.0-TRANS";
-    const sessionName = options.academicSession || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
+    const sessionName = resolved.sessionName;
+    const fee = resolved.fee;
+    const formNumber = resolved.formNumber;
+    const applicantName = resolved.applicantName;
 
     const templateHtml = `
       <!DOCTYPE html>

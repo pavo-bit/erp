@@ -66,6 +66,10 @@ export interface StudentSheetRow {
   category?: string | null;
   motherTongue?: string | null;
   locality?: string | null;
+  pincode?: string | null;
+  landmark?: string | null;
+  medicalInfo?: string | null;
+  emergencyPhone?: string | null;
   pen?: string | null; // Permanent Education Number
   email?: string | null;
   phone?: string | null;
@@ -136,6 +140,9 @@ export interface FacilitySelectionRow {
 }
 
 export interface ParsedAdmissionWorkbook {
+  batchId?: string;
+  admissionType?: AdmissionType;
+  totalRows?: number;
   templateType: AdmissionType;
   templateVersion: string;
   students: StudentSheetRow[];

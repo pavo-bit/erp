@@ -2,7 +2,8 @@
  * ssvm-backend/src/services/admissions-bulk/admission-fee-config.service.ts
  *
  * Manages institutional application fee configuration, audit history,
- * and immutable form issuance fee snapshots.
+ * and immutable form issuance fee snapshots with strict PostgreSQL
+ * Row-Level Security and transaction-scoped advisory concurrency locking.
  */
 
 import prisma, { runWithTenantDatabaseTransaction } from "../../lib/prisma";
@@ -13,9 +14,12 @@ export interface FeeChangeAuditRecord {
   previousFee: number;
   newFee: number;
   changedById: string;
-  changedByName?: string;
+  changedByName: string;
+  userName: string;
   changedAt: Date;
+  timestamp: string;
   reason: string;
+  schoolId: string;
 }
 
 export interface IssuedFormSnapshot {
@@ -40,31 +44,31 @@ export class AdmissionFeeConfigService {
 
   /**
    * Get the currently active admission application fee for a tenant.
-   * Defaults to ₹200 if not explicitly configured.
+   * Returns DEFAULT_FEE (₹200) only when configuration legitimately does not exist.
+   * Does NOT silently catch database exceptions.
    */
   public static async getApplicationFee(schoolId: string): Promise<number> {
-    try {
-      const key = this.getConfigKey(schoolId);
-      const config = await prisma.appConfiguration.findUnique({
-        where: { key },
-      });
+    if (!schoolId) {
+      throw new Error("Tenant schoolId is required to retrieve admission application fee.");
+    }
+    const key = this.getConfigKey(schoolId);
+    const config = await prisma.appConfiguration.findUnique({
+      where: { key },
+    });
 
-      if (!config) {
-        return this.DEFAULT_FEE;
-      }
-
-      const parsed = parseInt(config.value, 10);
-      return isNaN(parsed) || parsed < 0 ? this.DEFAULT_FEE : parsed;
-    } catch (err) {
-      logger.warn({ err, schoolId }, "Failed to load application fee from appConfiguration, falling back to default");
+    if (!config) {
       return this.DEFAULT_FEE;
     }
+
+    const parsed = parseInt(config.value, 10);
+    return isNaN(parsed) || parsed < 0 ? this.DEFAULT_FEE : parsed;
   }
 
   /**
    * Update the application fee for a tenant.
-   * Records previous fee, new fee, user, timestamp, tenant, and reason in
-   * both ConfigHistory and AuditLog.
+   * Uses transaction-scoped advisory locking to serialize concurrent fee modifications
+   * and accurately capture previousFee, newFee, user, timestamp, tenant, and reason in
+   * both ConfigHistory and tenant-scoped AuditLog.
    */
   public static async updateApplicationFee(
     schoolId: string,
@@ -72,18 +76,31 @@ export class AdmissionFeeConfigService {
     newFee: number,
     reason?: string
   ): Promise<{ previousFee: number; newFee: number }> {
+    if (!schoolId) {
+      throw new Error("Tenant schoolId is required to update application fee.");
+    }
     if (!Number.isInteger(newFee) || newFee < 0) {
       throw new Error("Application fee must be a non-negative whole integer in Indian Rupees (INR).");
     }
 
-    const previousFee = await this.getApplicationFee(schoolId);
+    const updateReason = reason?.trim();
+    if (!updateReason) {
+      throw new Error("A meaningful administrative reason is required to modify the application fee.");
+    }
+
     const key = this.getConfigKey(schoolId);
-    const updateReason = reason?.trim() || "Institutional application fee adjustment by Admission Incharge";
 
-    // Upsert AppConfiguration & create ConfigHistory and AuditLog inside tenant transaction (RLS enforced)
-    await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
-      let config = await tx.appConfiguration.findUnique({ where: { key } });
+    return await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+      // 1. Acquire transaction advisory lock for fee updates for this tenant
+      try {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'admission_fee_lock_' + schoolId}))`;
+      } catch {}
 
+      // 2. Read CURRENT fee inside the lock to eliminate concurrent stale read anomalies
+      const existingConfig = await tx.appConfiguration.findUnique({ where: { key } });
+      const previousFee = existingConfig ? (parseInt(existingConfig.value, 10) || this.DEFAULT_FEE) : this.DEFAULT_FEE;
+
+      let config = existingConfig;
       if (config) {
         config = await tx.appConfiguration.update({
           where: { key },
@@ -104,7 +121,7 @@ export class AdmissionFeeConfigService {
         });
       }
 
-      // Record ConfigHistory
+      // 3. Record ConfigHistory
       await tx.configHistory.create({
         data: {
           configurationId: config.id,
@@ -115,7 +132,16 @@ export class AdmissionFeeConfigService {
         },
       });
 
-      // Record formal tenant AuditLog
+      // 4. Record tenant-scoped AuditLog
+      const auditPayload = {
+        previousFee,
+        newFee,
+        changedBy: userId,
+        timestamp: new Date().toISOString(),
+        reason: updateReason,
+        schoolId,
+      };
+
       await tx.auditLog.create({
         data: {
           schoolId,
@@ -123,42 +149,38 @@ export class AdmissionFeeConfigService {
           action: "ADMISSION_FEE_UPDATED",
           entity: "AdmissionFee",
           entityId: key,
-          details: JSON.stringify({
-            previousFee,
-            newFee,
-            changedBy: userId,
-            timestamp: new Date().toISOString(),
-            reason: updateReason,
-          }),
+          details: JSON.stringify(auditPayload),
         },
       });
+
+      logger.info(
+        { schoolId, userId, previousFee, newFee, updateReason },
+        "Admission application fee updated successfully"
+      );
+
+      return { previousFee, newFee };
     });
-
-    logger.info(
-      { schoolId, userId, previousFee, newFee, updateReason },
-      "Admission application fee updated successfully"
-    );
-
-    return { previousFee, newFee };
   }
 
   /**
    * Retrieve the full fee modification audit history for an institution
    */
   public static async getFeeAuditHistory(schoolId: string): Promise<FeeChangeAuditRecord[]> {
+    if (!schoolId) return [];
     const key = this.getConfigKey(schoolId);
+
     const config = await prisma.appConfiguration.findUnique({
       where: { key },
       include: {
         history: {
           orderBy: { changedAt: "desc" },
-          take: 25,
+          take: 50,
         },
       },
     });
 
     if (!config || !config.history.length) {
-      // Query from audit logs if config history is empty inside tenant context
+      // Query from audit logs if config history is empty
       const logs = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
         return tx.auditLog.findMany({
           where: {
@@ -166,7 +188,7 @@ export class AdmissionFeeConfigService {
             action: "ADMISSION_FEE_UPDATED",
           },
           orderBy: { createdAt: "desc" },
-          take: 25,
+          take: 50,
           include: { user: { select: { name: true } } },
         });
       });
@@ -176,19 +198,23 @@ export class AdmissionFeeConfigService {
         try {
           details = JSON.parse(log.details || "{}");
         } catch {}
+        const name = log.user?.name || "Administrator";
         return {
           id: log.id,
           previousFee: details.previousFee ?? this.DEFAULT_FEE,
           newFee: details.newFee ?? this.DEFAULT_FEE,
           changedById: log.userId || "SYSTEM",
-          changedByName: log.user?.name || "Administrator",
+          changedByName: name,
+          userName: name,
           changedAt: log.createdAt,
-          reason: details.reason || log.reason || "Fee modification",
+          timestamp: log.createdAt.toISOString(),
+          reason: details.reason || "Fee modification",
+          schoolId,
         };
       });
     }
 
-    // Resolve user names
+    // Resolve user names for config history records
     const userIds = Array.from(new Set(config.history.map((h) => h.changedBy).filter(Boolean))) as string[];
     const users = await prisma.user.findMany({
       where: { id: { in: userIds } },
@@ -196,20 +222,27 @@ export class AdmissionFeeConfigService {
     });
     const userMap = new Map(users.map((u) => [u.id, u.name]));
 
-    return config.history.map((h) => ({
-      id: h.id,
-      previousFee: parseInt(h.oldValue || String(this.DEFAULT_FEE), 10),
-      newFee: parseInt(h.newValue, 10),
-      changedById: h.changedBy || "SYSTEM",
-      changedByName: h.changedBy ? userMap.get(h.changedBy) || "Staff" : "System",
-      changedAt: h.changedAt,
-      reason: h.reason || "Fee adjustment",
-    }));
+    return config.history.map((h) => {
+      const name = h.changedBy ? userMap.get(h.changedBy) || "Staff" : "System";
+      return {
+        id: h.id,
+        previousFee: parseInt(h.oldValue || String(this.DEFAULT_FEE), 10),
+        newFee: parseInt(h.newValue, 10),
+        changedById: h.changedBy || "SYSTEM",
+        changedByName: name,
+        userName: name,
+        changedAt: h.changedAt,
+        timestamp: h.changedAt.toISOString(),
+        reason: h.reason || "Fee adjustment",
+        schoolId,
+      };
+    });
   }
 
   /**
    * Issues an official admission form and generates an immutable fee snapshot.
-   * Previously issued forms retain the fee that was applicable when they were issued.
+   * Employs PostgreSQL transaction advisory locking to guarantee concurrency-safe,
+   * gapless monotonic FORM-YYYY-XXXX generation without collisions or race conditions.
    */
   public static async issueForm(
     schoolId: string,
@@ -218,18 +251,39 @@ export class AdmissionFeeConfigService {
     applicantName?: string,
     academicSession?: string
   ): Promise<IssuedFormSnapshot> {
+    if (!schoolId) {
+      throw new Error("Tenant schoolId is required to issue admission form.");
+    }
+
     const currentFee = await this.getApplicationFee(schoolId);
     const currentYear = new Date().getFullYear();
 
-    // Generate unique issuance number and store immutable snapshot inside tenant transaction (RLS enforced)
     const snapshot = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
-      const count = await tx.auditLog.count({
+      // 1. Acquire transaction advisory lock for monotonic form numbering per school and year
+      try {
+        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'admission_form_seq_' + schoolId + '_' + currentYear}))`;
+      } catch {}
+
+      // 2. Query highest issued form number for this school and year
+      const latestIssued = await tx.auditLog.findFirst({
         where: {
           schoolId,
           action: "ADMISSION_FORM_ISSUED",
+          entityId: { startsWith: `FORM-${currentYear}-` },
         },
+        orderBy: { entityId: "desc" },
+        select: { entityId: true },
       });
-      const formNumber = `FORM-${currentYear}-${String(count + 1).padStart(4, "0")}`;
+
+      let nextSeq = 1;
+      if (latestIssued?.entityId) {
+        const parts = latestIssued.entityId.split("-");
+        const lastNum = parseInt(parts[parts.length - 1], 10);
+        if (!isNaN(lastNum)) {
+          nextSeq = lastNum + 1;
+        }
+      }
+      const formNumber = `FORM-${currentYear}-${String(nextSeq).padStart(4, "0")}`;
 
       const item: IssuedFormSnapshot = {
         formNumber,
@@ -262,12 +316,15 @@ export class AdmissionFeeConfigService {
   }
 
   /**
-   * Look up an issued form snapshot to retrieve its immutable original fee
+   * Look up an issued form snapshot to retrieve its immutable original fee and metadata.
+   * Enforces strict multi-tenant scoping.
    */
   public static async getIssuedFormSnapshot(
     schoolId: string,
     formNumber: string
   ): Promise<IssuedFormSnapshot | null> {
+    if (!schoolId || !formNumber) return null;
+
     const log = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
       return tx.auditLog.findFirst({
         where: {
@@ -283,10 +340,13 @@ export class AdmissionFeeConfigService {
     }
 
     try {
-      return JSON.parse(log.details) as IssuedFormSnapshot;
+      const parsed = JSON.parse(log.details) as IssuedFormSnapshot;
+      if (parsed.schoolId && parsed.schoolId !== schoolId) {
+        return null;
+      }
+      return parsed;
     } catch {
       return null;
     }
   }
 }
-

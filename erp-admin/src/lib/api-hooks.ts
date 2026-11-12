@@ -77,6 +77,15 @@ export function invalidateAll(prefix: string) {
 export function useNotices(params?: string) { return useSWR(`/api/v1/notices${params ? `?${params}` : ""}`, fetcher); }
 export function useEvents(params?: string) { return useSWR(`/api/v1/events${params ? `?${params}` : ""}`, fetcher); }
 export function useStudents(params?: string) { return useSWR(`/api/v1/students${params ? `?${params}` : ""}`, fetcher); }
+export function useStudent(id?: string) { return useSWR(id ? `/api/v1/students/${id}` : null, fetcher); }
+export function useStudentPersonal(id?: string) { return useSWR(id ? `/api/v1/students/${id}/personal` : null, fetcher); }
+export function useStudentGuardians(id?: string) { return useSWR(id ? `/api/v1/students/${id}/guardians` : null, fetcher); }
+export function useStudentAcademics(id?: string) { return useSWR(id ? `/api/v1/students/${id}/academics` : null, fetcher); }
+export function useStudentAdmission(id?: string) { return useSWR(id ? `/api/v1/students/${id}/admission` : null, fetcher); }
+export function useStudentFees(id?: string) { return useSWR(id ? `/api/v1/students/${id}/fees` : null, fetcher); }
+export function useStudentAttendance(id?: string) { return useSWR(id ? `/api/v1/students/${id}/attendance` : null, fetcher); }
+export function useStudentDocuments(id?: string) { return useSWR(id ? `/api/v1/students/${id}/documents` : null, fetcher); }
+export function useStudentHistory(id?: string) { return useSWR(id ? `/api/v1/students/${id}/history` : null, fetcher); }
 export function useTeachers(params?: string) { return useSWR(`/api/v1/teachers${params ? `?${params}` : ""}`, fetcher); }
 export function useInvoices(params?: string) { return useSWR(`/api/v1/invoices${params ? `?${params}` : ""}`, fetcher); }
 export function useResults(params?: string) { return useSWR(`/api/v1/results${params ? `?${params}` : ""}`, fetcher); }
@@ -135,6 +144,7 @@ export function useShfiOverview() { return useSWR("/api/v1/shfi/health/overview"
 export function useAdmissionOverview() { return useSWR("/api/v1/admin/admissions/bulk/overview", fetcher); }
 export function useAdmissionFee() { return useSWR("/api/v1/admin/admissions/bulk/fee", fetcher); }
 export function useAdmissionRegister(params?: string) { return useSWR(`/api/v1/admin/admissions/bulk/register${params ? `?${params}` : ""}`, fetcher); }
+export function useReadmissions(params?: string) { return useSWR(`/api/v1/admin/admissions/bulk/readmissions${params ? `?${params}` : ""}`, fetcher); }
 
 export class ApiError extends Error {
   status: number;

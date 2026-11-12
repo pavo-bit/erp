@@ -1,12 +1,12 @@
 {
   "schema": "ssvm-backend/prisma/schema.prisma",
   "generatedBy": "ssvm-backend/scripts/generate-tenant-classification.cjs",
-  "modelCount": 211,
-  "directCount": 130,
+  "modelCount": 220,
+  "directCount": 139,
   "indirectCount": 50,
   "globalCount": 31,
-  "tenantModelsWithMigrations": 180,
-  "tenantModelsMissingMigrations": 0,
+  "tenantModelsWithMigrations": 185,
+  "tenantModelsMissingMigrations": 4,
   "verification": "UNVERIFIED",
   "score": 0,
   "models": [
@@ -40,6 +40,13 @@
         {
           "relation": "teacherSubjectAssignments",
           "relatedModel": "TeacherSubjectAssignment",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "studentEnrollments",
+          "relatedModel": "StudentEnrollment",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
@@ -1029,6 +1036,20 @@
           "referencedFields": []
         },
         {
+          "relation": "copies",
+          "relatedModel": "BookCopy",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "requests",
+          "relatedModel": "BookRequest",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
           "relation": "school",
           "relatedModel": "School",
           "cardinality": "one",
@@ -1038,6 +1059,48 @@
           "referencedFields": [
             "id"
           ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "BookCopy",
+      "table": "book_copies",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "book",
+          "relatedModel": "Book",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "bookId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "issues",
+          "relatedModel": "BookIssue",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
         }
       ],
       "verification": "UNVERIFIED",
@@ -1063,6 +1126,129 @@
             "id"
           ]
         },
+        {
+          "relation": "copy",
+          "relatedModel": "BookCopy",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "copyId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "renewals",
+          "relatedModel": "BookRenewal",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "BookRenewal",
+      "table": "book_renewals",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "issue",
+          "relatedModel": "BookIssue",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "issueId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "BookRequest",
+      "table": "book_requests",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "book",
+          "relatedModel": "Book",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "bookId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "student",
+          "relatedModel": "Student",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "studentId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "BorrowingPolicy",
+      "table": "borrowing_policies",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
         {
           "relation": "school",
           "relatedModel": "School",
@@ -1392,6 +1578,13 @@
         {
           "relation": "studyMaterials",
           "relatedModel": "StudyMaterial",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "studentEnrollments",
+          "relatedModel": "StudentEnrollment",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
@@ -2163,6 +2356,41 @@
       "score": 0
     },
     {
+      "model": "FacilityRequest",
+      "table": "facility_requests",
+      "migrationCoverage": "MISSING",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "student",
+          "relatedModel": "Student",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "studentId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
       "model": "FailedJob",
       "table": "failed_jobs",
       "migrationCoverage": "PRESENT",
@@ -2834,6 +3062,13 @@
         {
           "relation": "students",
           "relatedModel": "Student",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "studentGuardians",
+          "relatedModel": "StudentGuardian",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
@@ -3907,6 +4142,30 @@
             "id"
           ]
         },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "LibraryAuditEvent",
+      "table": "library_audit_events",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
         {
           "relation": "school",
           "relatedModel": "School",
@@ -5893,6 +6152,41 @@
           "referencedFields": []
         },
         {
+          "relation": "bookCopies",
+          "relatedModel": "BookCopy",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "borrowingPolicies",
+          "relatedModel": "BorrowingPolicy",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "bookRequests",
+          "relatedModel": "BookRequest",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "bookRenewals",
+          "relatedModel": "BookRenewal",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "libraryAuditEvents",
+          "relatedModel": "LibraryAuditEvent",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
           "relation": "branches",
           "relatedModel": "Branch",
           "cardinality": "many",
@@ -6441,6 +6735,34 @@
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
+        },
+        {
+          "relation": "studentGuardians",
+          "relatedModel": "StudentGuardian",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "studentEnrollments",
+          "relatedModel": "StudentEnrollment",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "schoolShifts",
+          "relatedModel": "SchoolShift",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "facilityRequests",
+          "relatedModel": "FacilityRequest",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
         }
       ],
       "verification": "UNVERIFIED",
@@ -6650,6 +6972,37 @@
       "score": 0
     },
     {
+      "model": "SchoolShift",
+      "table": "school_shifts",
+      "migrationCoverage": "MISSING",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "enrollments",
+          "relatedModel": "StudentEnrollment",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
       "model": "Section",
       "table": "sections",
       "migrationCoverage": "PRESENT",
@@ -6713,6 +7066,13 @@
         {
           "relation": "timetables",
           "relatedModel": "Timetable",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "studentEnrollments",
+          "relatedModel": "StudentEnrollment",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
@@ -6882,6 +7242,13 @@
           "referencedFields": []
         },
         {
+          "relation": "bookRequests",
+          "relatedModel": "BookRequest",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
           "relation": "hostelAllocations",
           "relatedModel": "HostelAllocation",
           "cardinality": "many",
@@ -6940,6 +7307,27 @@
         {
           "relation": "advanceCredits",
           "relatedModel": "StudentAdvanceCredit",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "guardians",
+          "relatedModel": "StudentGuardian",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "enrollments",
+          "relatedModel": "StudentEnrollment",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "facilityRequests",
+          "relatedModel": "FacilityRequest",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []
@@ -7046,6 +7434,85 @@
       "score": 0
     },
     {
+      "model": "StudentEnrollment",
+      "table": "student_enrollments",
+      "migrationCoverage": "MISSING",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "student",
+          "relatedModel": "Student",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "studentId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "session",
+          "relatedModel": "AcademicSession",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "sessionId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "class",
+          "relatedModel": "Class",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "classId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "section",
+          "relatedModel": "Section",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "sectionId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "shift",
+          "relatedModel": "SchoolShift",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "shiftId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
       "model": "StudentFinancialProjection",
       "table": "StudentFinancialProjection",
       "migrationCoverage": "PRESENT",
@@ -7071,6 +7538,52 @@
           "cardinality": "one",
           "foreignKeyFields": [
             "studentId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "StudentGuardian",
+      "table": "student_guardians",
+      "migrationCoverage": "MISSING",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "student",
+          "relatedModel": "Student",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "studentId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "guardian",
+          "relatedModel": "Guardian",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "guardianId"
           ],
           "referencedFields": [
             "id"

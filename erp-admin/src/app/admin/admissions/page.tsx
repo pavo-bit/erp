@@ -28,6 +28,7 @@ import {
   useAdmissionOverview,
   useAdmissionFee,
   useAdmissionRegister,
+  useReadmissions,
   apiCall,
   invalidateAll,
 } from "@/lib/api-hooks";
@@ -65,6 +66,10 @@ export default function AdmissionsPage() {
   const [page, setPage] = useState(1);
   const pageSize = 15;
 
+  // Re-admission Search & Pagination State
+  const [readmissionSearch, setReadmissionSearch] = useState("");
+  const [readmissionPage, setReadmissionPage] = useState(1);
+
   // SWR Data Hooks
   const { data: overviewData, isLoading: overviewLoading } = useAdmissionOverview();
   const { data: feeData, isLoading: feeLoading } = useAdmissionFee();
@@ -83,11 +88,28 @@ export default function AdmissionsPage() {
     registerQueryParams.toString()
   );
 
+  // Dedicated Server-Side Re-Admissions Query
+  const readmissionQueryParams = new URLSearchParams();
+  if (readmissionSearch) readmissionQueryParams.set("search", readmissionSearch);
+  readmissionQueryParams.set("page", String(readmissionPage));
+  readmissionQueryParams.set("limit", String(pageSize));
+
+  const { data: readmissionData, isLoading: readmissionLoading } = useReadmissions(
+    readmissionQueryParams.toString()
+  );
+
   const registeredStudents = registerData?.students || [];
   const pagination = registerData?.pagination || { total: 0, page: 1, limit: pageSize, totalPages: 1 };
 
-  const currentFee = feeData?.applicationFee ?? 200;
+  const readmittedStudents = readmissionData?.students || [];
+  const readmissionPagination = readmissionData?.pagination || { total: 0, page: 1, limit: pageSize, totalPages: 1 };
+
+  const currentFee = feeData?.applicationFee ?? feeData?.currentFee ?? 200;
   const feeHistory = feeData?.history || [];
+
+  // Institutional branding from server overview
+  const schoolName = overviewData?.schoolName || "Shri Shiksha Vikash Mandir (SSVM)";
+  const schoolCode = overviewData?.schoolCode || "SSVM-ODISHA";
 
   // Handlers
   const handleFeeUpdate = async (e: React.FormEvent) => {
@@ -108,6 +130,7 @@ export default function AdmissionsPage() {
     try {
       await apiCall("/api/v1/admin/admissions/bulk/fee", "PUT", {
         applicationFee: newFeeInput,
+        amount: newFeeInput,
         reason: feeReasonInput.trim(),
       });
       setFeeSuccess("Application fee successfully updated.");
@@ -154,11 +177,16 @@ export default function AdmissionsPage() {
   };
 
   const handleDownloadPdf = (type: AdmissionType) => {
-    window.open(`/api/v1/admin/admissions/bulk/forms/${type}/pdf`, "_blank");
+    const url = issuedSerial
+      ? `/api/v1/admin/admissions/bulk/forms/${type}/pdf?formNumber=${encodeURIComponent(issuedSerial)}`
+      : `/api/v1/admin/admissions/bulk/forms/${type}/pdf`;
+    window.open(url, "_blank");
   };
 
   const handlePrintForm = (type: AdmissionType) => {
-    const printUrl = `/api/v1/admin/admissions/bulk/forms/${type}/print`;
+    const printUrl = issuedSerial
+      ? `/api/v1/admin/admissions/bulk/forms/${type}/print?formNumber=${encodeURIComponent(issuedSerial)}`
+      : `/api/v1/admin/admissions/bulk/forms/${type}/print`;
     const printWindow = window.open(printUrl, "_blank", "width=900,height=1100");
     if (printWindow) {
       printWindow.focus();
@@ -175,6 +203,7 @@ export default function AdmissionsPage() {
             <button
               onClick={() => {
                 setViewerType("NEW");
+                setIssuedSerial(null);
                 setIsViewerOpen(true);
               }}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white bg-blue-600 hover:bg-blue-700 transition shadow-sm"
@@ -198,19 +227,19 @@ export default function AdmissionsPage() {
         <StatCard
           icon="👥"
           label="Registered Students"
-          value={String(overviewData?.totalStudentsRegistered ?? (overviewLoading ? "..." : 0))}
+          value={String(overviewData?.totalStudentsRegistered ?? overviewData?.totalStudents ?? (overviewLoading ? "..." : 0))}
           color="#3B82F6"
         />
         <StatCard
           icon="📄"
           label="Forms Issued"
-          value={String(overviewData?.totalFormsIssued ?? (overviewLoading ? "..." : 0))}
+          value={String(overviewData?.totalFormsIssued ?? overviewData?.formsIssuedCount ?? (overviewLoading ? "..." : 0))}
           color="#10B981"
         />
         <StatCard
           icon="🔄"
           label="Active Admissions"
-          value={String(overviewData?.activeAdmissions ?? (overviewLoading ? "..." : 0))}
+          value={String(overviewData?.activeAdmissions ?? overviewData?.totalAdmissions ?? (overviewLoading ? "..." : 0))}
           color="#8B5CF6"
         />
         <StatCard
@@ -261,7 +290,7 @@ export default function AdmissionsPage() {
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-lg font-bold text-gray-900 mb-2">Institutional Admission Workflow</h2>
             <p className="text-sm text-gray-600 mb-6">
-              SSVM ERP operates an authentic paper-based admission lifecycle ensuring strict offline approval
+              {schoolName} operates an authentic paper-based admission lifecycle ensuring strict offline approval
               and verified physical documents. No unverified online applicant records are registered directly.
             </p>
 
@@ -296,10 +325,10 @@ export default function AdmissionsPage() {
                 </p>
               </div>
 
+              <div className="p-4 rounded-xl border border-amber-100 bg-amber-600 text-white flex items-center justify-center font-bold text-sm mb-3">
+                4
+              </div>
               <div className="p-4 rounded-xl border border-amber-100 bg-amber-50/50">
-                <div className="w-8 h-8 rounded-lg bg-amber-600 text-white flex items-center justify-center font-bold text-sm mb-3">
-                  4
-                </div>
                 <h3 className="font-semibold text-gray-900 text-sm mb-1">Registration & Placement</h3>
                 <p className="text-xs text-gray-600">
                   Student registered via Excel Bulk Wizard or canonical enrollment with permanent admission number and class allotment.
@@ -350,6 +379,7 @@ export default function AdmissionsPage() {
                     <button
                       onClick={() => {
                         setViewerType(f.type);
+                        setIssuedSerial(null);
                         setIsViewerOpen(true);
                       }}
                       className="flex-1 py-2 rounded-lg bg-blue-50 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition"
@@ -504,10 +534,10 @@ export default function AdmissionsPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {registeredStudents.map((s: any) => {
-                    const studentName = `${s.firstName || ""} ${s.lastName || ""}`.trim() || "Unnamed Student";
-                    const className = s.enrollments?.[0]?.class?.name || s.currentClass || "—";
-                    const sectionName = s.enrollments?.[0]?.section?.name || s.currentSection || "";
-                    const session = s.enrollments?.[0]?.academicSession?.name || "2026-2027";
+                    const studentName = s.name || `${s.firstName || ""} ${s.lastName || ""}`.trim() || "Unnamed Student";
+                    const className = s.className || s.enrollments?.[0]?.class?.name || "—";
+                    const sectionName = s.sectionName && s.sectionName !== "-" ? s.sectionName : "";
+                    const session = s.sessionName || "2026-2027";
                     const admType = s.admissionType || "NEW";
 
                     return (
@@ -541,12 +571,20 @@ export default function AdmissionsPage() {
                         <td className="px-5 py-3.5">
                           <StatusBadge
                             status={s.status || "ACTIVE"}
-                            color={s.status === "ACTIVE" ? "#10B981" : "#6B7280"}
+                            color={
+                              s.status === "ACTIVE"
+                                ? "#10B981"
+                                : s.status === "ALUMNI"
+                                ? "#8B5CF6"
+                                : s.status === "TRANSFERRED"
+                                ? "#F59E0B"
+                                : "#6B7280"
+                            }
                           />
                         </td>
                         <td className="px-5 py-3.5 text-right">
                           <Link
-                            href={`/admin/students?search=${encodeURIComponent(s.admissionNo || "")}`}
+                            href={s.id ? `/admin/students/${s.id}` : `/admin/students?search=${encodeURIComponent(s.admissionNo || "")}`}
                             className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
                           >
                             View Profile
@@ -597,82 +635,118 @@ export default function AdmissionsPage() {
         </div>
       )}
 
-      {/* TAB 3: RE-ADMISSION RECORDS */}
+      {/* TAB 3: DEDICATED RE-ADMISSION RECORDS (SERVER-SIDE) */}
       {activeTab === "READMISSIONS" && (
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-4">
             <div>
               <h2 className="text-base font-bold text-gray-900">Permanent Identity Re-admission Ledger</h2>
               <p className="text-xs text-gray-600">
-                Re-admitted students retain their original admission number and canonical identity across academic sessions.
+                Server-side verified re-admissions preserving permanent student admission number and canonical identity across academic sessions.
               </p>
             </div>
-            <button
-              onClick={() => {
-                setViewerType("READMISSION");
-                setIsViewerOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 transition"
-            >
-              <FileText className="w-4 h-4" />
-              Print Re-admission Blank Form
-            </button>
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Filter re-admissions..."
+                  value={readmissionSearch}
+                  onChange={(e) => {
+                    setReadmissionSearch(e.target.value);
+                    setReadmissionPage(1);
+                  }}
+                  className="pl-8 pr-3 py-1.5 rounded-lg border border-gray-300 text-xs w-48 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                onClick={() => {
+                  setViewerType("READMISSION");
+                  setIssuedSerial(null);
+                  setIsViewerOpen(true);
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 transition"
+              >
+                <FileText className="w-4 h-4" />
+                Print Re-admission Form
+              </button>
+            </div>
           </div>
 
           <div className="rounded-xl border border-gray-200 overflow-hidden">
-            <table className="w-full text-left text-xs">
-              <thead>
-                <tr className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
-                  <th className="px-4 py-3">Permanent Admission No</th>
-                  <th className="px-4 py-3">Student Name</th>
-                  <th className="px-4 py-3">Previous Academic History</th>
-                  <th className="px-4 py-3">Current Placement</th>
-                  <th className="px-4 py-3">Identity Integrity</th>
-                  <th className="px-4 py-3 text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {registeredStudents
-                  .filter((s: any) => s.admissionType === "READMISSION")
-                  .map((s: any) => (
+            {readmissionLoading ? (
+              <div className="py-12 text-center text-gray-500 text-xs">Loading re-admission ledger...</div>
+            ) : readmittedStudents.length === 0 ? (
+              <div className="py-12 text-center text-gray-500 text-xs">No re-admission records found in the database.</div>
+            ) : (
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+                    <th className="px-4 py-3">Permanent Admission No</th>
+                    <th className="px-4 py-3">Student Name</th>
+                    <th className="px-4 py-3">Academic Placement</th>
+                    <th className="px-4 py-3">Re-admission Date</th>
+                    <th className="px-4 py-3">Identity Preservation</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {readmittedStudents.map((s: any) => (
                     <tr key={s.id} className="hover:bg-gray-50/50">
                       <td className="px-4 py-3 font-mono font-bold text-purple-700">{s.admissionNo}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">
-                        {`${s.firstName || ""} ${s.lastName || ""}`.trim()}
+                      <td className="px-4 py-3 font-semibold text-gray-900">{s.name}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        {s.currentClass} {s.currentSection && s.currentSection !== "-" ? `(${s.currentSection})` : ""} • {s.currentSession}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {s.enrollments?.length > 1
-                          ? `${s.enrollments.length} Recorded Sessions`
-                          : "Re-enrolled Student"}
-                      </td>
-                      <td className="px-4 py-3 text-gray-900">
-                        {s.enrollments?.[0]?.class?.name || s.currentClass || "—"}
+                        {new Date(s.reAdmittedAt).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </td>
                       <td className="px-4 py-3">
                         <span className="inline-flex items-center gap-1 text-emerald-700 font-semibold text-[11px]">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          Preserved Single Identity
+                          Permanent Identity Intact
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <Link
-                          href={`/admin/students?search=${encodeURIComponent(s.admissionNo || "")}`}
-                          className="text-xs text-blue-600 hover:text-blue-800 font-medium"
+                          href={s.id ? `/admin/students/${s.id}` : `/admin/students?search=${encodeURIComponent(s.admissionNo || "")}`}
+                          className="inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800 font-medium"
                         >
                           View History
+                          <ExternalLink className="w-3 h-3" />
                         </Link>
                       </td>
                     </tr>
                   ))}
-                {registeredStudents.filter((s: any) => s.admissionType === "READMISSION").length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-10 text-center text-gray-500">
-                      No re-admission students found in the current register page.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {/* Re-admission Pagination */}
+          <div className="p-3 border-t border-gray-200 flex items-center justify-between text-xs text-gray-600 mt-2">
+            <div>Total Re-admissions: <span className="font-bold text-gray-900">{readmissionPagination.total}</span></div>
+            <div className="flex items-center gap-2">
+              <button
+                disabled={readmissionPagination.page <= 1}
+                onClick={() => setReadmissionPage((p) => Math.max(1, p - 1))}
+                className="p-1 rounded border border-gray-300 disabled:opacity-40"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <span>Page {readmissionPagination.page} of {readmissionPagination.totalPages || 1}</span>
+              <button
+                disabled={readmissionPagination.page >= readmissionPagination.totalPages}
+                onClick={() => setReadmissionPage((p) => p + 1)}
+                className="p-1 rounded border border-gray-300 disabled:opacity-40"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -734,17 +808,23 @@ export default function AdmissionsPage() {
                       </td>
                     </tr>
                   ) : (
-                    feeHistory.map((h: any, idx: number) => (
-                      <tr key={idx} className="hover:bg-gray-50/50">
-                        <td className="px-4 py-3 text-gray-600">
-                          {new Date(h.timestamp).toLocaleString("en-IN")}
-                        </td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{h.userName}</td>
-                        <td className="px-4 py-3 text-gray-500 line-through">₹{h.previousFee}</td>
-                        <td className="px-4 py-3 font-bold text-emerald-600">₹{h.newFee}</td>
-                        <td className="px-4 py-3 text-gray-700">{h.reason}</td>
-                      </tr>
-                    ))
+                    feeHistory.map((h: any, idx: number) => {
+                      const dateStr = h.timestamp || h.changedAt;
+                      const formattedDate = dateStr
+                        ? new Date(dateStr).toLocaleString("en-IN")
+                        : "—";
+                      const userDisplay = h.userName || h.changedByName || "Administrator";
+
+                      return (
+                        <tr key={idx} className="hover:bg-gray-50/50">
+                          <td className="px-4 py-3 text-gray-600">{formattedDate}</td>
+                          <td className="px-4 py-3 font-medium text-gray-900">{userDisplay}</td>
+                          <td className="px-4 py-3 text-gray-500 line-through">₹{h.previousFee}</td>
+                          <td className="px-4 py-3 font-bold text-emerald-600">₹{h.newFee}</td>
+                          <td className="px-4 py-3 text-gray-700">{h.reason}</td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -753,7 +833,7 @@ export default function AdmissionsPage() {
         </div>
       )}
 
-      {/* FORM VIEWER MODAL WITH A4 PREVIEW, PRINT, PDF, AND CLOSE BUTTON */}
+      {/* FORM VIEWER MODAL WITH DYNAMIC BRANDING, A4 PREVIEW, PRINT, PDF, AND CLOSE BUTTON */}
       <AnimatePresence>
         {isViewerOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-xs">
@@ -790,7 +870,7 @@ export default function AdmissionsPage() {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePrintForm(viewerType)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-xs font-semibold hover:bg-gray-50 cursor-pointer"
                   >
                     <Printer className="w-3.5 h-3.5" />
                     Print
@@ -798,7 +878,7 @@ export default function AdmissionsPage() {
 
                   <button
                     onClick={() => handleDownloadPdf(viewerType)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-sm"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 shadow-sm cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     Download PDF
@@ -822,10 +902,10 @@ export default function AdmissionsPage() {
               {/* Form Serial Issuance Bar */}
               <div className="px-6 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between text-xs flex-wrap gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-blue-900">Issue Form to Applicant:</span>
+                  <span className="font-semibold text-blue-900">Issue Official Serial to Candidate:</span>
                   <input
                     type="text"
-                    placeholder="Applicant full name..."
+                    placeholder="Candidate full name..."
                     value={applicantName}
                     onChange={(e) => setApplicantName(e.target.value)}
                     className="px-2.5 py-1 rounded bg-white border border-blue-200 text-xs w-48"
@@ -839,9 +919,9 @@ export default function AdmissionsPage() {
                   <button
                     disabled={isIssuing || !applicantName.trim()}
                     onClick={handleIssueForm}
-                    className="px-3 py-1 rounded bg-blue-600 text-white font-semibold text-xs disabled:opacity-50 hover:bg-blue-700"
+                    className="px-3 py-1 rounded bg-blue-600 text-white font-semibold text-xs disabled:opacity-50 hover:bg-blue-700 cursor-pointer"
                   >
-                    {isIssuing ? "Issuing..." : "Issue & Download"}
+                    {isIssuing ? "Issuing..." : "Issue & Lock Snapshot"}
                   </button>
                 </div>
                 {issuedSerial && (
@@ -851,27 +931,27 @@ export default function AdmissionsPage() {
                 )}
               </div>
 
-              {/* Live A4 Form Preview */}
+              {/* Live A4 Form Preview Driven by Dynamic Tenant Data */}
               <div className="flex-1 overflow-y-auto p-6 bg-gray-100 flex justify-center">
                 <div className="bg-white w-full max-w-[780px] p-8 shadow-md border border-gray-300 text-gray-900 font-sans text-xs">
                   {/* Header */}
                   <div className="border-b-2 border-gray-800 pb-3 mb-4 flex justify-between items-start">
                     <div className="flex-1">
                       <h1 className="text-base font-black tracking-wide text-gray-900 uppercase">
-                        SSVM HIGHER SECONDARY SCHOOL
+                        {schoolName}
                       </h1>
                       <p className="text-[10px] text-gray-600">
-                        Affiliated to CBSE / State Educational Board • Institutional Code: SSVM-9842
+                        Affiliation / Institutional Code: {schoolCode} • Academic Session: {sessionInput}
                       </p>
                       <p className="text-[10px] text-gray-600">
-                        Campus Office: 124 Education Enclave, Academic City • Helpline: +91 44 2839 0000
+                        Campus Admissions Desk • Official Paper Application
                       </p>
                       <div className="mt-2 inline-block bg-gray-900 text-white font-bold text-[11px] px-3 py-0.5 rounded-xs tracking-wider">
                         {viewerType === "NEW"
-                          ? "STUDENT ADMISSION APPLICATION FORM"
+                          ? "STUDENT ADMISSION APPLICATION FORM (NEW ADMISSION)"
                           : viewerType === "READMISSION"
-                          ? "RE-ADMISSION APPLICATION FORM"
-                          : "INCOMING TRANSFER ADMISSION FORM"}
+                          ? "RE-ADMISSION APPLICATION FORM (PERMANENT IDENTITY RETAINED)"
+                          : "INCOMING TRANSFER ADMISSION FORM (TC VERIFIED)"}
                       </div>
                     </div>
 
@@ -886,10 +966,12 @@ export default function AdmissionsPage() {
                   <div className="flex justify-between items-center bg-gray-100 p-2 mb-4 font-mono text-[11px] border border-gray-200">
                     <div>
                       Form Serial:{" "}
-                      <span className="font-bold text-blue-700">{issuedSerial || "BLANK-FORM"}</span>
+                      <span className="font-bold text-blue-700">
+                        {issuedSerial ? `${issuedSerial} (OFFICIALLY ISSUED)` : "[ BLANK OFFICIAL TEMPLATE ]"}
+                      </span>
                     </div>
                     <div>
-                      Academic Session: <span className="font-bold">2026-2027</span>
+                      Academic Session: <span className="font-bold">{sessionInput}</span>
                     </div>
                     <div>
                       Application Fee: <span className="font-bold">₹{currentFee} (Non-refundable)</span>
@@ -904,7 +986,7 @@ export default function AdmissionsPage() {
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
                       <div className="border border-gray-300 p-1.5">
                         <span className="text-gray-500 block text-[9px]">Full Name of Candidate (in BLOCK letters):</span>
-                        <div className="h-5" />
+                        <div className="h-5 font-semibold text-gray-800">{applicantName || ""}</div>
                       </div>
                       <div className="border border-gray-300 p-1.5">
                         <span className="text-gray-500 block text-[9px]">Class Applied For:</span>
@@ -966,7 +1048,7 @@ export default function AdmissionsPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
                         <div className="border border-gray-300 p-1.5">
-                          <span className="text-gray-500 block text-[9px]">Permanent SSVM Admission Number:</span>
+                          <span className="text-gray-500 block text-[9px]">Permanent SSVM Admission Number *:</span>
                           <div className="h-5 font-mono font-bold text-purple-700" />
                         </div>
                         <div className="border border-gray-300 p-1.5">
@@ -1023,7 +1105,7 @@ export default function AdmissionsPage() {
                     </div>
                     <p className="text-[9px] text-gray-600 leading-tight">
                       I hereby certify that all information furnished above is correct and verified against original
-                      certificates. I understand that admission is provisional subject to verification by the institution.
+                      certificates. I understand that admission is provisional subject to physical verification by the institution.
                     </p>
                     <div className="flex justify-between items-end mt-6 pt-2 text-[10px]">
                       <div>Date: _______________ Place: _______________</div>
@@ -1042,7 +1124,9 @@ export default function AdmissionsPage() {
                       <span className="font-mono text-gray-700">Fee: ₹{currentFee}</span>
                     </div>
                     <div className="grid grid-cols-3 gap-2 text-[10px]">
-                      <div className="border-b border-gray-300 pb-1">Application Ref: ______________</div>
+                      <div className="border-b border-gray-300 pb-1">
+                        Application Ref: {issuedSerial || "______________"}
+                      </div>
                       <div className="border-b border-gray-300 pb-1">Date of Admission: ____________</div>
                       <div className="border-b border-gray-300 pb-1">Allotted Class/Sec: ___________</div>
                       <div className="border-b border-gray-300 pb-1">Allotted Roll No: _____________</div>
@@ -1162,7 +1246,7 @@ export default function AdmissionsPage() {
                   <button
                     type="submit"
                     disabled={feeSubmitting}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-sm"
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 shadow-sm cursor-pointer"
                   >
                     {feeSubmitting ? "Updating..." : "Save Fee Configuration"}
                   </button>

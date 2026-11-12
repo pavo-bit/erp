@@ -155,6 +155,10 @@ model School {
   feeReceipts                                                           FeeReceipt[]
   paymentAllocations                                                    PaymentAllocation[]
   advanceCredits                                                        StudentAdvanceCredit[]
+  studentGuardians                                                      StudentGuardian[]
+  studentEnrollments                                                    StudentEnrollment[]
+  schoolShifts                                                          SchoolShift[]
+  facilityRequests                                                      FacilityRequest[]
 
   @@map("schools")
 }
@@ -375,6 +379,7 @@ model AcademicSession {
   school                    School                     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   classes                   Class[]
   teacherSubjectAssignments TeacherSubjectAssignment[]
+  studentEnrollments        StudentEnrollment[]
 
   @@unique([schoolId, name])
   @@map("academic_sessions")
@@ -396,6 +401,7 @@ model Class {
   feeStructures  FeeStructure[]
   sections       Section[]
   studyMaterials StudyMaterial[]
+  studentEnrollments StudentEnrollment[]
 
   @@unique([schoolId, sessionId, name])
   @@map("classes")
@@ -414,6 +420,7 @@ model Section {
   students                  Student[]
   teacherSubjectAssignments TeacherSubjectAssignment[]
   timetables                Timetable[]
+  studentEnrollments        StudentEnrollment[]
 
   @@unique([classId, name])
   @@map("sections")
@@ -497,6 +504,7 @@ model Guardian {
   consentRecords  ConsentRecord[]
   user            User?           @relation(fields: [userId], references: [id])
   students        Student[]
+  studentGuardians StudentGuardian[]
 
   @@map("guardians")
 }
@@ -516,6 +524,24 @@ model Student {
   bloodGroup                 String?
   address                    String?
   photo                      String?
+  pen                        String?
+  category                   String?
+  religion                   String?
+  nationality                String?                     @default("Indian")
+  motherTongue               String?
+  locality                   String?
+  pincode                    String?
+  landmark                   String?
+  medicalInfo                String?
+  emergencyPhone             String?
+  previousSchool             String?
+  previousBoard              String?
+  previousClass              String?
+  previousSession            String?
+  previousRollNo             String?
+  tcNumber                   String?
+  tcDate                     DateTime?
+  tcStatus                   String?
   isActive                   Boolean                     @default(true)
   createdAt                  DateTime                    @default(now())
   updatedAt                  DateTime                    @updatedAt
@@ -535,6 +561,9 @@ model Student {
   timelines                  StudentTimeline[]
   feeReceipts                FeeReceipt[]
   advanceCredits             StudentAdvanceCredit[]
+  guardians                  StudentGuardian[]
+  enrollments                StudentEnrollment[]
+  facilityRequests           FacilityRequest[]
   branch                     Branch?                     @relation(fields: [branchId], references: [id])
   guardian                   Guardian?                   @relation(fields: [guardianId], references: [id])
   school                     School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -548,6 +577,8 @@ model Student {
   @@index([admissionNo])
   @@index([schoolId, sectionId])
   @@index([guardianId])
+  @@index([pen])
+  @@index([schoolId, locality])
   @@unique([schoolId, admissionNo], map: "students_admissionNo_key")
   @@index([schoolId, isActive])
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "idx_students_name_trgm")
@@ -1417,18 +1448,23 @@ model OnboardingProgress {
 }
 
 model Document {
-  id         String            @id @default(cuid())
-  schoolId   String
-  ownerType  DocumentOwnerType
-  ownerId    String
-  category   DocumentCategory
-  fileUrl    String
-  title      String?
-  uploadedBy String?
-  createdAt  DateTime          @default(now())
-  updatedAt  DateTime          @updatedAt
-  school     School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id                 String            @id @default(cuid())
+  schoolId           String
+  ownerType          DocumentOwnerType
+  ownerId            String
+  category           DocumentCategory
+  fileUrl            String
+  title              String?
+  uploadedBy         String?
+  verificationStatus String            @default("UPLOADED")
+  verifiedById       String?
+  verifiedAt         DateTime?
+  rejectionReason    String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  school             School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
+  @@index([schoolId, ownerType, ownerId])
   @@map("documents")
 }
 
@@ -4220,4 +4256,100 @@ model StudentAdvanceCredit {
   @@index([schoolId, studentId, status])
   @@map("student_advance_credits")
 }
+
+model StudentGuardian {
+  id                 String   @id @default(cuid())
+  schoolId           String
+  studentId          String
+  guardianId         String
+  relationship       String   @default("FATHER") // FATHER, MOTHER, GUARDIAN, OTHER
+  isPrimary          Boolean  @default(false)
+  isEmergencyContact Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  school             School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student            Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  guardian           Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, guardianId])
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([guardianId])
+  @@map("student_guardians")
+}
+
+model SchoolShift {
+  id                String              @id @default(cuid())
+  schoolId          String
+  name              String              // e.g. "Morning Batch", "Day Batch"
+  type              String              // MORNING, DAY, EVENING
+  applicableClasses String              // e.g. "Prambha,Bodha,Class 1,Class 2,Class 3,Class 4,Class 5"
+  startTime         String              // e.g. "07:30"
+  endTime           String              // e.g. "12:30"
+  isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  school            School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  enrollments       StudentEnrollment[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId])
+  @@map("school_shifts")
+}
+
+model StudentEnrollment {
+  id        String          @id @default(cuid())
+  schoolId  String
+  studentId String
+  sessionId String
+  classId   String
+  sectionId String?
+  rollNo    String?
+  shiftId   String?
+  status    String          @default("ACTIVE") // ACTIVE, COMPLETED, PROMOTED, TRANSFERRED, WITHDRAWN
+  startDate DateTime        @default(now())
+  endDate   DateTime?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  school    School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student   Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  session   AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  class     Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section   Section?        @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  shift     SchoolShift?    @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, sessionId])
+  @@index([schoolId])
+  @@index([studentId])
+  @@index([sessionId])
+  @@index([classId, sectionId])
+  @@map("student_enrollments")
+}
+
+model FacilityRequest {
+  id           String    @id @default(cuid())
+  schoolId     String
+  studentId    String
+  sessionId    String?
+  facilityType String    // TRANSPORT, HOSTEL, MEALS, OTHER
+  status       String    @default("REQUESTED") // NOT_REQUESTED, REQUESTED, PENDING_REVIEW, APPROVED, REJECTED, ALLOCATED, CANCELLED
+  details      String?   // JSON or text: locality, landmark, roomType, mealPlan
+  batchId      String?
+  reviewedById String?
+  reviewedAt   DateTime?
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student      Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, facilityType, status])
+  @@index([studentId])
+  @@map("facility_requests")
+}
+
 

@@ -2,11 +2,13 @@
  * ssvm-backend/src/services/admissions-bulk/admission-pdf.service.ts
  *
  * Generates genuine, standards-compliant binary PDF documents (%PDF-1.4)
- * for official SSVM ERP paper admission forms.
+ * for official SSVM ERP paper admission forms with authoritative snapshot
+ * metadata resolution and zero client-side fee overrides.
  */
 
 import prisma from "../../lib/prisma";
 import { AdmissionFeeConfigService } from "./admission-fee-config.service";
+import { AdmissionPaperFormsService } from "./admission-paper-forms.service";
 import logger from "../../lib/logger";
 
 export interface AdmissionPdfOptions {
@@ -33,19 +35,18 @@ export class AdmissionPdfService {
     }
     const schoolName = (school?.name || "Shri Shiksha Vikash Mandir (SSVM)").toUpperCase();
     const affiliation = school?.code || "SSVM-ODISHA";
-    const sessionName = options.academicSession || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`;
 
-    // Resolve fee: explicit override -> snapshot -> active configuration
-    let fee = options.applicationFee;
-    if (fee === undefined && options.formNumber) {
-      const snapshot = await AdmissionFeeConfigService.getIssuedFormSnapshot(schoolId, options.formNumber);
-      if (snapshot && snapshot.feeAmount !== undefined) {
-        fee = snapshot.feeAmount;
-      }
-    }
-    if (fee === undefined) {
-      fee = await AdmissionFeeConfigService.getApplicationFee(schoolId);
-    }
+    // Authoritatively resolve fee and metadata from snapshot or active configuration
+    const resolved = await AdmissionPaperFormsService.resolveFormOptions(schoolId, formType, {
+      academicSession: options.academicSession,
+      formNumber: options.formNumber,
+    });
+
+    const fee = resolved.fee;
+    const sessionName = resolved.sessionName;
+    const formNumber = resolved.formNumber;
+    const applicantName = resolved.applicantName;
+    const isIssued = resolved.isIssued;
 
     // Build the visual text content and vector drawing commands
     const title =
@@ -93,40 +94,50 @@ export class AdmissionPdfService {
     const feeNotice = `Application Fee: INR ${fee} (Non-refundable)`;
     drawText(feeNotice, 370, 776, 8, "/F2", "0.02 0.47 0.34");
 
+    // 2.1 Issuance Serial & Applicant Bar
+    if (isIssued) {
+      drawText(`Official Form Serial: ${formNumber} (OFFICIALLY ISSUED)`, 42, 736, 8, "/F2", "0.06 0.25 0.5");
+      if (applicantName) {
+        drawText(`Candidate: ${applicantName}`, 290, 736, 8, "/F2", "0.06 0.25 0.5");
+      }
+    } else {
+      drawText("Form Serial: [ BLANK OFFICIAL TEMPLATE - NOT ISSUED ]", 42, 736, 7.5, "/F1", "0.45 0.45 0.45");
+    }
+
     // 3. Photo Box (Right side: 32mm x 40mm => ~91 x 113 pt)
-    strokeRect(465, 625, 90, 113, 1);
-    drawText("Affix Recent", 486, 685, 7.5, "/F1", "0.4 0.4 0.4");
-    drawText("Passport Photo", 482, 673, 7.5, "/F1", "0.4 0.4 0.4");
-    drawText("(32mm x 40mm)", 483, 661, 6.5, "/F1", "0.5 0.5 0.5");
+    strokeRect(465, 620, 90, 113, 1);
+    drawText("Affix Recent", 486, 680, 7.5, "/F1", "0.4 0.4 0.4");
+    drawText("Passport Photo", 482, 668, 7.5, "/F1", "0.4 0.4 0.4");
+    drawText("(32mm x 40mm)", 483, 656, 6.5, "/F1", "0.5 0.5 0.5");
 
     // 4. Section 1: Placement & Student Information
-    drawText("1. Class Applied For: [ Prarambha / Bodha / Class 1 to 12 ]", 42, 730, 8.5, "/F2");
-    drawLine(42, 715, 450, 715);
-    drawText("2. Student Full Name (in BLOCK LETTERS as per Birth Certificate):", 42, 718, 8, "/F1");
+    drawText("1. Class Applied For: [ Prarambha / Bodha / Class 1 to 12 ]", 42, 720, 8.5, "/F2");
+    drawLine(42, 705, 450, 705);
+    drawText("2. Student Full Name (in BLOCK LETTERS as per Birth Certificate):", 42, 708, 8, "/F1");
 
-    drawText("3. Date of Birth (DD/MM/YYYY):", 42, 695, 8, "/F1");
-    strokeRect(170, 690, 100, 16);
-    drawText("4. Gender: [ ] Male   [ ] Female   [ ] Other", 285, 695, 8, "/F1");
+    drawText("3. Date of Birth (DD/MM/YYYY):", 42, 685, 8, "/F1");
+    strokeRect(170, 680, 100, 16);
+    drawText("4. Gender: [ ] Male   [ ] Female   [ ] Other", 285, 685, 8, "/F1");
 
-    drawText("5. Blood Group: [ A+ / A- / B+ / B- / AB+ / AB- / O+ / O- ]", 42, 672, 8, "/F1");
-    drawText("6. Nationality: Indian", 285, 672, 8, "/F1");
+    drawText("5. Blood Group: [ A+ / A- / B+ / B- / AB+ / AB- / O+ / O- ]", 42, 662, 8, "/F1");
+    drawText("6. Nationality: Indian", 285, 662, 8, "/F1");
 
-    drawText("7. Mother Tongue: ____________________", 42, 649, 8, "/F1");
-    drawText("8. Category: [ ] Gen  [ ] OBC  [ ] SC  [ ] ST", 285, 649, 8, "/F1");
+    drawText("7. Mother Tongue: ____________________", 42, 639, 8, "/F1");
+    drawText("8. Category: [ ] Gen  [ ] OBC  [ ] SC  [ ] ST", 285, 639, 8, "/F1");
 
-    drawText("9. Permanent Education Number (PEN) (if allotted): ________________________", 42, 626, 8, "/F1");
+    drawText("9. Permanent Education Number (PEN) (if allotted): ________________________", 42, 616, 8, "/F1");
 
-    // Re-admission specific banner if applicable
+    // Re-admission / Transfer specific banner
     if (formType === "READMISSION") {
-      fillRect(42, 604, 510, 16, 0.94, 0.96, 1.0);
-      drawText("* Permanent SSVM Identity: Existing Admission No: __________________ (Retained)", 48, 608, 8, "/F2", "0.12 0.25 0.69");
+      fillRect(42, 594, 510, 16, 0.94, 0.96, 1.0);
+      drawText("* Permanent SSVM Identity: Existing Admission No: __________________ (Retained)", 48, 598, 8, "/F2", "0.12 0.25 0.69");
     } else if (formType === "TRANSFER") {
-      fillRect(42, 604, 510, 16, 0.94, 0.99, 0.96);
-      drawText("* Transfer Background: Previous School: _______________________ TC No: ______________", 48, 608, 8, "/F2", "0.02 0.37 0.24");
+      fillRect(42, 594, 510, 16, 0.94, 0.99, 0.96);
+      drawText("* Transfer Background: Previous School: _______________________ TC No: ______________", 48, 598, 8, "/F2", "0.02 0.37 0.24");
     }
 
     // 5. Parent / Guardian Section
-    const parentSectionY = formType === "NEW" ? 604 : 584;
+    const parentSectionY = formType === "NEW" ? 594 : 574;
     fillRect(36, parentSectionY, 523.28, 14, 0.94, 0.95, 0.96);
     drawText("PARENT & GUARDIAN INFORMATION", 42, parentSectionY + 3.5, 8, "/F2", "0.06 0.09 0.16");
 
@@ -195,7 +206,8 @@ export class AdmissionPdfService {
     fillRect(36, offY - 3, 523.28, 12, 0.1, 0.15, 0.22);
     drawText("FOR OFFICIAL SCHOOL OFFICE USE ONLY (PHYSICAL ADMISSION REGISTER VERIFICATION)", 75, offY, 7.5, "/F2", "1 1 1");
 
-    drawText("Application Ref: ______________________", 44, offY - 17, 7.5, "/F2");
+    const appRefText = isIssued ? `Application Ref: ${formNumber}` : "Application Ref: ______________________";
+    drawText(appRefText, 44, offY - 17, 7.5, "/F2");
     drawText("Admission Date: ____________________", 215, offY - 17, 7.5, "/F1");
     drawText("Allotted Class & Sec: _______________", 380, offY - 17, 7.5, "/F1");
 
@@ -210,7 +222,7 @@ export class AdmissionPdfService {
     drawText("Authorized Signature of Principal / Admission Incharge", 360, offY - 60, 7, "/F2");
 
     // 10. Footer
-    drawText("Form Reference: SSVM-ADM-OFFICIAL", 36, 16, 7, "/F1", "0.5 0.5 0.5");
+    drawText(`Form Reference: SSVM-ADM-${formType} | Serial: ${formNumber || "BLANK-UNISSUED"}`, 36, 16, 7, "/F1", "0.5 0.5 0.5");
     drawText(`Printed / Issued on: ${new Date().toLocaleDateString("en-IN")}`, 240, 16, 7, "/F1", "0.5 0.5 0.5");
     drawText("Page 1 of 1 (Official)", 495, 16, 7, "/F1", "0.5 0.5 0.5");
 

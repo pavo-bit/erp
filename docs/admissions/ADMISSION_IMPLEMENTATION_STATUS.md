@@ -2,7 +2,7 @@
 
 **Document:** `docs/admissions/ADMISSION_IMPLEMENTATION_STATUS.md`  
 **Status:** Canonical & Verified  
-**Milestone:** Complete Admission Form Finalization, Fee Management, Binary PDF Engine, and Admission Workspace
+**Milestone:** Complete Admission Form Finalization, Data Integrity, Operational Handoff & Student Profile Integration
 
 ---
 
@@ -10,21 +10,25 @@
 
 | Component | Scope | Verification Command | Status |
 | :--- | :--- | :--- | :---: |
-| **Admission Templates** | 3 versioned workbooks (`NEW`, `READMISSION`, `TRANSFER`) with instructions and relationship keys | Vitest unit test | **PASS** |
-| **Excel Parser** | Multi-sheet parsing, non-compacting column mapping, empty cells to NULL | Vitest unit test | **PASS** |
-| **Validation Engine** | Multi-tier validation, 9 blood groups, DOB/gender check, preloaded tenant cache | Vitest unit test | **PASS** |
-| **Offline Attestation** | Fail-closed policy, mandatory user confirmation, approving authority & register ref | Vitest unit test | **PASS** |
-| **New Admission Commit** | Monotonic sequence (`ADM-{YEAR}-{SEQ}`), User creation, Student, Guardian, Admission record (`ENROLLED`), Timeline event | Vitest unit test | **PASS** |
-| **Re-admission Commit** | Mandatory existing number check, preserves permanent identity and admission number, creates new session placement, records `READMISSION` timeline event | Vitest unit test | **PASS** |
-| **Transfer Admission** | Captures previous school, board, TC number/date, generates new SSVM registration number, creates `TRANSFER_ADMISSION` timeline event | Vitest unit test | **PASS** |
-| **Bulk REST API** | `/api/v1/admin/admissions/bulk` (`/templates`, `/preview`, `/commit`, `/history`) | Route mount & Vitest | **PASS** |
+| **Admission Templates** | Versioned multi-sheet Excel (`.xlsx`), single-sheet CSV (`.csv`), and multi-file CSV ZIP packages (`.zip`) for `NEW`, `READMISSION`, and `TRANSFER` with relationship manifests | Vitest API & unit test | **PASS** |
+| **Workbook & CSV Parser** | Safe extraction for `.xlsx`, `.zip` (with 50-file & 50MB limits, directory traversal rejection), and `.csv`, extracting demographics, guardians, placements, previous school, facilities, and documents | Vitest API & unit test | **PASS** |
+| **Validation Engine** | Multi-tier validation, 9 blood groups, DOB/gender check, preloaded tenant cache, offline attestation check | Vitest API & unit test | **PASS** |
+| **Demographic Persistence** | Complete persistence of `pen`, `category`, `religion`, `nationality`, `motherTongue`, `locality`, `pincode`, `landmark`, `medicalInfo`, `emergencyPhone` into `Student` record | Real PostgreSQL 16 API test | **PASS** |
+| **Guardian Normalization** | Shared guardian resolution by primary phone, `StudentGuardian` junction records (`isPrimary`, `isEmergencyContact`), shared sibling discovery | Real PostgreSQL 16 API test | **PASS** |
+| **Academic Progression & Shifts** | Shift batch assignment (`SchoolShift`: Morning Batch for Prarambha–Class 5, Day Batch for Class 6+), `StudentEnrollment` session record creation | Real PostgreSQL 16 API test | **PASS** |
+| **Previous School & TC** | Structured incoming transfer capture (`previousSchool`, `previousBoard`, `previousClass`, `previousSession`, `previousRollNo`, `tcNumber`, `tcDate`, `tcStatus`) | Real PostgreSQL 16 API test | **PASS** |
+| **Document Integrity Workflow** | Authoritative document records with `PENDING_UPLOAD` status when file references are absent, eliminating fake PDF URLs | Real PostgreSQL 16 API test | **PASS** |
+| **Facility Operational Handoff** | Recording `FacilityRequest` (`TRANSPORT`, `HOSTEL`, `MEALS`) with status `REQUESTED` without premature allocations | Real PostgreSQL 16 API test | **PASS** |
+| **New Admission Commit** | Monotonic sequence (`ADM-{YEAR}-{SEQ}`), User creation, Student, Guardian, Admission record (`ENROLLED`), Timeline event | Vitest API & unit test | **PASS** |
+| **Re-admission Commit** | Mandatory existing number check, preserves permanent identity and admission number, creates new session placement, records `READMISSION` timeline event | Vitest API & unit test | **PASS** |
+| **Transfer Admission** | Captures previous school, board, TC number/date, generates new SSVM registration number, creates `TRANSFER_ADMISSION` timeline event | Vitest API & unit test | **PASS** |
+| **Bulk REST API** | `/api/v1/admin/admissions/bulk` (`/templates`, `/preview`, `/commit`, `/history`, `/shifts`, `/facilities/pending`) | Route mount & Vitest | **PASS** |
 | **Paper Form Generator** | Printable A4 HTML templates for `NEW`, `READMISSION`, and `TRANSFER` with snapshot fee resolution, institutional facilities (transport/hostel/dietary), and office use verification block | Vitest unit test | **PASS** |
 | **Binary PDF Service** | Pure Node.js standards-compliant binary PDF 1.4 generator (`admission-pdf.service.ts`) without external headless Chrome dependencies | Vitest unit test | **PASS** |
 | **Fee Configuration & Audit** | Default ₹200 fee, permission-protected modifications (`ADMIN`/`ERP_ADMIN`), immutable fee snapshots on issued forms, and full audit trail (`ConfigHistory` & `AuditLog`) | Vitest API test | **PASS** |
-| **Admission Workspace** | 6-section interface at `/admin/admissions` with StatCards, Form Viewer Modal, Student Admission Register, Re-admission records, Fee Config, and Bulk Registration | TypeScript compilation | **PASS** |
-| **Form Viewer Modal** | Live A4 preview, clearly visible top-right Close button, Print action, Binary PDF download, and Form Issuance with unique serial (`FORM-YYYY-XXXX`) | TypeScript compilation | **PASS** |
-| **Student Admission Register** | Server-side search (Name, Admission No, Roll No, Guardian phone), class/gender/status filters, and server-side pagination | Vitest API test | **PASS** |
-| **Database & Tenancy** | Scoped via `runWithTenantDatabaseTransaction`, fail-closed RLS on all tenant tables | RLS & Tenant suites | **PASS** |
+| **Canonical Student Profile** | Full integration at `/admin/students/[id]` displaying extended demographics, guardians, academic shift, transfer/TC info, facilities, and timeline | Next.js compilation & UI verification | **PASS** |
+| **Student Directory** | Search by Name, Admission No, Roll No, Guardian phone with server-side pagination and filters at `/admin/students` | Next.js compilation & Vitest | **PASS** |
+| **Database & Tenancy** | Scoped via `runWithTenantDatabaseTransaction`, fail-closed RLS on all tenant tables (`students`, `guardians`, `student_guardians`, `school_shifts`, `student_enrollments`, `facility_requests`) | RLS & Tenant suites | **PASS** |
 
 ---
 
@@ -44,6 +48,10 @@ All 8 TypeScript targets compile with **0 errors**:
 
 ## 3. Test Suites & Pass Counts
 
-- **Admission Form Lifecycle Test Suite:** `13 passed / 13 total` (`src/tests/api/admission-form-lifecycle.test.ts`)
+- **Admission Operational Handoff Test Suite:** `9 passed / 9 total` (`src/tests/api/admission-operational-handoff.test.ts`)
+- **Admission Form Lifecycle Test Suite:** `21 passed / 21 total` (`src/tests/api/admission-form-lifecycle.test.ts`)
+- **Student Management Test Suite:** `25 passed / 25 total` (`src/tests/api/student-management.test.ts`)
 - **Admission Acceptance & Audit Test Suite:** `13 passed / 13 total` (`src/tests/api/admissions-acceptance-audit.test.ts`)
-- **Total Passing Admission Tests:** **26 passed / 26 total** on real PostgreSQL 16 on port 5433 with tenant isolation & RLS.
+- **Student Two Schools Isolation Test Suite:** `5 passed / 5 total` (`src/tests/api/student-two-schools.test.ts`)
+- **Admissions Bulk Unit Test Suite:** `20 passed / 20 total` (`src/tests/unit/admissions-bulk.test.ts`)
+- **Total Passing Tests:** **93 passed / 93 total** on real PostgreSQL 16 on port 5433 with tenant isolation & RLS.

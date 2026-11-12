@@ -7,6 +7,9 @@
  */
 
 import ExcelJS from "exceljs";
+import AdmZip from "adm-zip";
+import Papa from "papaparse";
+import crypto from "crypto";
 import {
   AdmissionType,
   CellError,
@@ -23,9 +26,101 @@ import { AdmissionTemplateRegistry } from "./admission-template-registry";
 
 export class AdmissionWorkbookParser {
   /**
-   * Parse an uploaded Excel workbook buffer into structured domain entities
+   * Alias for parseWorkbook to support routes and tests
    */
-  public static async parse(buffer: Buffer): Promise<ParsedAdmissionWorkbook> {
+  public static async parseWorkbook(
+    buffer: Buffer,
+    originalFilename?: string
+  ): Promise<ParsedAdmissionWorkbook> {
+    return this.parse(buffer, originalFilename);
+  }
+
+  /**
+   * Parse an uploaded Excel workbook, Multi-file CSV ZIP package, or Single CSV buffer
+   */
+  public static async parse(
+    buffer: Buffer,
+    originalFilename?: string
+  ): Promise<ParsedAdmissionWorkbook> {
+    if (!buffer || buffer.length === 0) {
+      throw new Error("Empty buffer provided for admission import parsing");
+    }
+
+    const batchId = `BATCH-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+
+    // 1. Check if buffer is a ZIP archive
+    const isZip =
+      buffer.length > 4 &&
+      buffer[0] === 0x50 &&
+      buffer[1] === 0x4b &&
+      buffer[2] === 0x03 &&
+      buffer[3] === 0x04;
+
+    if (isZip) {
+      let zip: AdmZip;
+      try {
+        zip = new AdmZip(buffer);
+      } catch (err: any) {
+        throw new Error(`Invalid or corrupt ZIP archive: ${err.message}`);
+      }
+
+      // Check for Excel markers ([Content_Types].xml or xl/workbook.xml)
+      const isExcel =
+        zip.getEntry("[Content_Types].xml") !== null ||
+        zip.getEntry("xl/workbook.xml") !== null;
+
+      if (isExcel) {
+        const result = await this.parseExcelWorkbook(buffer);
+        result.batchId = batchId;
+        result.admissionType = result.templateType;
+        result.totalRows = result.students.length;
+        return result;
+      }
+
+      // Check if it contains CSV files -> Multi-file CSV package
+      const entries = zip.getEntries();
+      const hasCsvFiles = entries.some((e) => e.entryName.toLowerCase().endsWith(".csv"));
+      if (hasCsvFiles) {
+        const result = await this.parseCsvZipPackage(zip);
+        result.batchId = batchId;
+        result.admissionType = result.templateType;
+        result.totalRows = result.students.length;
+        return result;
+      }
+
+      // Fallback: try Excel loader
+      const result = await this.parseExcelWorkbook(buffer);
+      result.batchId = batchId;
+      result.admissionType = result.templateType;
+      result.totalRows = result.students.length;
+      return result;
+    }
+
+    // 2. Check if buffer is Single-file CSV
+    const isCsvName = originalFilename && originalFilename.toLowerCase().endsWith(".csv");
+    const previewStr = buffer.toString("utf8", 0, Math.min(buffer.length, 1000));
+    const isCsvContent = !isZip && (previewStr.includes(",") || previewStr.includes(";"));
+
+    if (isCsvName || isCsvContent) {
+      const result = await this.parseSingleCsv(buffer);
+      result.batchId = batchId;
+      result.admissionType = result.templateType;
+      result.totalRows = result.students.length;
+      return result;
+    }
+
+    // Fallback: try Excel loading
+    const result = await this.parseExcelWorkbook(buffer);
+    result.batchId = batchId;
+    result.admissionType = result.templateType;
+    result.totalRows = result.students.length;
+    return result;
+  }
+
+  /**
+   * Parse genuine Excel workbook using ExcelJS
+   */
+  public static async parseExcelWorkbook(buffer: Buffer): Promise<ParsedAdmissionWorkbook> {
     const workbook = new ExcelJS.Workbook();
     try {
       await workbook.xlsx.load(buffer as any);
@@ -129,6 +224,742 @@ export class AdmissionWorkbookParser {
       documents,
       parseErrors,
     };
+  }
+
+  /**
+   * Parse multi-file CSV ZIP package containing separate CSV files per sheet
+   */
+  private static async parseCsvZipPackage(zip: AdmZip): Promise<ParsedAdmissionWorkbook> {
+    const entries = zip.getEntries();
+    // Security check 1: max entry count
+    if (entries.length > 50) {
+      throw new Error("ZIP package exceeds maximum allowable file count (50 files).");
+    }
+
+    // Security check 2: path traversal & size bomb checks
+    let totalUncompressedSize = 0;
+    const maxAllowedSize = 50 * 1024 * 1024; // 50MB
+    for (const entry of entries) {
+      const name = entry.entryName;
+      if (name.includes("..") || name.startsWith("/") || name.startsWith("\\")) {
+        throw new Error(`Path traversal attempt detected in ZIP entry '${name}'.`);
+      }
+      totalUncompressedSize += entry.header.size;
+      if (totalUncompressedSize > maxAllowedSize) {
+        throw new Error("ZIP package exceeds maximum decompressed size limit of 50MB.");
+      }
+    }
+
+    // Map entries by normalized basename (e.g. "students.csv" -> entry)
+    const fileMap = new Map<string, AdmZip.IZipEntry>();
+    for (const entry of entries) {
+      if (entry.isDirectory) continue;
+      const base = entry.entryName.split(/[\/\\]/).pop()?.toLowerCase();
+      if (base) {
+        fileMap.set(base, entry);
+      }
+    }
+
+    const parseErrors: CellError[] = [];
+    let templateType: AdmissionType = "NEW";
+    let templateVersion = "1.0.0";
+
+    // Read Instructions.csv if present
+    const instEntry = fileMap.get("instructions.csv");
+    if (instEntry) {
+      const instText = zip.readAsText(instEntry, "utf8");
+      const parsedInst = Papa.parse<string[]>(instText, { skipEmptyLines: "greedy" });
+      for (const row of parsedInst.data || []) {
+        if (!row || row.length < 2) continue;
+        const k = (row[0] || "").toLowerCase().trim();
+        const v = (row[1] || "").toUpperCase().trim();
+        if (k.includes("admission type")) {
+          if (v === "READMISSION" || v === "RE_ADMISSION") templateType = "READMISSION";
+          else if (v === "TRANSFER") templateType = "TRANSFER";
+          else templateType = "NEW";
+        }
+        if (k.includes("template version")) {
+          templateVersion = v || "1.0.0";
+        }
+      }
+    } else {
+      if (fileMap.has("readmissions.csv")) templateType = "READMISSION";
+      else if (fileMap.has("previous_school.csv")) templateType = "TRANSFER";
+      else templateType = "NEW";
+    }
+
+    // Parse Students / ReAdmissions
+    const students: StudentSheetRow[] = [];
+    const studentEntry =
+      templateType === "READMISSION" ? fileMap.get("readmissions.csv") : fileMap.get("students.csv");
+
+    if (!studentEntry) {
+      parseErrors.push({
+        sheet: templateType === "READMISSION" ? "ReAdmissions" : "Students",
+        rowNumber: 0,
+        field: "sheet",
+        fieldLabel: "Worksheet",
+        value: null,
+        code: "MISSING_REQUIRED_SHEET",
+        message: `Mandatory CSV file '${templateType === "READMISSION" ? "ReAdmissions.csv" : "Students.csv"}' is missing from ZIP package.`,
+      });
+    } else {
+      const text = zip.readAsText(studentEntry, "utf8");
+      this.parseCsvStudentRows(text, templateType, students, parseErrors);
+    }
+
+    // Parse Guardians
+    const guardians: GuardianSheetRow[] = [];
+    const grdEntry = fileMap.get("guardians.csv");
+    if (grdEntry) {
+      const text = zip.readAsText(grdEntry, "utf8");
+      this.parseCsvGuardianRows(text, guardians, parseErrors);
+    }
+
+    // Parse Student_Guardians
+    const studentGuardians: StudentGuardianLinkRow[] = [];
+    const sgEntry = fileMap.get("student_guardians.csv");
+    if (sgEntry) {
+      const text = zip.readAsText(sgEntry, "utf8");
+      this.parseCsvStudentGuardianLinkRows(text, studentGuardians, parseErrors);
+    }
+
+    // Parse Academic_Placement
+    const academicPlacements: AcademicPlacementRow[] = [];
+    const placeEntry = fileMap.get("academic_placement.csv");
+    if (placeEntry) {
+      const text = zip.readAsText(placeEntry, "utf8");
+      this.parseCsvAcademicPlacementRows(text, academicPlacements, parseErrors);
+    }
+
+    // Parse Previous_School
+    const previousSchools: PreviousSchoolRow[] = [];
+    const prevEntry = fileMap.get("previous_school.csv");
+    if (prevEntry) {
+      const text = zip.readAsText(prevEntry, "utf8");
+      this.parseCsvPreviousSchoolRows(text, previousSchools, parseErrors);
+    }
+
+    // Parse Facilities
+    const facilities: FacilitySelectionRow[] = [];
+    const facEntry = fileMap.get("student_facilities.csv");
+    if (facEntry) {
+      const text = zip.readAsText(facEntry, "utf8");
+      this.parseCsvFacilityRows(text, facilities, parseErrors);
+    }
+
+    // Parse Documents
+    const documents: DocumentMetaRow[] = [];
+    const docEntry = fileMap.get("documents.csv");
+    if (docEntry) {
+      const text = zip.readAsText(docEntry, "utf8");
+      this.parseCsvDocumentRows(text, documents, parseErrors);
+    }
+
+    return {
+      templateType,
+      templateVersion,
+      students,
+      guardians,
+      studentGuardians,
+      academicPlacements,
+      previousSchools,
+      facilities,
+      documents,
+      parseErrors,
+    };
+  }
+
+  /**
+   * Parse single-file CSV format where one row represents complete student admission
+   */
+  private static async parseSingleCsv(buffer: Buffer): Promise<ParsedAdmissionWorkbook> {
+    const text = buffer.toString("utf8");
+    const parsed = Papa.parse<string[]>(text, { skipEmptyLines: "greedy" });
+    const rows = parsed.data || [];
+    if (rows.length < 2) {
+      throw new Error("CSV file must contain a header row and at least one data row.");
+    }
+
+    const headerRow = rows[0];
+    const headerMap = this.extractHeaderMapFromRow(headerRow);
+    const parseErrors: CellError[] = [];
+
+    // Detect template type from headers
+    let templateType: AdmissionType = "NEW";
+    if (headerMap.has("existing_ssvm_admission_no") || headerMap.has("existing_admission_no")) {
+      templateType = "READMISSION";
+    } else if (
+      headerMap.has("previous_school") ||
+      headerMap.has("previous_school_name") ||
+      headerMap.has("tc_number")
+    ) {
+      templateType = "TRANSFER";
+    }
+
+    const students: StudentSheetRow[] = [];
+    const guardians: GuardianSheetRow[] = [];
+    const studentGuardians: StudentGuardianLinkRow[] = [];
+    const academicPlacements: AcademicPlacementRow[] = [];
+    const previousSchools: PreviousSchoolRow[] = [];
+    const facilities: FacilitySelectionRow[] = [];
+    const documents: DocumentMetaRow[] = [];
+
+    const importKeyCol = headerMap.get("import_key");
+    if (!importKeyCol) {
+      parseErrors.push({
+        sheet: "SingleCSV",
+        rowNumber: 1,
+        field: "Import_Key",
+        fieldLabel: "Import Key",
+        value: null,
+        code: "MISSING_HEADER",
+        message: "Mandatory column 'Import_Key' is missing in header row.",
+      });
+      return {
+        templateType,
+        templateVersion: "1.0.0",
+        students,
+        guardians,
+        studentGuardians,
+        academicPlacements,
+        previousSchools,
+        facilities,
+        documents,
+        parseErrors,
+      };
+    }
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (this.isCsvRowEmpty(row)) continue;
+      const sourceRowNumber = r + 1;
+
+      const importKey = this.getCsvSanitizedValue(row, importKeyCol);
+      if (!importKey) {
+        parseErrors.push({
+          sheet: "SingleCSV",
+          rowNumber: sourceRowNumber,
+          field: "Import_Key",
+          fieldLabel: "Import Key",
+          value: null,
+          code: "MISSING_IMPORT_KEY",
+          message: `Row ${sourceRowNumber} is missing mandatory 'Import_Key'.`,
+        });
+        continue;
+      }
+
+      const existingAdmNo =
+        templateType === "READMISSION"
+          ? this.getCsvSanitizedValue(
+              row,
+              headerMap.get("existing_ssvm_admission_no") || headerMap.get("existing_admission_no")
+            )
+          : null;
+
+      // 1. Student demographic
+      students.push({
+        importKey,
+        name:
+          this.getCsvSanitizedValue(row, headerMap.get("student_name") || headerMap.get("name")) || "",
+        nickname: this.getCsvSanitizedValue(row, headerMap.get("nickname")),
+        dob: this.formatDateString(
+          this.getCsvSanitizedValue(row, headerMap.get("dob") || headerMap.get("date_of_birth"))
+        ),
+        gender: (this.getCsvSanitizedValue(row, headerMap.get("gender")) || "").toUpperCase(),
+        bloodGroup: this.getCsvSanitizedValue(row, headerMap.get("blood_group")),
+        nationality: this.getCsvSanitizedValue(row, headerMap.get("nationality")),
+        religion: this.getCsvSanitizedValue(row, headerMap.get("religion")),
+        category: this.getCsvSanitizedValue(row, headerMap.get("category")),
+        motherTongue: this.getCsvSanitizedValue(row, headerMap.get("mother_tongue")),
+        locality: this.getCsvSanitizedValue(row, headerMap.get("locality")),
+        pincode: this.getCsvSanitizedValue(row, headerMap.get("pincode") || headerMap.get("pin_code")),
+        landmark: this.getCsvSanitizedValue(row, headerMap.get("landmark")),
+        medicalInfo: this.getCsvSanitizedValue(row, headerMap.get("medical_info")),
+        emergencyPhone: this.getCsvSanitizedValue(
+          row,
+          headerMap.get("emergency_phone") || headerMap.get("emergency_contact")
+        ),
+        pen: this.getCsvSanitizedValue(row, headerMap.get("pen_number") || headerMap.get("pen")),
+        email: this.getCsvSanitizedValue(row, headerMap.get("student_email") || headerMap.get("email")),
+        phone: this.getCsvSanitizedValue(row, headerMap.get("student_phone") || headerMap.get("phone")),
+        address: this.getCsvSanitizedValue(
+          row,
+          headerMap.get("permanent_address") || headerMap.get("address")
+        ),
+        existingAdmissionNo: existingAdmNo,
+        sourceRowNumber,
+      });
+
+      // 2. Guardian (if present in flat columns)
+      const grdName = this.getCsvSanitizedValue(
+        row,
+        headerMap.get("guardian_name") || headerMap.get("parent_name")
+      );
+      const grdPhone = this.getCsvSanitizedValue(
+        row,
+        headerMap.get("guardian_phone") || headerMap.get("parent_phone")
+      );
+      if (grdName || grdPhone) {
+        const grdKey = `GRD-${importKey}`;
+        guardians.push({
+          guardianKey: grdKey,
+          name: grdName || "Primary Guardian",
+          relationship: (
+            this.getCsvSanitizedValue(
+              row,
+              headerMap.get("guardian_relation") || headerMap.get("relationship")
+            ) || "FATHER"
+          ).toUpperCase() as any,
+          primaryPhone: grdPhone || "0000000000",
+          primaryEmail: this.getCsvSanitizedValue(row, headerMap.get("guardian_email")),
+          occupation: this.getCsvSanitizedValue(row, headerMap.get("guardian_occupation")),
+          address: this.getCsvSanitizedValue(row, headerMap.get("guardian_address")),
+          isEmergencyContact: true,
+          sourceRowNumber,
+        });
+        studentGuardians.push({
+          importKey,
+          guardianKey: grdKey,
+          relationship: (
+            this.getCsvSanitizedValue(
+              row,
+              headerMap.get("guardian_relation") || headerMap.get("relationship")
+            ) || "FATHER"
+          ).toUpperCase(),
+          isPrimary: true,
+          sourceRowNumber,
+        });
+      }
+
+      // 3. Placement (if present in flat columns)
+      const admClass = this.getCsvSanitizedValue(
+        row,
+        headerMap.get("admission_class") || headerMap.get("class")
+      );
+      const session = this.getCsvSanitizedValue(
+        row,
+        headerMap.get("academic_session") || headerMap.get("session")
+      );
+      if (admClass || session) {
+        academicPlacements.push({
+          importKey,
+          sessionName: session || "2026-2027",
+          className: admClass || "Class 1",
+          sectionName: this.getCsvSanitizedValue(row, headerMap.get("section")),
+          rollNo: this.getCsvSanitizedValue(row, headerMap.get("roll_no")),
+          sourceRowNumber,
+        });
+      }
+
+      // 4. Previous School / Transfer info
+      const prevSchool = this.getCsvSanitizedValue(
+        row,
+        headerMap.get("previous_school") || headerMap.get("previous_school_name")
+      );
+      const tcNo = this.getCsvSanitizedValue(row, headerMap.get("tc_number") || headerMap.get("tc_no"));
+      if (prevSchool || tcNo) {
+        previousSchools.push({
+          importKey,
+          previousSchoolName: prevSchool || "Previous School",
+          previousBoard: this.getCsvSanitizedValue(row, headerMap.get("previous_board")),
+          previousClass: this.getCsvSanitizedValue(row, headerMap.get("previous_class")),
+          previousSession: this.getCsvSanitizedValue(row, headerMap.get("previous_session")),
+          previousRollNo: this.getCsvSanitizedValue(row, headerMap.get("previous_roll_no")),
+          tcNumber: tcNo,
+          tcIssueDate: this.formatDateString(
+            this.getCsvSanitizedValue(row, headerMap.get("tc_date") || headerMap.get("tc_issue_date"))
+          ),
+          sourceRowNumber,
+        });
+      }
+
+      // 5. Facilities
+      const transportReq = this.getCsvSanitizedValue(row, headerMap.get("transport_required"));
+      if (transportReq && /^(yes|true|1|y)$/i.test(transportReq.trim())) {
+        facilities.push({
+          importKey,
+          facilityCode: "TRANSPORT",
+          details: this.getCsvSanitizedValue(
+            row,
+            headerMap.get("facility_details") || headerMap.get("pickup_locality")
+          ),
+          sourceRowNumber,
+        });
+      }
+      const hostelReq = this.getCsvSanitizedValue(row, headerMap.get("hostel_required"));
+      if (hostelReq && /^(yes|true|1|y)$/i.test(hostelReq.trim())) {
+        facilities.push({
+          importKey,
+          facilityCode: "HOSTEL",
+          details: this.getCsvSanitizedValue(row, headerMap.get("hostel_details")),
+          sourceRowNumber,
+        });
+      }
+      const mealsReq = this.getCsvSanitizedValue(row, headerMap.get("meals_required"));
+      if (mealsReq && /^(yes|true|1|y)$/i.test(mealsReq.trim())) {
+        facilities.push({
+          importKey,
+          facilityCode: "MEALS",
+          details: this.getCsvSanitizedValue(row, headerMap.get("meal_plan")),
+          sourceRowNumber,
+        });
+      }
+
+      // 6. Documents
+      const docCat = this.getCsvSanitizedValue(row, headerMap.get("document_category"));
+      const docTitle = this.getCsvSanitizedValue(row, headerMap.get("document_title"));
+      if (docCat || docTitle) {
+        documents.push({
+          importKey,
+          documentCategory: (docCat || "OTHER").toUpperCase(),
+          documentTitle: docTitle || "Supporting Document",
+          fileReference: this.getCsvSanitizedValue(row, headerMap.get("file_reference")),
+          sourceRowNumber,
+        });
+      }
+    }
+
+    return {
+      templateType,
+      templateVersion: "1.0.0",
+      students,
+      guardians,
+      studentGuardians,
+      academicPlacements,
+      previousSchools,
+      facilities,
+      documents,
+      parseErrors,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // CSV ROW PARSERS
+  // ─────────────────────────────────────────────────────────────
+
+  private static parseCsvStudentRows(
+    csvText: string,
+    type: AdmissionType,
+    students: StudentSheetRow[],
+    errors: CellError[]
+  ): void {
+    const parsed = Papa.parse<string[]>(csvText, { skipEmptyLines: "greedy" });
+    const rows = parsed.data || [];
+    if (rows.length < 2) return;
+
+    const headers = this.extractHeaderMapFromRow(rows[0]);
+    const importKeyCol = headers.get("import_key");
+    if (!importKeyCol) {
+      errors.push({
+        sheet: "Students",
+        rowNumber: 1,
+        field: "Import_Key",
+        fieldLabel: "Import Key",
+        value: null,
+        code: "MISSING_HEADER",
+        message: "Mandatory column 'Import_Key' is missing in header row.",
+      });
+      return;
+    }
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (this.isCsvRowEmpty(row)) continue;
+      const sourceRowNumber = r + 1;
+
+      const importKey = this.getCsvSanitizedValue(row, importKeyCol);
+      if (!importKey) {
+        errors.push({
+          sheet: "Students",
+          rowNumber: sourceRowNumber,
+          field: "Import_Key",
+          fieldLabel: "Import Key",
+          value: null,
+          code: "MISSING_IMPORT_KEY",
+          message: `Row ${sourceRowNumber} is missing mandatory 'Import_Key'.`,
+        });
+        continue;
+      }
+
+      const existingAdmNo =
+        type === "READMISSION"
+          ? this.getCsvSanitizedValue(row, headers.get("existing_ssvm_admission_no"))
+          : null;
+
+      students.push({
+        importKey,
+        name: this.getCsvSanitizedValue(row, headers.get("student_name")) || "",
+        nickname: this.getCsvSanitizedValue(row, headers.get("nickname")),
+        dob: this.formatDateString(this.getCsvSanitizedValue(row, headers.get("dob"))),
+        gender: (this.getCsvSanitizedValue(row, headers.get("gender")) || "").toUpperCase(),
+        bloodGroup: this.getCsvSanitizedValue(row, headers.get("blood_group")),
+        nationality: this.getCsvSanitizedValue(row, headers.get("nationality")),
+        religion: this.getCsvSanitizedValue(row, headers.get("religion")),
+        category: this.getCsvSanitizedValue(row, headers.get("category")),
+        motherTongue: this.getCsvSanitizedValue(row, headers.get("mother_tongue")),
+        locality: this.getCsvSanitizedValue(row, headers.get("locality")),
+        pincode: this.getCsvSanitizedValue(row, headers.get("pincode") || headers.get("pin_code")),
+        landmark: this.getCsvSanitizedValue(row, headers.get("landmark")),
+        medicalInfo: this.getCsvSanitizedValue(row, headers.get("medical_info")),
+        emergencyPhone: this.getCsvSanitizedValue(
+          row,
+          headers.get("emergency_phone") || headers.get("emergency_contact")
+        ),
+        pen: this.getCsvSanitizedValue(row, headers.get("pen_number") || headers.get("pen")),
+        email: this.getCsvSanitizedValue(row, headers.get("student_email")),
+        phone: this.getCsvSanitizedValue(row, headers.get("student_phone")),
+        address: this.getCsvSanitizedValue(row, headers.get("permanent_address")),
+        existingAdmissionNo: existingAdmNo,
+        sourceRowNumber,
+      });
+    }
+  }
+
+  private static parseCsvGuardianRows(
+    csvText: string,
+    guardians: GuardianSheetRow[],
+    _errors: CellError[]
+  ): void {
+    const parsed = Papa.parse<string[]>(csvText, { skipEmptyLines: "greedy" });
+    const rows = parsed.data || [];
+    if (rows.length < 2) return;
+
+    const headers = this.extractHeaderMapFromRow(rows[0]);
+    const keyCol = headers.get("guardian_key");
+    if (!keyCol) return;
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (this.isCsvRowEmpty(row)) continue;
+      const guardianKey = this.getCsvSanitizedValue(row, keyCol);
+      if (!guardianKey) continue;
+
+      const rawIncome = this.getCsvSanitizedValue(row, headers.get("annual_income"));
+      const parsedIncome = rawIncome ? Number(rawIncome.replace(/[^0-9.]/g, "")) : null;
+      const isEmergency = this.getCsvSanitizedValue(row, headers.get("is_emergency_contact"));
+
+      guardians.push({
+        guardianKey,
+        name: this.getCsvSanitizedValue(row, headers.get("guardian_name")) || "",
+        relationship: (
+          this.getCsvSanitizedValue(row, headers.get("relationship")) || "FATHER"
+        ).toUpperCase() as any,
+        primaryPhone: this.getCsvSanitizedValue(row, headers.get("primary_phone")) || "",
+        primaryEmail: this.getCsvSanitizedValue(row, headers.get("primary_email")),
+        occupation: this.getCsvSanitizedValue(row, headers.get("occupation")),
+        annualIncome: Number.isNaN(parsedIncome) ? null : parsedIncome,
+        address: this.getCsvSanitizedValue(row, headers.get("residential_address")),
+        isEmergencyContact: Boolean(isEmergency && /^(yes|true|1|y)$/i.test(isEmergency)),
+        sourceRowNumber: r + 1,
+      });
+    }
+  }
+
+  private static parseCsvStudentGuardianLinkRows(
+    csvText: string,
+    studentGuardians: StudentGuardianLinkRow[],
+    _errors: CellError[]
+  ): void {
+    const parsed = Papa.parse<string[]>(csvText, { skipEmptyLines: "greedy" });
+    const rows = parsed.data || [];
+    if (rows.length < 2) return;
+
+    const headers = this.extractHeaderMapFromRow(rows[0]);
+    const sKeyCol = headers.get("import_key");
+    const gKeyCol = headers.get("guardian_key");
+    if (!sKeyCol || !gKeyCol) return;
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (this.isCsvRowEmpty(row)) continue;
+      const importKey = this.getCsvSanitizedValue(row, sKeyCol);
+      const guardianKey = this.getCsvSanitizedValue(row, gKeyCol);
+      if (!importKey || !guardianKey) continue;
+
+      const rawPrimary = this.getCsvSanitizedValue(row, headers.get("is_primary"));
+      const isPrimary = Boolean(rawPrimary && /^(yes|true|1|y)$/i.test(rawPrimary));
+
+      studentGuardians.push({
+        importKey,
+        guardianKey,
+        relationship: (
+          this.getCsvSanitizedValue(row, headers.get("relationship_to_student")) || "FATHER"
+        ).toUpperCase(),
+        isPrimary,
+        sourceRowNumber: r + 1,
+      });
+    }
+  }
+
+  private static parseCsvAcademicPlacementRows(
+    csvText: string,
+    placements: AcademicPlacementRow[],
+    _errors: CellError[]
+  ): void {
+    const parsed = Papa.parse<string[]>(csvText, { skipEmptyLines: "greedy" });
+    const rows = parsed.data || [];
+    if (rows.length < 2) return;
+
+    const headers = this.extractHeaderMapFromRow(rows[0]);
+    const keyCol = headers.get("import_key");
+    if (!keyCol) return;
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (this.isCsvRowEmpty(row)) continue;
+      const importKey = this.getCsvSanitizedValue(row, keyCol);
+      if (!importKey) continue;
+
+      placements.push({
+        importKey,
+        sessionName: this.getCsvSanitizedValue(row, headers.get("academic_session")) || "",
+        className: this.getCsvSanitizedValue(row, headers.get("admission_class")) || "",
+        sectionName: this.getCsvSanitizedValue(row, headers.get("allocated_section")),
+        campusName: this.getCsvSanitizedValue(row, headers.get("campus_branch")),
+        rollNo: this.getCsvSanitizedValue(row, headers.get("allocated_roll_no")),
+        sourceRowNumber: r + 1,
+      });
+    }
+  }
+
+  private static parseCsvPreviousSchoolRows(
+    csvText: string,
+    prevSchools: PreviousSchoolRow[],
+    _errors: CellError[]
+  ): void {
+    const parsed = Papa.parse<string[]>(csvText, { skipEmptyLines: "greedy" });
+    const rows = parsed.data || [];
+    if (rows.length < 2) return;
+
+    const headers = this.extractHeaderMapFromRow(rows[0]);
+    const keyCol = headers.get("import_key");
+    if (!keyCol) return;
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (this.isCsvRowEmpty(row)) continue;
+      const importKey = this.getCsvSanitizedValue(row, keyCol);
+      if (!importKey) continue;
+
+      prevSchools.push({
+        importKey,
+        previousSchoolName: this.getCsvSanitizedValue(row, headers.get("previous_school_name")) || "",
+        previousBoard: this.getCsvSanitizedValue(row, headers.get("board_affiliation")),
+        previousAddress: this.getCsvSanitizedValue(row, headers.get("school_address")),
+        previousClass: this.getCsvSanitizedValue(row, headers.get("last_class_passed")),
+        previousSession: this.getCsvSanitizedValue(row, headers.get("academic_session")),
+        previousRollNo: this.getCsvSanitizedValue(row, headers.get("roll_no")),
+        tcNumber: this.getCsvSanitizedValue(row, headers.get("transfer_certificate_no")),
+        tcIssueDate: this.formatDateString(this.getCsvSanitizedValue(row, headers.get("tc_issue_date"))),
+        sourceRowNumber: r + 1,
+      });
+    }
+  }
+
+  private static parseCsvFacilityRows(
+    csvText: string,
+    facilities: FacilitySelectionRow[],
+    _errors: CellError[]
+  ): void {
+    const parsed = Papa.parse<string[]>(csvText, { skipEmptyLines: "greedy" });
+    const rows = parsed.data || [];
+    if (rows.length < 2) return;
+
+    const headers = this.extractHeaderMapFromRow(rows[0]);
+    const keyCol = headers.get("import_key");
+    const codeCol = headers.get("facility_code");
+    if (!keyCol || !codeCol) return;
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (this.isCsvRowEmpty(row)) continue;
+      const importKey = this.getCsvSanitizedValue(row, keyCol);
+      const code = this.getCsvSanitizedValue(row, codeCol);
+      if (!importKey || !code) continue;
+
+      facilities.push({
+        importKey,
+        facilityCode: code.toUpperCase(),
+        details: this.getCsvSanitizedValue(row, headers.get("facility_details")),
+        sourceRowNumber: r + 1,
+      });
+    }
+  }
+
+  private static parseCsvDocumentRows(
+    csvText: string,
+    documents: DocumentMetaRow[],
+    _errors: CellError[]
+  ): void {
+    const parsed = Papa.parse<string[]>(csvText, { skipEmptyLines: "greedy" });
+    const rows = parsed.data || [];
+    if (rows.length < 2) return;
+
+    const headers = this.extractHeaderMapFromRow(rows[0]);
+    const keyCol = headers.get("import_key");
+    const catCol = headers.get("document_category");
+    if (!keyCol || !catCol) return;
+
+    for (let r = 1; r < rows.length; r++) {
+      const row = rows[r];
+      if (this.isCsvRowEmpty(row)) continue;
+      const importKey = this.getCsvSanitizedValue(row, keyCol);
+      const cat = this.getCsvSanitizedValue(row, catCol);
+      if (!importKey || !cat) continue;
+
+      documents.push({
+        importKey,
+        documentCategory: cat.toUpperCase(),
+        documentTitle: this.getCsvSanitizedValue(row, headers.get("document_title")) || "Supporting Document",
+        fileReference: this.getCsvSanitizedValue(row, headers.get("file_reference")),
+        sourceRowNumber: r + 1,
+      });
+    }
+  }
+
+  private static extractHeaderMapFromRow(headerRow: string[]): Map<string, number> {
+    const map = new Map<string, number>();
+    for (let i = 0; i < headerRow.length; i++) {
+      const text = headerRow[i] || "";
+      const normalized = text
+        .toLowerCase()
+        .replace(/\(.*\)/g, "")
+        .replace(/[^a-z0-9_]/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "");
+      if (normalized) {
+        map.set(normalized, i + 1); // 1-based index
+      }
+    }
+    return map;
+  }
+
+  private static getCsvSanitizedValue(row: string[], colNumber?: number): string | null {
+    if (!colNumber || colNumber > row.length) return null;
+    const raw = (row[colNumber - 1] || "").trim();
+    if (!raw) return null;
+    const lower = raw.toLowerCase();
+    if (["n/a", "na", "null", "none", "-", "--", "nil"].includes(lower)) return null;
+    return raw;
+  }
+
+  private static isCsvRowEmpty(row: string[]): boolean {
+    return !row || row.every((c) => !c || !c.trim());
+  }
+
+  private static formatDateString(str: string | null): string | null {
+    if (!str) return null;
+    str = str.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    const ddmmyyyy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (ddmmyyyy) {
+      const day = ddmmyyyy[1].padStart(2, "0");
+      const month = ddmmyyyy[2].padStart(2, "0");
+      const year = ddmmyyyy[3];
+      return `${year}-${month}-${day}`;
+    }
+    return str;
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -237,6 +1068,10 @@ export class AdmissionWorkbookParser {
         category: this.getSanitizedValue(row, headers.get("category")),
         motherTongue: this.getSanitizedValue(row, headers.get("mother_tongue")),
         locality: this.getSanitizedValue(row, headers.get("locality")),
+        pincode: this.getSanitizedValue(row, headers.get("pincode") || headers.get("pin_code")),
+        landmark: this.getSanitizedValue(row, headers.get("landmark")),
+        medicalInfo: this.getSanitizedValue(row, headers.get("medical_info") || headers.get("medical_conditions")),
+        emergencyPhone: this.getSanitizedValue(row, headers.get("emergency_phone") || headers.get("emergency_contact")),
         pen: this.getSanitizedValue(row, headers.get("pen_number") || headers.get("pen")),
         email: this.getSanitizedValue(row, headers.get("student_email")),
         phone: this.getSanitizedValue(row, headers.get("student_phone")),

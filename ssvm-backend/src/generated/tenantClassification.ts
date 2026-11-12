@@ -33,6 +33,13 @@ export const TENANT_CLASSIFICATION = {
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
+      },
+      {
+        "relation": "studentEnrollments",
+        "relatedModel": "StudentEnrollment",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
       }
     ],
     "verification": "UNVERIFIED",
@@ -1019,6 +1026,20 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": []
       },
       {
+        "relation": "copies",
+        "relatedModel": "BookCopy",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "requests",
+        "relatedModel": "BookRequest",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
         "relation": "school",
         "relatedModel": "School",
         "cardinality": "one",
@@ -1028,6 +1049,48 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": [
           "id"
         ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
+  "BookCopy": {
+    "model": "BookCopy",
+    "table": "book_copies",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "book",
+        "relatedModel": "Book",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "bookId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "issues",
+        "relatedModel": "BookIssue",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
       }
     ],
     "verification": "UNVERIFIED",
@@ -1053,6 +1116,129 @@ export const TENANT_CLASSIFICATION = {
           "id"
         ]
       },
+      {
+        "relation": "copy",
+        "relatedModel": "BookCopy",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "copyId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "renewals",
+        "relatedModel": "BookRenewal",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
+  "BookRenewal": {
+    "model": "BookRenewal",
+    "table": "book_renewals",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "issue",
+        "relatedModel": "BookIssue",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "issueId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
+  "BookRequest": {
+    "model": "BookRequest",
+    "table": "book_requests",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "book",
+        "relatedModel": "Book",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "bookId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "student",
+        "relatedModel": "Student",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "studentId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
+  "BorrowingPolicy": {
+    "model": "BorrowingPolicy",
+    "table": "borrowing_policies",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
       {
         "relation": "school",
         "relatedModel": "School",
@@ -1382,6 +1568,13 @@ export const TENANT_CLASSIFICATION = {
       {
         "relation": "studyMaterials",
         "relatedModel": "StudyMaterial",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "studentEnrollments",
+        "relatedModel": "StudentEnrollment",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
@@ -2152,6 +2345,41 @@ export const TENANT_CLASSIFICATION = {
     "verification": "UNVERIFIED",
     "score": 0
   },
+  "FacilityRequest": {
+    "model": "FacilityRequest",
+    "table": "facility_requests",
+    "migrationCoverage": "MISSING",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "student",
+        "relatedModel": "Student",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "studentId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
   "FailedJob": {
     "model": "FailedJob",
     "table": "failed_jobs",
@@ -2824,6 +3052,13 @@ export const TENANT_CLASSIFICATION = {
       {
         "relation": "students",
         "relatedModel": "Student",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "studentGuardians",
+        "relatedModel": "StudentGuardian",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
@@ -3897,6 +4132,30 @@ export const TENANT_CLASSIFICATION = {
           "id"
         ]
       },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
+  "LibraryAuditEvent": {
+    "model": "LibraryAuditEvent",
+    "table": "library_audit_events",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
       {
         "relation": "school",
         "relatedModel": "School",
@@ -5883,6 +6142,41 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": []
       },
       {
+        "relation": "bookCopies",
+        "relatedModel": "BookCopy",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "borrowingPolicies",
+        "relatedModel": "BorrowingPolicy",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "bookRequests",
+        "relatedModel": "BookRequest",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "bookRenewals",
+        "relatedModel": "BookRenewal",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "libraryAuditEvents",
+        "relatedModel": "LibraryAuditEvent",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
         "relation": "branches",
         "relatedModel": "Branch",
         "cardinality": "many",
@@ -6431,6 +6725,34 @@ export const TENANT_CLASSIFICATION = {
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
+      },
+      {
+        "relation": "studentGuardians",
+        "relatedModel": "StudentGuardian",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "studentEnrollments",
+        "relatedModel": "StudentEnrollment",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "schoolShifts",
+        "relatedModel": "SchoolShift",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "facilityRequests",
+        "relatedModel": "FacilityRequest",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
       }
     ],
     "verification": "UNVERIFIED",
@@ -6639,6 +6961,37 @@ export const TENANT_CLASSIFICATION = {
     "verification": "UNVERIFIED",
     "score": 0
   },
+  "SchoolShift": {
+    "model": "SchoolShift",
+    "table": "school_shifts",
+    "migrationCoverage": "MISSING",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "enrollments",
+        "relatedModel": "StudentEnrollment",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
   "Section": {
     "model": "Section",
     "table": "sections",
@@ -6703,6 +7056,13 @@ export const TENANT_CLASSIFICATION = {
       {
         "relation": "timetables",
         "relatedModel": "Timetable",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "studentEnrollments",
+        "relatedModel": "StudentEnrollment",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
@@ -6872,6 +7232,13 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": []
       },
       {
+        "relation": "bookRequests",
+        "relatedModel": "BookRequest",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
         "relation": "hostelAllocations",
         "relatedModel": "HostelAllocation",
         "cardinality": "many",
@@ -6930,6 +7297,27 @@ export const TENANT_CLASSIFICATION = {
       {
         "relation": "advanceCredits",
         "relatedModel": "StudentAdvanceCredit",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "guardians",
+        "relatedModel": "StudentGuardian",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "enrollments",
+        "relatedModel": "StudentEnrollment",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "facilityRequests",
+        "relatedModel": "FacilityRequest",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
@@ -7035,6 +7423,85 @@ export const TENANT_CLASSIFICATION = {
     "verification": "UNVERIFIED",
     "score": 0
   },
+  "StudentEnrollment": {
+    "model": "StudentEnrollment",
+    "table": "student_enrollments",
+    "migrationCoverage": "MISSING",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "student",
+        "relatedModel": "Student",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "studentId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "session",
+        "relatedModel": "AcademicSession",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "sessionId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "class",
+        "relatedModel": "Class",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "classId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "section",
+        "relatedModel": "Section",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "sectionId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "shift",
+        "relatedModel": "SchoolShift",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "shiftId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
   "StudentFinancialProjection": {
     "model": "StudentFinancialProjection",
     "table": "StudentFinancialProjection",
@@ -7061,6 +7528,52 @@ export const TENANT_CLASSIFICATION = {
         "cardinality": "one",
         "foreignKeyFields": [
           "studentId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
+  "StudentGuardian": {
+    "model": "StudentGuardian",
+    "table": "student_guardians",
+    "migrationCoverage": "MISSING",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "student",
+        "relatedModel": "Student",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "studentId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "guardian",
+        "relatedModel": "Guardian",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "guardianId"
         ],
         "referencedFields": [
           "id"
@@ -9037,7 +9550,11 @@ export const TENANT_MODEL_NAMES = [
   "BankReconciliation",
   "BankStatementLine",
   "Book",
+  "BookCopy",
   "BookIssue",
+  "BookRenewal",
+  "BookRequest",
+  "BorrowingPolicy",
   "Branch",
   "BrandSettings",
   "Budget",
@@ -9066,6 +9583,7 @@ export const TENANT_MODEL_NAMES = [
   "Event",
   "Exam",
   "ExamSubject",
+  "FacilityRequest",
   "FailedWebhook",
   "FederatedUser",
   "FeeCategory",
@@ -9106,6 +9624,7 @@ export const TENANT_MODEL_NAMES = [
   "LedgerSnapshot",
   "LedgerTransaction",
   "LegalHold",
+  "LibraryAuditEvent",
   "MaintenanceRecord",
   "MarketingCampaign",
   "Message",
@@ -9147,6 +9666,7 @@ export const TENANT_MODEL_NAMES = [
   "SchoolIntegration",
   "SchoolSettings",
   "SchoolSettingsHistory",
+  "SchoolShift",
   "Section",
   "SequenceCounter",
   "SiteContent",
@@ -9155,7 +9675,9 @@ export const TENANT_MODEL_NAMES = [
   "StorageObject",
   "Student",
   "StudentAdvanceCredit",
+  "StudentEnrollment",
   "StudentFinancialProjection",
+  "StudentGuardian",
   "StudentMark",
   "StudentTimeline",
   "StudyMaterial",
@@ -9219,7 +9741,11 @@ export const TENANT_RLS_MODELS = [
   "BankReconciliation",
   "BankStatementLine",
   "Book",
+  "BookCopy",
   "BookIssue",
+  "BookRenewal",
+  "BookRequest",
+  "BorrowingPolicy",
   "Branch",
   "BrandSettings",
   "Budget",
@@ -9248,6 +9774,7 @@ export const TENANT_RLS_MODELS = [
   "Event",
   "Exam",
   "ExamSubject",
+  "FacilityRequest",
   "FailedWebhook",
   "FederatedUser",
   "FeeCategory",
@@ -9288,6 +9815,7 @@ export const TENANT_RLS_MODELS = [
   "LedgerSnapshot",
   "LedgerTransaction",
   "LegalHold",
+  "LibraryAuditEvent",
   "MaintenanceRecord",
   "MarketingCampaign",
   "Message",
@@ -9329,6 +9857,7 @@ export const TENANT_RLS_MODELS = [
   "SchoolIntegration",
   "SchoolSettings",
   "SchoolSettingsHistory",
+  "SchoolShift",
   "Section",
   "SequenceCounter",
   "SiteContent",
@@ -9337,7 +9866,9 @@ export const TENANT_RLS_MODELS = [
   "StorageObject",
   "Student",
   "StudentAdvanceCredit",
+  "StudentEnrollment",
   "StudentFinancialProjection",
+  "StudentGuardian",
   "StudentMark",
   "StudentTimeline",
   "StudyMaterial",
@@ -9401,7 +9932,11 @@ export const TENANT_RLS_TABLES = [
   "BankReconciliation",
   "BankStatementLine",
   "books",
+  "book_copies",
   "book_issues",
+  "book_renewals",
+  "book_requests",
+  "borrowing_policies",
   "branches",
   "brand_settings",
   "Budget",
@@ -9430,6 +9965,7 @@ export const TENANT_RLS_TABLES = [
   "events",
   "exams",
   "exam_subjects",
+  "facility_requests",
   "FailedWebhook",
   "FederatedUser",
   "fee_categories",
@@ -9470,6 +10006,7 @@ export const TENANT_RLS_TABLES = [
   "LedgerSnapshot",
   "LedgerTransaction",
   "legal_holds",
+  "library_audit_events",
   "maintenance_records",
   "MarketingCampaign",
   "messages",
@@ -9511,6 +10048,7 @@ export const TENANT_RLS_TABLES = [
   "SchoolIntegration",
   "school_settings",
   "school_settings_history",
+  "school_shifts",
   "sections",
   "SequenceCounter",
   "site_content",
@@ -9519,7 +10057,9 @@ export const TENANT_RLS_TABLES = [
   "storage_objects",
   "students",
   "student_advance_credits",
+  "student_enrollments",
   "StudentFinancialProjection",
+  "student_guardians",
   "student_marks",
   "student_timeline",
   "study_materials",

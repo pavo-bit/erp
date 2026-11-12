@@ -172,29 +172,13 @@ export class AdmissionRegistrationService {
     const currentYear = new Date().getFullYear();
     const allocatedAdmissionNo = `ADM-${currentYear}-${String(seqNumber).padStart(4, "0")}`;
 
-    // 1. Resolve or Create Primary Guardian
-    let guardianId: string | null = null;
-    const primaryGrd = entry.guardians.find((g) => g.isPrimary) || entry.guardians[0];
-
-    if (primaryGrd) {
-      let existingGrd = await tx.guardian.findFirst({
-        where: { schoolId, primaryPhone: primaryGrd.guardian.primaryPhone },
-      });
-
-      if (!existingGrd) {
-        existingGrd = await tx.guardian.create({
-          data: {
-            schoolId,
-            primaryName: primaryGrd.guardian.name,
-            primaryPhone: primaryGrd.guardian.primaryPhone,
-            primaryEmail: primaryGrd.guardian.primaryEmail || null,
-            primaryRelation: primaryGrd.relationship || primaryGrd.guardian.relationship || "FATHER",
-            address: primaryGrd.guardian.address || studentData.address || null,
-          },
-        });
-      }
-      guardianId = existingGrd.id;
-    }
+    // 1. Resolve or Create Primary Guardian and StudentGuardian links
+    const guardianId = await this.persistStudentGuardians(
+      tx,
+      schoolId,
+      entry,
+      studentData.address
+    );
 
     // 2. Create User Account for Student Portal
     const cleanAdNo = allocatedAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -213,26 +197,53 @@ export class AdmissionRegistrationService {
       },
     });
 
-    // 3. Create Canonical Student Record
+    // 3. Create Canonical Student Record with extended demographic fields
+    const rollNo = entry.placement?.rollNo || String(seqNumber);
     const student = await tx.student.create({
       data: {
         schoolId,
         userId: user.id,
         name: studentData.name,
-        rollNo: entry.placement?.rollNo || String(seqNumber),
+        rollNo,
         admissionNo: allocatedAdmissionNo,
         password: hashedPassword,
         dob: studentData.dob ? new Date(studentData.dob) : null,
         gender: studentData.gender || "OTHER",
         bloodGroup: studentData.bloodGroup || null,
         address: studentData.address || null,
+        pen: studentData.pen || null,
+        category: studentData.category || null,
+        religion: studentData.religion || null,
+        nationality: studentData.nationality || "Indian",
+        motherTongue: studentData.motherTongue || null,
+        locality: studentData.locality || null,
+        pincode: studentData.pincode || null,
+        landmark: studentData.landmark || null,
+        medicalInfo: studentData.medicalInfo || null,
+        emergencyPhone: studentData.emergencyPhone || null,
+        previousSchool: entry.previousSchool?.previousSchoolName || null,
+        previousBoard: entry.previousSchool?.previousBoard || null,
+        previousClass: entry.previousSchool?.previousClass || null,
+        previousSession: entry.previousSchool?.previousSession || null,
+        previousRollNo: entry.previousSchool?.previousRollNo || null,
+        tcNumber: entry.previousSchool?.tcNumber || null,
+        tcDate: entry.previousSchool?.tcIssueDate ? new Date(entry.previousSchool.tcIssueDate) : null,
+        tcStatus: entry.previousSchool?.tcNumber ? "SUBMITTED" : null,
         sectionId: entry.resolvedSectionId || null,
         guardianId: guardianId || null,
         isActive: true,
       },
     });
 
-    // 4. Create Historical Admission Record (Approved & Enrolled)
+    // Attach StudentGuardian links to canonical student ID
+    await this.linkStudentGuardians(tx, schoolId, student.id, entry);
+
+    // 4. Create Academic Enrollment and resolve shift
+    await this.persistAcademicEnrollment(tx, schoolId, student.id, entry, rollNo);
+
+    // 5. Create Historical Admission Record (Approved & Enrolled)
+    const guardiansList = entry.guardians || [];
+    const primaryGrd = guardiansList.find((g) => g.isPrimary) || guardiansList[0];
     await tx.admission.create({
       data: {
         schoolId,
@@ -249,7 +260,7 @@ export class AdmissionRegistrationService {
       },
     });
 
-    // 5. Create Student Timeline Event
+    // 6. Create Student Timeline Event
     const timeline = await tx.studentTimeline.create({
       data: {
         studentId: student.id,
@@ -259,19 +270,11 @@ export class AdmissionRegistrationService {
       },
     });
 
-    // 6. Link Document Metadata if present
-    for (const doc of entry.documents) {
-      await tx.document.create({
-        data: {
-          schoolId,
-          ownerType: "STUDENT",
-          ownerId: student.id,
-          category: doc.documentCategory as any,
-          title: doc.documentTitle,
-          fileUrl: doc.fileReference || "/uploads/admissions/pending_document.pdf",
-        },
-      });
-    }
+    // 7. Persist Facility Requests (Transport, Hostel, Meals) without premature allocation
+    await this.persistFacilityRequests(tx, schoolId, student.id, batchId, entry);
+
+    // 8. Link Document Metadata without fake URLs
+    await this.persistDocuments(tx, schoolId, student.id, entry.documents);
 
     return {
       importKey: entry.importKey,
@@ -323,6 +326,12 @@ export class AdmissionRegistrationService {
     if (studentData.phone) updatePayload.phone = studentData.phone;
     if (studentData.address) updatePayload.address = studentData.address;
     if (studentData.bloodGroup) updatePayload.bloodGroup = studentData.bloodGroup;
+    if (studentData.pen) updatePayload.pen = studentData.pen;
+    if (studentData.category) updatePayload.category = studentData.category;
+    if (studentData.locality) updatePayload.locality = studentData.locality;
+    if (studentData.pincode) updatePayload.pincode = studentData.pincode;
+    if (studentData.medicalInfo) updatePayload.medicalInfo = studentData.medicalInfo;
+    if (studentData.emergencyPhone) updatePayload.emergencyPhone = studentData.emergencyPhone;
 
     if (options.clearEmptyFields) {
       if (studentData.bloodGroup === null) updatePayload.bloodGroup = null;
@@ -333,6 +342,24 @@ export class AdmissionRegistrationService {
       where: { id: existingStudent.id },
       data: updatePayload,
     });
+
+    // Link/Update Guardians
+    if (entry.guardians && entry.guardians.length > 0) {
+      await this.persistStudentGuardians(tx, schoolId, entry, studentData.address);
+      await this.linkStudentGuardians(tx, schoolId, existingStudent.id, entry);
+    }
+
+    // Create Academic Enrollment for this session
+    await this.persistAcademicEnrollment(
+      tx,
+      schoolId,
+      existingStudent.id,
+      entry,
+      existingStudent.rollNo
+    );
+
+    // Persist Facility Requests
+    await this.persistFacilityRequests(tx, schoolId, existingStudent.id, batchId, entry);
 
     // Record Re-Admission Timeline Event
     const previousPlacement = existingStudent.sectionRef
@@ -383,28 +410,12 @@ export class AdmissionRegistrationService {
     const allocatedAdmissionNo = `ADM-${currentYear}-${String(seqNumber).padStart(4, "0")}`;
 
     // 1. Resolve or Create Primary Guardian
-    let guardianId: string | null = null;
-    const primaryGrd = entry.guardians.find((g) => g.isPrimary) || entry.guardians[0];
-
-    if (primaryGrd) {
-      let existingGrd = await tx.guardian.findFirst({
-        where: { schoolId, primaryPhone: primaryGrd.guardian.primaryPhone },
-      });
-
-      if (!existingGrd) {
-        existingGrd = await tx.guardian.create({
-          data: {
-            schoolId,
-            primaryName: primaryGrd.guardian.name,
-            primaryPhone: primaryGrd.guardian.primaryPhone,
-            primaryEmail: primaryGrd.guardian.primaryEmail || null,
-            primaryRelation: primaryGrd.relationship || primaryGrd.guardian.relationship || "FATHER",
-            address: primaryGrd.guardian.address || studentData.address || null,
-          },
-        });
-      }
-      guardianId = existingGrd.id;
-    }
+    const guardianId = await this.persistStudentGuardians(
+      tx,
+      schoolId,
+      entry,
+      studentData.address
+    );
 
     // 2. Create Student User Account
     const cleanAdNo = allocatedAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -423,30 +434,57 @@ export class AdmissionRegistrationService {
       },
     });
 
-    // 3. Create Canonical Student Record
+    // 3. Create Canonical Student Record with transfer details
+    const rollNo = entry.placement?.rollNo || String(seqNumber);
     const student = await tx.student.create({
       data: {
         schoolId,
         userId: user.id,
         name: studentData.name,
-        rollNo: entry.placement?.rollNo || String(seqNumber),
+        rollNo,
         admissionNo: allocatedAdmissionNo,
         password: hashedPassword,
         dob: studentData.dob ? new Date(studentData.dob) : null,
         gender: studentData.gender || "OTHER",
         bloodGroup: studentData.bloodGroup || null,
         address: studentData.address || null,
+        pen: studentData.pen || null,
+        category: studentData.category || null,
+        religion: studentData.religion || null,
+        nationality: studentData.nationality || "Indian",
+        motherTongue: studentData.motherTongue || null,
+        locality: studentData.locality || null,
+        pincode: studentData.pincode || null,
+        landmark: studentData.landmark || null,
+        medicalInfo: studentData.medicalInfo || null,
+        emergencyPhone: studentData.emergencyPhone || null,
+        previousSchool: prevSchool?.previousSchoolName || null,
+        previousBoard: prevSchool?.previousBoard || null,
+        previousClass: prevSchool?.previousClass || null,
+        previousSession: prevSchool?.previousSession || null,
+        previousRollNo: prevSchool?.previousRollNo || null,
+        tcNumber: prevSchool?.tcNumber || null,
+        tcDate: prevSchool?.tcIssueDate ? new Date(prevSchool.tcIssueDate) : null,
+        tcStatus: prevSchool?.tcNumber ? "SUBMITTED" : null,
         sectionId: entry.resolvedSectionId || null,
         guardianId: guardianId || null,
         isActive: true,
       },
     });
 
-    // 4. Create Historical Admission Record (Transfer)
+    // Attach StudentGuardian links
+    await this.linkStudentGuardians(tx, schoolId, student.id, entry);
+
+    // 4. Create Academic Enrollment and resolve shift
+    await this.persistAcademicEnrollment(tx, schoolId, student.id, entry, rollNo);
+
+    // 5. Create Historical Admission Record (Transfer)
     const prevDesc = prevSchool
       ? `Transferred from ${prevSchool.previousSchoolName} (Board: ${prevSchool.previousBoard || "N/A"}, Prev Class: ${prevSchool.previousClass || "N/A"}, TC No: ${prevSchool.tcNumber || "N/A"}).`
       : "Transfer student.";
 
+    const guardiansList = entry.guardians || [];
+    const primaryGrd = guardiansList.find((g) => g.isPrimary) || guardiansList[0];
     await tx.admission.create({
       data: {
         schoolId,
@@ -464,7 +502,7 @@ export class AdmissionRegistrationService {
       },
     });
 
-    // 5. Create Student Timeline Event
+    // 6. Create Student Timeline Event
     const timeline = await tx.studentTimeline.create({
       data: {
         studentId: student.id,
@@ -474,19 +512,11 @@ export class AdmissionRegistrationService {
       },
     });
 
-    // 6. Link Transfer Certificate / Documents
-    for (const doc of entry.documents) {
-      await tx.document.create({
-        data: {
-          schoolId,
-          ownerType: "STUDENT",
-          ownerId: student.id,
-          category: doc.documentCategory as any,
-          title: doc.documentTitle,
-          fileUrl: doc.fileReference || "/uploads/admissions/pending_transfer_tc.pdf",
-        },
-      });
-    }
+    // 7. Persist Facility Requests
+    await this.persistFacilityRequests(tx, schoolId, student.id, batchId, entry);
+
+    // 8. Link Supporting Documents and TC without fake URLs
+    await this.persistDocuments(tx, schoolId, student.id, entry.documents);
 
     return {
       importKey: entry.importKey,
@@ -499,6 +529,212 @@ export class AdmissionRegistrationService {
       timelineId: timeline.id,
       enrollmentSection: entry.placement?.sectionName || undefined,
     };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // OPERATIONAL PERSISTENCE HELPERS
+  // ─────────────────────────────────────────────────────────────
+
+  private static async persistStudentGuardians(
+    tx: any,
+    schoolId: string,
+    entry: ValidatedStudentEntry,
+    studentAddress?: string | null
+  ): Promise<string | null> {
+    let primaryGuardianId: string | null = null;
+    const primaryGrd = entry.guardians.find((g) => g.isPrimary) || entry.guardians[0];
+
+    for (const g of entry.guardians) {
+      const phone = g.guardian.primaryPhone.trim();
+      let guardian = await tx.guardian.findFirst({
+        where: { schoolId, primaryPhone: phone },
+      });
+
+      if (!guardian) {
+        guardian = await tx.guardian.create({
+          data: {
+            schoolId,
+            primaryName: g.guardian.name,
+            primaryPhone: phone,
+            primaryEmail: g.guardian.primaryEmail || null,
+            primaryRelation: g.relationship || g.guardian.relationship || "FATHER",
+            address: g.guardian.address || studentAddress || null,
+          },
+        });
+      }
+
+      if (g.isPrimary || (primaryGrd && primaryGrd.guardian.primaryPhone === phone)) {
+        primaryGuardianId = guardian.id;
+      }
+    }
+
+    return primaryGuardianId;
+  }
+
+  private static async linkStudentGuardians(
+    tx: any,
+    schoolId: string,
+    studentId: string,
+    entry: ValidatedStudentEntry
+  ): Promise<void> {
+    if (!entry.guardians || !Array.isArray(entry.guardians)) return;
+    for (const g of entry.guardians) {
+      const phone = g.guardian.primaryPhone.trim();
+      const guardian = await tx.guardian.findFirst({
+        where: { schoolId, primaryPhone: phone },
+      });
+
+      if (guardian) {
+        await tx.studentGuardian.upsert({
+          where: {
+            studentId_guardianId: {
+              studentId,
+              guardianId: guardian.id,
+            },
+          },
+          create: {
+            schoolId,
+            studentId,
+            guardianId: guardian.id,
+            relationship: g.relationship || g.guardian.relationship || "FATHER",
+            isPrimary: g.isPrimary ?? false,
+            isEmergencyContact: g.guardian.isEmergencyContact ?? false,
+          },
+          update: {
+            relationship: g.relationship || g.guardian.relationship || "FATHER",
+            isPrimary: g.isPrimary ?? false,
+            isEmergencyContact: g.guardian.isEmergencyContact ?? false,
+          },
+        });
+      }
+    }
+  }
+
+  private static async resolveOrCreateSchoolShift(
+    tx: any,
+    schoolId: string,
+    className?: string | null
+  ): Promise<any> {
+    const cName = (className || "Class 1").trim();
+    const isMorning = /^(prarambha|prambha|bodha|class\s*[1-5])$/i.test(cName);
+    const targetType = isMorning ? "MORNING" : "DAY";
+    const targetName = isMorning ? "Morning Batch" : "Day Batch";
+
+    let shift = await tx.schoolShift.findFirst({
+      where: { schoolId, type: targetType },
+    });
+
+    if (!shift) {
+      shift = await tx.schoolShift.create({
+        data: {
+          schoolId,
+          name: targetName,
+          type: targetType,
+          applicableClasses: isMorning
+            ? "Prarambha,Bodha,Class 1,Class 2,Class 3,Class 4,Class 5"
+            : "Class 6,Class 7,Class 8,Class 9,Class 10,Class 11,Class 12",
+          startTime: isMorning ? "07:30" : "11:30",
+          endTime: isMorning ? "12:30" : "16:30",
+          isActive: true,
+        },
+      });
+    }
+
+    return shift;
+  }
+
+  private static async persistAcademicEnrollment(
+    tx: any,
+    schoolId: string,
+    studentId: string,
+    entry: ValidatedStudentEntry,
+    rollNo: string
+  ): Promise<void> {
+    if (!entry.resolvedSessionId || !entry.resolvedClassId) return;
+
+    const shift = await this.resolveOrCreateSchoolShift(
+      tx,
+      schoolId,
+      entry.placement?.className
+    );
+
+    await tx.studentEnrollment.upsert({
+      where: {
+        studentId_sessionId: {
+          studentId,
+          sessionId: entry.resolvedSessionId,
+        },
+      },
+      create: {
+        schoolId,
+        studentId,
+        sessionId: entry.resolvedSessionId,
+        classId: entry.resolvedClassId,
+        sectionId: entry.resolvedSectionId || null,
+        rollNo: entry.placement?.rollNo || rollNo,
+        shiftId: shift.id,
+        status: "ACTIVE",
+      },
+      update: {
+        classId: entry.resolvedClassId,
+        sectionId: entry.resolvedSectionId || null,
+        rollNo: entry.placement?.rollNo || rollNo,
+        shiftId: shift.id,
+        status: "ACTIVE",
+      },
+    });
+  }
+
+  private static async persistFacilityRequests(
+    tx: any,
+    schoolId: string,
+    studentId: string,
+    batchId: string,
+    entry: ValidatedStudentEntry
+  ): Promise<void> {
+    if (!entry.facilities || !Array.isArray(entry.facilities)) return;
+    for (const fac of entry.facilities) {
+      const code = (fac.facilityCode || "").toUpperCase().trim();
+      if (!["TRANSPORT", "HOSTEL", "MEALS", "OTHER"].includes(code)) continue;
+
+      await tx.facilityRequest.create({
+        data: {
+          schoolId,
+          studentId,
+          sessionId: entry.resolvedSessionId || null,
+          facilityType: code,
+          status: "REQUESTED",
+          details: fac.details || (entry.student.locality ? `Locality: ${entry.student.locality}` : null),
+          batchId,
+          notes: `Requested via admission import batch ${batchId}.`,
+        },
+      });
+    }
+  }
+
+  private static async persistDocuments(
+    tx: any,
+    schoolId: string,
+    studentId: string,
+    documents: any[]
+  ): Promise<void> {
+    if (!documents || !Array.isArray(documents)) return;
+    for (const doc of documents) {
+      const fileRef = (doc.fileReference || "").trim();
+      const hasRealFile = Boolean(fileRef && !fileRef.includes("pending_document"));
+
+      await tx.document.create({
+        data: {
+          schoolId,
+          ownerType: "STUDENT",
+          ownerId: studentId,
+          category: doc.documentCategory as any,
+          title: doc.documentTitle,
+          fileUrl: hasRealFile ? fileRef : "",
+          verificationStatus: hasRealFile ? "UPLOADED" : "PENDING_UPLOAD",
+        },
+      });
+    }
   }
 
   // ─────────────────────────────────────────────────────────────

@@ -9,6 +9,7 @@
  */
 
 import ExcelJS from "exceljs";
+import AdmZip from "adm-zip";
 import { AdmissionType } from "./admission-types";
 
 export interface AdmissionTemplateMetadata {
@@ -81,6 +82,10 @@ export class AdmissionTemplateRegistry {
    */
   public static getAllTemplates(): AdmissionTemplateMetadata[] {
     return Object.values(this.TEMPLATES);
+  }
+
+  public static listTemplates(): AdmissionTemplateMetadata[] {
+    return this.getAllTemplates();
   }
 
   /**
@@ -157,6 +162,216 @@ export class AdmissionTemplateRegistry {
 
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
+  }
+
+  /**
+   * Generate downloadable single-file CSV template
+   */
+  public static generateCsvBuffer(type: AdmissionType): string {
+    const headers = [
+      "Import_Key*",
+      "Student_Name*",
+      "DOB*(YYYY-MM-DD)",
+      "Gender*(MALE/FEMALE/OTHER)",
+      "Blood_Group",
+      "Nationality",
+      "Religion",
+      "Category",
+      "Mother_Tongue",
+      "Locality",
+      "PIN_Code",
+      "Permanent_Address",
+      "Student_Email",
+      "Student_Phone",
+      "Emergency_Phone",
+      "Medical_Info",
+      "PEN_Number",
+      "Academic_Session*",
+      "Admission_Class*",
+      "Section",
+      "Roll_No",
+      "Guardian_Name*",
+      "Guardian_Phone*",
+      "Guardian_Email",
+      "Guardian_Relation*",
+      "Guardian_Occupation",
+      "Guardian_Address",
+      "Transport_Required(YES/NO)",
+      "Hostel_Required(YES/NO)",
+      "Meals_Required(YES/NO)",
+      "Facility_Details",
+      "Document_Category",
+      "Document_Title",
+    ];
+
+    if (type === "READMISSION") {
+      headers.splice(1, 0, "Existing_SSVM_Admission_No*");
+    } else if (type === "TRANSFER") {
+      headers.push(
+        "Previous_School_Name*",
+        "Board_Affiliation",
+        "Last_Class_Passed",
+        "Transfer_Certificate_No",
+        "TC_Issue_Date(YYYY-MM-DD)"
+      );
+    }
+
+    const sampleRow = [
+      "STU-001",
+      ...(type === "READMISSION" ? ["ADM-2025-0042"] : []),
+      "Aarav Sharma",
+      "2018-05-14",
+      "MALE",
+      "B+",
+      "Indian",
+      "Hindu",
+      "GENERAL",
+      "Hindi",
+      "Civil Lines",
+      "769001",
+      "Plot 12, Sector 4, Rourkela",
+      "aarav.sharma@example.com",
+      "9876543210",
+      "9876543211",
+      "No known allergies",
+      "PEN-2026-987654",
+      "2026-2027",
+      "Class 1",
+      "A",
+      "101",
+      "Rajesh Sharma",
+      "9876543210",
+      "rajesh.sharma@example.com",
+      "FATHER",
+      "Engineer",
+      "Plot 12, Sector 4, Rourkela",
+      "YES",
+      "NO",
+      "NO",
+      "Civil Lines Stop",
+      "BIRTH_CERTIFICATE",
+      "Birth Certificate Copy",
+      ...(type === "TRANSFER"
+        ? ["Delhi Public School", "CBSE", "UKG", "TC-2026-8812", "2026-03-31"]
+        : []),
+    ];
+
+    return `${headers.join(",")}\n${sampleRow.map((c) => (c.includes(",") ? `"${c}"` : c)).join(",")}\n`;
+  }
+
+  /**
+   * Generate downloadable Multi-file CSV ZIP package
+   */
+  public static async generateCsvPackageZipBuffer(
+    type: AdmissionType,
+    configuredClasses: string[] = [
+      "Prarambha",
+      "Bodha",
+      "Class 1",
+      "Class 2",
+      "Class 3",
+      "Class 4",
+      "Class 5",
+      "Class 6",
+      "Class 7",
+      "Class 8",
+      "Class 9",
+      "Class 10",
+      "Class 11",
+      "Class 12",
+    ]
+  ): Promise<Buffer> {
+    const meta = this.getMetadata(type);
+    const zip = new AdmZip();
+
+    // 1. Instructions.csv
+    const instructionsContent = [
+      `"Parameter","Value"`,
+      `"Admission Type","${meta.type}"`,
+      `"Template Version","${meta.version}"`,
+      `"Platform","SSVM ERP Multi-File CSV Package"`,
+      `"Configured Classes","${configuredClasses.join("; ")}"`,
+    ].join("\n");
+    zip.addFile("Instructions.csv", Buffer.from(instructionsContent, "utf8"));
+
+    // 2. Students.csv / ReAdmissions.csv
+    if (type === "READMISSION") {
+      const readmCsv = [
+        `"Import_Key*","Existing_SSVM_Admission_No*","Student_Name*","DOB*(YYYY-MM-DD)","Gender*","Blood_Group","Nationality","Religion","Category","Mother_Tongue","Locality","PIN_Code","Permanent_Address","Student_Email","Student_Phone","Emergency_Phone","Medical_Info","PEN_Number"`,
+        `"STU-001","ADM-2025-0042","Aarav Sharma","2018-05-14","MALE","B+","Indian","Hindu","GENERAL","Hindi","Civil Lines","769001","Plot 12, Sector 4, Rourkela","aarav.sharma@example.com","9876543210","9876543211","No allergies","PEN-2026-987654"`,
+      ].join("\n");
+      zip.addFile("ReAdmissions.csv", Buffer.from(readmCsv, "utf8"));
+
+      const profileUpdatesCsv = [
+        `"Import_Key*","Updated_Phone","Updated_Email","Updated_Address","Updated_Blood_Group"`,
+        `"STU-001","9876543210","aarav.updated@example.com","New Address, Rourkela","B+"`,
+      ].join("\n");
+      zip.addFile("Profile_Updates.csv", Buffer.from(profileUpdatesCsv, "utf8"));
+    } else {
+      const studentsCsv = [
+        `"Import_Key*","Student_Name*","DOB*(YYYY-MM-DD)","Gender*","Blood_Group","Nationality","Religion","Category","Mother_Tongue","Locality","PIN_Code","Permanent_Address","Student_Email","Student_Phone","Emergency_Phone","Medical_Info","PEN_Number"`,
+        `"STU-001","Aarav Sharma","2018-05-14","MALE","B+","Indian","Hindu","GENERAL","Hindi","Civil Lines","769001","Plot 12, Sector 4, Rourkela","aarav.sharma@example.com","9876543210","9876543211","No allergies","PEN-2026-987654"`,
+      ].join("\n");
+      zip.addFile("Students.csv", Buffer.from(studentsCsv, "utf8"));
+    }
+
+    // 3. Guardians.csv
+    const guardiansCsv = [
+      `"Guardian_Key*","Guardian_Name*","Relationship*","Primary_Phone*","Primary_Email","Occupation","Annual_Income","Residential_Address","Is_Emergency_Contact"`,
+      `"GRD-001","Rajesh Sharma","FATHER","9876543210","rajesh.sharma@example.com","Engineer","750000","Plot 12, Sector 4, Rourkela","YES"`,
+      `"GRD-002","Pooja Sharma","MOTHER","9876543211","pooja.sharma@example.com","Doctor","800000","Plot 12, Sector 4, Rourkela","YES"`,
+    ].join("\n");
+    zip.addFile("Guardians.csv", Buffer.from(guardiansCsv, "utf8"));
+
+    // 4. Student_Guardians.csv
+    const sgCsv = [
+      `"Import_Key*","Guardian_Key*","Relationship_To_Student*","Is_Primary"`,
+      `"STU-001","GRD-001","FATHER","YES"`,
+      `"STU-001","GRD-002","MOTHER","NO"`,
+    ].join("\n");
+    zip.addFile("Student_Guardians.csv", Buffer.from(sgCsv, "utf8"));
+
+    // 5. Academic_Placement.csv
+    const placeCsv = [
+      `"Import_Key*","Academic_Session*","Admission_Class*","Allocated_Section","Allocated_Roll_No","Campus_Branch"`,
+      `"STU-001","2026-2027","Class 1","A","101","Main Campus"`,
+    ].join("\n");
+    zip.addFile("Academic_Placement.csv", Buffer.from(placeCsv, "utf8"));
+
+    // 6. Previous_School.csv (if TRANSFER)
+    if (type === "TRANSFER") {
+      const prevCsv = [
+        `"Import_Key*","Previous_School_Name*","Board_Affiliation","Last_Class_Passed","Academic_Session","Roll_No","Transfer_Certificate_No","TC_Issue_Date(YYYY-MM-DD)","School_Address"`,
+        `"STU-001","Delhi Public School","CBSE","UKG","2025-2026","42","TC-2026-8812","2026-03-31","Sector 14, Rourkela"`,
+      ].join("\n");
+      zip.addFile("Previous_School.csv", Buffer.from(prevCsv, "utf8"));
+    }
+
+    // 7. Student_Facilities.csv
+    const facCsv = [
+      `"Import_Key*","Facility_Code*","Facility_Details"`,
+      `"STU-001","TRANSPORT","Route 4 Stop Civil Lines"`,
+    ].join("\n");
+    zip.addFile("Student_Facilities.csv", Buffer.from(facCsv, "utf8"));
+
+    // 8. Documents.csv
+    const docCsv = [
+      `"Import_Key*","Document_Category*","Document_Title*","File_Reference"`,
+      `"STU-001","BIRTH_CERTIFICATE","Student Birth Certificate Copy","stu001_birth_cert.pdf"`,
+    ].join("\n");
+    zip.addFile("Documents.csv", Buffer.from(docCsv, "utf8"));
+
+    // 9. manifest.json
+    const manifest = {
+      templateType: meta.type,
+      templateVersion: meta.version,
+      generatedAt: new Date().toISOString(),
+      requiredSheets: meta.requiredSheets,
+      format: "SSVM_MULTI_FILE_CSV_PACKAGE",
+    };
+    zip.addFile("manifest.json", Buffer.from(JSON.stringify(manifest, null, 2), "utf8"));
+
+    return zip.toBuffer();
   }
 
   // ─────────────────────────────────────────────────────────────

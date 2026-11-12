@@ -11,7 +11,7 @@
 | :---: | :--- | :---: | :--- | :--- |
 | **0** | **Standalone Dashboard** | `VERIFIED_COMPLETE` | `/admin` | Aggregated KPI stats, quick actions, global search. |
 | **1** | **Institution Setup** | `VERIFIED_COMPLETE` | `/admin/settings`, `/admin/institution/sessions`, `/admin/institution/classes`, `/admin/institution/curriculum` | Class & section management, academic sessions, course catalogs, bulk import (`classes`, `subjects`). |
-| **2** | **Admissions & Student Affairs**| `VERIFIED_COMPLETE` | `/admin/admissions`, `/admin/students`, `/admin/students/guardians` | CRM inquiries, student directory, parent contacts, bulk import (`students`, `guardians`). |
+| **2** | **Admissions & Student Affairs**| `VERIFIED_COMPLETE` | `/admin/admissions`, `/admin/students`, `/admin/students/[id]`, `/admin/students/guardians` | CRM inquiries, student directory, canonical student profile, parent contacts, bulk import (`students`, `guardians`), `/api/v1/students` (directory, search, filters, pagination), `/api/v1/students/:id` (canonical profile & 8 sub-resource endpoints). |
 | **3** | **Academic Operations** | `VERIFIED_COMPLETE` | `/admin/attendance`, `/admin/timetable`, `/admin/assignments`, `/admin/exams`, `/admin/results` | Daily attendance, term timetables, classroom homework LMS, grading & report cards, bulk import (`attendance`). |
 | **4** | **Finance & Accounts** | `VERIFIED_COMPLETE` | `/admin/fees`, `/admin/fees/defaulters`, `/admin/fees/ledger` | Fee invoice schedules, Razorpay checkouts, double-entry ledger, financial period close governance, bulk import (`fees`). |
 | **5** | **HR & Workforce** | `VERIFIED_COMPLETE` | `/admin/hr`, `/admin/teachers` | Staff directory, department assignments, leave tracking, monthly payroll, bulk import (`staff`). |
