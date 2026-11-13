@@ -48,6 +48,8 @@ yarn-error.log*
 # ─── Testing ──────────────────────────────────────────────
 coverage/
 test-run*.txt
+docs/AUDIT/evidence/*.txt
+docs/AUDIT/evidence/*.log
 
 # ─── Docker ───────────────────────────────────────────────
 docker-compose.override.yml
