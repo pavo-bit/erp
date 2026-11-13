@@ -304,6 +304,23 @@ export function requireAdmin() {
   return requireRole("ERP_ADMIN");
 }
 
+// Direct role guard: does NOT honor JIT delegation. Use for sensitive
+// operations (user management, finance reversal) that must not be unlocked
+// by a delegation grant.
+export function requireDirectRole(...roles: string[]) {
+  return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Not authenticated" });
+      return;
+    }
+    if (roles.includes(req.user.role)) {
+      next();
+      return;
+    }
+    res.status(403).json({ success: false, error: "Forbidden — insufficient permissions" });
+  };
+}
+
 export function requireTeacherOrAdmin() {
   return requireRole("ERP_ADMIN", "TEACHER");
 }

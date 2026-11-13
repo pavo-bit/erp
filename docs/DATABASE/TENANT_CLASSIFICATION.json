@@ -6653,6 +6653,13 @@
           "referencedFields": []
         },
         {
+          "relation": "passwordSetupTokens",
+          "relatedModel": "PasswordSetupToken",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
           "relation": "vendors",
           "relatedModel": "Vendor",
           "cardinality": "many",
@@ -8879,6 +8886,13 @@
         {
           "relation": "delegationsGiven",
           "relatedModel": "UserDelegation",
+          "cardinality": "many",
+          "foreignKeyFields": [],
+          "referencedFields": []
+        },
+        {
+          "relation": "passwordSetupTokens",
+          "relatedModel": "PasswordSetupToken",
           "cardinality": "many",
           "foreignKeyFields": [],
           "referencedFields": []

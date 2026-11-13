@@ -6643,6 +6643,13 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": []
       },
       {
+        "relation": "passwordSetupTokens",
+        "relatedModel": "PasswordSetupToken",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
         "relation": "vendors",
         "relatedModel": "Vendor",
         "cardinality": "many",
@@ -8869,6 +8876,13 @@ export const TENANT_CLASSIFICATION = {
       {
         "relation": "delegationsGiven",
         "relatedModel": "UserDelegation",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "passwordSetupTokens",
+        "relatedModel": "PasswordSetupToken",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []

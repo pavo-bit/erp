@@ -3,8 +3,11 @@ import { Router, Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
 import prisma from "../lib/prisma";
-import { authenticate, requireRole, AuthRequest, hashPassword } from "../middleware/auth";
+import { authenticate, requireRole, requireDirectRole, AuthRequest, hashPassword } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
+import crypto from "crypto";
+import { mailService } from "../services/mail.service";
+import { runWithTenantDatabaseTransaction } from "../lib/prisma";
 
 const router = Router();
 
@@ -57,6 +60,19 @@ async function logAudit(schoolId: string, userId: string, action: string, entity
 
 function generateTempPassword() { return crypto.randomBytes(32).toString("base64url"); }
 
+const ASSIGNABLE_ROLES: Record<string, string[]> = {
+  SUPER_ADMIN: ["SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"],
+  ERP_ADMIN: ["WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"],
+};
+
+function canAssignRole(assignerRole: string, targetRole: string): boolean {
+  return (ASSIGNABLE_ROLES[assignerRole] || []).includes(targetRole);
+}
+
+function isProtectedAccount(user: any): boolean {
+  return user?.role === "SUPER_ADMIN";
+}
+
 // GET /api/users - List all users
 router.get("/", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
@@ -108,6 +124,10 @@ router.get("/", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Re
 router.post("/", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
     const data = createUserSchema.parse(req.body);
+
+    if (!canAssignRole(req.user.role, data.role)) {
+      return res.status(403).json({ success: false, error: "Forbidden — cannot assign this role" });
+    }
 
     const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
     if (existingUser) {
@@ -192,7 +212,7 @@ router.put("/:id/status", authenticate, requireRole("ERP_ADMIN"), async (req: an
     if (!target) return res.status(404).json({ success: false, error: "User not found" });
     if (target.id === req.user.id || target.role === "SUPER_ADMIN" || target.role === "ERP_ADMIN") return res.status(403).json({ success: false, error: "Protected administrator account" });
     const user = await prisma.user.update({
-      where: { id: req.params.id, schoolId: req.user.schoolId },
+      where: { id: req.params.id },
       data: { isActive },
       select: { id: true, email: true, isActive: true }
     });
@@ -209,6 +229,12 @@ router.put("/:id/status", authenticate, requireRole("ERP_ADMIN"), async (req: an
 // PUT /api/users/:id/reset-password - Reset password to temp
 router.put("/:id/reset-password", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
+    const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId: req.user.schoolId } });
+    if (!existing) return res.status(404).json({ success: false, error: "User not found" });
+    if (isProtectedAccount(existing)) {
+      return res.status(403).json({ success: false, error: "Protected account cannot be modified" });
+    }
+
     const tempPassword = generateTempPassword();
     const hashedPassword = await hashPassword(tempPassword);
 
@@ -232,6 +258,88 @@ router.put("/:id/reset-password", authenticate, requireRole("ERP_ADMIN"), async 
     console.error(error);
     res.status(500).json({ success: false, error: "Failed to reset password" });
   }
+});
+
+// POST /api/users/:id/password-setup - Issue a password setup token (ERP_ADMIN only, own school)
+router.post("/:id/password-setup", authenticate, requireDirectRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
+  try {
+    const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId: req.user.schoolId } });
+    if (!existing) return res.status(404).json({ success: false, error: "User not found" });
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    // Revoke previous unused tokens for this user
+    await prisma.passwordSetupToken.updateMany({
+      where: { userId: existing.id, usedAt: null, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    await prisma.passwordSetupToken.create({
+      data: {
+        schoolId: req.user.schoolId,
+        userId: existing.id,
+        tokenHash,
+        expiresAt,
+        createdBy: req.user.userId,
+      },
+    });
+
+    const link = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
+    await mailService.sendPasswordSetupEmail(existing.email, link);
+
+    // In non-production, log the link only if EMAIL_DEV_LOG=true (handled in mail service).
+    // Never return token/password in API response.
+    res.status(201).json({ success: true, message: "Password setup link sent" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, error: "Failed to issue password setup token" });
+  }
+});
+
+// POST /api/users/:id/password-setup/resend
+router.post("/:id/password-setup/resend", authenticate, requireDirectRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
+  // Revoke all existing and issue a new one
+  await prisma.passwordSetupToken.updateMany({
+    where: { userId: req.params.id, usedAt: null, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+  // delegate to issue by re-invoking create logic via redirect-like call: just create new
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId: req.user.schoolId } });
+  if (!existing) return res.status(404).json({ success: false, error: "User not found" });
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await prisma.passwordSetupToken.create({
+    data: {
+      schoolId: req.user.schoolId,
+      userId: existing.id,
+      tokenHash,
+      expiresAt,
+      createdBy: req.user.userId,
+    },
+  });
+
+  const link = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
+  await mailService.sendPasswordSetupEmail(existing.email, link);
+
+  res.status(201).json({ success: true, message: "Password setup link resent" });
+});
+
+// POST /api/users/:id/password-setup/revoke
+router.post("/:id/password-setup/revoke", authenticate, requireDirectRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId: req.user.schoolId } });
+  if (!existing) return res.status(404).json({ success: false, error: "User not found" });
+
+  await prisma.passwordSetupToken.updateMany({
+    where: { userId: existing.id, usedAt: null, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+
+  res.json({ success: true, message: "Password setup tokens revoked" });
 });
 
 export default router;

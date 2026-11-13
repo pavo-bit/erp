@@ -1,5 +1,6 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
+import { runWithTrustedDatabaseTransaction, runWithTenantDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireRole, hashPassword, verifyPassword, signToken } from "../middleware/auth";
 import { validate } from "../middleware/validate";
@@ -886,6 +887,74 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
     res.json({ success: true, data: { message: "Password changed successfully. Please log in again." } });
   } catch (e) {
     logger.error({ err: e }, "Change password error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// POST /api/v1/auth/set-password - Public endpoint to consume a password setup token
+router.post("/set-password", async (req: any, res: Response) => {
+  try {
+    const { token, password } = req.body || {};
+    if (!token || !password) {
+      return res.status(400).json({ success: false, error: "token and password are required" });
+    }
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ success: false, error: "Password must be at least 8 characters" });
+    }
+
+    const tokenHash = crypto.createHash("sha256").update(String(token)).digest("hex");
+
+    // Cross-tenant lookup via SECURITY DEFINER helper (bypasses RLS).
+    const rows = await prisma.$queryRawUnsafe<Array<{ auth_find_password_setup_token: any }>>(
+      `SELECT auth_find_password_setup_token($1) AS auth_find_password_setup_token`,
+      tokenHash
+    );
+    const record = rows[0]?.auth_find_password_setup_token;
+    if (!record) {
+      return res.status(400).json({ success: false, error: "Invalid token" });
+    }
+    if (record.revokedAt) {
+      return res.status(400).json({ success: false, error: "Token revoked" });
+    }
+    if (record.usedAt) {
+      return res.status(400).json({ success: false, error: "Token already used" });
+    }
+    const expiresAt = new Date(record.expiresAt.endsWith('Z') ? record.expiresAt : record.expiresAt + 'Z');
+    if (expiresAt < new Date()) {
+      return res.status(400).json({ success: false, error: "Token expired" });
+    }
+
+    const schoolId = record.schoolId;
+    const userId = record.userId;
+
+    await runWithTenantDatabaseTransaction(schoolId, async () => {
+      const user = await prisma.user.findUnique({ where: { id: userId, schoolId } });
+      if (!user) {
+        throw new Error("INVALID_TOKEN");
+      }
+      const hashed = await hashPassword(password);
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: hashed, mustChangePassword: false, passwordChangedAt: new Date() },
+      });
+      await prisma.passwordSetupToken.update({
+        where: { id: record.id },
+        data: { usedAt: new Date() },
+      });
+      await prisma.refreshToken.updateMany({ where: { userId: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+      await prisma.userSession.updateMany({ where: { userId: user.id }, data: { isActive: false } });
+    }).catch((e: any) => {
+      if (e?.message === "INVALID_TOKEN") {
+        res.status(400).json({ success: false, error: "Invalid token" });
+      } else {
+        throw e;
+      }
+    });
+
+    if (res.headersSent) return;
+    res.json({ success: true, message: "Password set successfully" });
+  } catch (e) {
+    logger.error({ err: e }, "Set password error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });
