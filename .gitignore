@@ -60,3 +60,6 @@ tsconfig.tsbuildinfo
 
 
 .logs/
+
+# CodeGraph (local index)
+.codegraph/
