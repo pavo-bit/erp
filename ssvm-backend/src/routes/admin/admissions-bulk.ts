@@ -992,6 +992,11 @@ router.get("/shifts", [authenticate, requireAdmissionPermission("ADMISSION_VIEW"
     const schoolId = req.user!.schoolId!;
     let shifts = await prisma.schoolShift.findMany({
       where: { schoolId },
+      include: {
+        shiftClasses: {
+          include: { class: { select: { id: true, name: true } } },
+        },
+      },
       orderBy: { startTime: "asc" },
     });
 

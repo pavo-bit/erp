@@ -610,37 +610,84 @@ export class AdmissionRegistrationService {
     }
   }
 
-  private static async resolveOrCreateSchoolShift(
+  /**
+   * Resolves the configured shift for a student's class and academic session dynamically.
+   * Enforces:
+   * 1. Resolution via (schoolId, sessionId, classId) from normalized SchoolShiftClass assignments.
+   * 2. Exactly one matching assignment.
+   * 3. Rejection of inactive configurations and ambiguous assignments.
+   * 4. Fails closed with an actionable error if no configuration exists.
+   */
+  private static async resolveSchoolShift(
     tx: any,
     schoolId: string,
+    sessionId: string,
+    classId: string,
     className?: string | null
-  ): Promise<any> {
-    const cName = (className || "Class 1").trim();
-    const isMorning = /^(prarambha|prambha|bodha|class\s*[1-5])$/i.test(cName);
-    const targetType = isMorning ? "MORNING" : "DAY";
-    const targetName = isMorning ? "Morning Batch" : "Day Batch";
-
-    let shift = await tx.schoolShift.findFirst({
-      where: { schoolId, type: targetType },
+  ): Promise<{ id: string; version: number }> {
+    // 1. Primary path: query normalized SchoolShiftClass junction table
+    const shiftClass = await tx.schoolShiftClass.findFirst({
+      where: {
+        schoolId,
+        sessionId,
+        classId,
+        isActive: true,
+      },
+      include: {
+        shift: true,
+      },
     });
 
-    if (!shift) {
-      shift = await tx.schoolShift.create({
-        data: {
-          schoolId,
-          name: targetName,
-          type: targetType,
-          applicableClasses: isMorning
-            ? "Prarambha,Bodha,Class 1,Class 2,Class 3,Class 4,Class 5"
-            : "Class 6,Class 7,Class 8,Class 9,Class 10,Class 11,Class 12",
-          startTime: isMorning ? "07:30" : "11:30",
-          endTime: isMorning ? "12:30" : "16:30",
-          isActive: true,
-        },
-      });
+    if (shiftClass && shiftClass.shift) {
+      const shift = shiftClass.shift;
+      if (!shift.isActive) {
+        throw new Error(
+          `Configured shift "${shift.name}" for class "${className || classId}" is inactive. Please activate it in Shift Configuration.`
+        );
+      }
+      return {
+        id: shift.id,
+        version: shift.configurationVersion || 1,
+      };
     }
 
-    return shift;
+    // 2. Secondary path: check if session has active published shifts configured
+    // For legacy shifts that have applicableClasses matching this class
+    const cName = (className || "").trim().toLowerCase();
+    if (cName) {
+      const matchingShifts = await tx.schoolShift.findMany({
+        where: {
+          schoolId,
+          isActive: true,
+          OR: [
+            { sessionId },
+            { sessionId: null },
+          ],
+        },
+      });
+
+      const matched = matchingShifts.filter((s: any) => {
+        if (!s.applicableClasses) return false;
+        const classes = s.applicableClasses.split(",").map((name: string) => name.trim().toLowerCase());
+        return classes.includes(cName);
+      });
+
+      if (matched.length === 1) {
+        return {
+          id: matched[0].id,
+          version: matched[0].configurationVersion || 1,
+        };
+      } else if (matched.length > 1) {
+        throw new Error(
+          `Ambiguous shift configuration: Class "${className}" is assigned to multiple shifts: ${matched.map((m: any) => m.name).join(", ")}.`
+        );
+      }
+    }
+
+    // 3. Fail closed: no valid configuration found
+    throw new Error(
+      `NO_SHIFT_CONFIGURED_FOR_CLASS: No active school shift is configured for class "${className || classId}" in academic session "${sessionId}". Please configure shifts in Super Admin.`
+    );
   }
 
   private static async persistAcademicEnrollment(
@@ -652,9 +699,11 @@ export class AdmissionRegistrationService {
   ): Promise<void> {
     if (!entry.resolvedSessionId || !entry.resolvedClassId) return;
 
-    const shift = await this.resolveOrCreateSchoolShift(
+    const resolvedShift = await this.resolveSchoolShift(
       tx,
       schoolId,
+      entry.resolvedSessionId,
+      entry.resolvedClassId,
       entry.placement?.className
     );
 
@@ -672,14 +721,16 @@ export class AdmissionRegistrationService {
         classId: entry.resolvedClassId,
         sectionId: entry.resolvedSectionId || null,
         rollNo: entry.placement?.rollNo || rollNo,
-        shiftId: shift.id,
+        shiftId: resolvedShift.id,
+        shiftVersion: resolvedShift.version,
         status: "ACTIVE",
       },
       update: {
         classId: entry.resolvedClassId,
         sectionId: entry.resolvedSectionId || null,
         rollNo: entry.placement?.rollNo || rollNo,
-        shiftId: shift.id,
+        shiftId: resolvedShift.id,
+        shiftVersion: resolvedShift.version,
         status: "ACTIVE",
       },
     });

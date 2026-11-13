@@ -11,3 +11,6 @@ if (!process.env.DATABASE_URL_TRUSTED) {
 if (!process.env.DATABASE_URL_TEST_FIXTURE) {
   process.env.DATABASE_URL_TEST_FIXTURE = "postgresql://ssvm_fixture:fixture_pw@127.0.0.1:5433/ssvm_test?schema=public";
 }
+if (!process.env.REDIS_URL || process.env.REDIS_URL.includes("redis:6379")) {
+  process.env.REDIS_URL = "redis://127.0.0.1:6379";
+}

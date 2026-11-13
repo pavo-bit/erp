@@ -159,6 +159,7 @@ model School {
   studentGuardians                                                      StudentGuardian[]
   studentEnrollments                                                    StudentEnrollment[]
   schoolShifts                                                          SchoolShift[]
+  schoolShiftClasses                                                    SchoolShiftClass[]
   facilityRequests                                                      FacilityRequest[]
 
   @@map("schools")
@@ -382,6 +383,8 @@ model AcademicSession {
   classes                   Class[]
   teacherSubjectAssignments TeacherSubjectAssignment[]
   studentEnrollments        StudentEnrollment[]
+  schoolShifts              SchoolShift[]
+  schoolShiftClasses        SchoolShiftClass[]
 
   @@unique([schoolId, name])
   @@map("academic_sessions")
@@ -404,6 +407,7 @@ model Class {
   sections       Section[]
   studyMaterials StudyMaterial[]
   studentEnrollments StudentEnrollment[]
+  schoolShiftClasses SchoolShiftClass[]
 
   @@unique([schoolId, sessionId, name])
   @@map("classes")
@@ -4300,46 +4304,82 @@ model StudentGuardian {
 }
 
 model SchoolShift {
-  id                String              @id @default(cuid())
-  schoolId          String
-  name              String              // e.g. "Morning Batch", "Day Batch"
-  type              String              // MORNING, DAY, EVENING
-  applicableClasses String              // e.g. "Prambha,Bodha,Class 1,Class 2,Class 3,Class 4,Class 5"
-  startTime         String              // e.g. "07:30"
-  endTime           String              // e.g. "12:30"
-  isActive          Boolean             @default(true)
-  createdAt         DateTime            @default(now())
-  updatedAt         DateTime            @updatedAt
+  id                   String              @id @default(cuid())
+  schoolId             String
+  sessionId            String?
+  name                 String              // e.g. "Morning Batch", "Day Batch", "Evening Batch"
+  type                 String              // MORNING, DAY, EVENING
+  applicableClasses    String?             // Legacy comma-separated classes retained for backward compatibility
+  startTime            String              // e.g. "07:30"
+  endTime              String              // e.g. "12:30"
+  isActive             Boolean             @default(true)
+  configurationVersion Int                 @default(1)
+  publicationStatus    String              @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  effectiveFrom        DateTime?
+  effectiveTo          DateTime?
+  createdById          String?
+  updatedById          String?
+  publishedById        String?
+  publishedAt          DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
-  school            School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  enrollments       StudentEnrollment[]
+  school               School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  session              AcademicSession?    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  shiftClasses         SchoolShiftClass[]
+  enrollments          StudentEnrollment[]
 
-  @@unique([schoolId, name])
+  @@unique([schoolId, sessionId, name])
   @@index([schoolId])
+  @@index([sessionId])
   @@map("school_shifts")
 }
 
-model StudentEnrollment {
+model SchoolShiftClass {
   id        String          @id @default(cuid())
   schoolId  String
-  studentId String
   sessionId String
+  shiftId   String
   classId   String
-  sectionId String?
-  rollNo    String?
-  shiftId   String?
-  status    String          @default("ACTIVE") // ACTIVE, COMPLETED, PROMOTED, TRANSFERRED, WITHDRAWN
-  startDate DateTime        @default(now())
-  endDate   DateTime?
+  isActive  Boolean         @default(true)
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
 
   school    School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student   Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
   session   AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  shift     SchoolShift     @relation(fields: [shiftId], references: [id], onDelete: Cascade)
   class     Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
-  section   Section?        @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  shift     SchoolShift?    @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@unique([schoolId, sessionId, classId])
+  @@index([schoolId])
+  @@index([sessionId])
+  @@index([shiftId])
+  @@index([classId])
+  @@map("school_shift_classes")
+}
+
+model StudentEnrollment {
+  id           String          @id @default(cuid())
+  schoolId     String
+  studentId    String
+  sessionId    String
+  classId      String
+  sectionId    String?
+  rollNo       String?
+  shiftId      String?
+  shiftVersion Int?            @default(1)
+  status       String          @default("ACTIVE") // ACTIVE, COMPLETED, PROMOTED, TRANSFERRED, WITHDRAWN
+  startDate    DateTime        @default(now())
+  endDate      DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  school       School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student      Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  session      AcademicSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  class        Class           @relation(fields: [classId], references: [id], onDelete: Cascade)
+  section      Section?        @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  shift        SchoolShift?    @relation(fields: [shiftId], references: [id], onDelete: SetNull)
 
   @@unique([studentId, sessionId])
   @@index([schoolId])

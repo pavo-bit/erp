@@ -111,9 +111,10 @@ router.get('/features', async (req: AuthRequest, res) => {
 
 router.post('/features/toggle', requireRole('SUPER_ADMIN'), async (req: AuthRequest, res) => {
   try {
-    // Only SUPER_ADMIN can toggle SaaS features on/off for a school, or maybe we allow ERP_ADMIN in higher tiers?
-    // Usually features are packaged into plans controlled by Super Admins.
-    const schoolId = req.user!.schoolId as string;
+    const schoolId = (req.body.schoolId as string) || (req.user?.schoolId as string);
+    if (!schoolId) {
+      return res.status(400).json({ success: false, error: 'Target schoolId is required' });
+    }
     const { featureCode, isEnabled } = req.body;
 
     if (!featureCode || isEnabled === undefined) {

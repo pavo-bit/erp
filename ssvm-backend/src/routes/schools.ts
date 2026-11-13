@@ -28,7 +28,10 @@ router.get("/", authenticate, requireSuperAdmin(), async (_req: AuthRequest, res
 // GET /api/v1/schools/me/modules — Get current school's entitled and active modules
 router.get("/me/modules", authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    const schoolId = req.user?.schoolId || (req.headers['x-school-id'] as string) || (req.headers['x-tenant-id'] as string);
+    let schoolId = req.user?.schoolId;
+    if (!schoolId && req.user?.role === "SUPER_ADMIN") {
+      schoolId = (req.headers['x-school-id'] as string) || (req.headers['x-tenant-id'] as string);
+    }
     if (!schoolId) {
       res.status(400).json({ success: false, error: "School context required" });
       return;
@@ -48,6 +51,96 @@ router.get("/me/modules", authenticate, async (req: AuthRequest, res: Response) 
   } catch (e: any) {
     logger.error({ err: e }, "Get school modules error");
     res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/v1/schools/:id/modules — Super Admin: Get specific school's module entitlements
+router.get("/:id/modules", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.params.id as string;
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { id: true, name: true, code: true, status: true },
+    });
+    if (!school) {
+      res.status(404).json({ success: false, error: "School not found" });
+      return;
+    }
+
+    const entitlements = await ModuleRegistryService.getSchoolEntitlements(schoolId);
+    const registry = ModuleRegistryService.getAllModules();
+
+    res.json({
+      success: true,
+      data: {
+        schoolId,
+        school,
+        modules: entitlements,
+        registry,
+      },
+    });
+  } catch (e: any) {
+    logger.error({ err: e, schoolId: req.params.id }, "Get target school modules error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// PATCH /api/v1/schools/:id/modules/:moduleCode — Super Admin: Update school module entitlement
+router.patch("/:id/modules/:moduleCode", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.params.id as string;
+    const moduleCode = req.params.moduleCode as string;
+    const { enabled } = req.body;
+
+    if (typeof enabled !== "boolean") {
+      res.status(400).json({ success: false, error: "Field 'enabled' (boolean) is required in request body" });
+      return;
+    }
+
+    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) {
+      res.status(404).json({ success: false, error: "School not found" });
+      return;
+    }
+
+    const modDef = ModuleRegistryService.getModuleDefinition(moduleCode);
+    if (!modDef) {
+      res.status(404).json({ success: false, error: `Module '${moduleCode}' not recognized in Central Registry` });
+      return;
+    }
+
+    if (modDef.isCore && !enabled) {
+      res.status(400).json({ success: false, error: `Core module '${modDef.name}' cannot be disabled` });
+      return;
+    }
+
+    const result = await ModuleRegistryService.setSchoolEntitlement(
+      schoolId,
+      modDef.code,
+      enabled,
+      req.user?.id || "SUPER_ADMIN"
+    );
+
+    if (!result.success) {
+      res.status(400).json({ success: false, error: result.errors?.join("; ") || "Failed to update module entitlement" });
+      return;
+    }
+
+    const updatedEntitlements = await ModuleRegistryService.getSchoolEntitlements(schoolId);
+    const updatedModule = updatedEntitlements.find((m) => m.module.code.toUpperCase() === modDef.code.toUpperCase());
+
+    res.json({
+      success: true,
+      message: `Module ${modDef.code} successfully ${enabled ? "enabled" : "disabled"} for ${school.name}`,
+      data: {
+        schoolId,
+        module: updatedModule,
+        modules: updatedEntitlements,
+      },
+    });
+  } catch (e: any) {
+    logger.error({ err: e, schoolId: req.params.id, moduleCode: req.params.moduleCode }, "Patch school module error");
+    res.status(500).json({ success: false, error: e.message || "Server error" });
   }
 });
 

@@ -22,7 +22,7 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <div className="p-6 lg:p-12 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-8">
+    <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500 space-y-8 pt-2">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-bold uppercase tracking-widest mb-4">

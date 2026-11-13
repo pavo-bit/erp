@@ -49,7 +49,7 @@ export default function ShfiDashboardPage() {
     : [];
 
   return (
-    <div className="p-6 lg:p-12 max-w-[1600px] mx-auto animate-in fade-in duration-500 space-y-8">
+    <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500 space-y-8 pt-2">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
