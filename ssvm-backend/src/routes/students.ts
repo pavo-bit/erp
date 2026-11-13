@@ -108,9 +108,9 @@ async function verifyStudentAccess(req: AuthRequest, res: Response, studentId: s
 
   // 2. Parent child-access
   if (role === "PARENT") {
-    const isDirectGuardian = student.guardian?.userId === req.user.id;
+    const isDirectGuardian = student.guardian?.userId === req.user!.id;
     const isLinkedGuardian = (student.guardians || []).some(
-      (sg: any) => sg.guardian?.userId === req.user.id
+      (sg: any) => sg.guardian?.userId === req.user!.id
     );
     if (!isDirectGuardian && !isLinkedGuardian) {
       res.status(403).json({ success: false, error: "Forbidden: You can only access your children's profiles" });
@@ -243,7 +243,7 @@ router.get(
       // Role-specific scope
       if (req.user!.role === "PARENT") {
         const guardian = await prisma.guardian.findFirst({
-          where: { schoolId: req.user!.schoolId, userId: req.user!.id },
+          where: { schoolId: req.user!.schoolId as string, userId: req.user!.id },
         });
         if (guardian) {
           where.guardianId = guardian.id;

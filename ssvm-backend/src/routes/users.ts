@@ -5,7 +5,6 @@ import crypto from "crypto";
 import prisma from "../lib/prisma";
 import { authenticate, requireRole, requireDirectRole, AuthRequest, hashPassword } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
-import crypto from "crypto";
 import { mailService } from "../services/mail.service";
 import { runWithTenantDatabaseTransaction } from "../lib/prisma";
 
@@ -13,6 +12,7 @@ const router = Router();
 
 // Zod schemas for validation
 export const ASSIGNABLE_ROLES: Record<string, readonly string[]> = {
+  SUPER_ADMIN: ["SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"],
   ERP_ADMIN: ["WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"],
 };
 export function isLastSchoolAdminDemotion(targetRole: string, nextRole: string | undefined, activeAdminCount: number): boolean {
@@ -59,11 +59,6 @@ async function logAudit(schoolId: string, userId: string, action: string, entity
 }
 
 function generateTempPassword() { return crypto.randomBytes(32).toString("base64url"); }
-
-const ASSIGNABLE_ROLES: Record<string, string[]> = {
-  SUPER_ADMIN: ["SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"],
-  ERP_ADMIN: ["WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"],
-};
 
 function canAssignRole(assignerRole: string, targetRole: string): boolean {
   return (ASSIGNABLE_ROLES[assignerRole] || []).includes(targetRole);
