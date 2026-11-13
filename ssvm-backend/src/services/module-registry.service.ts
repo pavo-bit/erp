@@ -225,27 +225,34 @@ export class ModuleRegistryService {
         await this.setCache(cacheKey, enabled);
         return enabled;
       } catch (err: any) {
-        logger.error({ err: err.message, schoolId, moduleId }, 'Error checking module entitlement');
-        return mod.defaultEnabled;
+        logger.error({ err: err.message, schoolId, moduleId }, 'Error checking module entitlement (failing closed)');
+        return false;
       }
     });
   }
 
   /**
-   * Returns all modules and their status (enabled/disabled) for a school.
+   * Returns all modules and their status (enabled/disabled) with lifecycle metadata for a school.
    */
   static async getSchoolModules(schoolId: string): Promise<
     Array<{
       module: ModuleDefinition;
       isEnabled: boolean;
       source: 'CORE' | 'OVERRIDE' | 'DEFAULT';
+      operationalState?: 'ACTIVE' | 'PROVISIONING' | 'SYNCING' | 'SYNC_FAILED' | 'CONFIGURATION_REQUIRED' | 'CONFIGURATION_INCOMPLETE' | 'DISABLED';
+      badge?: string;
     }>
   > {
     return runWithSchoolContext(schoolId, async () => {
-      const schoolFeatures = await prisma.schoolFeature.findMany({
-        where: { schoolId },
-        include: { feature: true },
-      });
+      const [schoolFeatures, transportVehiclesCount, transportRoutesCount, hostelRooms] = await Promise.all([
+        prisma.schoolFeature.findMany({
+          where: { schoolId },
+          include: { feature: true },
+        }),
+        prisma.transportVehicle.count({ where: { schoolId } }).catch(() => 0),
+        prisma.transportRoute.count({ where: { schoolId } }).catch(() => 0),
+        prisma.hostelRoom.findMany({ where: { schoolId }, select: { capacity: true, building: true, status: true } }).catch(() => []),
+      ]);
 
       const overrideMap = new Map<string, boolean>();
       for (const sf of schoolFeatures) {
@@ -253,17 +260,55 @@ export class ModuleRegistryService {
       }
 
       return CENTRAL_MODULE_REGISTRY.map((mod) => {
+        let isEnabled = mod.defaultEnabled;
+        let source: 'CORE' | 'OVERRIDE' | 'DEFAULT' = 'DEFAULT';
+
         if (mod.isCore) {
-          return { module: mod, isEnabled: true, source: 'CORE' };
+          isEnabled = true;
+          source = 'CORE';
+        } else if (overrideMap.has(mod.code.toUpperCase())) {
+          isEnabled = overrideMap.get(mod.code.toUpperCase())!;
+          source = 'OVERRIDE';
         }
-        if (overrideMap.has(mod.code.toUpperCase())) {
-          return {
-            module: mod,
-            isEnabled: overrideMap.get(mod.code.toUpperCase())!,
-            source: 'OVERRIDE',
-          };
+
+        // Compute lifecycle & operational state
+        let operationalState: 'ACTIVE' | 'PROVISIONING' | 'SYNCING' | 'SYNC_FAILED' | 'CONFIGURATION_REQUIRED' | 'CONFIGURATION_INCOMPLETE' | 'DISABLED' =
+          isEnabled ? 'ACTIVE' : 'DISABLED';
+        let badge: string | undefined = undefined;
+
+        if (mod.code === 'TRANSPORT') {
+          if (!isEnabled) {
+            operationalState = 'DISABLED';
+          } else if (transportVehiclesCount === 0) {
+            operationalState = 'PROVISIONING';
+            badge = 'Provisioning';
+          } else if (transportRoutesCount === 0) {
+            operationalState = 'SYNCING';
+            badge = 'Syncing';
+          } else {
+            operationalState = 'ACTIVE';
+          }
+        } else if (mod.code === 'HOSTEL') {
+          if (!isEnabled) {
+            operationalState = 'DISABLED';
+          } else if (hostelRooms.length === 0) {
+            operationalState = 'CONFIGURATION_REQUIRED';
+            badge = 'Setup Required';
+          } else if (hostelRooms.some((r) => r.capacity <= 0 || !r.building)) {
+            operationalState = 'CONFIGURATION_INCOMPLETE';
+            badge = 'Setup Incomplete';
+          } else {
+            operationalState = 'ACTIVE';
+          }
         }
-        return { module: mod, isEnabled: mod.defaultEnabled, source: 'DEFAULT' };
+
+        return {
+          module: mod,
+          isEnabled,
+          source,
+          operationalState,
+          badge,
+        };
       });
     });
   }

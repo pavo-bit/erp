@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Plus, Search, ShieldCheck } from "lucide-react";
+import { Building2, Plus, Search, ShieldCheck, Clock } from "lucide-react";
+import Link from "next/link";
 import { useSchools } from "@/lib/api";
 
 export default function SchoolsPage() {
@@ -19,7 +20,7 @@ export default function SchoolsPage() {
     : [];
 
   return (
-    <div className="p-6 lg:p-12 max-w-[1600px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700 space-y-8">
+    <div className="max-w-[1600px] mx-auto animate-in fade-in duration-500 space-y-8 pt-2">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-4">
@@ -83,10 +84,19 @@ export default function SchoolsPage() {
                         {school.status || "ACTIVE"}
                       </span>
                     </td>
-                    <td className="p-6 text-right">
-                      <button className="text-xs text-blue-400 hover:text-blue-300 font-bold transition-colors">
-                        Manage Environment →
-                      </button>
+                    <td className="p-6 text-right space-x-3">
+                      <Link
+                        href={`/dashboard/schools/${school.id}/shifts`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                      >
+                        <Clock className="w-3.5 h-3.5" /> Configure Shifts
+                      </Link>
+                      <Link
+                        href={`/dashboard/schools/${school.id}/modules`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20 transition-colors"
+                      >
+                        Manage Modules →
+                      </Link>
                     </td>
                   </tr>
                 ))}

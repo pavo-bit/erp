@@ -1,4 +1,5 @@
-"use client";
++
+  "use client";
 
 import useSWR, { mutate as globalMutate } from "swr";
 
@@ -42,7 +43,7 @@ const fetcher = async (url: string) => {
   return data.data ?? data;
 };
 
-export async function apiCall(url: string, method: "GET" | "POST" | "PUT" | "DELETE" = "POST", body?: unknown) {
+export async function apiCall(url: string, method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" = "POST", body?: unknown) {
   const opts: RequestInit = {
     method,
     credentials: "include",
@@ -123,7 +124,7 @@ export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {})
   const response = await fetchWithAuthRetry(input, init);
   if (!response.ok) {
     let message = "Request failed (" + response.status + ")";
-    try { const data = await response.json(); message = data.error || message; } catch {}
+    try { const data = await response.json(); message = data.error || message; } catch { }
     throw new ApiError(message, response.status);
   }
   return response;
@@ -135,3 +136,4 @@ export function useDataRetentionPolicies() { return useSWR("/api/v1/admin/govern
 export function useSaasMetrics() { return useSWR("/api/v1/saas/metrics", fetcher); }
 export function useShfiOverview() { return useSWR("/api/v1/shfi/health/overview", fetcher); }
 export function useShfiIncidents() { return useSWR("/api/v1/shfi/incidents", fetcher); }
+export function useSchoolModules(schoolId: string) { return useSWR(schoolId ? `/api/v1/schools/${schoolId}/modules` : null, fetcher); }

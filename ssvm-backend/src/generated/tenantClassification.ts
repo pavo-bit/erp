@@ -40,6 +40,20 @@ export const TENANT_CLASSIFICATION = {
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
+      },
+      {
+        "relation": "schoolShifts",
+        "relatedModel": "SchoolShift",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
+        "relation": "schoolShiftClasses",
+        "relatedModel": "SchoolShiftClass",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
       }
     ],
     "verification": "UNVERIFIED",
@@ -1578,6 +1592,13 @@ export const TENANT_CLASSIFICATION = {
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
+      },
+      {
+        "relation": "schoolShiftClasses",
+        "relatedModel": "SchoolShiftClass",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
       }
     ],
     "verification": "UNVERIFIED",
@@ -2348,7 +2369,7 @@ export const TENANT_CLASSIFICATION = {
   "FacilityRequest": {
     "model": "FacilityRequest",
     "table": "facility_requests",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6748,6 +6769,13 @@ export const TENANT_CLASSIFICATION = {
         "referencedFields": []
       },
       {
+        "relation": "schoolShiftClasses",
+        "relatedModel": "SchoolShiftClass",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
         "relation": "facilityRequests",
         "relatedModel": "FacilityRequest",
         "cardinality": "many",
@@ -6964,7 +6992,7 @@ export const TENANT_CLASSIFICATION = {
   "SchoolShift": {
     "model": "SchoolShift",
     "table": "school_shifts",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -6982,11 +7010,86 @@ export const TENANT_CLASSIFICATION = {
         ]
       },
       {
+        "relation": "session",
+        "relatedModel": "AcademicSession",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "sessionId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "shiftClasses",
+        "relatedModel": "SchoolShiftClass",
+        "cardinality": "many",
+        "foreignKeyFields": [],
+        "referencedFields": []
+      },
+      {
         "relation": "enrollments",
         "relatedModel": "StudentEnrollment",
         "cardinality": "many",
         "foreignKeyFields": [],
         "referencedFields": []
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
+  "SchoolShiftClass": {
+    "model": "SchoolShiftClass",
+    "table": "school_shift_classes",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "session",
+        "relatedModel": "AcademicSession",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "sessionId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "shift",
+        "relatedModel": "SchoolShift",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "shiftId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "class",
+        "relatedModel": "Class",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "classId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
       }
     ],
     "verification": "UNVERIFIED",
@@ -7426,7 +7529,7 @@ export const TENANT_CLASSIFICATION = {
   "StudentEnrollment": {
     "model": "StudentEnrollment",
     "table": "student_enrollments",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -7540,7 +7643,7 @@ export const TENANT_CLASSIFICATION = {
   "StudentGuardian": {
     "model": "StudentGuardian",
     "table": "student_guardians",
-    "migrationCoverage": "MISSING",
+    "migrationCoverage": "PRESENT",
     "classification": "direct",
     "schoolIdField": "schoolId",
     "schoolIdColumn": "schoolId",
@@ -9667,6 +9770,7 @@ export const TENANT_MODEL_NAMES = [
   "SchoolSettings",
   "SchoolSettingsHistory",
   "SchoolShift",
+  "SchoolShiftClass",
   "Section",
   "SequenceCounter",
   "SiteContent",
@@ -9858,6 +9962,7 @@ export const TENANT_RLS_MODELS = [
   "SchoolSettings",
   "SchoolSettingsHistory",
   "SchoolShift",
+  "SchoolShiftClass",
   "Section",
   "SequenceCounter",
   "SiteContent",
@@ -10049,6 +10154,7 @@ export const TENANT_RLS_TABLES = [
   "school_settings",
   "school_settings_history",
   "school_shifts",
+  "school_shift_classes",
   "sections",
   "SequenceCounter",
   "site_content",

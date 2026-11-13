@@ -13,15 +13,24 @@ import { Role } from '@prisma/client';
 export const requireModule = (moduleId: string) => {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
-      // 1. Resolve schoolId from authenticated user or deviceAuth or tenant headers
-      const deviceAuth = (req as any).deviceAuth;
-      const schoolId =
-        deviceAuth?.schoolId ||
-        req.user?.schoolId ||
-        (req.headers['x-tenant-id'] as string) ||
-        (req.headers['x-school-id'] as string);
+      // 1. Resolve schoolId strictly:
+      // Authenticated school users MUST use their assigned schoolId
+      let schoolId = req.user?.schoolId;
 
-      // Super Admin without tenant context can access administrative routes
+      // Only Super Admin without assigned tenant, or machine device auth, may specify tenant context
+      if (!schoolId) {
+        if (req.user?.role === Role.SUPER_ADMIN) {
+          schoolId =
+            (req.headers['x-tenant-id'] as string) ||
+            (req.headers['x-school-id'] as string) ||
+            (req.params as any)?.id ||
+            (req.params as any)?.schoolId;
+        } else if ((req as any).deviceAuth?.schoolId) {
+          schoolId = (req as any).deviceAuth.schoolId;
+        }
+      }
+
+      // Super Admin accessing global platform route without target school
       if (req.user?.role === Role.SUPER_ADMIN && !schoolId) {
         return next();
       }
@@ -35,7 +44,7 @@ export const requireModule = (moduleId: string) => {
         return;
       }
 
-      // 2. Query entitlement status
+      // 2. Query entitlement status (strictly fail-closed)
       const isEnabled = await ModuleRegistryService.isModuleEnabled(schoolId, moduleId);
 
       if (!isEnabled) {

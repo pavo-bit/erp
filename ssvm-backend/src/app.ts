@@ -106,6 +106,7 @@ export async function createApp(): Promise<Express> {
   const payrollRoutes = (await import("./routes/admin/payroll")).default;
   const importRoutes = (await import("./routes/admin/import")).default;
   const admissionsBulkRoutes = (await import("./routes/admin/admissions-bulk")).default;
+  const schoolShiftsRoutes = (await import("./routes/admin/school-shifts")).default;
   const resultsRoutes = (await import("./routes/results")).default;
   const shfiRoutes = (await import("./routes/admin/shfi")).default;
   const supportRoutes = (await import("./routes/support")).default;
@@ -523,6 +524,8 @@ app.use("/api/v1/admin/import", importRoutes);
 app.use("/api/v1/import", importRoutes);
 app.use("/api/v1/admin/admissions/bulk", admissionsBulkRoutes);
 app.use("/api/v1/admissions/bulk", admissionsBulkRoutes);
+app.use("/api/v1/super-admin/schools", schoolShiftsRoutes);
+app.use("/api/v1/schools", schoolShiftsRoutes);
 app.use("/api/v1/backups", backupRoutes);
 
 // ═══════════════════════════════════════════
