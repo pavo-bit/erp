@@ -9,6 +9,8 @@ import { z } from "zod";
 const envSchema = z.object({
   PORT: z.string().default("5000"),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
+  DATABASE_URL_AUTH: z.string().min(1, "DATABASE_URL_AUTH is required"),
+  DATABASE_URL_TRUSTED: z.string().min(1, "DATABASE_URL_TRUSTED is required"),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
   FRONTEND_URL: z.string().default("http://localhost:3000"),
   UPLOAD_DIR: z.string().default("./uploads"),
@@ -32,6 +34,7 @@ const envSchema = z.object({
 
   // ─── Redis (Phase 2+) ───
   REDIS_URL: z.string().optional(),
+  LATE_FINE_JOB_ENABLED: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
 
   // ─── Sentry (Phase 6) ───
   SENTRY_DSN: z.string().optional(),

@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 export default function UserManagement() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [tempPasswordModal, setTempPasswordModal] = useState<string | null>(null);
@@ -19,9 +20,15 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const res = await apiCall("/api/v1/users");
-    if (res.success) setUsers(res.data);
-    setLoading(false);
+    setError(null);
+    try {
+      const res = await apiCall("/api/v1/users");
+      setUsers(Array.isArray(res) ? res : res?.data || []);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchUsers(); }, []);
@@ -32,10 +39,7 @@ export default function UserManagement() {
       if (editingUser) {
         await apiCall(`/api/v1/users/${editingUser.id}`, "PUT", formData);
       } else {
-        const res = await apiCall("/api/v1/users", "POST", formData);
-        if (res.data?.tempPassword) {
-          setTempPasswordModal(res.data.tempPassword);
-        }
+        await apiCall("/api/v1/users", "POST", formData);
       }
       setIsModalOpen(false);
       fetchUsers();
@@ -52,10 +56,7 @@ export default function UserManagement() {
 
   const handleResetPassword = async (id: string) => {
     if (!confirm("Are you sure you want to reset this user's password?")) return;
-    const res = await apiCall(`/api/v1/users/${id}/reset-password`, "PUT");
-    if (res.data?.tempPassword) {
-      setTempPasswordModal(res.data.tempPassword);
-    }
+    await apiCall(`/api/v1/users/${id}/reset-password`, "PUT");
   };
 
   const openNew = () => {

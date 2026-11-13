@@ -1,14 +1,14 @@
-import { PrismaClient, LedgerTransaction, LedgerEntry, LedgerReferenceType, LedgerModule, LedgerSource, LedgerDomainEvent, FinancialEntityType, FinancialAuditAction, Prisma, SystemDomainEventType } from '@prisma/client';
+import prisma, { runWithTenantDatabaseTransaction } from '../lib/prisma';
+import { LedgerReferenceType, LedgerModule, LedgerSource, FinancialEntityType, FinancialAuditAction, Prisma, SystemDomainEventType } from '@prisma/client';
 import * as crypto from 'crypto';
 import { EventStoreService } from './eventStore.service';
-
-const prisma = new PrismaClient();
+import { toPaise } from '../lib/money';
 
 export interface LedgerEntryInput {
   accountId: string;
   dimensionValueId?: string;
-  debitAmount: number;
-  creditAmount: number;
+  debitAmount: number | Prisma.Decimal;
+  creditAmount: number | Prisma.Decimal;
   description?: string;
 }
 
@@ -34,21 +34,23 @@ export class LedgerService {
    * 2. Hash-Chaining: Transaction is immutably hashed to the previous transaction.
    * 3. Immutability: Event and Audit logs are published simultaneously.
    */
-  static async postTransaction(input: PostTransactionInput) {
-    // 1. Double-Entry Arithmetic Validation
-    const totalDebits = input.entries.reduce((sum, entry) => sum + entry.debitAmount, 0);
-    const totalCredits = input.entries.reduce((sum, entry) => sum + entry.creditAmount, 0);
+  static async postTransaction(
+    input: PostTransactionInput,
+    existingTransaction?: Prisma.TransactionClient,
+  ) {
+    // 1. Double-Entry Arithmetic Validation using integer paise
+    const totalDebitsPaise = input.entries.reduce((sum, entry) => sum + toPaise(entry.debitAmount), 0);
+    const totalCreditsPaise = input.entries.reduce((sum, entry) => sum + toPaise(entry.creditAmount), 0);
 
-    // Using epsilon to avoid JS floating point errors
-    if (Math.abs(totalDebits - totalCredits) > 0.001) {
-      throw new Error(`Ledger Imbalance: Debits (${totalDebits}) do not equal Credits (${totalCredits}).`);
+    if (totalDebitsPaise !== totalCreditsPaise) {
+      throw new Error(`Ledger Imbalance: Debits (${totalDebitsPaise}) do not equal Credits (${totalCreditsPaise}).`);
     }
 
-    if (totalDebits <= 0) {
+    if (totalDebitsPaise <= 0) {
       throw new Error(`Invalid Ledger Entry: Total transaction amount must be greater than zero.`);
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const postWithClient = async (tx: Prisma.TransactionClient) => {
       // 2. Fetch Previous Hash for the Hash Chain
       // To ensure strict linearity, we lock or fetch the latest transaction chronologically
       const lastTx = await tx.ledgerTransaction.findFirst({
@@ -71,7 +73,13 @@ export class LedgerService {
         txnNumber,
         schoolId: input.schoolId,
         referenceId: input.referenceId,
-        entries: input.entries,
+        entries: input.entries.map((e) => ({
+          accountId: e.accountId,
+          dimensionValueId: e.dimensionValueId,
+          debitAmount: toPaise(e.debitAmount),
+          creditAmount: toPaise(e.creditAmount),
+          description: e.description,
+        })),
         previousHash,
       });
 
@@ -131,8 +139,11 @@ export class LedgerService {
       });
 
       return ledgerTxn;
-    }, {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable, // Strict locking to prevent hash forks
+    };
+
+    if (existingTransaction) return postWithClient(existingTransaction);
+    return runWithTenantDatabaseTransaction(input.schoolId, postWithClient, {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
     });
   }
 
@@ -158,11 +169,11 @@ export class LedgerService {
         txnNumber: txn.transactionNumber,
         schoolId: txn.schoolId,
         referenceId: txn.referenceId,
-        entries: txn.LedgerEntry.map((e: any) => ({
+        entries: txn.LedgerEntry.map((e) => ({
           accountId: e.accountId,
           dimensionValueId: e.dimensionValueId,
-          debitAmount: Number(e.debitAmount),
-          creditAmount: Number(e.creditAmount),
+          debitAmount: toPaise(e.debitAmount),
+          creditAmount: toPaise(e.creditAmount),
           description: e.description,
         })),
         previousHash: txn.previousHash,

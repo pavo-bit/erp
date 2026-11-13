@@ -1,6 +1,6 @@
 import { Role, InvoiceStatus } from '@prisma/client';
 
-let counter = 0;
+let counter = Math.floor(Math.random() * 1000000);
 
 export const UserFactory = {
   build: (overrides?: any) => {
@@ -36,9 +36,10 @@ export const SchoolFactory = {
     counter++;
     return {
       name: `School ${counter}`,
+      code: `SCHOOL-${counter}`,
       address: `${counter} Main St`,
-      contactEmail: `contact${counter}@school.com`,
-      contactPhone: `123456789${counter % 10}`,
+      email: `contact${counter}@school.com`,
+      phone: `123456789${counter % 10}`,
       isActive: true,
       ...overrides
     };

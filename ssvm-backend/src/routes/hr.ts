@@ -1,8 +1,10 @@
 import { Router, Response } from "express";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
+import { Prisma } from "@prisma/client";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireHRAdmin, requireTeacherOrAdmin } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
+import { LedgerService } from "../services/ledger.service";
 
 const router = Router();
 
@@ -142,16 +144,153 @@ router.post("/payroll/generate", authenticate, requireHRAdmin(), async (req: Aut
   }
 });
 
-// PUT /api/hr/salaries/:id/pay — Mark salary as paid
+// PUT /api/hr/salaries/:id/pay — Mark salary as paid & post to General Ledger
 router.put("/salaries/:id/pay", authenticate, requireHRAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const salary = await prisma.salary.update({
-      where: { id: req.params.id as string as string },
-      data: { status: "PAID", paidDate: new Date() },
+    const salaryId = req.params.id as string;
+    const existing = await prisma.salary.findUnique({
+      where: { id: salaryId },
+      include: {
+        teacher: { include: { user: { select: { name: true } } } },
+      },
     });
-    res.json({ success: true, data: salary });
+
+    if (!existing) {
+      res.status(404).json({ success: false, error: "Salary record not found" });
+      return;
+    }
+
+    if (existing.status === "PAID") {
+      res.status(400).json({ success: false, error: "Salary has already been marked as PAID" });
+      return;
+    }
+
+    const schoolId = existing.schoolId;
+    const paymentMode = req.body.paymentMode || "BANK"; // "BANK" or "CASH"
+    const creditAccount = paymentMode === "CASH" ? "1020-CASH" : "1010-BANK";
+
+    const updatedSalary = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+      const updated = await tx.salary.update({
+        where: { id: salaryId },
+        data: { status: "PAID", paidDate: new Date() },
+      });
+
+      // Post double-entry ledger entry: Debit 5010-SAL (Salaries Expense), Credit 1010-BANK/1020-CASH
+      const payAmount = new Prisma.Decimal(existing.netPay || 0);
+      if (payAmount.gt(0)) {
+        const salAcc = await tx.ledgerAccount.findUnique({
+          where: { schoolId_code: { schoolId, code: "5010-SAL" } },
+        });
+        const creditAcc = await tx.ledgerAccount.findUnique({
+          where: { schoolId_code: { schoolId, code: creditAccount } },
+        });
+
+        if (salAcc && creditAcc) {
+          await LedgerService.postTransaction(
+            {
+              schoolId,
+              referenceType: "SALARY",
+              referenceId: salaryId,
+              sourceModule: "PAYROLL",
+              description: `Salary payout for ${existing.teacher?.user?.name || "Teacher"} - ${existing.month}/${existing.year}`,
+              postingDate: new Date(),
+              createdBy: req.user!.id,
+              entries: [
+                { accountId: salAcc.id, debitAmount: payAmount, creditAmount: 0 },
+                { accountId: creditAcc.id, debitAmount: 0, creditAmount: payAmount },
+              ],
+            },
+            tx
+          );
+        }
+      }
+
+      return updated;
+    });
+
+    res.json({ success: true, data: updatedSalary });
   } catch (e) {
     logger.error({ err: e }, "Pay salary error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/hr/salaries/:id/payslip — Printable payslip HTML
+router.get("/salaries/:id/payslip", authenticate, requireTeacherOrAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const salary = await prisma.salary.findUnique({
+      where: { id: req.params.id as string },
+      include: {
+        teacher: { include: { user: { select: { name: true, email: true } } } },
+        school: { select: { name: true, address: true, phone: true } },
+      },
+    });
+
+    if (!salary) {
+      res.status(404).json({ success: false, error: "Salary record not found" });
+      return;
+    }
+
+    if (req.user!.role === "TEACHER") {
+      const teacher = await prisma.teacher.findUnique({ where: { userId: req.user!.id } });
+      if (!teacher || teacher.id !== salary.teacherId) {
+        res.status(403).json({ success: false, error: "Can only view your own payslips" });
+        return;
+      }
+    }
+
+    const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const monthStr = monthNames[(salary.month - 1) % 12] || String(salary.month);
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Payslip - ${salary.teacher?.user?.name || "Teacher"}</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; color: #1e293b; }
+    .header { text-align: center; border-bottom: 2px solid #4f46e5; padding-bottom: 15px; margin-bottom: 25px; }
+    .title { font-size: 22px; font-weight: bold; color: #312e81; }
+    .sub { font-size: 13px; color: #64748b; }
+    .details { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 25px; background: #f8fafc; padding: 15px; border-radius: 8px; font-size: 14px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+    th, td { padding: 10px 14px; border: 1px solid #e2e8f0; font-size: 13px; }
+    th { background: #f1f5f9; text-align: left; }
+    .total-row { font-weight: bold; background: #eef2ff; font-size: 15px; }
+    .status { display: inline-block; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: bold; background: #dcfce7; color: #15803d; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="title">${salary.school?.name || "School ERP"}</div>
+    <div class="sub">${salary.school?.address || ""} · Payslip for ${monthStr} ${salary.year}</div>
+  </div>
+  <div class="details">
+    <div><strong>Employee Name:</strong> ${salary.teacher?.user?.name || "—"}</div>
+    <div><strong>Email:</strong> ${salary.teacher?.user?.email || "—"}</div>
+    <div><strong>Pay Period:</strong> ${monthStr} ${salary.year}</div>
+    <div><strong>Status:</strong> <span class="status">${salary.status}</span></div>
+  </div>
+  <table>
+    <thead><tr><th>Earnings & Deductions</th><th style="text-align: right;">Amount (INR)</th></tr></thead>
+    <tbody>
+      <tr><td>Basic Pay</td><td style="text-align: right;">₹${Number(salary.basicPay || 0).toLocaleString()}</td></tr>
+      <tr><td>Allowances</td><td style="text-align: right;">+ ₹${Number(salary.allowances || 0).toLocaleString()}</td></tr>
+      <tr><td>Deductions (Unpaid Leaves / Tax)</td><td style="text-align: right;">- ₹${Number(salary.deductions || 0).toLocaleString()}</td></tr>
+      <tr class="total-row"><td>Net Salary Payable</td><td style="text-align: right;">₹${Number(salary.netPay || 0).toLocaleString()}</td></tr>
+    </tbody>
+  </table>
+  <div style="margin-top: 50px; display: flex; justify-content: space-between; font-size: 12px; color: #64748b;">
+    <div>Generated on: ${new Date().toLocaleDateString("en-IN")}</div>
+    <div>Authorized Signatory</div>
+  </div>
+</body>
+</html>`;
+
+    res.setHeader("Content-Type", "text/html");
+    res.send(html);
+  } catch (e) {
+    logger.error({ err: e }, "Generate payslip error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });

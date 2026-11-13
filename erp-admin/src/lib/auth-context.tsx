@@ -153,11 +153,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verify2FA = async (tempToken: string, otp: string) => {
     try {
-      const res = await fetch("/api/v1/auth/verify-2fa", {
+      const res = await fetch("/api/v1/2fa/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ tempToken, otp }),
+        body: JSON.stringify({ pendingToken: tempToken, token: otp }),
       });
 
       const data = await res.json();

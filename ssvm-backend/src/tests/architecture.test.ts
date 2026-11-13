@@ -1,0 +1,292 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import request from "supertest";
+import { createTestApp } from "./helpers/testApp";
+const app = createTestApp();
+import { getTestPrisma } from "./helpers/testApp";
+import appPrisma from "../lib/prisma";
+import { generateAccessToken } from "../lib/tokens";
+
+const prisma = getTestPrisma();
+import fs from "fs";
+import path from "path";
+import { vi } from "vitest";
+import { BackupService } from "../services/backup.service";
+
+describe("Architecture & Phase A E2E", () => {
+  let server: any;
+  let superAdminToken: string;
+  let superAdminUserId: string;
+  let testSchoolId: string;
+  let testSessionId: string;
+
+  beforeAll(async () => {
+    server = app.listen(0);
+
+    const school = await prisma.school.create({
+      data: {
+        name: "Architecture Test School",
+        code: `ARCH-${Date.now()}`,
+      }
+    });
+    testSchoolId = school.id;
+
+    const superAdmin = await prisma.user.create({
+      data: {
+        email: `superadmin.arch${Date.now()}@test.com`,
+        name: "Super Admin",
+        passwordHash: "hashedpassword",
+        role: "SUPER_ADMIN",
+        schoolId: testSchoolId,
+      }
+    });
+    superAdminUserId = superAdmin.id;
+
+    superAdminToken = generateAccessToken({
+      userId: superAdmin.id,
+      email: superAdmin.email,
+      name: superAdmin.name,
+      role: superAdmin.role,
+      schoolId: testSchoolId,
+      branchId: null,
+      sid: "mock-session-id-123",
+      impersonated: false,
+    }).token;
+
+    // Mock an active UserSession for this user
+    const session = await prisma.userSession.create({
+      data: {
+        userId: superAdminUserId,
+        sessionId: "mock-session-id-123",
+        refreshFamily: "family-123",
+        deviceName: "MacBook Pro",
+        browser: "Chrome",
+        ipAddress: "127.0.0.1",
+        expiresAt: new Date(Date.now() + 86400000)
+      }
+    });
+    testSessionId = session.id;
+
+    // Seed some mock audit logs
+    await prisma.auditLog.create({
+      data: {
+        action: "BACKUP_TEST",
+        entity: "System",
+        details: "CRITICAL test event",
+      }
+    });
+
+    // Seed mock system backup
+    await prisma.systemBackup.create({
+      data: {
+        fileUrl: "s3://backups/test.sql.gz",
+        sizeBytes: 1024,
+        checksum: "mock-checksum",
+        status: "COMPLETED",
+        type: "DATABASE",
+      }
+    });
+
+    // Seed mock system log for security alerts
+    await prisma.systemLog.create({
+      data: {
+        level: "ERROR",
+        module: "Security",
+        message: "CRITICAL test alert event",
+        schoolId: testSchoolId,
+      }
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.userSession.deleteMany({ where: { userId: superAdminUserId } });
+    await prisma.auditLog.deleteMany({ where: { action: "BACKUP_TEST" } });
+    await prisma.user.deleteMany({ where: { id: superAdminUserId } });
+    await prisma.school.deleteMany({ where: { id: testSchoolId } });
+
+    server.close();
+    await prisma.$disconnect();
+  });
+
+  describe("1. Global Soft Delete Framework", () => {
+    it("should soft delete a school and hide it from findUnique", async () => {
+      // Create a dummy school specifically for this test
+      const dummySchool = await prisma.school.create({
+        data: { name: "Dummy School", code: `DUMMY-${Date.now()}` }
+      });
+
+      // Call appPrisma.delete
+      await appPrisma.school.delete({ where: { id: dummySchool.id } });
+
+      // Verify findUnique returns null
+      const fetchSchool = await appPrisma.school.findUnique({ where: { id: dummySchool.id } });
+      expect(fetchSchool).toBeNull();
+
+      // Verify findFirst returns null
+      const fetchFirst = await appPrisma.school.findFirst({ where: { id: dummySchool.id } });
+      expect(fetchFirst).toBeNull();
+
+      // Verify the record is physically still in DB with deletedAt populated using raw query
+      const rawResult = await prisma.$queryRaw<any[]>`SELECT "deletedAt" FROM "schools" WHERE id = ${dummySchool.id}`;
+      expect(rawResult.length).toBe(1);
+      expect(rawResult[0].deletedAt).not.toBeNull();
+    });
+  });
+
+  describe("2. Session Management API", () => {
+    it("should fetch active sessions", async () => {
+      const res = await request(server)
+        .get("/api/v1/sessions")
+        .set("Authorization", `Bearer ${superAdminToken}`);
+        
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
+      expect(res.body.data[0].deviceName).toBe("MacBook Pro");
+    });
+
+    it("should revoke a specific session", async () => {
+      const sessionToRevoke = await prisma.userSession.create({
+        data: {
+          userId: superAdminUserId,
+          sessionId: `mock-session-revoke-${Date.now()}`,
+          refreshFamily: `family-revoke-${Date.now()}`,
+          deviceName: "MacBook Pro",
+          browser: "Chrome",
+          ipAddress: "127.0.0.1",
+          expiresAt: new Date(Date.now() + 86400000)
+        }
+      });
+
+      const res = await request(server)
+        .delete(`/api/v1/sessions/${sessionToRevoke.id}`)
+        .set("Authorization", `Bearer ${superAdminToken}`);
+        
+      expect(res.status).toBe(200);
+      
+      const checkSession = await prisma.userSession.findUnique({ where: { id: sessionToRevoke.id } });
+      expect(checkSession?.isActive).toBe(false);
+    });
+  });
+
+  describe("3. Automated Backup API", () => {
+    it("should trigger a manual backup", async () => {
+      // Mock the backup service so it doesn't fail due to missing pg_dump
+      const spy = vi.spyOn(BackupService, "createDatabaseBackup").mockResolvedValue("mock-backup-id");
+
+      const res = await request(server)
+        .post("/api/v1/admin/backups")
+        .set("Authorization", `Bearer ${superAdminToken}`);
+        
+      // Expect 202 Accepted
+      expect(res.status).toBe(202);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.id).toBe("mock-backup-id");
+
+      spy.mockRestore();
+    });
+
+    it("should list all backups", async () => {
+      const res = await request(server)
+        .get("/api/v1/admin/backups")
+        .set("Authorization", `Bearer ${superAdminToken}`);
+        
+      expect(res.status).toBe(200);
+      expect(res.body.data.length).toBeGreaterThan(0);
+    });
+  });
+
+  describe("4. Audit & Security Dashboard API", () => {
+    it("should fetch general audit logs", async () => {
+      const res = await request(server)
+        .get("/api/v1/admin/audit")
+        .set("Authorization", `Bearer ${superAdminToken}`);
+        
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.length).toBeGreaterThan(0);
+      expect(res.body.meta.total).toBeGreaterThan(0);
+    });
+
+    it("should fetch security alerts (WARNING/CRITICAL)", async () => {
+      const res = await request(server)
+        .get("/api/v1/admin/audit/security-alerts")
+        .set("Authorization", `Bearer ${superAdminToken}`);
+        
+      expect(res.status).toBe(200);
+      expect(res.body.data.some((alert: any) => alert.severity === "CRITICAL" || alert.severity === "WARNING")).toBe(true);
+    });
+  });
+
+  describe("5. Architecture Boundary Enforcement (Prisma Clients Allowlist)", () => {
+    it("prohibits unauthorized imports of getAuthPrisma outside the allowlist", () => {
+      const authPrismaAllowlist = new Set([
+        "src/routes/auth.ts",
+        "src/middleware/auth.ts",
+        "src/lib/authPrisma.ts",
+        "src/tests/api/auth.test.ts",
+        "src/tests/architecture.test.ts",
+        "src/tests/db/role-privileges.test.ts",
+      ]);
+
+      const violations: string[] = [];
+      function scanDir(dir: string) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (entry.name !== "node_modules" && entry.name !== "dist") {
+              scanDir(fullPath);
+            }
+          } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".js"))) {
+            const relPath = path.relative(path.resolve(__dirname, "../.."), fullPath).replace(/\\/g, "/");
+            const content = fs.readFileSync(fullPath, "utf-8");
+            if (content.includes("getAuthPrisma") && !authPrismaAllowlist.has(relPath)) {
+              violations.push(relPath);
+            }
+          }
+        }
+      }
+
+      scanDir(path.resolve(__dirname, ".."));
+      expect(violations, `Unauthorized getAuthPrisma imports found in: ${violations.join(", ")}`).toEqual([]);
+    });
+
+    it("prohibits unauthorized imports of getTrustedPrisma outside the allowlist", () => {
+      const trustedPrismaAllowlist = new Set([
+        "src/routes/payments.ts",
+        "src/routes/search.ts",
+        "src/routes/students.ts",
+        "src/routes/sessions.ts",
+        "src/routes/admin/audit.ts",
+        "src/lib/audit.ts",
+        "src/lib/authEventLogger.ts",
+        "src/lib/trustedPrisma.ts",
+        "src/tests/architecture.test.ts",
+        "src/tests/api/audit-and-auth-events.test.ts",
+      ]);
+
+      const violations: string[] = [];
+      function scanDir(dir: string) {
+        const entries = fs.readdirSync(dir, { withFileTypes: true });
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name);
+          if (entry.isDirectory()) {
+            if (entry.name !== "node_modules" && entry.name !== "dist") {
+              scanDir(fullPath);
+            }
+          } else if (entry.isFile() && (entry.name.endsWith(".ts") || entry.name.endsWith(".js"))) {
+            const relPath = path.relative(path.resolve(__dirname, "../.."), fullPath).replace(/\\/g, "/");
+            const content = fs.readFileSync(fullPath, "utf-8");
+            if (content.includes("getTrustedPrisma") && !trustedPrismaAllowlist.has(relPath)) {
+              violations.push(relPath);
+            }
+          }
+        }
+      }
+
+      scanDir(path.resolve(__dirname, ".."));
+      expect(violations, `Unauthorized getTrustedPrisma imports found in: ${violations.join(", ")}`).toEqual([]);
+    });
+  });
+});
+

@@ -1,5 +1,6 @@
+import prisma from '../lib/prisma';
 import { Worker, Job } from "bullmq";
-import { PrismaClient } from "@prisma/client";
+
 import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
@@ -10,9 +11,9 @@ import { getEnv } from "../config/env";
 import logger from "../lib/logger";
 import { getRedisClient, isRedisAvailable } from "../lib/redis";
 import { enqueueNotification } from "./queue";
+import { assessLateFinesDaily } from "./lateFines";
 
 const execAsync = promisify(exec);
-const prisma = new PrismaClient();
 const env = getEnv();
 
 // ═══════════════════════════════════════════
@@ -40,6 +41,10 @@ export function startMaintenanceWorker(): Worker | undefined {
 
         case "validate-backup":
           await validateBackupRestore();
+          break;
+
+        case "assess-late-fines":
+          await assessLateFinesDaily();
           break;
 
         default:

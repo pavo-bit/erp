@@ -22,9 +22,7 @@ export default function NotificationTemplates() {
   const fetchTemplates = async () => {
     setLoading(true);
     const res = await apiCall("/api/v1/notifications/templates");
-    if (res.success) {
-      setTemplates(res.data);
-    }
+    setTemplates(res || []);
     setLoading(false);
   };
 

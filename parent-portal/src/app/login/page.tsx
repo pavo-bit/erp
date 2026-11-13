@@ -23,9 +23,9 @@ export default function Login() {
     
     try {
       if (requires2FA) {
-        const res = await apiCall("/api/v1/auth/verify-2fa", "POST", { tempToken, otp });
-        if (res.success && res.data.user.role === "PARENT") {
-          login(res.data.token, res.data.user);
+        const res = await apiCall("/api/v1/2fa/validate", "POST", { pendingToken: tempToken, token: otp });
+        if (res?.user?.role === "PARENT") {
+          login(res.token, res.user);
         } else {
           throw new Error("Invalid OTP or unauthorized access.");
         }
@@ -40,8 +40,8 @@ export default function Login() {
         return;
       }
 
-      if (res.success && res.data.user.role === "PARENT") {
-        login(res.data.token, res.data.user);
+      if (res?.user?.role === "PARENT") {
+        login(res.token, res.user);
       } else {
         throw new Error("Unauthorized access. This portal is for Parents only.");
       }

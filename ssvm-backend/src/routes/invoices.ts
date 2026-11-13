@@ -1,7 +1,9 @@
 import { Router, Response } from "express";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole, requireFinanceAdmin } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
+import { toPaise, fromPaise } from "../lib/money";
+import { Prisma, InvoiceStatus } from "@prisma/client";
 
 const router = Router();
 
@@ -19,7 +21,7 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
 
     // If STUDENT, force studentId filter to their own record
     if (req.user!.role === "STUDENT") {
-      const studentIdFromToken = (req.user as any).studentId;
+      const studentIdFromToken = req.user?.studentId;
       if (!studentIdFromToken) {
         return res.status(400).json({ success: false, error: 'Student ID not found in token' });
       }
@@ -43,18 +45,19 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
 // POST /api/invoices
 router.post("/", authenticate, requireFinanceAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const { studentId, amount, type, status, dueDate, session, remarks } = req.body;
+    const { studentId, amount, type, status, dueDate, remarks } = req.body;
     if (!studentId || !amount || !type || !dueDate) { res.status(400).json({ success: false, error: "Required fields missing" }); return; }
     
+    const decimalAmount = new Prisma.Decimal(amount);
     const invoice = await prisma.invoice.create({
       data: { 
         studentId, 
         schoolId: req.user!.schoolId || req.body.schoolId,
-        amount: parseFloat(amount), 
+        amount: decimalAmount,
+        remainingAmount: decimalAmount,
         type, 
         status: status || "PENDING", 
         dueDate: new Date(dueDate), 
-        // session: session || "2025-26", 
         remarks: remarks || null 
       },
       include: { student: { select: { id: true, name: true,   rollNo: true, sectionRef: { select: { name: true, class: { select: { name: true } } } } } } },
@@ -64,7 +67,7 @@ router.post("/", authenticate, requireFinanceAdmin(), async (req: AuthRequest, r
 });
 
 // PUT /api/invoices/:id/pay
-router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "SUPER_ADMIN", "PARENT", "STUDENT"), async (req: AuthRequest, res: Response) => {
+router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "PARENT", "STUDENT"), async (req: AuthRequest, res: Response) => {
   try {
     const { amountPaid, gateway, transactionId } = req.body;
     if (!amountPaid) {
@@ -73,32 +76,36 @@ router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "SUP
 
     const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id as string } });
     if (!invoice) { res.status(404).json({ success: false, error: "Invoice not found" }); return; }
+    if (!req.user?.schoolId || invoice.schoolId !== req.user.schoolId) { res.status(404).json({ success: false, error: "Invoice not found" }); return; }
 
-    const newAmountPaid = invoice.amountPaid + parseFloat(amountPaid);
-    let newStatus = "PARTIAL";
-    if (newAmountPaid >= invoice.amount + invoice.fineAmount) {
-      newStatus = "PAID";
-    }
+    const currentPaidPaise = toPaise(invoice.amountPaid);
+    const paymentPaise = toPaise(amountPaid);
+    const totalDuePaise = toPaise(invoice.amount) + toPaise(invoice.fineAmount);
+    const newPaidPaise = currentPaidPaise + paymentPaise;
+    const remainingPaise = Math.max(0, totalDuePaise - newPaidPaise);
+    const newStatus = remainingPaise === 0 ? "PAID" : "PARTIAL";
 
-    const updatedInvoice = await prisma.$transaction(async (tx) => {
+    const updatedInvoice = await runWithTenantDatabaseTransaction(invoice.schoolId, async (tx) => {
       // 1. Create Transaction
       await tx.paymentTransaction.create({
         data: {
           invoiceId: invoice.id,
-          amountPaid: parseFloat(amountPaid),
+          amountPaid: fromPaise(paymentPaise),
           gateway: gateway || "CASH",
           transactionId: transactionId || null,
           status: "SUCCESS",
           paidAt: new Date(),
+          schoolId: invoice.schoolId,
         }
       });
 
       // 2. Update Invoice
       return await tx.invoice.update({
-        where: { id: invoice.id },
+        where: { id: invoice.id, schoolId: req.user!.schoolId! },
         data: {
-          amountPaid: newAmountPaid,
-          status: newStatus as any,
+          amountPaid: fromPaise(newPaidPaise),
+          remainingAmount: fromPaise(remainingPaise),
+          status: newStatus as InvoiceStatus,
           paidDate: newStatus === "PAID" ? new Date() : null,
         },
         include: { transactions: true }

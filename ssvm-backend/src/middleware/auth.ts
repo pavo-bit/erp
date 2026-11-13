@@ -7,6 +7,7 @@ import logger from "../lib/logger";
 import { verifyAccessToken, isTokenExpiredError, AccessTokenPayload } from "../lib/tokens";
 import { jwtVerificationTotal } from "./metrics";
 import { setAuthenticatedSchoolContext } from "./school-context.middleware";
+import { getAuthPrisma } from "../lib/authPrisma";
 
 // ═══════════════════════════════════════════
 // Types
@@ -15,6 +16,8 @@ import { setAuthenticatedSchoolContext } from "./school-context.middleware";
 export interface AuthRequest extends Request {
   user?: {
     id: string;
+    userId?: string;
+    studentId?: string;
     email: string;
     name: string;
     role: string;
@@ -68,10 +71,11 @@ export async function verifyPassword(password: string, hashed: string, userMeta?
   if (isValid && needsRehash && userMeta) {
     const newHash = await hashPassword(password);
     try {
+      const authDb = getAuthPrisma();
       if (userMeta.type === "USER") {
-        await prisma.user.update({ where: { id: userMeta.id }, data: { passwordHash: newHash } });
+        await authDb.user.update({ where: { id: userMeta.id }, data: { passwordHash: newHash } });
       } else if (userMeta.type === "STUDENT") {
-        await prisma.student.update({ where: { id: userMeta.id }, data: { password: newHash } });
+        await authDb.student.update({ where: { id: userMeta.id }, data: { password: newHash } });
       }
       logger.info({ userId: userMeta.id, type: userMeta.type }, "Upgraded password hash to Argon2id");
     } catch (err) {
@@ -177,12 +181,13 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
-    const userId = "userId" in payload ? payload.userId : (payload as AccessTokenPayload).userId;
+    const userId = (payload as any).userId || (payload as any).id || (payload as any).sub;
+    const authDb = getAuthPrisma();
     
     let user: AuthRequest["user"] | null = null;
 
     if (payload.role === "STUDENT") {
-      const student = await prisma.student.findUnique({
+      const student = await authDb.student.findUnique({
         where: { userId: userId },
         select: {
           id: true, admissionNo: true, name: true,
@@ -192,6 +197,8 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       if (student) {
         user = {
           id: student.id,
+          userId: userId,
+          studentId: student.id,
           email: student.admissionNo || "",
           name: student.name,
           role: "STUDENT",
@@ -203,7 +210,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
         };
       }
     } else {
-      user = await prisma.user.findUnique({
+      user = await authDb.user.findUnique({
         where: { id: userId },
         select: {
           id: true, email: true, name: true, role: true,
@@ -219,7 +226,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     }
 
     // Phase 2C: Enforce mustChangePassword
-    const userWithPasswordPolicy = await prisma.user.findUnique({
+    const userWithPasswordPolicy = await authDb.user.findUnique({
       where: { id: userId },
       select: { mustChangePassword: true }
     });
@@ -279,29 +286,10 @@ export function requireRole(...roles: string[]) {
       return;
     }
 
-    // Direct role match
-    if (roles.includes(req.user.role)) {
+    // Direct role match or SUPER_ADMIN platform override
+    if (req.user.role === "SUPER_ADMIN" || roles.includes(req.user.role)) {
       next();
       return;
-    }
-
-    // Phase 3: JIT Access Delegation Check
-    try {
-      const activeDelegation = await prisma.userDelegation.findFirst({
-        where: {
-          delegateeId: req.user.id,
-          isActive: true,
-          endDate: { gt: new Date() }, // Just-In-Time Expiration Check
-          role: { in: roles as Role[] } // Check if delegated role matches required roles
-        }
-      });
-
-      if (activeDelegation) {
-        next();
-        return;
-      }
-    } catch (err) {
-      logger.error({ err }, "Error checking user delegations");
     }
 
     res.status(403).json({ success: false, error: "Forbidden — insufficient permissions" });
@@ -313,43 +301,60 @@ export function requireSuperAdmin() {
 }
 
 export function requireAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN");
+  return requireRole("ERP_ADMIN");
+}
+
+// Direct role guard: does NOT honor JIT delegation. Use for sensitive
+// operations (user management, finance reversal) that must not be unlocked
+// by a delegation grant.
+export function requireDirectRole(...roles: string[]) {
+  return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Not authenticated" });
+      return;
+    }
+    if (roles.includes(req.user.role)) {
+      next();
+      return;
+    }
+    res.status(403).json({ success: false, error: "Forbidden — insufficient permissions" });
+  };
 }
 
 export function requireTeacherOrAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "TEACHER");
+  return requireRole("ERP_ADMIN", "TEACHER");
 }
 
 export function requireFinanceAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "ACCOUNTANT");
+  return requireRole("ERP_ADMIN", "ACCOUNTANT");
 }
 
 export function requireContentAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN");
+  return requireRole("ERP_ADMIN", "WEBSITE_ADMIN");
 }
 
 export function requireHRAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "HR");
+  return requireRole("ERP_ADMIN", "HR");
 }
 
 export function requireAcademicAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN");
+  return requireRole("ERP_ADMIN");
 }
 
 export function requireOperationsAdmin(...roles: string[]) {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", ...roles);
+  return requireRole("ERP_ADMIN", ...roles);
 }
 
 export function requireLibraryAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "LIBRARIAN");
+  return requireRole("ERP_ADMIN", "LIBRARIAN");
 }
 
 export function requireAdmissionsAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "RECEPTIONIST");
+  return requireRole("ERP_ADMIN", "RECEPTIONIST");
 }
 
 export function requireCommunicationsAdmin() {
-  return requireRole("SUPER_ADMIN", "ERP_ADMIN", "RECEPTIONIST", "HR");
+  return requireRole("ERP_ADMIN", "RECEPTIONIST", "HR");
 }
 
 // ═══════════════════════════════════════════

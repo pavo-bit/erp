@@ -27,36 +27,27 @@ export default function FeesPage() {
   const handlePayNow = async (invoice: any) => {
     try {
       // Create Razorpay order
-      const orderResponse = await apiCall('/api/payments/create-order', 'POST', {
+      const orderResponse = await apiCall('/api/v1/payments/create-order', 'POST', {
         invoiceId: invoice.id,
       });
 
-      if (!orderResponse.success) {
-        alert('Failed to create payment order');
-        return;
-      }
-
-      const options = {
+const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY,
-        amount: orderResponse.data.amount,
+        amount: orderResponse.amount,
         currency: 'INR',
         name: 'SSVM College Square',
         description: `Payment for ${invoice.description || 'Fee'}`,
-        order_id: orderResponse.data.id,
+        order_id: orderResponse.id,
         handler: async function (response: any) {
           try {
-            const verifyResponse = await apiCall('/api/payments/verify', 'POST', {
+            const verifyResponse = await apiCall('/api/v1/payments/verify', 'POST', {
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_order_id: response.razorpay_order_id,
               razorpay_signature: response.razorpay_signature,
             });
 
-            if (verifyResponse.success) {
-              alert('Payment successful!');
-              mutate(); // Refresh invoices
-            } else {
-              alert('Payment verification failed');
-            }
+            alert('Payment successful!');
+            mutate(); // Refresh invoices
           } catch (err) {
             alert('Payment verification error');
           }

@@ -2,6 +2,7 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate } from "../middleware/auth";
+import { runWithSchoolContext } from "../middleware/school-context.middleware";
 
 const router = Router();
 
@@ -14,166 +15,187 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string || undefined) : req.user!.schoolId;
-    if (!schoolId && req.user!.role !== "SUPER_ADMIN") {
+    const schoolId = req.user!.role === "SUPER_ADMIN" && req.user!.impersonated ? req.user!.schoolId : req.user!.schoolId;
+    if (req.user!.role === "SUPER_ADMIN" && !req.user!.impersonated) {
+      res.status(403).json({ success: false, error: "School data requires an audited impersonation session" });
+      return;
+    }
+    if (!schoolId) {
       res.status(400).json({ success: false, error: "School ID required" }); return;
     }
 
-    const whereSchool = schoolId ? { schoolId } : {};
-    
-    // For raw queries, we format the query for tsquery
-    const tsQuery = query.split(/\s+/).map(word => `${word}:*`).join(" & ");
-    // For ILIKE trigram
-    const likeQuery = `%${query}%`;
+    const searchSchool = async (targetSchoolId: string) => {
+      return runWithSchoolContext(targetSchoolId, async () => {
+        const whereSchool = { schoolId: targetSchoolId };
+        return await Promise.all([
+          prisma.student.findMany({
+            where: {
+              ...whereSchool,
+              OR: [
+                { name: { contains: query, mode: "insensitive" } },
+                { rollNo: { contains: query, mode: "insensitive" } },
+              ]
+            },
+            take: 5,
+            select: { id: true, name: true, rollNo: true, sectionId: true, sectionRef: { select: { name: true, class: { select: { name: true } } } } }
+          }),
+          prisma.teacher.findMany({
+            where: {
+              ...whereSchool,
+              user: {
+                OR: [
+                  { name: { contains: query, mode: "insensitive" } },
+                  { email: { contains: query, mode: "insensitive" } },
+                ]
+              }
+            },
+            take: 5,
+            include: { user: { select: { name: true, email: true } }, department: true }
+          }),
+          prisma.guardian.findMany({
+            where: {
+              ...whereSchool,
+              OR: [
+                { primaryName: { contains: query, mode: "insensitive" } },
+                { secondaryName: { contains: query, mode: "insensitive" } },
+                { primaryPhone: { contains: query, mode: "insensitive" } }
+              ]
+            },
+            take: 5,
+            include: { students: { select: { name: true } } }
+          }),
+          prisma.invoice.findMany({
+            where: {
+              ...whereSchool,
+              OR: [
+                { receiptNo: { contains: query, mode: "insensitive" } },
+              ]
+            },
+            take: 5,
+            include: { student: { select: { name: true } } }
+          }),
+          prisma.assignment.findMany({
+            where: {
+              ...whereSchool,
+              OR: [
+                { title: { contains: query, mode: "insensitive" } },
+                { description: { contains: query, mode: "insensitive" } }
+              ]
+            },
+            take: 5,
+            select: { id: true, title: true, dueDate: true, classRef: { select: { name: true } }, subjectRef: { select: { name: true } } }
+          }),
+          prisma.admission.findMany({
+            where: {
+              ...whereSchool,
+              OR: [
+                { applicantName: { contains: query, mode: "insensitive" } },
+                { parentName: { contains: query, mode: "insensitive" } }
+              ]
+            },
+            take: 5,
+            select: { id: true, applicantName: true, parentName: true, status: true }
+          }),
+          prisma.event.findMany({
+            where: {
+              ...whereSchool,
+              OR: [
+                { title: { contains: query, mode: "insensitive" } },
+                { description: { contains: query, mode: "insensitive" } }
+              ]
+            },
+            take: 5,
+            select: { id: true, title: true, date: true, category: true }
+          }),
+          prisma.notice.findMany({
+            where: {
+              ...whereSchool,
+              OR: [
+                { title: { contains: query, mode: "insensitive" } },
+                { content: { contains: query, mode: "insensitive" } }
+              ]
+            },
+            take: 5,
+            select: { id: true, title: true, category: true, status: true, createdAt: true }
+          }),
+          prisma.attendance.findMany({
+            where: {
+              ...whereSchool,
+              student: {
+                name: { contains: query, mode: "insensitive" }
+              }
+            },
+            take: 5,
+            select: { id: true, date: true, status: true, student: { select: { name: true } } }
+          }),
+          prisma.studentMark.findMany({
+            where: {
+              student: {
+                name: { contains: query, mode: "insensitive" },
+                schoolId: targetSchoolId
+              }
+            },
+            take: 5,
+            select: { id: true, marksObtained: true, grade: true, student: { select: { name: true } }, examSubject: { select: { exam: { select: { name: true } } } } }
+          }),
+          prisma.alumni.findMany({
+            where: {
+              user: {
+                schoolId: targetSchoolId,
+                name: { contains: query, mode: "insensitive" }
+              }
+            },
+            take: 5,
+            select: { id: true, batch: true, currentRole: true, user: { select: { name: true } } }
+          }),
+          prisma.documentRepository.findMany({
+            where: {
+              ...whereSchool,
+              OR: [
+                { name: { contains: query, mode: "insensitive" } },
+                { category: { contains: query, mode: "insensitive" } }
+              ]
+            },
+            take: 5,
+            select: { id: true, name: true, category: true, createdAt: true }
+          }),
+          prisma.communicationLog.findMany({
+            where: {
+              ...whereSchool,
+              OR: [
+                { content: { contains: query, mode: "insensitive" } },
+                { type: { contains: query, mode: "insensitive" } },
+                { recipientNum: { contains: query, mode: "insensitive" } }
+              ]
+            },
+            take: 5,
+            select: { id: true, channel: true, type: true, content: true, status: true, sentAt: true }
+          })
+        ]);
+      });
+    };
 
-    // Concurrent search queries across 13 major entities
-    // Using Prisma's fullTextSearch feature if enabled, or trigram via contains
-    // Since we created pg_trgm indexes, contains mode insensitive will use them!
-    const [students, teachers, guardians, invoices, assignments, admissions, events, notices, attendance, results, alumni, documents, commLogs] = await Promise.all([
-      prisma.student.findMany({
-        where: {
-          ...whereSchool,
-          OR: [
-            { name: { contains: query, mode: "insensitive" } },
-            { rollNo: { contains: query, mode: "insensitive" } },
-          ]
-        },
-        take: 5,
-        select: { id: true, name: true, rollNo: true, sectionId: true, sectionRef: { select: { name: true, class: { select: { name: true } } } } }
-      }),
-      prisma.teacher.findMany({
-        where: {
-          ...whereSchool,
-          user: {
-            OR: [
-              { name: { contains: query, mode: "insensitive" } },
-              { email: { contains: query, mode: "insensitive" } },
-            ]
-          }
-        },
-        take: 5,
-        include: { user: { select: { name: true, email: true } }, department: true }
-      }),
-      prisma.guardian.findMany({
-        where: {
-          ...whereSchool,
-          OR: [
-            { primaryName: { contains: query, mode: "insensitive" } },
-            { secondaryName: { contains: query, mode: "insensitive" } },
-            { primaryPhone: { contains: query, mode: "insensitive" } }
-          ]
-        },
-        take: 5,
-        include: { students: { select: { name: true } } }
-      }),
-      prisma.invoice.findMany({
-        where: {
-          ...whereSchool,
-          OR: [
-            { receiptNo: { contains: query, mode: "insensitive" } },
-          ]
-        },
-        take: 5,
-        include: { student: { select: { name: true } } }
-      }),
-      prisma.assignment.findMany({
-        where: {
-          ...whereSchool,
-          OR: [
-            { title: { contains: query, mode: "insensitive" } },
-            { description: { contains: query, mode: "insensitive" } }
-          ]
-        },
-        take: 5,
-        select: { id: true, title: true, dueDate: true, classRef: { select: { name: true } }, subjectRef: { select: { name: true } } }
-      }),
-      prisma.admission.findMany({
-        where: {
-          ...whereSchool,
-          OR: [
-            { applicantName: { contains: query, mode: "insensitive" } },
-            { parentName: { contains: query, mode: "insensitive" } }
-          ]
-        },
-        take: 5,
-        select: { id: true, applicantName: true, parentName: true, status: true }
-      }),
-      prisma.event.findMany({
-        where: {
-          ...whereSchool,
-          OR: [
-            { title: { contains: query, mode: "insensitive" } }, // FTS
-            { description: { contains: query, mode: "insensitive" } }
-          ]
-        },
-        take: 5,
-        select: { id: true, title: true, date: true, category: true }
-      }),
-      prisma.notice.findMany({
-        where: {
-          ...whereSchool,
-          OR: [
-            { title: { contains: query, mode: "insensitive" } }, // FTS
-            { content: { contains: query, mode: "insensitive" } }
-          ]
-        },
-        take: 5,
-        select: { id: true, title: true, category: true, status: true, createdAt: true }
-      }),
-      prisma.attendance.findMany({
-        where: {
-          ...whereSchool,
-          student: {
-            name: { contains: query, mode: "insensitive" }
-          }
-        },
-        take: 5,
-        select: { id: true, date: true, status: true, student: { select: { name: true } } }
-      }),
-      prisma.studentMark.findMany({
-        where: {
-          student: {
-            name: { contains: query, mode: "insensitive" },
-            ...(schoolId ? { schoolId } : {})
-          }
-        },
-        take: 5,
-        select: { id: true, marksObtained: true, grade: true, student: { select: { name: true } }, examSubject: { select: { exam: { select: { name: true } } } } }
-      }),
-      prisma.alumni.findMany({
-        where: {
-          user: {
-            ...(schoolId ? { schoolId } : {}),
-            name: { contains: query, mode: "insensitive" }
-          }
-        },
-        take: 5,
-        select: { id: true, batch: true, currentRole: true, user: { select: { name: true } } }
-      }),
-      prisma.documentRepository.findMany({
-        where: {
-          ...whereSchool,
-          OR: [
-            { name: { contains: query, mode: "insensitive" } },
-            { category: { contains: query, mode: "insensitive" } }
-          ]
-        },
-        take: 5,
-        select: { id: true, name: true, category: true, createdAt: true }
-      }),
-      prisma.communicationLog.findMany({
-        where: {
-          ...whereSchool,
-          OR: [
-            { content: { contains: query, mode: "insensitive" } },
-            { type: { contains: query, mode: "insensitive" } },
-            { recipientNum: { contains: query, mode: "insensitive" } }
-          ]
-        },
-        take: 5,
-        select: { id: true, channel: true, type: true, content: true, status: true, sentAt: true }
-      })
-    ]);
+    let students: any[], teachers: any[], guardians: any[], invoices: any[], assignments: any[], admissions: any[], events: any[], notices: any[], attendance: any[], results: any[], alumni: any[], documents: any[], commLogs: any[];
+
+    if (req.user!.role === "SUPER_ADMIN" && (!req.user!.impersonated || !schoolId)) {
+      const activeSchools = await prisma.school.findMany({ where: { isActive: true }, select: { id: true } });
+      const perSchool = await Promise.all(activeSchools.map(s => searchSchool(s.id)));
+      students = perSchool.flatMap(r => r[0]).slice(0, 5);
+      teachers = perSchool.flatMap(r => r[1]).slice(0, 5);
+      guardians = perSchool.flatMap(r => r[2]).slice(0, 5);
+      invoices = perSchool.flatMap(r => r[3]).slice(0, 5);
+      assignments = perSchool.flatMap(r => r[4]).slice(0, 5);
+      admissions = perSchool.flatMap(r => r[5]).slice(0, 5);
+      events = perSchool.flatMap(r => r[6]).slice(0, 5);
+      notices = perSchool.flatMap(r => r[7]).slice(0, 5);
+      attendance = perSchool.flatMap(r => r[8]).slice(0, 5);
+      results = perSchool.flatMap(r => r[9]).slice(0, 5);
+      alumni = perSchool.flatMap(r => r[10]).slice(0, 5);
+      documents = perSchool.flatMap(r => r[11]).slice(0, 5);
+      commLogs = perSchool.flatMap(r => r[12]).slice(0, 5);
+    } else {
+      [students, teachers, guardians, invoices, assignments, admissions, events, notices, attendance, results, alumni, documents, commLogs] = await searchSchool(schoolId!);
+    }
 
     res.json({
       success: true,

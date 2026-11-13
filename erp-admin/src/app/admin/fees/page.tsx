@@ -6,8 +6,12 @@ import Link from "next/link";
 import { apiCall, useInvoices } from "@/lib/api-hooks";
 
 export default function FeesPage() {
-  const { data: raw, isLoading } = useInvoices("limit=100");
+  const { data: raw, isLoading, error } = useInvoices("limit=100");
   const fees = Array.isArray(raw) ? raw : raw?.data || raw || [];
+
+  if (error) return <div role="alert">Error loading fees: {(error as Error).message}</div>;
+  if (isLoading) return <div>Loading fees…</div>;
+  if (fees.length === 0) return <div>No fee records found.</div>;
 
   const handleGenerateFees = async () => {
     if (confirm("Are you sure you want to auto-generate invoices for all students for this month?")) {

@@ -1,7 +1,7 @@
-import { PrismaClient, SystemDomainEventType, DomainEvent } from '@prisma/client';
+import prisma from '../lib/prisma';
+import { SystemDomainEventType, DomainEvent } from '@prisma/client';
 import logger from '../lib/logger';
 
-const prisma = new PrismaClient();
 
 export class ProjectionService {
   /**

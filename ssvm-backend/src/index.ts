@@ -1,39 +1,99 @@
 import "dotenv/config";
-import "./lib/tracing"; // MUST be first import to ensure APM instruments everything else
+import "./lib/tracing";
+
+import type { Server } from "node:http";
 
 import { loadSecretsFromAWS, startPeriodicRefresh, setupSecretsRefreshListener } from "./config/secrets";
 import { validateEnvironment } from "./config/validate-env";
+import logger from "./lib/logger";
 
 /**
- * Main application bootstrap sequence.
- * This ensures that AWS Secrets are fetched and injected into `process.env`
- * BEFORE any other application modules are imported and evaluated.
+ * Main process bootstrap. Importing app.ts is safe for tests and tooling;
+ * process-wide services and sockets are started only here.
  */
-async function bootstrap() {
-  try {
-    // 1. Fetch production secrets from AWS Secrets Manager
-    await loadSecretsFromAWS();
+async function bootstrap(): Promise<void> {
+  await loadSecretsFromAWS();
+  validateEnvironment();
+  startPeriodicRefresh();
 
-    // 2. Validate the complete environment (with production-specific rules)
-    validateEnvironment();
+  const [
+    { createApp },
+    { getEnv },
+    { initSentry },
+    { disconnectRedis },
+    { startWorkers },
+    { startTokenCleanupScheduler, stopTokenCleanupScheduler },
+    { closeQueues },
+    { BackupService },
+  ] = await Promise.all([
+    import("./app"),
+    import("./config/env"),
+    import("./lib/sentry"),
+    import("./lib/redis"),
+    import("./jobs/worker"),
+    import("./jobs/cleanupTokens"),
+    import("./jobs/queue"),
+    import("./services/backup.service"),
+  ]);
 
-    // 3. Start the periodic background refresh (12-hour TTL)
-    startPeriodicRefresh();
+  const env = getEnv();
+  initSentry();
+  const app = await createApp();
 
-    // 4. Dynamically import the main application
-    // This delayed import guarantees that modules like Prisma, Sentry, and Redis
-    // use the fully populated process.env
-    await import("./app");
+  const server: Server = app.listen(Number.parseInt(env.PORT, 10), "0.0.0.0", () => {
+    logger.info(`🚀 SSVM ERP Backend running on http://localhost:${env.PORT}`);
+    logger.info(`📡 API v1: http://localhost:${env.PORT}/api/v1`);
+    logger.info(`📡 API (compat): http://localhost:${env.PORT}/api`);
+    logger.info(`🏥 Health: http://localhost:${env.PORT}/api/health`);
+    logger.info(`🔒 Security: helmet ✓ | rate-limit ✓ | cors ✓ | refresh-tokens ✓`);
+    logger.info(`🌍 Environment: ${env.NODE_ENV}`);
 
-    // 5. Setup Redis pub/sub listener for live secret rotation
-    // Note: Redis must be initialized by the app first, so we do this after importing app
-    await setupSecretsRefreshListener();
+    startTokenCleanupScheduler();
+    startWorkers();
 
-  } catch (error) {
-    console.error("FATAL: Bootstrap sequence failed. Could not start application.");
-    console.error(error);
-    process.exit(1);
-  }
+    const dailyBackupInterval = setInterval(() => {
+      logger.info("[Scheduler] Triggering daily database backup");
+      BackupService.createDatabaseBackup(true).catch((err: unknown) => {
+        logger.error({ err }, "[Scheduler] Daily backup failed");
+      });
+    }, 24 * 60 * 60 * 1000);
+
+    const gracefulShutdown = (signal: string): void => {
+      logger.info(`${signal} received — shutting down gracefully`);
+      clearInterval(dailyBackupInterval);
+      stopTokenCleanupScheduler();
+      void (async () => {
+        await closeQueues();
+        await disconnectRedis();
+        server.close((error) => {
+          if (error) {
+            logger.error({ error }, "Server close failed");
+            process.exitCode = 1;
+          } else {
+            logger.info("Server closed");
+          }
+        });
+      })().catch((error: unknown) => {
+        logger.error({ error }, "Graceful shutdown failed");
+        process.exitCode = 1;
+        server.close();
+      });
+    };
+
+    process.once("SIGTERM", () => gracefulShutdown("SIGTERM"));
+    process.once("SIGINT", () => gracefulShutdown("SIGINT"));
+  });
+
+  server.on("error", (error) => {
+    logger.error({ error }, "HTTP server failed");
+    process.exitCode = 1;
+  });
+
+  await setupSecretsRefreshListener();
 }
 
-bootstrap();
+bootstrap().catch((error: unknown) => {
+  console.error("FATAL: Backend bootstrap failed.");
+  console.error(error);
+  process.exitCode = 1;
+});

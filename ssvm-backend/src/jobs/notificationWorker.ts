@@ -2,7 +2,7 @@ import { Worker, Job } from "bullmq";
 import { getEnv } from "../config/env";
 import { sendSMS } from "../lib/sms";
 import logger from "../lib/logger";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import { sendSSEToUser } from "../lib/sse";
 
 const env = getEnv();
@@ -35,7 +35,7 @@ export function startNotificationWorker() {
 
       if (job.name === "sendNotification") {
         const { logId, channel, to, content, subject, schoolId, userId } = job.data;
-
+        const executeJob = async () => {
         try {
           // 1. Fetch Log
           const commLog = await prisma.communicationLog.findUnique({ where: { id: logId }});
@@ -168,9 +168,15 @@ export function startNotificationWorker() {
 
           throw error; // Let BullMQ handle retry
         }
+      };
+
+      if (schoolId) {
+        return runWithTenantDatabaseTransaction(schoolId, executeJob);
       }
-    },
-    {
+      return executeJob();
+    }
+  },
+  {
       connection: { url: env.REDIS_URL },
       concurrency: 10,
       settings: {

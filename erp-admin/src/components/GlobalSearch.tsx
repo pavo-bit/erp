@@ -32,8 +32,8 @@ export function GlobalSearch() {
       }
       setLoading(true);
       try {
-        const res = await apiCall(`/api/${filter}?search=${encodeURIComponent(query)}`);
-        setResults(res.data || []);
+        const res = await apiCall(`/api/v1/${filter}?search=${encodeURIComponent(query)}`);
+        setResults(res || []);
       } catch (e) {
         setResults([]);
       } finally {

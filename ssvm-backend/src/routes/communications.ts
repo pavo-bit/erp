@@ -5,6 +5,7 @@ import handlebars from "handlebars";
 import logger from "../lib/logger";
 import { CommunicationService } from "../services/communication.service";
 import { sendSuccess, sendError } from "../lib/response";
+import { sweepOutbox } from "../jobs/outboxRelay";
 
 const router = Router();
 
@@ -13,7 +14,7 @@ const router = Router();
 // ==========================================
 
 // GET all templates
-router.get("/templates", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/templates", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
     const templates = await prisma.template.findMany({
       where: { schoolId: req.user!.schoolId! },
@@ -27,7 +28,7 @@ router.get("/templates", authenticate, requireRole("ADMIN"), async (req: AuthReq
 });
 
 // CREATE OR UPDATE a template
-router.post("/templates", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.post("/templates", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
     const { name, channel, subject, content, isActive } = req.body;
     const schoolId = req.user!.schoolId!;
@@ -133,7 +134,7 @@ router.post("/send", authenticate, requireRole("ADMIN", "SUPER_ADMIN", "ERP_ADMI
 });
 
 // GET Communication Logs
-router.get("/logs", authenticate, requireRole("ADMIN"), async (req: AuthRequest, res: Response) => {
+router.get("/logs", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
     const { page = "1", limit = "50", channel, status } = req.query as Record<string, string | undefined>;
     const skip = (Math.max(1, +page) - 1) * Math.min(100, +limit);
@@ -157,6 +158,17 @@ router.get("/logs", authenticate, requireRole("ADMIN"), async (req: AuthRequest,
   } catch (e) {
     logger.error({ err: e }, "Failed to fetch logs");
     res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// POST /api/v1/communications/outbox/sweep — Manual trigger for Outbox sweep (Phase 5 reliability)
+router.post("/outbox/sweep", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"), async (_req: AuthRequest, res: Response) => {
+  try {
+    await sweepOutbox();
+    res.json({ success: true, message: "Outbox sweep triggered successfully" });
+  } catch (e: any) {
+    logger.error({ err: e }, "Outbox sweep error");
+    res.status(500).json({ success: false, error: e.message || "Failed to sweep outbox" });
   }
 });
 

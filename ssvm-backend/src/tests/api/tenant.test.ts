@@ -103,7 +103,7 @@ describe('Multi-Tenant Data Isolation', () => {
       
       invoicesA.forEach((inv: any) => {
         expect(inv.schoolId).toBe(schoolAId);
-        expect(inv.amount).toBe(1000); // Only School A's invoice
+        expect(Number(inv.amount)).toBe(1000); // Only School A's invoice
       });
 
       const resB = await request(app).get('/api/v1/invoices').set('Cookie', [adminBCookie]);
@@ -112,7 +112,7 @@ describe('Multi-Tenant Data Isolation', () => {
 
       invoicesB.forEach((inv: any) => {
         expect(inv.schoolId).toBe(schoolBId);
-        expect(inv.amount).toBe(2000); // Only School B's invoice
+        expect(Number(inv.amount)).toBe(2000); // Only School B's invoice
       });
     });
   });

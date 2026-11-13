@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "lib": ["ES2022"],
+    "baseUrl": ".",
+    "paths": {
+      "@prisma/client": [
+        "ssvm-backend/node_modules/@prisma/client",
+        "ssvm-backend/node_modules/@prisma/client/default.d.ts",
+        "ssvm-backend/node_modules/@prisma/client/index.d.ts"
+      ],
+      ".prisma/client": [
+        "ssvm-backend/node_modules/.prisma/client",
+        "ssvm-backend/node_modules/.prisma/client/default.d.ts",
+        "ssvm-backend/node_modules/.prisma/client/index.d.ts"
+      ],
+      "ioredis": [
+        "ssvm-backend/node_modules/ioredis",
+        "ssvm-backend/node_modules/ioredis/built/index.d.ts"
+      ],
+      "@/*": ["ssvm-backend/src/*"]
+    },
+    "typeRoots": [
+      "./ssvm-backend/node_modules/@types"
+    ],
+    "types": ["node"],
+    "strict": false,
+    "noImplicitAny": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "scripts/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "erp-admin",
+    "super-admin",
+    "student-portal",
+    "teacher-portal",
+    "parent-portal",
+    "payment-portal",
+    "saas-frontend"
+  ]
+}

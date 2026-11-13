@@ -1,7 +1,7 @@
-import { PrismaClient, DomainEvent } from '@prisma/client';
+import prisma from '../lib/prisma';
+import { DomainEvent } from '@prisma/client';
 import crypto from 'crypto';
 
-const prisma = new PrismaClient();
 
 export class IntegrationService {
   /**

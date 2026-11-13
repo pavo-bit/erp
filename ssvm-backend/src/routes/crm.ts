@@ -13,8 +13,9 @@ function resolveSchoolId(req: AuthRequest, requestedSchoolId?: unknown): string 
 // 1. Capture New Lead (Admission Enquiry)
 router.post("/leads", async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-        const { studentName, parentName, phone, email, applyingForClass, source, campaignId } = req.body;
-        const schoolId = resolveSchoolId(req, req.body?.schoolId);
+        const body = req.body ?? {};
+        const { studentName, parentName, phone, email, applyingForClass, source, campaignId } = body;
+        const schoolId = resolveSchoolId(req, body.schoolId);
         if (!schoolId) {
             res.status(400).json({ success: false, error: "School scope is required" });
             return;
@@ -61,9 +62,10 @@ router.post("/leads", async (req: AuthRequest, res: Response): Promise<void> => 
 // 2. Log Interaction (Call, Email, WhatsApp)
 router.post("/leads/:id/interactions", async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+        const body = req.body ?? {};
         const leadId = req.params.id as string;
-        const { type, notes } = req.body;
-        const schoolId = resolveSchoolId(req, req.body?.schoolId);
+        const { type, notes } = body;
+        const schoolId = resolveSchoolId(req, body.schoolId);
         if (!schoolId) {
             res.status(400).json({ success: false, error: "School scope is required" });
             return;
@@ -99,9 +101,10 @@ router.post("/leads/:id/interactions", async (req: AuthRequest, res: Response): 
 // 3. Move Lead to Next Stage (Drag and Drop in UI)
 router.put("/leads/:id/stage", async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+        const body = req.body ?? {};
         const leadId = req.params.id as string;
-        const { pipelineStageId } = req.body;
-        const schoolId = resolveSchoolId(req, req.body?.schoolId);
+        const { pipelineStageId } = body;
+        const schoolId = resolveSchoolId(req, body.schoolId);
         if (!schoolId) {
             res.status(400).json({ success: false, error: "School scope is required" });
             return;

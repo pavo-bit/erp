@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, afterAll, vi } from 'vitest';
-import { execSync } from 'child_process';
 import prisma from '../lib/prisma';
+import { initRedis } from '../lib/redis';
+import { TENANT_RLS_TABLES } from '../generated/tenantClassification';
 import Redis from 'ioredis-mock';
 
 // Mock Redis globally
@@ -124,41 +125,74 @@ process.env.ACCESS_TOKEN_PUBLIC_KEY = publicKey;
 process.env.REFRESH_TOKEN_PRIVATE_KEY = privateKey;
 process.env.REFRESH_TOKEN_PUBLIC_KEY = publicKey;
 process.env.FIELD_ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+process.env.DEVICE_TOKEN_SECRET = 'test-device-token-secret-for-hardware';
 process.env.RAZORPAY_KEY_ID = 'rzp_test_codex';
 process.env.RAZORPAY_KEY_SECRET = crypto.randomBytes(32).toString('hex');
 process.env.RAZORPAY_WEBHOOK_SECRET = crypto.randomBytes(32).toString('hex');
 
 beforeAll(async () => {
-  try {
-    console.log('Running Prisma migrations for test DB...');
-    // We try to deploy migrations to the test DB
-    // execSync('npx prisma migrate deploy', { stdio: 'inherit' });
-    // Note: Skipped in this setup file due to environment differences. 
-    // Usually best to run `dotenv -e .env.test -- npx prisma migrate deploy` in a global setup script.
-  } catch (e) {
-    console.error('Migration failed in setup:', e);
+  const [role] = await prisma.$queryRaw<Array<{
+    currentUser: string;
+    isSuperuser: boolean;
+    bypassRls: boolean;
+  }>>`
+    SELECT current_user AS "currentUser",
+           rolsuper AS "isSuperuser",
+           rolbypassrls AS "bypassRls"
+    FROM pg_roles
+    WHERE rolname = current_user
+  `;
+
+  if (!role) {
+    throw new Error("ABORT: Could not resolve the current PostgreSQL role for tests.");
   }
+
+  if (role.isSuperuser || role.bypassRls) {
+    throw new Error(
+      `ABORT: Tests must run as a restricted role (non-superuser, non-bypassrls). Connected as ${role.currentUser} (rolsuper=${role.isSuperuser}, rolbypassrls=${role.bypassRls}).`
+    );
+  }
+
+  const classifiedTables = [...TENANT_RLS_TABLES];
+
+  const tableStates = await prisma.$queryRaw<Array<{
+    tableName: string;
+    rlsEnabled: boolean;
+    rlsForced: boolean;
+  }>>`
+    SELECT c.relname AS "tableName",
+           c.relrowsecurity AS "rlsEnabled",
+           c.relforcerowsecurity AS "rlsForced"
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relname = ANY(${classifiedTables})
+  `;
+
+  const stateMap = new Map(tableStates.map((t) => [t.tableName, t]));
+  const missingOrBroken: string[] = [];
+
+  for (const table of classifiedTables) {
+    const st = stateMap.get(table);
+    if (!st || !st.rlsEnabled || !st.rlsForced) {
+      missingOrBroken.push(`${table} (present=${Boolean(st)}, rlsEnabled=${st?.rlsEnabled}, rlsForced=${st?.rlsForced})`);
+    }
+  }
+
+  if (missingOrBroken.length > 0) {
+    throw new Error(
+      `ABORT: ${missingOrBroken.length} classified tenant tables failed RLS guard (both relrowsecurity and relforcerowsecurity must be true):\n  ${missingOrBroken.join("\n  ")}`
+    );
+  }
+
+  await initRedis();
 });
 
+
 beforeEach(async () => {
-  if (process.env.SKIP_TRUNCATE) return;
-
-  // Truncate all tables for a clean slate
-  const tablenames = await prisma.$queryRaw<
-    Array<{ tablename: string }>
-  >`SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename NOT IN ('_prisma_migrations');`;
-
-  const tables = tablenames
-    .map(({ tablename }) => '"' + tablename + '"')
-    .join(', ');
-
-  try {
-    if (tables !== '') {
-      await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
-    }
-  } catch (error) {
-    console.log({ error });
-  }
+  // Global TRUNCATE has been replaced by per-worker databases cloned from a template
+  // (see src/tests/workerDbSetup.ts and src/tests/helpers/workerDatabase.ts).
+  // This preserves suite beforeAll fixtures while maintaining worker isolation.
 });
 
 afterAll(async () => {

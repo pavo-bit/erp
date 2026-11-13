@@ -7,11 +7,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
 import { useSearch } from "@/lib/api-hooks";
 
+export interface SidebarSubItem {
+  icon: string;
+  label: string;
+  href: string;
+  badge?: string;
+}
+
 export interface SidebarItem {
   icon: string;
   label: string;
   href: string;
   badge?: string;
+  children?: SidebarSubItem[];
 }
 
 interface DashboardLayoutProps {
@@ -36,6 +44,23 @@ export function DashboardLayout({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { logout } = useAuth();
+
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const item of sidebarItems) {
+      if (item.children?.some((c) => pathname === c.href || pathname.startsWith(c.href + "/"))) {
+        initial[item.label] = true;
+      }
+    }
+    return initial;
+  });
+
+  const toggleGroup = (label: string) => {
+    setExpandedGroups((prev) => ({
+      ...prev,
+      [label]: !prev[label],
+    }));
+  };
 
   return (
     <div className="min-h-screen bg-surface flex">
@@ -68,12 +93,89 @@ export function DashboardLayout({
         <nav aria-label="Main Navigation" className="flex-1 overflow-y-auto py-4 px-3">
           <div className="flex flex-col gap-1">
             {sidebarItems.map((item) => {
-              const isActive = pathname === item.href;
+              const hasChildren = item.children && item.children.length > 0;
+              const isAnyChildActive = hasChildren && item.children!.some(
+                (c) => pathname === c.href || pathname.startsWith(c.href + "/")
+              );
+              const isActive = pathname === item.href || isAnyChildActive;
+              const isExpanded = expandedGroups[item.label] ?? isAnyChildActive;
+
+              if (hasChildren) {
+                return (
+                  <div key={item.label} className="flex flex-col">
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(item.label)}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-200 font-[var(--font-heading)] w-full text-left bg-transparent border-none cursor-pointer group relative
+                        ${isActive
+                          ? "bg-primary/5 text-primary font-semibold"
+                          : "text-text-secondary hover:bg-surface hover:text-text-primary"
+                        }`}
+                    >
+                      <span className="text-[18px] w-6 text-center">{item.icon}</span>
+                      <span className="flex-1">{item.label}</span>
+                      {item.badge && (
+                        <span
+                          className="text-[10px] font-bold text-white px-2 py-0.5 rounded-full mr-1"
+                          style={{ background: roleColor }}
+                        >
+                          {item.badge}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-text-secondary transition-transform duration-200">
+                        {isExpanded ? "▼" : "▶"}
+                      </span>
+                      {isAnyChildActive && (
+                        <div
+                          className="w-1 h-5 rounded-full absolute left-0"
+                          style={{ background: roleColor }}
+                        />
+                      )}
+                    </button>
+                    {isExpanded && (
+                      <div className="flex flex-col gap-1 pl-7 pt-1 pb-1">
+                        {item.children!.map((child) => {
+                          const isChildActive = pathname === child.href;
+                          return (
+                            <Link
+                              key={child.href}
+                              href={child.href}
+                              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[12px] font-medium no-underline transition-all duration-200 font-[var(--font-heading)] relative
+                                ${isChildActive
+                                  ? "bg-primary/10 text-primary font-semibold"
+                                  : "text-text-secondary hover:bg-surface hover:text-text-primary"
+                                }`}
+                            >
+                              <span className="text-[15px]">{child.icon}</span>
+                              <span className="flex-1">{child.label}</span>
+                              {child.badge && (
+                                <span
+                                  className="text-[9px] font-bold text-white px-1.5 py-0.5 rounded-full"
+                                  style={{ background: roleColor }}
+                                >
+                                  {child.badge}
+                                </span>
+                              )}
+                              {isChildActive && (
+                                <div
+                                  className="w-1 h-4 rounded-full absolute left-0"
+                                  style={{ background: roleColor }}
+                                />
+                              )}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium no-underline transition-all duration-200 font-[var(--font-heading)] group
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium no-underline transition-all duration-200 font-[var(--font-heading)] group relative
                     ${isActive
                       ? "bg-primary/10 text-primary font-semibold"
                       : "text-text-secondary hover:bg-surface hover:text-text-primary"
@@ -184,7 +286,51 @@ export function DashboardLayout({
               </div>
               <nav aria-label="Mobile Navigation Menu" className="flex-1 overflow-y-auto py-4 px-3">
                 {sidebarItems.map((item) => {
-                  const isActive = pathname === item.href;
+                  const hasChildren = item.children && item.children.length > 0;
+                  const isAnyChildActive = hasChildren && item.children!.some(
+                    (c) => pathname === c.href || pathname.startsWith(c.href + "/")
+                  );
+                  const isActive = pathname === item.href || isAnyChildActive;
+                  const isExpanded = expandedGroups[item.label] ?? isAnyChildActive;
+
+                  if (hasChildren) {
+                    return (
+                      <div key={item.label} className="flex flex-col mb-1">
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(item.label)}
+                          className={`flex items-center gap-3 px-3 py-3 rounded-lg text-[14px] font-medium font-[var(--font-heading)] w-full text-left bg-transparent border-none cursor-pointer
+                            ${isActive ? "bg-primary/5 text-primary" : "text-text-secondary"}`}
+                        >
+                          <span className="text-[18px]">{item.icon}</span>
+                          <span className="flex-1">{item.label}</span>
+                          <span className="text-[10px] text-text-secondary">
+                            {isExpanded ? "▼" : "▶"}
+                          </span>
+                        </button>
+                        {isExpanded && (
+                          <div className="flex flex-col gap-1 pl-6 pt-1">
+                            {item.children!.map((child) => {
+                              const isChildActive = pathname === child.href;
+                              return (
+                                <Link
+                                  key={child.href}
+                                  href={child.href}
+                                  onClick={() => setSidebarOpen(false)}
+                                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium no-underline font-[var(--font-heading)]
+                                    ${isChildActive ? "bg-primary/10 text-primary font-semibold" : "text-text-secondary"}`}
+                                >
+                                  <span className="text-[16px]">{child.icon}</span>
+                                  <span>{child.label}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
+
                   return (
                     <Link
                       key={item.href}
@@ -220,16 +366,21 @@ export function DashboardLayout({
 export function StatCard({
   icon,
   label,
+  title,
   value,
   change,
+  trend,
   color = "#FF6B00",
 }: {
   icon: string;
-  label: string;
+  label?: string;
+  title?: string;
   value: string;
   change?: string;
+  trend?: string;
   color?: string;
 }) {
+  const displayLabel = label || title || "";
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -243,17 +394,17 @@ export function StatCard({
         >
           {icon}
         </div>
-        {change && (
+        {(change || trend) && (
           <span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full font-[var(--font-heading)]
-            ${change.startsWith("+") ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
-            {change}
+            ${(change || trend)?.startsWith("+") ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
+            {change || trend}
           </span>
         )}
       </div>
       <div className="text-[26px] font-bold text-text-primary font-[var(--font-heading)] leading-none mb-1">
         {value}
       </div>
-      <div className="text-[13px] text-text-secondary">{label}</div>
+      <div className="text-[13px] text-text-secondary">{displayLabel}</div>
     </motion.div>
   );
 }
@@ -318,13 +469,25 @@ export function DataTable({
   );
 }
 
-export function StatusBadge({ status, color }: { status: string; color: string }) {
+export function StatusBadge({ status, color }: { status: string; color?: string }) {
+  const badgeColor =
+    color ||
+    (status === "ACTIVE" || status === "AVAILABLE"
+      ? "#10B981"
+      : status === "OCCUPIED"
+      ? "#3B82F6"
+      : status === "FULL" || status === "MAINTENANCE"
+      ? "#F59E0B"
+      : status === "INACTIVE" || status === "SUSPENDED"
+      ? "#EF4444"
+      : "#64748B");
+
   return (
     <span
       className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full font-[var(--font-heading)]"
-      style={{ background: `${color}15`, color }}
+      style={{ background: `${badgeColor}15`, color: badgeColor }}
     >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: badgeColor }} />
       {status}
     </span>
   );

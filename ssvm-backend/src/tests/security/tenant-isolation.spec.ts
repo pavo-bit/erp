@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
-import { app } from "../../app";
-import prisma from "../../lib/prisma";
+import { createTestApp } from "../helpers/testApp";
+const app = createTestApp();
+import { getTestPrisma } from "../helpers/testApp";
+
+const prisma = getTestPrisma();
 
 process.env.SKIP_TRUNCATE = "true";
 import { generateAccessToken } from "../../lib/tokens";
@@ -208,14 +211,14 @@ describe("Tenant Isolation & Security", () => {
       expect(res.body.data.documents.length).toBe(1);
     });
 
-    it("SUPER_ADMIN can search across multiple schools", async () => {
+    it("SUPER_ADMIN without audited impersonation fails closed (403) on tenant search", async () => {
       const cookie = getTokenCookie({ id: superAdminId, email: "superadmin@isolationtest.com", name: "Super", role: "SUPER_ADMIN", schoolId: null });
       const res = await request(app)
         .get("/api/v1/search?q=class")
         .set("Cookie", cookie);
 
-      expect(res.status).toBe(200);
-      expect(res.body.data.documents.length).toBeGreaterThanOrEqual(2);
+      expect(res.status).toBe(403);
+      expect(res.body.error).toMatch(/audited impersonation/i);
     });
   });
 

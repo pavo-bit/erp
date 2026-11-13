@@ -1,8 +1,8 @@
-import { PrismaClient, Role } from '@prisma/client';
+import prisma from '../lib/prisma';
+import { Role } from '@prisma/client';
 import crypto from 'crypto';
 import { hashPassword } from '../middleware/auth';
 
-const prisma = new PrismaClient();
 
 export class IdentityService {
   /**

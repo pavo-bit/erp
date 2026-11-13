@@ -1,76 +1,141 @@
-# SSVM College Square — School Management Platform
+# SSVM ERP — AI Agent Engineering Directives & Rules of Engagement
 
-ERP monorepo: an Express/Prisma/PostgreSQL backend (`ssvm-backend`) plus seven Next.js portals and Playwright E2E tests. **Status: under security/tenant/finance remediation; NOT production ready and NOT verified for real school data.** See `docs/KNOWN_LIMITATIONS.md`, `docs/RELEASE_CRITERIA.md`.
+**Canonical Document:** `AGENTS.md`  
+**Target:** All AI Assistant and Autonomous Engineering Subagents  
+**Working Repository:** `pavo-bit/erp`  
+**Default Working Branch:** `lane/d-portals`
 
-## Layout (no root package.json / workspaces — each app is independent)
+---
 
-- `ssvm-backend/` — Express 5 + Prisma 6 + PostgreSQL, BullMQ/Redis, Vitest. Entry `src/index.ts` → `src/app.ts`.
-- Portals (Next.js 16.2, React 19): `erp-admin` (3005), `super-admin` (3003), `teacher-portal` (3004), `student-portal` (3000), `parent-portal` (3006), `payment-portal` (3007), `saas-frontend` (3000).
-- `e2e-tests/` — Playwright, `baseURL` http://localhost:3005.
-- `docs/` — architecture, remediation decisions, security matrix, testing plan.
-- Each portal has its own `AGENTS.md` (Next.js 16 breaking-changes notice) and `CLAUDE.md` → `@AGENTS.md`.
+## 1. Project Identity & Architecture
 
-## Toolchain
+SSVM ERP is a mission-critical multi-tenant SaaS School Enterprise Resource Planning system serving K-12 educational institutions. The platform consists of:
+- **Backend Core:** Express.js REST API with Prisma ORM 6.x, PostgreSQL 16 (with Row-Level Security), Redis 7 (BullMQ & Cache), and PgBouncer connection pooling.
+- **Frontend Ecosystem (7 Portals):** Next.js 16 (React 19) applications:
+  1. `erp-admin`: Comprehensive operational and academic administration (ports 3000 / 3005).
+  2. `super-admin`: Platform multi-tenant SaaS management and global monitoring (port 3001).
+  3. `teacher-portal`: Attendance, gradebook, timetable, and classroom LMS (port 3002).
+  4. `student-portal`: Grades, timetable, homework, and fee ledger viewing (port 3003).
+  5. `parent-portal`: Multi-child academic progress, fee payment, and communication (port 3006).
+  6. `payment-portal`: Public invoice search and Razorpay payment checkout (port 3007).
+  7. `saas-frontend`: Marketing landing and institutional onboarding tenant provisioning (port 3008).
 
-- Node 20 (CI uses 20; the `deploy.yml` Node 18 step is stale — use 20).
-- TypeScript strict; backend is CommonJS (`"type": "commonjs"`); path alias `@/*` → `./src/*`.
-- Backend `postinstall` runs `prisma generate`.
+---
 
-## Commands
+## 2. Repository Structure
 
-Backend (run from `ssvm-backend/`):
-- Install: `npm ci` (generates Prisma client)
-- Dev: `npm run dev` (tsx watch `src/index.ts`)
-- Build: `npm run build` (tsc) → `npm start` (node dist/index.js)
-- Type check: `npm run type-check` (`tsc --noEmit`)
-- Lint: `npm run lint` (eslint src/, `--max-warnings 0`) — currently ~567 violations; focused lint on changed files is the realistic gate
-- Tests: `npm test` / `npm run test:unit` / `npm run test:api` / `npm run test:ci`
-- Security suite: `npx vitest run --config vitest.security.config.ts` (CSRF, retention, tenant-context)
-- DB: `npm run db:generate|migrate|push|seed|studio`; OpenAPI: `npm run generate:openapi`
+```
+.
+├── AGENTS.md                  # Authoritative AI engineering directives (this file)
+├── README.md                  # System overview and getting started guide
+├── docs/                      # 10 canonical architecture and specification documents
+├── erp-admin/                 # School staff and ERP administrator portal (Next.js)
+├── super-admin/               # SaaS super-admin platform management portal (Next.js)
+├── teacher-portal/            # Faculty grading and roll-call portal (Next.js)
+├── student-portal/            # Student portal (Next.js)
+├── parent-portal/             # Guardian portal (Next.js)
+├── payment-portal/            # Student/Parent payment portal (Next.js)
+├── saas-frontend/             # SaaS marketing and school onboarding portal (Next.js)
+├── ssvm-backend/              # Express.js REST API backend & BullMQ workers
+│   ├── prisma/                # schema.prisma and migrations/
+│   ├── src/                   # routes, services, middleware, lib, workers
+│   └── src/tests/             # vitest unit, api, security, and db RLS suites
+├── scripts/                   # Migration, maintenance, and verification scripts
+└── docker-compose.yml         # Container definitions for databases, Redis, apps
+```
 
-Frontends (each portal dir): `npm ci`, `npm run dev`, `npm run build`, `npm run lint`; type check via `npx tsc --noEmit` (no script). Three portals lack an ESLint 9 flat config.
+---
 
-E2E (from `e2e-tests/`): `npm ci` then `npx playwright test`.
+## 3. Frontend / Next.js Guidelines
 
-Docker: `docker network create ssvm-network` first (compose declares it `external: true`), then `docker compose up -d --build`. Services: Postgres 16, pgbouncer (6432), Redis, backend (5000), portals, Grafana/Prometheus/Alertmanager.
+<!-- BEGIN:nextjs-agent-rules -->
+### Next.js 16 / React 19 Rule
+This version of Next.js introduces breaking changes — APIs, conventions, and file structure differ from older versions. Read the relevant guide in `node_modules/next/dist/docs/` before writing code. Heed deprecation notices. Always use Server Components where feasible, mark Client Components with `'use client'`, and avoid deprecated Next router paradigms.
+<!-- END:nextjs-agent-rules -->
 
-## Testing gotchas (high signal)
+---
 
-- `DATABASE_URL_TEST` must be explicitly set to a DB whose name contains `test` (e.g. `ssvm_test`); setup in `src/tests/setup.ts` throws otherwise and truncates ALL public tables. Never point it at a shared/dev/prod DB. Migrations must be applied first (`npx prisma migrate deploy`).
-- `.env.test` sets `DATABASE_URL` only; tests read `DATABASE_URL_TEST`.
-- Vitest global setup mocks Redis, BullMQ, Razorpay, Sentry, Bull Board. Backend tests do not need those services.
-- Isolated security suite uses `vitest.security.config.ts` (separate setup files).
+## 4. TypeScript & Coding Standards
 
-## Environment / secrets
+1. **Strict Type-Checking:** All backend code, scripts, and frontend applications must pass `tsc --noEmit` with zero errors. Implicit `any` is strictly prohibited.
+2. **Explicit Contracts:** All API payloads, query parameters, and database mutations must be strictly typed using Zod or Prisma-generated models.
+3. **CommonJS Backend:** The backend operates as CommonJS (`"type": "commonjs"`). Keep imports and exports compliant with project configs.
+4. **No Dead Code:** Never commit commented-out code, temporary debug logs, or orphan variables.
 
-- Copy root `.env.example` → `.env` and `ssvm-backend/.env.example` → `ssvm-backend/.env`; generate `JWT_SECRET` (64-byte hex). Backend also needs `DATABASE_URL`, `DIRECT_URL`, `REDIS_URL`.
-- Demo seeding is disabled unless `ALLOW_DEMO_SEED=true`, `NODE_ENV` non-production, and `SEED_SUPER_ADMIN_EMAIL` + a ≥16-char password are set. No default login credentials are provided (README's admin@…/admin123 are stale).
-- A tracked `ssvm-backend/.env.backup` with real creds was removed from the tree but remains in git history — rotate Postgres/JWT/Razorpay webhook secrets; do not rewrite history without approval.
-- Production bootstrap fetches secrets from AWS Secrets Manager before importing the app (see `src/index.ts`); dev uses dotenv.
+---
 
-## Architecture notes that differ from defaults
+## 5. Database, Tenancy & PostgreSQL RLS Invariants
 
-- Request flow: `helmet → global rate limit → metrics/CORS/body/cookies → CSRF → schoolContextMiddleware → compat rewrite → route mounts`. Auth runs inside routers, after context middleware; successful `authenticate` replaces the provisional context with the DB-backed user's school/role. Unauthenticated requests keep a **null** context, so the Prisma tenant extension applies **no** school filter.
-- Prisma extension hard-codes a subset of models for `schoolId` injection; unique lookups may become first-lookups; nested/raw SQL paths are not all covered. PostgreSQL RLS policy permits all rows when the tenant setting is unset and the request path does not set it. **No isolation guarantee is claimed — do not assert multi-tenant safety.**
-- CSRF is double-submit with a stable browser context (runs before auth, so `req.user` is unavailable). Portals capture and send `X-CSRF-Token`. Login and payment webhooks are exempt.
-- Document bytes are served only through authenticated, school/owner-scoped download routes (not a static path).
-- Retention: entity allowlist, dry-run, 250-row bounded deletes, audit summary.
+1. **Fail-Closed Tenancy:** Missing tenant context (`schoolId`) must fail closed immediately. Every tenant operation must run inside a transaction setting PostgreSQL local variable:
+   ```sql
+   SET LOCAL app.current_school_id = '<school-id>';
+   ```
+2. **Unprivileged Application Role:** The application runtime database user `ssvm_app` is non-superuser (`rolsuper=false`) and cannot bypass RLS (`rolbypassrls=false`). Never grant superuser privileges to `ssvm_app`.
+3. **Transaction Helper:** Never invoke raw `prisma.$transaction` for tenant data modification. Always use:
+   ```typescript
+   import { runWithTenantDatabaseTransaction } from "../lib/prisma";
+   await runWithTenantDatabaseTransaction(schoolId, async (tx) => { ... });
+   ```
+4. **Soft Deletes:** Direct-school models inherit soft-delete semantics (`deletedAt`). The transparent Prisma client extension automatically filters out soft-deleted records unless explicitly queried.
+5. **Decimal Precision:** Financial values, balances, and fee amounts must strictly use Prisma `Decimal` with half-up rounding. Floating point numbers (`number`) are forbidden for monetary calculations.
 
-## Quirks / stale artifacts (verified)
+---
 
-- `run-without-docker.sh`/`.bat` reference a non-existent `ssvm-platform` frontend and stale default creds — do not rely on them.
-- `docker-compose.yml` `ssvm-network` is `external: true`; create it before compose up.
-- Docker backend entrypoint uses `prisma db push` (not migrate) and seeds when the `users` table is empty.
-- `.gitignore` contains `prisma/migrations/` but it only matches a root-level path, so `ssvm-backend/prisma/migrations/` is actually tracked.
-- Backend lint reports 567 violations; portal lint partially broken (missing flat configs).
-- `ssvm_openapi_documentation.*` / `openapi.json` are generated (`npm run generate:openapi`); don't hand-edit.
-- Next.js 16 differs significantly from training-data versions — read `node_modules/next/dist/docs/` (after `npm ci`) before writing portal code. Student and saas frontends both default to port 3000 (conflict if run together).
-- CI workflows have not actually run; treat "passes" claims in docs as unverified.
+## 6. Authentication, Authorization & Route Security
 
-## References
+All 428 endpoints are classified into 5 security tiers:
+- **Tier 1 (Session Authenticated):** Requires `authenticate` middleware, valid session token, and specific `requireRole(...)` / `requireModule(...)` guards.
+- **Tier 2 (Independent Machine Auth):** Uses dedicated credentials (e.g., biometric attendance device headers, telemetry bearer tokens).
+- **Tier 3 (Token / Challenge Lifecycle):** Specific stateful tokens (2FA verification, password reset tokens, token refresh).
+- **Tier 4 (Public Anonymous Ingestion):** Public admissions, contact forms, alumni registration, and public notices. Must be protected by Cloudflare Turnstile (`verifyTurnstile`) and strict IP rate limiting.
+- **Tier 5 (Internal Diagnostics):** `/health/deep`, `/metrics`, and `/database-identity`. Restricted to loopback, internal cluster networks, or `SUPER_ADMIN`.
 
-- `docs/ARCHITECTURE.md`, `docs/CLEAN_INSTALLATION_GUIDE.md`, `docs/KNOWN_LIMITATIONS.md`
-- `docs/TESTING_MASTER_PLAN.md`, `docs/BUILD_AND_TEST_REPORT.md`
-- `docs/TECHNICAL_DECISIONS.md`, `docs/REMEDIATION_DECISIONS.md`
-- `docs/security/ROUTE_AUTHORIZATION_MATRIX.md`
-- Per-portal `AGENTS.md` for Next.js 16 rules.
+---
+
+## 7. Financial Integrity & Ledger Invariants
+
+1. **Double-Entry Principle:** Every financial ledger transaction must balance:
+   $$\sum \text{Debit} \equiv \sum \text{Credit}$$
+2. **Standard Account Codes:**
+   - `1010-BANK`: School Operating Bank Account
+   - `1020-CASH`: Cashier Cash-on-Hand Account
+   - `1200-AR`: Accounts Receivable (Student Tuition Outstanding)
+   - `2100-ADVANCE`: Student Advance Fee Liability
+   - `4010-TUITION`: Fee Income
+   - `5010-SAL`: Staff Payroll Expense
+3. **Payment Webhook Idempotency:** Webhook processing must use distributed Redis locking and HMAC-SHA256 signature verification. Replayed webhooks must return HTTP 200 without duplicating ledger entries.
+4. **Monotonic Receipt Sequence:** Offline cash desk payments must generate monotonically increasing receipt numbers per school using database sequence prechecks to prevent race conditions.
+
+---
+
+## 8. Testing & Quality Assurance Mandates
+
+1. **Evidence-Based Rule:** Never declare a feature, fix, or requirement complete without executing real test suites and reporting exact pass/fail counts.
+2. **PostgreSQL RLS Suites:** Run using real PostgreSQL 16 on port 5433:
+   ```bash
+   npm --prefix ssvm-backend run test:rls
+   ```
+3. **Full Backend Test Suites:**
+   ```bash
+   npm --prefix ssvm-backend test
+   ```
+4. **Frontend Compilations:**
+   ```bash
+   npx --prefix erp-admin tsc --noEmit
+   npx --prefix super-admin tsc --noEmit
+   npx --prefix teacher-portal tsc --noEmit
+   npx --prefix student-portal tsc --noEmit
+   npx --prefix parent-portal tsc --noEmit
+   npx --prefix payment-portal tsc --noEmit
+   npx --prefix saas-frontend tsc --noEmit
+   ```
+
+---
+
+## 9. Safe Migration & Git Safety Rules
+
+1. **No Migration Destruction:** Never delete or alter existing Prisma migration folders in `ssvm-backend/prisma/migrations/`.
+2. **Database Isolation:** Tests run against dedicated test databases (`ssvm_test`, `ssvm_test_worker_*`). Never execute destructive schema migrations on production databases without review.
+3. **No Automatic Unchecked Commits:** AI assistants must present changes and test verification results cleanly before committing.
+4. **Documentation Discipline:** Maintain only the 10 canonical documents in `docs/` plus `README.md` and `AGENTS.md`. Do not create temporary or phase-specific Markdown files.
+

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { authenticate, requireRole } from "../../middleware/auth";
-import prisma from "../../lib/prisma";
+import { runWithTrustedDatabaseTransaction } from "../../lib/prisma";
 
 const router = Router();
 
@@ -19,15 +19,20 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     const whereClause: any = {};
     if (action) whereClause.action = action;
 
-    const [logs, total] = await Promise.all([
-      prisma.auditLog.findMany({
-        where: whereClause,
-        orderBy: { createdAt: 'desc' },
-        skip: (pageNum - 1) * limitNum,
-        take: limitNum
-      }),
-      prisma.auditLog.count({ where: whereClause })
-    ]);
+    const [logs, total] = await runWithTrustedDatabaseTransaction(
+      { purpose: "ADMIN_AUDIT", actorId: (req as any).user?.id },
+      async (tx) => {
+        return await Promise.all([
+          tx.auditLog.findMany({
+            where: whereClause,
+            orderBy: { createdAt: 'desc' },
+            skip: (pageNum - 1) * limitNum,
+            take: limitNum
+          }),
+          tx.auditLog.count({ where: whereClause })
+        ]);
+      }
+    );
 
     res.json({
       success: true,
@@ -47,15 +52,30 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 // 2. Get Security Alerts specifically
 router.get("/security-alerts", async (req: Request, res: Response): Promise<void> => {
   try {
-    const alerts = await prisma.systemLog.findMany({
-      where: {
-        level: { in: ["WARN", "ERROR", "FATAL"] }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 20
-    });
+    const alerts = await runWithTrustedDatabaseTransaction(
+      { purpose: "ADMIN_AUDIT", actorId: (req as any).user?.id },
+      async (tx) => {
+        return await tx.systemLog.findMany({
+          where: {
+            level: { in: ["WARN", "ERROR", "FATAL"] }
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 20
+        });
+      }
+    );
 
-    res.json({ success: true, data: alerts });
+    const mappedAlerts = alerts.map((alert) => ({
+      ...alert,
+      severity:
+        alert.level === "FATAL" || alert.level === "ERROR"
+          ? "CRITICAL"
+          : alert.level === "WARN"
+          ? "WARNING"
+          : "INFO",
+    }));
+
+    res.json({ success: true, data: mappedAlerts });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }

@@ -23,12 +23,8 @@ export default function Checkout() {
       // For this isolated portal, we fetch all invoices linked to this authenticated student token
       setLoading(true);
       try {
-        const res = await apiCall(`/api/invoices`);
-        if (res.success) {
-           // Filter just in case the endpoint returns everything if not protected by studentId specifically
-           // Assuming backend respects the student token
-           setInvoices(res.data || []);
-        }
+        const res = await apiCall(`/api/v1/invoices`);
+        setInvoices(res || []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -71,10 +67,9 @@ export default function Checkout() {
               razorpay_signature: response.razorpay_signature,
               transactionId
             });
-            if (verifyRes.success) {
-              alert("Payment Successful! Receipt: " + verifyRes.receiptNo);
-              setInvoices(invoices.map(inv => inv.id === feeId ? { ...inv, status: "PAID", remainingAmount: 0 } : inv));
-            }
+            const receiptNo = (verifyRes as any)?.receiptNo || "";
+            alert("Payment Successful!" + (receiptNo ? " Receipt: " + receiptNo : ""));
+            setInvoices(invoices.map(inv => inv.id === feeId ? { ...inv, status: "PAID", remainingAmount: 0 } : inv));
           } catch (e: any) {
             alert("Verification Failed: " + e.message);
           }

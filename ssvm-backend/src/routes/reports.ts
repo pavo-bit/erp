@@ -7,6 +7,7 @@ import { Parser } from "json2csv";
 import { Queue } from "bullmq";
 import { getEnv } from "../config/env";
 import logger from "../lib/logger";
+import { compileReportCardData, reportCardTemplateHtml } from "../services/report-card.service";
 
 const router = Router();
 const env = getEnv();
@@ -181,7 +182,7 @@ export const defaultReportCardTemplate = `
 /**
  * Generate a PDF from a given template and data
  */
-export async function generatePDF(templateString: string, data: any): Promise<Buffer> {
+export async function generatePDF(templateString: string, data: Record<string, unknown>): Promise<Buffer> {
   const template = handlebars.compile(templateString);
   const html = template(data);
 
@@ -250,62 +251,92 @@ router.post("/generate/receipt", authenticate, requireRole("ADMIN", "PARENT"), a
   }
 });
 
-// GENERATE REPORT CARD PDF (ASYNC QUEUE)
-router.post("/generate/report-card", authenticate, requireRole("ADMIN", "TEACHER", "PARENT"), async (req: AuthRequest, res: Response) => {
+// GET REPORT CARD DATA (JSON)
+router.get("/report-card/:examId/:studentId", authenticate, requireRole("ERP_ADMIN", "SUPER_ADMIN", "TEACHER", "PARENT", "STUDENT"), async (req: AuthRequest, res: Response) => {
+  try {
+    const studentId = req.params.studentId as string;
+    const examId = req.params.examId as string;
+    const schoolId = req.user!.schoolId!;
+
+    // STUDENT role self-check
+    if (req.user!.role === "STUDENT") {
+      const studentIdFromToken = (req.user as { studentId?: string }).studentId;
+      if (studentId !== studentIdFromToken) {
+        return res.status(403).json({ success: false, error: "Access denied" });
+      }
+    }
+
+    // PARENT role child-check
+    if (req.user!.role === "PARENT") {
+      const guardian = await prisma.guardian.findUnique({
+        where: { userId: req.user!.id },
+        include: { students: { select: { id: true } } }
+      });
+      const childIds = guardian?.students.map(s => s.id) || [];
+      if (!childIds.includes(studentId)) {
+        return res.status(403).json({ success: false, error: "Access denied" });
+      }
+    }
+
+    const reportCard = await compileReportCardData(schoolId, studentId, examId);
+    res.json({ success: true, data: reportCard });
+  } catch (e: unknown) {
+    const errorObj = e as { status?: number; message?: string };
+    if (errorObj.status === 404) {
+      res.status(404).json({ success: false, error: errorObj.message });
+      return;
+    }
+    logger.error({ err: e }, "Failed to fetch report card");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GENERATE REPORT CARD PDF (ASYNC QUEUE OR SYNCHRONOUS FALLBACK)
+router.post("/generate/report-card", authenticate, requireRole("ERP_ADMIN", "SUPER_ADMIN", "TEACHER", "PARENT"), async (req: AuthRequest, res: Response) => {
   try {
     const { studentId, examId } = req.body;
+    const schoolId = req.user!.schoolId!;
+
+    if (!studentId || !examId) {
+      res.status(400).json({ success: false, error: "studentId and examId are required" });
+      return;
+    }
+
+    // Compile real report card data
+    const data = await compileReportCardData(schoolId, studentId, examId);
 
     if (pdfQueue) {
       const job = await pdfQueue.add("generate-report-card", {
         type: "report-card",
         studentId,
         examId,
+        reportData: data,
         userId: req.user!.id,
-        schoolId: req.user!.schoolId,
+        schoolId,
       });
       res.json({ success: true, data: { jobId: job.id, message: "PDF generation queued. You will be notified via SSE." } });
       return;
     }
 
-    // Fallback if no Redis (synchronous)
-    const data = {
-      schoolName: "SSVM College Square",
-      schoolAddress: "123 Education Hub, Knowledge City",
-      examName: "Term 1 Final Examination",
-      academicSession: "2026-2027",
-      studentName: "Aarav Sharma",
-      className: "Class X-A",
-      rollNo: "12",
-      attendance: "94.5%",
-      subjects: [
-        { name: "Mathematics", maxMarks: 100, marksObtained: 95, grade: "A+" },
-        { name: "Science", maxMarks: 100, marksObtained: 88, grade: "A" },
-        { name: "English", maxMarks: 100, marksObtained: 92, grade: "A+" },
-        { name: "Social Studies", maxMarks: 100, marksObtained: 89, grade: "A" },
-        { name: "Hindi", maxMarks: 100, marksObtained: 98, grade: "A+" }
-      ],
-      totalMarks: 462,
-      maxTotal: 500,
-      percentage: "92.4",
-      finalGrade: "A+",
-      remarks: "Aarav is an outstanding student who actively participates in class. Keep up the excellent work!"
-    };
-
-    const pdfBuffer = await generatePDF(defaultReportCardTemplate, data);
+    // Synchronous fallback
+    const pdfBuffer = await generatePDF(reportCardTemplateHtml, data as unknown as Record<string, unknown>);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="ReportCard-${data.studentName.replace(/\s+/g, '_')}.pdf"`);
+    res.setHeader('Content-Disposition', `attachment; filename="ReportCard-${data.student.name.replace(/\s+/g, '_')}.pdf"`);
     res.send(pdfBuffer);
-  } catch (e) {
+  } catch (e: unknown) {
+    const errorObj = e as { status?: number; message?: string };
+    if (errorObj.status === 404) {
+      res.status(404).json({ success: false, error: errorObj.message });
+      return;
+    }
     logger.error({ err: e }, "PDF Generation Error");
-    res.status(500).json({ success: false, error: "Failed to queue PDF generation" });
+    res.status(500).json({ success: false, error: "Failed to generate report card PDF" });
   }
 });
 
 // EXPORT ATTENDANCE CSV
 router.get("/export/attendance", authenticate, requireRole("ADMIN", "TEACHER"), async (req: AuthRequest, res: Response) => {
   try {
-    const { classId, dateStr } = req.query;
-    
     // Mock data for demonstration, normally fetched from DB
     const mockData = [
       { studentName: "Aarav Sharma", rollNo: "12", date: "2026-10-15", status: "PRESENT", remarks: "" },

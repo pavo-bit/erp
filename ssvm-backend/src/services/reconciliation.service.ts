@@ -104,7 +104,8 @@ export class ReconciliationService {
       }
 
       // Match found — verify amount alignment
-      const amountDiff = Math.abs(ssvmTransaction.amountPaid - razorpayAmount);
+      const ssvmPaid = Number(ssvmTransaction.amountPaid);
+      const amountDiff = Math.abs(ssvmPaid - razorpayAmount);
       const toleranceRupees = 1; // Allow Rs 1 rounding tolerance
 
       if (amountDiff > toleranceRupees) {
@@ -115,9 +116,9 @@ export class ReconciliationService {
           razorpayFee,
           razorpayNetAmount,
           ssvmTransactionId: ssvmTransaction.id,
-          ssvmAmountPaid: ssvmTransaction.amountPaid,
+          ssvmAmountPaid: ssvmPaid,
           status: "AMOUNT_MISMATCH",
-          discrepancy: ssvmTransaction.amountPaid - razorpayAmount,
+          discrepancy: ssvmPaid - razorpayAmount,
         });
         continue;
       }
@@ -131,7 +132,7 @@ export class ReconciliationService {
         razorpayFee,
         razorpayNetAmount,
         ssvmTransactionId: ssvmTransaction.id,
-        ssvmAmountPaid: ssvmTransaction.amountPaid,
+        ssvmAmountPaid: ssvmPaid,
         status: "MATCHED",
       });
     }

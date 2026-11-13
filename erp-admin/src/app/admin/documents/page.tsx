@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { FolderOpen, Upload, FileText, CheckCircle, ShieldCheck } from "lucide-react";
 import useSWR from "swr";
 
-const fetcher = (url: string) => fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }).then(res => res.json());
+const fetcher = (url: string) => fetch(url, { credentials: "include" }).then(res => res.json());
 
 export default function DocumentsPage() {
   const { data: documentsData, isLoading } = useSWR("/api/v1/documents", fetcher);

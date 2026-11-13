@@ -16,7 +16,7 @@ export default function DefaultersPage() {
     try {
       setLoading(true);
       const res = await apiCall("/api/v1/finance/defaulters", "GET");
-      setDefaulters(res.data || []);
+      setDefaulters(res || []);
     } catch (e) {
       console.error("Failed to fetch defaulters");
     } finally {

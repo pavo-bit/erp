@@ -1,7 +1,8 @@
 import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
-import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
+import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin } from "../middleware/auth";
+import { saveTimetableWithCollisionGuard } from "../services/timetable.service";
 
 const router = Router();
 
@@ -61,48 +62,41 @@ router.get("/teacher/:teacherId", authenticate, requireTeacherOrAdmin(), async (
   }
 });
 
-// POST /api/timetable — Create/update timetable
+// POST /api/timetable — Create/update timetable with collision detection
 router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId;
     const { sectionId, day, slots } = req.body;
 
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School ID required" });
+      return;
+    }
+
     if (!sectionId || !day || !slots?.length) {
-      res.status(400).json({ success: false, error: "Section, day, and slots are required" }); return;
+      res.status(400).json({ success: false, error: "Section, day, and slots are required" });
+      return;
     }
 
-    // Upsert: delete existing timetable for this section/day, then create new
-    let existing;
-    if (sectionId) {
-      existing = await prisma.timetable.findFirst({
-        where: { schoolId: schoolId!, sectionId, day },
-      });
-    }
-
-    if (existing) {
-      await prisma.timetableSlot.deleteMany({ where: { timetableId: existing.id } });
-      await prisma.timetable.delete({ where: { id: existing.id } });
-    }
-
-    const timetable = await prisma.timetable.create({
-      data: {
-        schoolId: schoolId!,
-        sectionId: sectionId || null,
-        day,
-        slots: {
-          create: slots.map((s: { period: number; teacherSubjectAssignmentId: string; startTime: string; endTime: string }) => ({
-            period: s.period,
-            teacherSubjectAssignmentId: s.teacherSubjectAssignmentId,
-            startTime: s.startTime,
-            endTime: s.endTime,
-          })),
-        },
-      },
-      include: { slots: { orderBy: { period: "asc" } } },
-    });
+    const timetable = await saveTimetableWithCollisionGuard(
+      schoolId,
+      sectionId,
+      day,
+      slots
+    );
 
     res.status(201).json({ success: true, data: timetable });
-  } catch (e) {
+  } catch (e: unknown) {
+    const errorObj = e as { status?: number; code?: string; message?: string; details?: unknown };
+    if (errorObj.status === 409 || errorObj.code === "TEACHER_COLLISION" || errorObj.code === "SECTION_COLLISION" || errorObj.code === "INVALID_TIME" || errorObj.code === "CROSS_TENANT_VIOLATION") {
+      res.status(errorObj.status || 409).json({
+        success: false,
+        error: errorObj.message,
+        code: errorObj.code,
+        details: errorObj.details
+      });
+      return;
+    }
     logger.error({ err: e }, "Create timetable error");
     res.status(500).json({ success: false, error: "Server error" });
   }

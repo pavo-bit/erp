@@ -1,0 +1,205 @@
+/* Creative Rube Goldberg Login Machine Styles */
+
+.creative-login-page {
+  width: 100vw;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background-color: #FAF9F6;
+  position: relative;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #1a1a1a;
+  user-select: none;
+}
+
+.creative-login-page .machine-container {
+  position: fixed;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 1000px;
+  height: 800px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.creative-login-page svg.machine-svg,
+.creative-login-page .form-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.creative-login-page .form-container {
+  width: 270px;
+  z-index: 10;
+}
+
+.creative-login-page svg.machine-svg {
+  width: 1000px;
+  height: 1000px;
+  pointer-events: none;
+  stroke-width: 1.2px;
+  stroke: #000000;
+  fill: none;
+  z-index: 5;
+}
+
+.creative-login-page .brand-header {
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.creative-login-page .brand-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #111111;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.creative-login-page .brand-subtitle {
+  font-size: 11px;
+  color: #777777;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+.creative-login-page .form-container .form-row {
+  width: 100%;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+}
+
+.creative-login-page .form-container .form-row input[type="text"],
+.creative-login-page .form-container .form-row input[type="email"],
+.creative-login-page .form-container .form-row input[type="password"] {
+  width: 100%;
+  height: 34px;
+  margin: 0;
+  padding: 6px 10px;
+  outline: none;
+  border: 2px solid #dddddd;
+  background-color: #ffffff;
+  color: #111111;
+  font-size: 14px;
+  font-family: inherit;
+  border-radius: 2px;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.creative-login-page .form-container .form-row input[type="text"]:focus,
+.creative-login-page .form-container .form-row input[type="email"]:focus,
+.creative-login-page .form-container .form-row input[type="password"]:focus {
+  border-color: #000000;
+  box-shadow: 0 0 0 1px #000000;
+}
+
+.creative-login-page .form-container .form-row input.valid {
+  border-color: #000000;
+}
+
+.creative-login-page .form-container .form-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin: 0 10px 0 0;
+  padding: 0;
+  border: 2px solid #dddddd;
+  cursor: pointer;
+  accent-color: #000000;
+}
+
+.creative-login-page .form-container .form-row label.checkbox-label {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  color: #444444;
+  cursor: pointer;
+  user-select: none;
+}
+
+.creative-login-page .form-container .form-row input[type="submit"] {
+  width: 100%;
+  height: 40px;
+  cursor: pointer;
+  border: 2px solid #111111;
+  background-color: #eeeeee;
+  color: rgba(0, 0, 0, 0);
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: inherit;
+  border-radius: 2px;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  position: relative;
+  z-index: 20;
+}
+
+.creative-login-page .form-container .form-row input[type="submit"]:hover {
+  background-color: #e2e2e2;
+}
+
+.creative-login-page .form-container .form-row input[type="submit"]:active {
+  transform: scale(0.98);
+}
+
+.creative-login-page .form-container label,
+.creative-login-page .form-container input,
+.creative-login-page .form-container input::placeholder {
+  font-size: 14px;
+  font-family: inherit;
+  color: #888888;
+}
+
+.creative-login-page .error-banner {
+  background-color: #fee2e2;
+  border: 1px solid #ef4444;
+  color: #b91c1c;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 6px;
+  animation: shake 0.4s ease-in-out;
+}
+
+.creative-login-page .quick-demo-pill {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  padding: 8px 18px;
+  border-radius: 9999px;
+  font-size: 12px;
+  color: #333333;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 50;
+}
+
+.creative-login-page .quick-demo-pill:hover {
+  background-color: #f3f3f3;
+  border-color: #000000;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}

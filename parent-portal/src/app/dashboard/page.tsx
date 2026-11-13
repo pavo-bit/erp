@@ -19,12 +19,12 @@ export default function DashboardOverview() {
         // We will mock this response until we build a dedicated parent dashboard endpoint
         // Or we can use existing endpoints if they support parent role nicely
         const [attendanceRes, invoiceRes] = await Promise.all([
-          apiCall(`/api/attendance?studentId=${selectedStudentId}&limit=10`),
-          apiCall(`/api/invoices?studentId=${selectedStudentId}&status=PENDING`)
+          apiCall(`/api/v1/attendance?studentId=${selectedStudentId}&limit=10`),
+          apiCall(`/api/v1/invoices?studentId=${selectedStudentId}&status=PENDING`)
         ]);
 
-        const attendances = attendanceRes.data || [];
-        const invoices = invoiceRes.data || [];
+        const attendances = (Array.isArray(attendanceRes) ? attendanceRes : attendanceRes?.data) || [];
+        const invoices = (Array.isArray(invoiceRes) ? invoiceRes : invoiceRes?.data) || [];
 
         const presentCount = attendances.filter((a: any) => a.status === 'PRESENT').length;
         const totalCount = attendances.length || 1;

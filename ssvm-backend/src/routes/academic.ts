@@ -2,6 +2,17 @@ import { Router, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAcademicAdmin, requireTeacherOrAdmin, requireSchoolAccess } from "../middleware/auth";
+import { evaluateStudentForPromotion, promoteStudentsBatch } from "../services/promotion.service";
+import {
+  DEFAULT_CBSE_PROFILE,
+  DEFAULT_ICSE_PROFILE,
+  CBSE_GRADING_SCALE,
+  ICSE_GRADING_SCALE,
+  STATE_BOARD_GRADING_SCALE,
+  GPA_4_GRADING_SCALE,
+  IB_GRADING_SCALE,
+  AssessmentProfile,
+} from "../services/gradebook.service";
 
 const router = Router();
 
@@ -225,6 +236,133 @@ router.delete("/class-teachers/:id", authenticate, requireAcademicAdmin(), async
     logger.error({ err: e }, "Remove class teacher error");
     res.status(500).json({ success: false, error: "Server error" });
   }
+});
+
+// ─── STUDENT ACADEMIC PROMOTION ───
+
+// GET /api/v1/academic/promote/evaluate/:studentId — Evaluate promotion eligibility
+router.get("/promote/evaluate/:studentId", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.role === "SUPER_ADMIN" ? (req.query.schoolId as string) : req.user!.schoolId!;
+    const studentId = req.params.studentId as string;
+    const { minPassMarks, minAttendance, requireAllPassed } = req.query;
+
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School ID required" });
+      return;
+    }
+
+    const evaluation = await evaluateStudentForPromotion(schoolId, studentId, {
+      minimumPassingPercentage: minPassMarks ? Number(minPassMarks) : undefined,
+      minimumAttendancePercentage: minAttendance ? Number(minAttendance) : undefined,
+      requireAllSubjectsPassed: requireAllPassed !== undefined ? requireAllPassed === "true" : undefined
+    });
+
+    res.json({ success: true, data: evaluation });
+  } catch (e: unknown) {
+    const errorObj = e as { status?: number; message?: string };
+    if (errorObj.status === 404) {
+      res.status(404).json({ success: false, error: errorObj.message });
+      return;
+    }
+    logger.error({ err: e }, "Evaluate student promotion error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// POST /api/v1/academic/promote — Batch promote students with prerequisite checks
+router.post("/promote", authenticate, requireAcademicAdmin(), async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user!.role === "SUPER_ADMIN" ? req.body.schoolId : req.user!.schoolId!;
+    const { studentIds, targetClassId, targetSectionId, criteria, force, remarks } = req.body;
+
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School ID required" });
+      return;
+    }
+
+    if (!studentIds?.length || !targetClassId || !targetSectionId) {
+      res.status(400).json({
+        success: false,
+        error: "studentIds (array), targetClassId, and targetSectionId are required"
+      });
+      return;
+    }
+
+    const result = await promoteStudentsBatch({
+      schoolId,
+      studentIds,
+      targetClassId,
+      targetSectionId,
+      criteria,
+      force: Boolean(force),
+      remarks,
+      promotedById: req.user!.id
+    });
+
+    res.status(200).json(result);
+  } catch (e: unknown) {
+    const errorObj = e as { status?: number; message?: string };
+    if (errorObj.status === 404) {
+      res.status(404).json({ success: false, error: errorObj.message });
+      return;
+    }
+    logger.error({ err: e }, "Batch promotion error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// ─── CONFIGURABLE ASSESSMENT PROFILES & SCALES (Phase 3 Enhancement) ───
+
+// GET /api/v1/academic/assessment-profiles
+router.get("/assessment-profiles", authenticate, requireTeacherOrAdmin(), requireSchoolAccess(), async (req: AuthRequest, res: Response) => {
+  try {
+    const profiles: AssessmentProfile[] = [
+      DEFAULT_CBSE_PROFILE,
+      DEFAULT_ICSE_PROFILE,
+      {
+        name: "State Board Secondary",
+        board: "STATE_BOARD",
+        gradingScale: STATE_BOARD_GRADING_SCALE,
+        passingRules: {
+          minOverallPercentage: 35.0,
+          minSubjectPercentage: 35.0,
+          maxCompartmentAllowed: 2,
+          allowGraceMarks: 5,
+        },
+      },
+      {
+        name: "International Baccalaureate (IB)",
+        board: "IB",
+        gradingScale: IB_GRADING_SCALE,
+        passingRules: {
+          minOverallPercentage: 40.0,
+          minSubjectPercentage: 40.0,
+          maxCompartmentAllowed: 0,
+          allowGraceMarks: 0,
+        },
+      },
+    ];
+
+    res.json({ success: true, data: profiles });
+  } catch (e) {
+    logger.error({ err: e }, "Get assessment profiles error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/v1/academic/grading-scales
+router.get("/grading-scales", authenticate, requireTeacherOrAdmin(), async (_req: AuthRequest, res: Response) => {
+  res.json({
+    success: true,
+    data: {
+      CBSE: CBSE_GRADING_SCALE,
+      ICSE: ICSE_GRADING_SCALE,
+      STATE_BOARD: STATE_BOARD_GRADING_SCALE,
+      GPA_4: GPA_4_GRADING_SCALE,
+      IB: IB_GRADING_SCALE,
+    },
+  });
 });
 
 export default router;

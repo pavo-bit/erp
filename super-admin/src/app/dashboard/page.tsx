@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/lib/auth-context";
 import { useSuperAdminStats, useSchools, apiCall } from "@/lib/api";
+import GrafanaDashboardSection from "@/components/GrafanaDashboardSection";
 
 const sidebarItems = [
   { icon: "🌌", label: "Command Center", href: "/dashboard", gradient: "from-purple-500 to-fuchsia-500" },
@@ -167,6 +168,9 @@ export default function DashboardPage() {
               </motion.div>
             ))}
           </div>
+
+          {/* Operational Telemetrics & Live Grafana Dashboards */}
+          <GrafanaDashboardSection />
 
           {/* Network Command Center */}
           <div className="flex items-center justify-between mb-6">

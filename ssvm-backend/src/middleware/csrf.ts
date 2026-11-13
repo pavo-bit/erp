@@ -40,32 +40,16 @@ export function injectCsrfToken(req: Request, res: Response, next: NextFunction)
 
 // Wrapper for doubleCsrfProtection that includes route exclusions
 export function csrfProtection(req: Request, res: Response, next: NextFunction) {
-  // Excluded routes where CSRF validation is disabled:
-  const excludedRoutes = [
-    { method: "POST", path: "/api/payments/webhook" },
-    { method: "POST", path: "/api/auth/login" },
-    { method: "POST", path: "/api/auth/student/login" },
-    { method: "POST", path: "/api/auth/verify-2fa" },
-    { method: "POST", path: "/api/auth/alumni/register" },
-    // Aliases mapped under /api/v1/
-    { method: "POST", path: "/api/v1/payments/webhook" },
-    { method: "POST", path: "/api/v1/auth/login" },
-    { method: "POST", path: "/api/v1/auth/student/login" },
-    { method: "POST", path: "/api/v1/auth/verify-2fa" },
-    { method: "POST", path: "/api/v1/auth/alumni/register" },
-  ];
-
-  // Check if current route is in the exclusions
-  const isExcluded = excludedRoutes.some((route) => {
-    return req.method === route.method && req.path === route.path;
-  });
-
-  if (isExcluded) {
-    return next();
-  }
-
   const hasAuthCookie = Boolean(req.cookies?.access_token || req.cookies?.auth_token || req.cookies?.refresh_token);
   const origin = req.get("origin");
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Cross-Origin Defense for Cookie-Authenticated Requests:
+  // For all cookie-carrying requests (including /api/v1/auth/refresh and logout),
+  // if an Origin header is present, it MUST match the configured trusted origin.
+  // This prevents malicious third-party origins from issuing ambient-credential
+  // state requests, even on routes excluded from doubleCsrf token validation.
+  // ═══════════════════════════════════════════════════════════════════════════
   if (hasAuthCookie && origin) {
     let allowedOrigin: string;
     try {
@@ -78,9 +62,54 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // CSRF Double-Submit Cookie Validation Exclusions:
+  // - Public bootstrap routes (login, student/login, verify-2fa, alumni/register):
+  //   Pre-authentication endpoints where no prior session or CSRF token exists.
+  // - Webhook endpoints (payments/webhook):
+  //   Machine-to-machine integrations secured via HMAC cryptographic signatures.
+  // - Token lifecycle routes (refresh, logout):
+  //   Protected via HttpOnly SameSite=Lax cookies, strict Origin checks above,
+  //   hashed refresh tokens in the database, and single-use token family rotation.
+  //   Double-submit CSRF headers are omitted here because refresh requests occur
+  //   asynchronously when the client access token or CSRF token may have expired.
+  // ═══════════════════════════════════════════════════════════════════════════
+  const excludedRoutes = [
+    { method: "POST", path: "/api/payments/webhook" },
+    { method: "POST", path: "/api/auth/login" },
+    { method: "POST", path: "/api/auth/student/login" },
+    { method: "POST", path: "/api/auth/refresh" },
+    { method: "POST", path: "/api/auth/logout" },
+    { method: "POST", path: "/api/auth/verify-2fa" },
+    { method: "POST", path: "/api/auth/alumni/register" },
+    // Aliases mapped under /api/v1/
+    { method: "POST", path: "/api/v1/payments/webhook" },
+    { method: "POST", path: "/api/v1/auth/login" },
+    { method: "POST", path: "/api/v1/auth/student/login" },
+    { method: "POST", path: "/api/v1/auth/refresh" },
+    { method: "POST", path: "/api/v1/auth/logout" },
+    { method: "POST", path: "/api/v1/auth/verify-2fa" },
+    { method: "POST", path: "/api/v1/auth/alumni/register" },
+    { method: "POST", path: "/api/v1/auth/set-password" },
+  ];
+
+  // Check if current route is in the exclusions
+  const isExcluded = excludedRoutes.some((route) => {
+    return req.method === route.method && req.path === route.path;
+  });
+
+  if (isExcluded) {
+    return next();
+  }
+
   // A bearer token is supplied explicitly by the caller and is not ambient browser
   // credential state. Cookie-authenticated requests remain subject to CSRF checks.
   if (req.headers.authorization?.startsWith("Bearer ") && !hasAuthCookie) {
+    return next();
+  }
+
+  // Machine-to-machine IoT telemetry requests carrying X-Device-Token or targeting telemetry endpoints
+  if ((req.headers["x-device-token"] || req.path.endsWith("/telemetry")) && !hasAuthCookie) {
     return next();
   }
 

@@ -29,18 +29,15 @@ function ProfileContent() {
     }
 
     try {
-      const result = await apiCall('/api/auth/change-password', 'POST', {
+      await apiCall('/api/v1/auth/change-password', 'POST', {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword,
       });
-
-      if (result.success) {
+      {
         setMessage('Password changed successfully. Please log in again.');
         setTimeout(() => {
           window.location.href = '/login';
         }, 2000);
-      } else {
-        setError(result.error || 'Failed to change password');
       }
     } catch (err) {
       setError('An error occurred');

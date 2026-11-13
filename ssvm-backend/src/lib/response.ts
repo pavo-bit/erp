@@ -130,11 +130,21 @@ export function serverError(res: Response, error = "An unexpected error occurred
 // ═══════════════════════════════════════════
 
 /**
- * Middleware that adds X-Request-ID and X-API-Version to every response.
+ * Middleware that binds and propagates X-Correlation-ID, X-Request-ID, and X-API-Version.
  */
 export function addResponseHeaders() {
-  return (_req: import("express").Request, res: Response, next: import("express").NextFunction): void => {
-    res.setHeader("X-Request-ID", crypto.randomUUID());
+  return (req: any, res: Response, next: import("express").NextFunction): void => {
+    const requestId = (req.headers["x-request-id"] as string) || crypto.randomUUID();
+    const correlationId =
+      (req.headers["x-correlation-id"] as string) ||
+      (req.headers["x-trace-id"] as string) ||
+      requestId;
+
+    req.id = requestId;
+    req.correlationId = correlationId;
+
+    res.setHeader("X-Request-ID", requestId);
+    res.setHeader("X-Correlation-ID", correlationId);
     res.setHeader("X-API-Version", "v1");
     next();
   };
