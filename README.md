@@ -31,7 +31,7 @@ This file contains everything:
 
 ## 🔐 Initial access
 
-This repository does not provide default production-capable login credentials. Provision accounts through the documented local bootstrap and use unique credentials in a controlled development database. See `docs/CLEAN_INSTALLATION_GUIDE.md`; it currently documents prerequisites and is not yet a fully verified bootstrap.
+This repository does not provide default production-capable login credentials. Older examples referencing `admin@ssvm-cuttack.org / admin123` are stale and must not be used. Provision accounts through the documented local bootstrap (`ALLOW_DEMO_SEED=true` + `SEED_SUPER_ADMIN_EMAIL` + a password of at least 16 characters, non-production `NODE_ENV`) and use unique credentials in a controlled development database. See `docs/CLEAN_INSTALLATION_GUIDE.md`.
 
 ---
 
@@ -58,9 +58,14 @@ This repository does not provide default production-capable login credentials. P
 
 ## 🌐 URLs
 
-- **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:5000
-- **Admin Dashboard:** http://localhost:3000/login
+- **Backend API:** http://localhost:5000 (health: /health)
+- **ERP Admin:** http://localhost:3005
+- **Super Admin:** http://localhost:3003
+- **Teacher Portal:** http://localhost:3004
+- **Student Portal:** http://localhost:3000
+- **Parent Portal:** http://localhost:3006
+- **Payment Portal:** http://localhost:3007
+- **SaaS Frontend:** http://localhost:3008
 
 ---
 
