@@ -1,15 +1,26 @@
 name: Continuous Integration
 
 on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'lane/**'
+      - 'remediation/**'
   pull_request:
     branches:
       - main
       - develop
       - 'remediation/**'
+      - 'lane/**'
 
 jobs:
   backend-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       postgres:
         image: postgres:16-alpine
@@ -298,6 +309,16 @@ jobs:
       - run: npm ci
       - name: Build Next.js App
         run: npm run build
+
+  e2e-harness:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: E2E harness (non-blocking)
+        run: |
+          echo "E2E harness placeholder - docker-compose.e2e.yml present"
+          test -f docker-compose.e2e.yml
 
   security-scan:
     runs-on: ubuntu-latest
