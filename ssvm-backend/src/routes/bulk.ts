@@ -1,9 +1,11 @@
+import crypto from "crypto";
 import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireOperationsAdmin, hashPassword } from "../middleware/auth";
 import { enqueueImport } from "../jobs/queue";
 import { storageService } from "../services/storage.service";
+import mailService from "../services/mail.service";
 import { v4 as uuidv4 } from "uuid";
 import Papa from "papaparse";
 import { sendSuccess, sendError } from "../lib/response";
@@ -57,13 +59,60 @@ router.post("/upload", authenticate, requireOperationsAdmin(), async (req: AuthR
         }
 
         if (!isValidationPhase) {
-          const finalAdmissionNo = row.AdmissionNo ? String(row.AdmissionNo) : `ADM${Math.floor(100000 + Math.random() * 900000)}`;
-          const plainPassword = row.Password ? String(row.Password) : `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
-          const hashedPassword = await hashPassword(plainPassword);
+          let finalAdmissionNo = row.AdmissionNo ? String(row.AdmissionNo) : null;
+          if (!finalAdmissionNo) {
+            const currentYear = new Date().getFullYear();
+            const counterKey = `ADMISSION_${currentYear}`;
+            const counter = await prisma.sequenceCounter.upsert({
+              where: { schoolId_key: { schoolId, key: counterKey } },
+              update: { currentValue: { increment: 1 } },
+              create: { schoolId, key: counterKey, currentValue: 1 },
+            });
+            finalAdmissionNo = `ADM-${currentYear}-${String(counter.currentValue).padStart(4, "0")}`;
+          }
+
+          const cleanAdNo = finalAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
+          const studentEmail = row.Email ? String(row.Email) : `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
+          const unusableSecret = crypto.randomBytes(32).toString("hex");
+          const hashedPassword = await hashPassword(unusableSecret);
+
+          const user = await prisma.user.create({
+            data: {
+              schoolId,
+              email: studentEmail,
+              name: String(row.Name),
+              passwordHash: hashedPassword,
+              role: "STUDENT",
+              mustChangePassword: true,
+              isActive: true,
+            },
+          });
+
+          const rawToken = crypto.randomBytes(32).toString("hex");
+          const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+          const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+          await prisma.passwordSetupToken.create({
+            data: {
+              schoolId,
+              userId: user.id,
+              tokenHash,
+              expiresAt,
+              createdBy: req.user!.id,
+            },
+          });
+
+          const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
+          try {
+            await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
+          } catch (mailErr) {
+            logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+          }
 
           await prisma.student.create({
             data: {
               school: { connect: { id: schoolId } },
+              user: { connect: { id: user.id } },
               name: String(row.Name),
               rollNo: String(row.RollNo),
               admissionNo: finalAdmissionNo,

@@ -3,6 +3,7 @@ import { describe, expect, it, beforeAll, afterAll } from "vitest";
 import { Role } from "@prisma/client";
 import { createTestApp, getTestPrisma } from "../helpers/testApp";
 import { hashPassword, signToken } from "../../middleware/auth";
+import { runWithTrustedDatabaseTransaction } from "../../lib/prisma";
 
 const app = createTestApp();
 const prisma = getTestPrisma();
@@ -183,12 +184,25 @@ describe("Student user linking and two-schools isolation", () => {
     expect(userB!.schoolId).toBe(schoolBId);
     expect(userB!.role).toBe("STUDENT");
 
+    // Student passwords are now unusable secrets (Task 1.5 security fix).
+    // Set known passwords via trusted transaction for cross-school isolation testing.
+    const pwA = "StudentPassword@123";
+    const pwB = "StudentPassword@456";
+    const hashA = await hashPassword(pwA);
+    const hashB = await hashPassword(pwB);
+    await runWithTrustedDatabaseTransaction({ purpose: "SUPER_ADMIN_SEARCH" }, async () => {
+      await prisma.user.update({ where: { id: studentA.userId }, data: { passwordHash: hashA, mustChangePassword: false } });
+      await prisma.student.update({ where: { id: studentA.id }, data: { password: hashA } });
+      await prisma.user.update({ where: { id: studentB.userId }, data: { passwordHash: hashB, mustChangePassword: false } });
+      await prisma.student.update({ where: { id: studentB.id }, data: { password: hashB } });
+    });
+
     // Test student A login
     const loginResA = await request(app)
       .post("/api/v1/auth/student/login")
       .send({
         admissionNo,
-        password: "StudentPassword@123",
+        password: pwA,
         schoolCode: (await prisma.school.findUnique({ where: { id: schoolAId } }))!.code,
       });
 
@@ -201,7 +215,7 @@ describe("Student user linking and two-schools isolation", () => {
       .post("/api/v1/auth/student/login")
       .send({
         admissionNo,
-        password: "StudentPassword@456",
+        password: pwB,
         schoolCode: (await prisma.school.findUnique({ where: { id: schoolBId } }))!.code,
       });
 
@@ -214,7 +228,7 @@ describe("Student user linking and two-schools isolation", () => {
       .post("/api/v1/auth/student/login")
       .send({
         admissionNo,
-        password: "StudentPassword@123",
+        password: pwA,
       });
 
     expect(ambiguousRes.status).toBe(401);

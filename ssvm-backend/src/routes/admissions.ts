@@ -1,10 +1,12 @@
+import crypto from "crypto";
 import { Router, Response } from "express";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireAdmissionsAdmin, hashPassword } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 import { admissionsApplyLimiter } from "../middleware/rateLimiter";
 import { verifyTurnstile, spamQualityValidation, PublicFormRequest } from "../middleware/turnstile";
+import mailService from "../services/mail.service";
 
 const router = Router();
 
@@ -100,42 +102,119 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
       res.status(400).json({ success: false, error: "Only approved admissions can be enrolled" }); return;
     }
 
-    const { rollNo, sectionId, admissionNo, password } = req.body;
+    const { rollNo, sectionId, admissionNo } = req.body;
     if (!rollNo) {
       res.status(400).json({ success: false, error: "Roll number is required" }); return;
     }
 
-    const guardian = await prisma.guardian.create({
-      data: { schoolId: admission.schoolId, primaryName: admission.parentName, primaryPhone: admission.parentPhone, primaryEmail: admission.parentEmail },
+    const currentYear = new Date().getFullYear();
+
+    const result = await runWithTenantDatabaseTransaction(admission.schoolId, async (tx: any) => {
+      // 1. Monotonic admission number from SequenceCounter
+      let finalAdmissionNo = admissionNo;
+      if (!finalAdmissionNo) {
+        const counterKey = `ADMISSION_${currentYear}`;
+        const counter = await tx.sequenceCounter.upsert({
+          where: { schoolId_key: { schoolId: admission.schoolId, key: counterKey } },
+          update: { currentValue: { increment: 1 } },
+          create: { schoolId: admission.schoolId, key: counterKey, currentValue: 1 },
+        });
+        finalAdmissionNo = `ADM-${currentYear}-${String(counter.currentValue).padStart(4, "0")}`;
+      }
+
+      // 2. Guardian creation
+      const guardian = await tx.guardian.create({
+        data: {
+          schoolId: admission.schoolId,
+          primaryName: admission.parentName,
+          primaryPhone: admission.parentPhone,
+          primaryEmail: admission.parentEmail,
+        },
+      });
+
+      // 3. User account with unusable password and password-setup token
+      const cleanAdNo = finalAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const studentEmail = admission.parentEmail || `${cleanAdNo}_${admission.schoolId.slice(-6)}@student.ssvm`;
+      const unusableSecret = crypto.randomBytes(32).toString("hex");
+      const hashedPassword = await hashPassword(unusableSecret);
+
+      const user = await tx.user.create({
+        data: {
+          schoolId: admission.schoolId,
+          email: studentEmail,
+          name: admission.applicantName,
+          passwordHash: hashedPassword,
+          role: "STUDENT",
+          mustChangePassword: true,
+          isActive: true,
+        },
+      });
+
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await tx.passwordSetupToken.create({
+        data: {
+          schoolId: admission.schoolId,
+          userId: user.id,
+          tokenHash,
+          expiresAt,
+          createdBy: req.user!.id,
+        },
+      });
+
+      const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
+      try {
+        await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
+      } catch (mailErr) {
+        logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+      }
+
+      // 4. Student record
+      const student = await tx.student.create({
+        data: {
+          schoolId: admission.schoolId,
+          userId: user.id,
+          name: admission.applicantName,
+          rollNo,
+          admissionNo: finalAdmissionNo,
+          password: hashedPassword,
+          sectionId: sectionId || null,
+          dob: admission.dob,
+          gender: admission.gender,
+          guardianId: guardian.id,
+          address: admission.address,
+        },
+        select: {
+          id: true,
+          schoolId: true,
+          name: true,
+          rollNo: true,
+          admissionNo: true,
+          sectionId: true,
+          dob: true,
+          gender: true,
+          guardianId: true,
+          address: true,
+          userId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // 5. Update admission status
+      await tx.admission.update({
+        where: { id: admission.id },
+        data: { status: "ENROLLED" },
+      });
+
+      return student;
     });
 
-    const finalAdmissionNo = admissionNo || `ADM${Math.floor(100000 + Math.random() * 900000)}`;
-    const plainPassword = password || `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
-    const hashedPassword = await hashPassword(plainPassword);
-
-    const student = await prisma.student.create({
-      data: {
-        schoolId: admission.schoolId,
-        name: admission.applicantName,
-        rollNo,
-        admissionNo: finalAdmissionNo,
-        password: hashedPassword,
-        sectionId: sectionId || null,
-        dob: admission.dob,
-        gender: admission.gender,
-        guardianId: guardian.id,
-        address: admission.address,
-      },
-    });
-
-    await prisma.admission.update({
-      where: { id: req.params.id as string },
-      data: { status: "ENROLLED" },
-    });
-
-    logger.info({ studentId: student.id, admissionId: admission.id }, "Student enrolled from admission");
-    res.status(201).json({ success: true, data: student, message: "Student enrolled successfully" });
-  } catch (e) {
+    logger.info({ studentId: result.id, admissionId: admission.id }, "Student enrolled from admission");
+    res.status(201).json({ success: true, data: result, message: "Student enrolled successfully" });
+  } catch (e: any) {
     logger.error({ err: e }, "Enroll error");
     res.status(500).json({ success: false, error: "Server error" });
   }

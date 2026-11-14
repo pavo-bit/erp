@@ -9,6 +9,7 @@
 import crypto from "crypto";
 import prisma, { runWithTenantDatabaseTransaction } from "../../lib/prisma";
 import { hashPassword } from "../../middleware/auth";
+import mailService from "../mail.service";
 import logger from "../../lib/logger";
 import {
   AdmissionType,
@@ -180,11 +181,11 @@ export class AdmissionRegistrationService {
       studentData.address
     );
 
-    // 2. Create User Account for Student Portal
+    // 2. Create User Account for Student Portal (invitation-based, unusable password)
     const cleanAdNo = allocatedAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
     const studentEmail = studentData.email || `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
-    const defaultPassword = `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
-    const hashedPassword = await hashPassword(defaultPassword);
+    const unusableSecret = crypto.randomBytes(32).toString("hex");
+    const hashedPassword = await hashPassword(unusableSecret);
 
     const user = await tx.user.create({
       data: {
@@ -193,9 +194,31 @@ export class AdmissionRegistrationService {
         name: studentData.name,
         passwordHash: hashedPassword,
         role: "STUDENT",
+        mustChangePassword: true,
         isActive: true,
       },
     });
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await tx.passwordSetupToken.create({
+      data: {
+        schoolId,
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+        createdBy: attestation.attestedByUserId || user.id,
+      },
+    });
+
+    const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
+    try {
+      await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
+    } catch (mailErr) {
+      logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+    }
 
     // 3. Create Canonical Student Record with extended demographic fields
     const rollNo = entry.placement?.rollNo || String(seqNumber);
@@ -417,11 +440,11 @@ export class AdmissionRegistrationService {
       studentData.address
     );
 
-    // 2. Create Student User Account
+    // 2. Create Student User Account (invitation-based, unusable password)
     const cleanAdNo = allocatedAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
     const studentEmail = studentData.email || `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
-    const defaultPassword = `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
-    const hashedPassword = await hashPassword(defaultPassword);
+    const unusableSecret = crypto.randomBytes(32).toString("hex");
+    const hashedPassword = await hashPassword(unusableSecret);
 
     const user = await tx.user.create({
       data: {
@@ -430,9 +453,31 @@ export class AdmissionRegistrationService {
         name: studentData.name,
         passwordHash: hashedPassword,
         role: "STUDENT",
+        mustChangePassword: true,
         isActive: true,
       },
     });
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await tx.passwordSetupToken.create({
+      data: {
+        schoolId,
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+        createdBy: attestation.attestedByUserId || user.id,
+      },
+    });
+
+    const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
+    try {
+      await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
+    } catch (mailErr) {
+      logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+    }
 
     // 3. Create Canonical Student Record with transfer details
     const rollNo = entry.placement?.rollNo || String(seqNumber);
