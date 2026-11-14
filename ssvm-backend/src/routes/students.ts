@@ -1,8 +1,10 @@
 
+import crypto from "crypto";
 import { Router, Response } from "express";
 import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import { AuthRequest, authenticate, requireRole, requireAcademicAdmin, hashPassword } from "../middleware/auth";
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
+import mailService from "../services/mail.service";
 import logger from "../lib/logger";
 
 const router = Router();
@@ -416,7 +418,6 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
     const {
       name,
       rollNo,
-      class: className,
       section,
       session,
       guardianName,
@@ -429,57 +430,51 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
       bloodGroup,
       address,
     } = req.body;
+    const className = req.body.class || req.body.className;
 
-    const schoolId = req.user!.schoolId || (await prisma.school.findFirst())?.id;
+    const schoolId = req.user?.schoolId;
     if (!schoolId) {
-      return res.status(400).json({ success: false, error: "No school found to associate with" });
+      return res.status(400).json({ success: false, error: "School context required" });
     }
 
     const currentYear = new Date().getFullYear();
-    const admissionNo = req.body.admissionNo || `ADM-${currentYear}-${Math.floor(1000 + Math.random() * 9000)}`;
-    const rawPassword = req.body.password || `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
-    const hashedPassword = await hashPassword(rawPassword);
-
     let createdStudent: any = null;
 
     await runWithTenantDatabaseTransaction(schoolId, async (tx: any) => {
-      // 1. Resolve Section & Class
+      // 1. Resolve Section & Class (Fail if not found, DO NOT silently create)
       let resolvedSectionId = sectionId;
       if (!resolvedSectionId) {
-        const clsName = className || "Class 1";
+        if (!className) {
+          throw new Error("className or sectionId is required");
+        }
         const secName = section || "A";
-
-        let sectionRec = await tx.section.findFirst({
-          where: { name: secName, class: { name: clsName, schoolId } },
+        const sectionRec = await tx.section.findFirst({
+          where: { name: secName, class: { name: className, schoolId } },
           include: { class: true },
         });
-
         if (!sectionRec) {
-          let classRec = await tx.class.findFirst({ where: { name: clsName, schoolId } });
-          if (!classRec) {
-            let sessionRec = await tx.academicSession.findFirst({
-              where: { name: session || `${currentYear}-${currentYear + 1}`, schoolId },
-            });
-            if (!sessionRec) {
-              sessionRec = await tx.academicSession.create({
-                data: {
-                  schoolId,
-                  name: session || `${currentYear}-${currentYear + 1}`,
-                  startDate: new Date(`${currentYear}-04-01`),
-                  endDate: new Date(`${currentYear + 1}-03-31`),
-                },
-              });
-            }
-            classRec = await tx.class.create({
-              data: { schoolId, name: clsName, sessionId: sessionRec.id },
-            });
-          }
-          sectionRec = await tx.section.create({
-            data: { classId: classRec.id, name: secName },
-            include: { class: true },
-          });
+          throw new Error(`Class '${className}' or section '${secName}' does not exist in this school`);
         }
         resolvedSectionId = sectionRec.id;
+      } else {
+        const sectionRec = await tx.section.findFirst({
+          where: { id: resolvedSectionId, class: { schoolId } },
+        });
+        if (!sectionRec) {
+          throw new Error("Specified section does not exist in this school");
+        }
+      }
+
+      // 2. Resolve SequenceCounter-based admission number
+      let finalAdmissionNo = req.body.admissionNo;
+      if (!finalAdmissionNo) {
+        const counterKey = `ADMISSION_${currentYear}`;
+        const counter = await tx.sequenceCounter.upsert({
+          where: { schoolId_key: { schoolId, key: counterKey } },
+          update: { currentValue: { increment: 1 } },
+          create: { schoolId, key: counterKey, currentValue: 1 },
+        });
+        finalAdmissionNo = `ADM-${currentYear}-${String(counter.currentValue).padStart(4, "0")}`;
       }
 
       // 2. Resolve or Create Guardian (Deduplicate by phone)
@@ -508,9 +503,11 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
         }
       }
 
-      // 3. Create User Account for Student Portal
-      const cleanAdNo = admissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
+      // 4. Create User Account without usable password + Issue Password Setup Token
+      const cleanAdNo = finalAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
       const studentEmail = `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
+      const unusableSecret = crypto.randomBytes(32).toString("hex");
+      const hashedPassword = await hashPassword(unusableSecret);
 
       const user = await tx.user.create({
         data: {
@@ -519,17 +516,39 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
           passwordHash: hashedPassword,
           role: "STUDENT",
           schoolId,
+          mustChangePassword: true,
           isActive: true,
         },
       });
 
-      // 4. Create Canonical Student Record
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      await tx.passwordSetupToken.create({
+        data: {
+          schoolId,
+          userId: user.id,
+          tokenHash,
+          expiresAt,
+          createdBy: req.user!.id,
+        },
+      });
+
+      const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
+      try {
+        await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
+      } catch (mailErr) {
+        logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+      }
+
+      // 5. Create Canonical Student Record
       createdStudent = await tx.student.create({
         data: {
           schoolId,
           name: name || "Student",
           rollNo: rollNo || "1",
-          admissionNo,
+          admissionNo: finalAdmissionNo,
           password: hashedPassword,
           dob: dob ? new Date(dob) : null,
           gender: gender || "OTHER",
@@ -547,17 +566,17 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
         },
       });
 
-      // 5. Create Initial Timeline Event
+      // 6. Create Initial Timeline Event
       await tx.studentTimeline.create({
         data: {
           studentId: createdStudent.id,
           title: "Student Registered",
           type: "NEW_ADMISSION",
-          description: `Canonical student profile created with Admission No ${admissionNo}.`,
+          description: `Canonical student profile created with Admission No ${finalAdmissionNo}.`,
         },
       });
 
-      // 6. Record Audit Log
+      // 7. Record Audit Log
       await tx.auditLog.create({
         data: {
           schoolId,
@@ -565,19 +584,23 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
           action: "STUDENT_CREATED",
           entity: "STUDENT",
           entityId: createdStudent.id,
-          details: `Student ${createdStudent.name} (Adm: ${admissionNo}) registered by ${req.user!.name || "Staff"}.`,
+          details: `Student ${createdStudent.name} (Adm: ${finalAdmissionNo}) registered by ${req.user!.name || "Staff"}.`,
         },
       });
     });
 
+    const { password: _, ...studentWithoutPassword } = createdStudent || {};
     res.status(201).json({
       success: true,
-      data: createdStudent,
+      data: studentWithoutPassword,
       message: "Student created successfully",
     });
   } catch (e: any) {
     if (e.code === "P2002") {
       return res.status(400).json({ success: false, error: "Admission number or user email already exists" });
+    }
+    if (e.message && (e.message.includes("does not exist") || e.message.includes("required"))) {
+      return res.status(400).json({ success: false, error: e.message });
     }
     logger.error({ err: e }, "Failed to create student");
     res.status(500).json({ success: false, error: "Server error" });
