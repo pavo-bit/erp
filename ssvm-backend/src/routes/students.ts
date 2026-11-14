@@ -439,6 +439,7 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
 
     const currentYear = new Date().getFullYear();
     let createdStudent: any = null;
+    let pendingInvitation: { email: string; setupLink: string } | null = null;
 
     await runWithTenantDatabaseTransaction(schoolId, async (tx: any) => {
       // 1. Resolve Section & Class (Fail if not found, DO NOT silently create)
@@ -536,11 +537,7 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
       });
 
       const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-      try {
-        await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
-      } catch (mailErr) {
-        logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
-      }
+      pendingInvitation = { email: studentEmail, setupLink };
 
       // 5. Create Canonical Student Record
       createdStudent = await tx.student.create({
@@ -588,6 +585,14 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
         },
       });
     });
+
+    if (pendingInvitation) {
+      try {
+        await mailService.sendPasswordSetupEmail(pendingInvitation.email, pendingInvitation.setupLink);
+      } catch (mailErr) {
+        logger.warn({ mailErr, studentEmail: pendingInvitation.email }, "Failed to send student password setup email");
+      }
+    }
 
     const { password: _, ...studentWithoutPassword } = createdStudent || {};
     res.status(201).json({

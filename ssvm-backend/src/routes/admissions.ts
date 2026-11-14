@@ -108,6 +108,7 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
     }
 
     const currentYear = new Date().getFullYear();
+    let pendingInvitation: { email: string; setupLink: string } | null = null;
 
     const result = await runWithTenantDatabaseTransaction(admission.schoolId, async (tx: any) => {
       // 1. Monotonic admission number from SequenceCounter
@@ -165,11 +166,7 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
       });
 
       const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-      try {
-        await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
-      } catch (mailErr) {
-        logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
-      }
+      pendingInvitation = { email: studentEmail, setupLink };
 
       // 4. Student record
       const student = await tx.student.create({
@@ -211,6 +208,14 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
 
       return student;
     });
+
+    if (pendingInvitation) {
+      try {
+        await mailService.sendPasswordSetupEmail(pendingInvitation.email, pendingInvitation.setupLink);
+      } catch (mailErr) {
+        logger.warn({ mailErr, studentEmail: pendingInvitation.email }, "Failed to send student password setup email");
+      }
+    }
 
     logger.info({ studentId: result.id, admissionId: admission.id }, "Student enrolled from admission");
     res.status(201).json({ success: true, data: result, message: "Student enrolled successfully" });

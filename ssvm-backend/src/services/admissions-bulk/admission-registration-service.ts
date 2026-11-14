@@ -53,6 +53,7 @@ export class AdmissionRegistrationService {
 
     const results: AdmissionCommitResultItem[] = [];
     const errorLog: Array<{ importKey: string; rowNumber: number; errors: string[] }> = [];
+    const pendingInvitations: Array<{ email: string; setupLink: string }> = [];
     let successCount = 0;
     let failedCount = 0;
     let finalStatus: "COMPLETED" | "PARTIALLY_COMPLETED" | "FAILED" = "COMPLETED";
@@ -83,7 +84,8 @@ export class AdmissionRegistrationService {
               batchId,
               entry,
               attestation,
-              nextSeqNumber++
+              nextSeqNumber++,
+              pendingInvitations
             );
             results.push(resultItem);
             successCount++;
@@ -105,7 +107,8 @@ export class AdmissionRegistrationService {
               batchId,
               entry,
               attestation,
-              nextSeqNumber++
+              nextSeqNumber++,
+              pendingInvitations
             );
             results.push(resultItem);
             successCount++;
@@ -142,6 +145,15 @@ export class AdmissionRegistrationService {
       });
     });
 
+    // Send setup emails after the transaction commits (do not roll back if sending fails)
+    for (const inv of pendingInvitations) {
+      try {
+        await mailService.sendPasswordSetupEmail(inv.email, inv.setupLink);
+      } catch (mailErr) {
+        logger.warn({ mailErr, email: inv.email }, "Failed to send student password setup email");
+      }
+    }
+
     return {
       batchId,
       admissionType,
@@ -167,7 +179,8 @@ export class AdmissionRegistrationService {
     batchId: string,
     entry: ValidatedStudentEntry,
     attestation: OfflineApprovalAttestation,
-    seqNumber: number
+    seqNumber: number,
+    pendingInvitations?: Array<{ email: string; setupLink: string }>
   ): Promise<AdmissionCommitResultItem> {
     const studentData = entry.student;
     const currentYear = new Date().getFullYear();
@@ -214,10 +227,14 @@ export class AdmissionRegistrationService {
     });
 
     const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-    try {
-      await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
-    } catch (mailErr) {
-      logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+    if (pendingInvitations) {
+      pendingInvitations.push({ email: studentEmail, setupLink });
+    } else {
+      try {
+        await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
+      } catch (mailErr) {
+        logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+      }
     }
 
     // 3. Create Canonical Student Record with extended demographic fields
@@ -425,7 +442,8 @@ export class AdmissionRegistrationService {
     batchId: string,
     entry: ValidatedStudentEntry,
     attestation: OfflineApprovalAttestation,
-    seqNumber: number
+    seqNumber: number,
+    pendingInvitations?: Array<{ email: string; setupLink: string }>
   ): Promise<AdmissionCommitResultItem> {
     const studentData = entry.student;
     const prevSchool = entry.previousSchool;
@@ -473,10 +491,14 @@ export class AdmissionRegistrationService {
     });
 
     const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-    try {
-      await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
-    } catch (mailErr) {
-      logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+    if (pendingInvitations) {
+      pendingInvitations.push({ email: studentEmail, setupLink });
+    } else {
+      try {
+        await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
+      } catch (mailErr) {
+        logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+      }
     }
 
     // 3. Create Canonical Student Record with transfer details
