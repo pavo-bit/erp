@@ -208,7 +208,7 @@ export interface AdmissionCommitResultItem {
   message: string;
   timelineId?: string;
   enrollmentSection?: string;
-  invitationStatus?: "SENT" | "UNDELIVERABLE" | "FAILED";
+  invitationStatus?: "PENDING" | "SENT" | "UNDELIVERABLE" | "FAILED";
 }
 
 export interface AdmissionBatchCommitResult {

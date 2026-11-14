@@ -213,9 +213,7 @@ router.get(
     "TEACHER",
     "PARENT",
     "RECEPTIONIST",
-    "ACCOUNTANT",
-    "LIBRARIAN",
-    "STUDENT"
+    "LIBRARIAN"
   ),
   async (req: AuthRequest, res: Response) => {
     try {
@@ -256,7 +254,7 @@ router.get(
         where.userId = req.user!.id;
       } else if (req.user!.role === "TEACHER") {
         const teacher = await prisma.teacher.findFirst({
-          where: { schoolId: req.user!.schoolId, userId: req.user!.id },
+          where: { schoolId: req.user!.schoolId || undefined, userId: req.user!.id },
         });
         if (teacher) {
           const assigned = await prisma.classTeacher.findMany({
@@ -599,12 +597,13 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
     });
 
     let invitationStatus: "SENT" | "UNDELIVERABLE" | "FAILED" = "UNDELIVERABLE";
-    if (pendingInvitation) {
+    const pendingInv = pendingInvitation as { recipient: string; setupLink: string } | null;
+    if (pendingInv) {
       try {
-        await mailService.sendPasswordSetupEmail(pendingInvitation.recipient, pendingInvitation.setupLink);
+        await mailService.sendPasswordSetupEmail(pendingInv.recipient, pendingInv.setupLink);
         invitationStatus = "SENT";
       } catch (mailErr) {
-        logger.warn({ mailErr, recipient: pendingInvitation.recipient }, "Failed to send student password setup email");
+        logger.warn({ mailErr, recipient: pendingInv.recipient }, "Failed to send student password setup email");
         invitationStatus = "FAILED";
       }
     }

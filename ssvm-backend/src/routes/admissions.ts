@@ -140,7 +140,7 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
       if (!isFictionalOrEmpty(req.body.email)) {
         invitationRecipient = req.body.email.trim();
       } else if (!isFictionalOrEmpty(admission.parentEmail)) {
-        invitationRecipient = admission.parentEmail.trim();
+        invitationRecipient = admission.parentEmail!.trim();
       }
 
       const studentEmail = !isFictionalOrEmpty(req.body.email)
@@ -222,12 +222,13 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
     });
 
     let invitationStatus: "SENT" | "UNDELIVERABLE" | "FAILED" = "UNDELIVERABLE";
-    if (pendingInvitation) {
+    const pendingInv = pendingInvitation as { recipient: string; setupLink: string } | null;
+    if (pendingInv) {
       try {
-        await mailService.sendPasswordSetupEmail(pendingInvitation.recipient, pendingInvitation.setupLink);
+        await mailService.sendPasswordSetupEmail(pendingInv.recipient, pendingInv.setupLink);
         invitationStatus = "SENT";
       } catch (mailErr) {
-        logger.warn({ mailErr, recipient: pendingInvitation.recipient }, "Failed to send student password setup email");
+        logger.warn({ mailErr, recipient: pendingInv.recipient }, "Failed to send student password setup email");
         invitationStatus = "FAILED";
       }
     }

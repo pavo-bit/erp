@@ -45,3 +45,4 @@ export function createMailService(): MailService {
 }
 
 export const mailService: MailService = createMailService();
+export default mailService;

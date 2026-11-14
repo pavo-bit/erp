@@ -63,6 +63,28 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
       });
       testClassId = cls.id;
       testSectionId = cls.sections[0].id;
+
+      const shift = await tx.schoolShift.create({
+        data: {
+          schoolId,
+          sessionId,
+          name: "Morning Shift",
+          type: "MORNING",
+          startTime: "07:30",
+          endTime: "12:30",
+          isActive: true,
+        },
+      });
+
+      await tx.schoolShiftClass.create({
+        data: {
+          schoolId,
+          sessionId,
+          shiftId: shift.id,
+          classId: cls.id,
+          isActive: true,
+        },
+      });
     });
 
     // Staff user for attestation
@@ -550,7 +572,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             endDate: new Date("2028-03-31"),
           },
         });
-        await tx.class.create({
+        const c2 = await tx.class.create({
           data: {
             schoolId,
             sessionId: nextSession.id,
@@ -558,6 +580,26 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             sections: {
               create: [{ name: "A", capacity: 40 }],
             },
+          },
+        });
+        const shift2 = await tx.schoolShift.create({
+          data: {
+            schoolId,
+            sessionId: nextSession.id,
+            name: "Morning Shift",
+            type: "MORNING",
+            startTime: "07:30",
+            endTime: "12:30",
+            isActive: true,
+          },
+        });
+        await tx.schoolShiftClass.create({
+          data: {
+            schoolId,
+            sessionId: nextSession.id,
+            shiftId: shift2.id,
+            classId: c2.id,
+            isActive: true,
           },
         });
       });

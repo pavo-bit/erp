@@ -63,7 +63,7 @@ export class ValidationEngineService {
       if (template.moduleId === "guardians" || template.moduleId === "attendance") {
         const students = await prisma.student.findMany({
           where: { schoolId },
-          select: { id: true, rollNo: true, name: true, sectionId: true, section: { select: { classId: true } } },
+          select: { id: true, rollNo: true, name: true, sectionId: true, sectionRef: { select: { classId: true } } },
         });
         cache.studentsByRoll = new Map(students.map((s) => [s.rollNo?.toUpperCase(), s]));
       }

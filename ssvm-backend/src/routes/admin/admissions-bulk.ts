@@ -151,7 +151,8 @@ router.get("/templates", [authenticate, requireAdmissionPermission("ADMISSION_VI
 router.get("/templates/:type", [authenticate, requireAdmissionPermission("ADMISSION_VIEW")], async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId!;
-    const type = req.params.type.toUpperCase() as AdmissionType;
+    const rawType = Array.isArray(req.params.type) ? req.params.type[0] : req.params.type;
+    const type = (rawType || "").toUpperCase() as AdmissionType;
     const format = ((req.query.format as string) || "xlsx").toLowerCase();
 
     if (!["NEW", "READMISSION", "TRANSFER"].includes(type)) {
@@ -208,7 +209,8 @@ router.get("/templates/:type", [authenticate, requireAdmissionPermission("ADMISS
  */
 router.get("/templates/:type/csv", [authenticate, requireAdmissionPermission("ADMISSION_VIEW")], async (req: AuthRequest, res: Response) => {
   try {
-    const type = req.params.type.toUpperCase() as AdmissionType;
+    const rawType = Array.isArray(req.params.type) ? req.params.type[0] : req.params.type;
+    const type = (rawType || "").toUpperCase() as AdmissionType;
     if (!["NEW", "READMISSION", "TRANSFER"].includes(type)) {
       res.status(400).json({ success: false, error: "Invalid template type. Choose NEW, READMISSION, or TRANSFER." });
       return;
@@ -230,7 +232,8 @@ router.get("/templates/:type/csv", [authenticate, requireAdmissionPermission("AD
 router.get("/templates/:type/zip", [authenticate, requireAdmissionPermission("ADMISSION_VIEW")], async (req: AuthRequest, res: Response) => {
   try {
     const schoolId = req.user!.schoolId!;
-    const type = req.params.type.toUpperCase() as AdmissionType;
+    const rawType = Array.isArray(req.params.type) ? req.params.type[0] : req.params.type;
+    const type = (rawType || "").toUpperCase() as AdmissionType;
     if (!["NEW", "READMISSION", "TRANSFER"].includes(type)) {
       res.status(400).json({ success: false, error: "Invalid template type. Choose NEW, READMISSION, or TRANSFER." });
       return;
@@ -339,7 +342,7 @@ router.post("/preview", [authenticate, requireAdmissionPermission("ADMISSION_IMP
 
     const fileHash = crypto.createHash("sha256").update(req.file.buffer).digest("hex");
     const parsed = await AdmissionWorkbookParser.parseWorkbook(req.file.buffer, req.file.originalname);
-    const validationSummary = await AdmissionValidationEngine.validateWorkbook(schoolId, parsed, parsed.batchId);
+    const validationSummary = await AdmissionValidationEngine.validateWorkbook(schoolId, parsed, parsed.batchId || "");
 
     res.json({
       success: true,
@@ -356,16 +359,16 @@ router.post("/preview", [authenticate, requireAdmissionPermission("ADMISSION_IMP
         readyToRegisterCount: validationSummary.readyToRegisterCount,
         entries: validationSummary.entries.map((e) => ({
           importKey: e.importKey,
-          rowNumber: e.rowNumber,
-          applicantName: `${e.student.firstName} ${e.student.lastName}`.trim(),
-          applyingForClass: e.academic.classApplied,
-          admissionType: e.admissionType,
+          rowNumber: e.sourceRowNumber,
+          applicantName: e.student.name,
+          applyingForClass: e.placement?.className || "",
+          admissionType: parsed.admissionType,
           status: e.status,
           errors: e.errors,
           warnings: e.warnings,
-          existingStudentId: e.existingStudentId,
-          permanentAdmissionNumber: e.permanentAdmissionNumber,
-          duplicateMatches: e.duplicateMatches?.length || 0,
+          existingStudentId: e.resolvedStudentId,
+          permanentAdmissionNumber: e.student.existingAdmissionNo,
+          duplicateMatches: 0,
         })),
         summaryErrors: validationSummary.summaryErrors,
       },
@@ -402,7 +405,7 @@ router.post("/commit", [authenticate, requireAdmissionPermission("STUDENT_REGIST
       return;
     }
 
-    if (!attestation || !attestation.isApprovedOffline) {
+    if (!attestation || (!attestation.attested && !(attestation as any).isApprovedOffline)) {
       res.status(400).json({
         success: false,
         error: "Physical offline approval attestation is mandatory for student admission registration.",
@@ -411,7 +414,7 @@ router.post("/commit", [authenticate, requireAdmissionPermission("STUDENT_REGIST
     }
 
     const parsed = await AdmissionWorkbookParser.parseWorkbook(req.file.buffer, req.file.originalname);
-    const validated = await AdmissionValidationEngine.validateWorkbook(schoolId, parsed, parsed.batchId);
+    const validated = await AdmissionValidationEngine.validateWorkbook(schoolId, parsed, parsed.batchId || "");
 
     const validEntries = validated.entries.filter((e) => e.status === "VALID");
     if (validEntries.length === 0) {
@@ -423,18 +426,24 @@ router.post("/commit", [authenticate, requireAdmissionPermission("STUDENT_REGIST
       return;
     }
 
-    const result = await AdmissionRegistrationService.commitBatch(schoolId, userId, validEntries, attestation);
+    const result = await AdmissionRegistrationService.commitBatch(
+      schoolId,
+      parsed.batchId || "",
+      parsed.admissionType || "NEW",
+      attestation,
+      validEntries
+    );
 
     res.json({
       success: true,
       data: {
         batchId: parsed.batchId,
-        totalCommitted: result.registeredStudents.length,
-        totalFailed: result.failedRegistrations.length,
-        registeredStudents: result.registeredStudents,
-        failedRegistrations: result.failedRegistrations,
+        totalCommitted: result.successCount,
+        totalFailed: result.failedCount,
+        registeredStudents: result.results.filter((r) => r.status === "REGISTERED"),
+        failedRegistrations: result.results.filter((r) => r.status === "FAILED"),
       },
-      message: `Successfully registered ${result.registeredStudents.length} students under offline register ${attestation.paperRegisterRef}.`,
+      message: `Successfully registered ${result.successCount} students under offline register ${attestation.approvalRegisterNumber || ""}.`,
     });
   } catch (err: any) {
     logger.error({ err }, "Bulk admission commit failed");
@@ -1028,6 +1037,11 @@ router.get("/shifts", [authenticate, requireAdmissionPermission("ADMISSION_VIEW"
       });
       shifts = await prisma.schoolShift.findMany({
         where: { schoolId },
+        include: {
+          shiftClasses: {
+            include: { class: { select: { id: true, name: true } } },
+          },
+        },
         orderBy: { startTime: "asc" },
       });
     }
@@ -1061,8 +1075,8 @@ router.post("/shifts", [authenticate, requireAdmissionPermission("ADMISSION_CREA
     }
 
     const shift = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
-      const existing = await tx.schoolShift.findUnique({
-        where: { schoolId_name: { schoolId, name } },
+      const existing = await tx.schoolShift.findFirst({
+        where: { schoolId, name },
       });
 
       let savedShift;
@@ -1223,7 +1237,7 @@ router.patch("/facilities/:id/status", [authenticate], async (req: AuthRequest, 
   try {
     const schoolId = req.user!.schoolId!;
     const userId = req.user!.id;
-    const { id } = req.params;
+    const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
     const { status, notes } = req.body;
 
     const validStatuses = [
