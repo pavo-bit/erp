@@ -4,6 +4,8 @@ import { AuthRequest, authenticate, requireRole, requireFinanceAdmin } from "../
 import { parsePaginationParams, paginatedQuery } from "../lib/paginate";
 import { toPaise, fromPaise } from "../lib/money";
 import { Prisma, InvoiceStatus } from "@prisma/client";
+import { CashCollectionService } from "../services/cash-collection.service";
+import logger from "../lib/logger";
 
 const router = Router();
 
@@ -52,7 +54,7 @@ router.post("/", authenticate, requireFinanceAdmin(), async (req: AuthRequest, r
     const invoice = await prisma.invoice.create({
       data: { 
         studentId, 
-        schoolId: req.user!.schoolId || req.body.schoolId,
+        schoolId: req.user!.schoolId!,
         amount: decimalAmount,
         remainingAmount: decimalAmount,
         type, 
@@ -67,53 +69,67 @@ router.post("/", authenticate, requireFinanceAdmin(), async (req: AuthRequest, r
 });
 
 // PUT /api/invoices/:id/pay
-router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN", "PARENT", "STUDENT"), async (req: AuthRequest, res: Response) => {
+router.put("/:id/pay", authenticate, requireRole("ACCOUNTANT", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
   try {
     const { amountPaid, gateway, transactionId } = req.body;
-    if (!amountPaid) {
-      res.status(400).json({ success: false, error: "amountPaid is required" }); return;
+    let decimalAmount: Prisma.Decimal;
+    try {
+      decimalAmount = new Prisma.Decimal(amountPaid);
+    } catch {
+      res.status(400).json({ success: false, error: "amountPaid is required and must be a valid number" });
+      return;
+    }
+    if (decimalAmount.lte(0)) {
+      res.status(400).json({ success: false, error: "amountPaid is required and must be greater than zero" });
+      return;
+    }
+
+    if (!req.user?.schoolId) {
+      res.status(400).json({ success: false, error: "School context required" });
+      return;
     }
 
     const invoice = await prisma.invoice.findUnique({ where: { id: req.params.id as string } });
-    if (!invoice) { res.status(404).json({ success: false, error: "Invoice not found" }); return; }
-    if (!req.user?.schoolId || invoice.schoolId !== req.user.schoolId) { res.status(404).json({ success: false, error: "Invoice not found" }); return; }
+    if (!invoice || invoice.schoolId !== req.user.schoolId) {
+      res.status(404).json({ success: false, error: "Invoice not found" });
+      return;
+    }
 
-    const currentPaidPaise = toPaise(invoice.amountPaid);
-    const paymentPaise = toPaise(amountPaid);
-    const totalDuePaise = toPaise(invoice.amount) + toPaise(invoice.fineAmount);
-    const newPaidPaise = currentPaidPaise + paymentPaise;
-    const remainingPaise = Math.max(0, totalDuePaise - newPaidPaise);
-    const newStatus = remainingPaise === 0 ? "PAID" : "PARTIAL";
+    const cashierUser = {
+      id: req.user.id,
+      name: (req.user as any).name || req.user.email || "Staff Cashier",
+    };
 
-    const updatedInvoice = await runWithTenantDatabaseTransaction(invoice.schoolId, async (tx) => {
-      // 1. Create Transaction
-      await tx.paymentTransaction.create({
-        data: {
-          invoiceId: invoice.id,
-          amountPaid: fromPaise(paymentPaise),
-          gateway: gateway || "CASH",
-          transactionId: transactionId || null,
-          status: "SUCCESS",
-          paidAt: new Date(),
-          schoolId: invoice.schoolId,
-        }
-      });
+    const paymentMethod = (gateway === "CHEQUE" || gateway === "DD" || gateway === "COUNTER_UPI" || gateway === "BANK_TRANSFER")
+      ? gateway
+      : "CASH";
 
-      // 2. Update Invoice
-      return await tx.invoice.update({
-        where: { id: invoice.id, schoolId: req.user!.schoolId! },
-        data: {
-          amountPaid: fromPaise(newPaidPaise),
-          remainingAmount: fromPaise(remainingPaise),
-          status: newStatus as InvoiceStatus,
-          paidDate: newStatus === "PAID" ? new Date() : null,
-        },
-        include: { transactions: true }
-      });
+    const result = await CashCollectionService.recordCashPayment(invoice.schoolId, cashierUser, {
+      studentId: invoice.studentId,
+      amountReceived: amountPaid,
+      paymentMethod,
+      selectedInvoiceIds: [invoice.id],
+      allocationStrategy: "MANUAL",
+      manualAllocations: [{ invoiceId: invoice.id, amount: amountPaid }],
+      instrumentNo: transactionId,
+      remarks: "Staff collection via /invoices/:id/pay",
     });
 
-    res.json({ success: true, data: updatedInvoice });
-  } catch (e) { console.error(e); res.status(500).json({ success: false, error: "Server error" }); }
+    const updatedInvoice = await prisma.invoice.findUnique({
+      where: { id: invoice.id },
+      include: { transactions: true },
+    });
+
+    res.json({
+      success: true,
+      data: updatedInvoice,
+      receipt: result.receipt,
+      paymentTransaction: result.paymentTransaction,
+    });
+  } catch (e: any) {
+    logger.error({ err: e }, "Invoice pay error");
+    res.status(400).json({ success: false, error: e.message || "Failed to process payment" });
+  }
 });
 
 export default router;
