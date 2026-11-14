@@ -28,10 +28,7 @@ router.get("/", authenticate, requireSuperAdmin(), async (_req: AuthRequest, res
 // GET /api/v1/schools/me/modules — Get current school's entitled and active modules
 router.get("/me/modules", authenticate, async (req: AuthRequest, res: Response) => {
   try {
-    let schoolId = req.user?.schoolId;
-    if (!schoolId && req.user?.role === "SUPER_ADMIN") {
-      schoolId = (req.headers['x-school-id'] as string) || (req.headers['x-tenant-id'] as string);
-    }
+    const schoolId = req.user?.schoolId;
     if (!schoolId) {
       res.status(400).json({ success: false, error: "School context required" });
       return;
