@@ -5,6 +5,7 @@
  */
 
 export type AdmissionType = "NEW" | "READMISSION" | "TRANSFER";
+export type AdmissionTemplateType = AdmissionType;
 
 export type BulkAdmissionBatchStatus =
   | "UPLOADED"
@@ -207,6 +208,7 @@ export interface AdmissionCommitResultItem {
   message: string;
   timelineId?: string;
   enrollmentSection?: string;
+  invitationStatus?: "SENT" | "UNDELIVERABLE" | "FAILED";
 }
 
 export interface AdmissionBatchCommitResult {

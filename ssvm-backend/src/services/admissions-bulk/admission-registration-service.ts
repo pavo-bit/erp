@@ -53,7 +53,7 @@ export class AdmissionRegistrationService {
 
     const results: AdmissionCommitResultItem[] = [];
     const errorLog: Array<{ importKey: string; rowNumber: number; errors: string[] }> = [];
-    const pendingInvitations: Array<{ email: string; setupLink: string }> = [];
+    const pendingInvitations: Array<{ resultItem: AdmissionCommitResultItem; recipient: string; setupLink: string }> = [];
     let successCount = 0;
     let failedCount = 0;
     let finalStatus: "COMPLETED" | "PARTIALLY_COMPLETED" | "FAILED" = "COMPLETED";
@@ -148,9 +148,11 @@ export class AdmissionRegistrationService {
     // Send setup emails after the transaction commits (do not roll back if sending fails)
     for (const inv of pendingInvitations) {
       try {
-        await mailService.sendPasswordSetupEmail(inv.email, inv.setupLink);
+        await mailService.sendPasswordSetupEmail(inv.recipient, inv.setupLink);
+        inv.resultItem.invitationStatus = "SENT";
       } catch (mailErr) {
-        logger.warn({ mailErr, email: inv.email }, "Failed to send student password setup email");
+        logger.warn({ mailErr, recipient: inv.recipient }, "Failed to send student password setup email");
+        inv.resultItem.invitationStatus = "FAILED";
       }
     }
 
@@ -180,7 +182,7 @@ export class AdmissionRegistrationService {
     entry: ValidatedStudentEntry,
     attestation: OfflineApprovalAttestation,
     seqNumber: number,
-    pendingInvitations?: Array<{ email: string; setupLink: string }>
+    pendingInvitations?: Array<{ resultItem: AdmissionCommitResultItem; recipient: string; setupLink: string }>
   ): Promise<AdmissionCommitResultItem> {
     const studentData = entry.student;
     const currentYear = new Date().getFullYear();
@@ -227,13 +229,16 @@ export class AdmissionRegistrationService {
     });
 
     const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-    if (pendingInvitations) {
-      pendingInvitations.push({ email: studentEmail, setupLink });
+    // Resolve invitation destination: student email -> guardian email -> none (UNDELIVERABLE)
+    const isFictionalOrEmpty = (e?: string | null) => !e || !e.trim() || e.includes("@student.ssvm");
+    let invitationRecipient: string | null = null;
+    if (!isFictionalOrEmpty(studentData.email)) {
+      invitationRecipient = studentData.email!.trim();
     } else {
-      try {
-        await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
-      } catch (mailErr) {
-        logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+      const primaryG = entry.guardians?.find((g) => g.isPrimary) || entry.guardians?.[0];
+      const gEmail = primaryG?.guardian?.primaryEmail;
+      if (!isFictionalOrEmpty(gEmail)) {
+        invitationRecipient = gEmail!.trim();
       }
     }
 
@@ -316,7 +321,7 @@ export class AdmissionRegistrationService {
     // 8. Link Document Metadata without fake URLs
     await this.persistDocuments(tx, schoolId, student.id, entry.documents);
 
-    return {
+    const resultItem: AdmissionCommitResultItem = {
       importKey: entry.importKey,
       sourceRowNumber: entry.sourceRowNumber,
       studentId: student.id,
@@ -326,7 +331,24 @@ export class AdmissionRegistrationService {
       message: `Successfully registered new student with Admission No ${allocatedAdmissionNo}.`,
       timelineId: timeline.id,
       enrollmentSection: entry.placement?.sectionName || undefined,
+      invitationStatus: invitationRecipient ? "PENDING" : "UNDELIVERABLE",
     };
+
+    if (invitationRecipient) {
+      if (pendingInvitations) {
+        pendingInvitations.push({ resultItem, recipient: invitationRecipient, setupLink });
+      } else {
+        try {
+          await mailService.sendPasswordSetupEmail(invitationRecipient, setupLink);
+          resultItem.invitationStatus = "SENT";
+        } catch (mailErr) {
+          logger.warn({ mailErr, recipient: invitationRecipient }, "Failed to send student password setup email");
+          resultItem.invitationStatus = "FAILED";
+        }
+      }
+    }
+
+    return resultItem;
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -443,7 +465,7 @@ export class AdmissionRegistrationService {
     entry: ValidatedStudentEntry,
     attestation: OfflineApprovalAttestation,
     seqNumber: number,
-    pendingInvitations?: Array<{ email: string; setupLink: string }>
+    pendingInvitations?: Array<{ resultItem: AdmissionCommitResultItem; recipient: string; setupLink: string }>
   ): Promise<AdmissionCommitResultItem> {
     const studentData = entry.student;
     const prevSchool = entry.previousSchool;
@@ -491,13 +513,16 @@ export class AdmissionRegistrationService {
     });
 
     const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-    if (pendingInvitations) {
-      pendingInvitations.push({ email: studentEmail, setupLink });
+    // Resolve invitation destination: student email -> guardian email -> none (UNDELIVERABLE)
+    const isFictionalOrEmpty = (e?: string | null) => !e || !e.trim() || e.includes("@student.ssvm");
+    let invitationRecipient: string | null = null;
+    if (!isFictionalOrEmpty(studentData.email)) {
+      invitationRecipient = studentData.email!.trim();
     } else {
-      try {
-        await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
-      } catch (mailErr) {
-        logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+      const primaryG = entry.guardians?.find((g) => g.isPrimary) || entry.guardians?.[0];
+      const gEmail = primaryG?.guardian?.primaryEmail;
+      if (!isFictionalOrEmpty(gEmail)) {
+        invitationRecipient = gEmail!.trim();
       }
     }
 
@@ -585,7 +610,7 @@ export class AdmissionRegistrationService {
     // 8. Link Supporting Documents and TC without fake URLs
     await this.persistDocuments(tx, schoolId, student.id, entry.documents);
 
-    return {
+    const resultItem: AdmissionCommitResultItem = {
       importKey: entry.importKey,
       sourceRowNumber: entry.sourceRowNumber,
       studentId: student.id,
@@ -595,7 +620,24 @@ export class AdmissionRegistrationService {
       message: `Incoming transfer admission recorded with new SSVM Admission No ${allocatedAdmissionNo}. Previous institution data archived.`,
       timelineId: timeline.id,
       enrollmentSection: entry.placement?.sectionName || undefined,
+      invitationStatus: invitationRecipient ? "PENDING" : "UNDELIVERABLE",
     };
+
+    if (invitationRecipient) {
+      if (pendingInvitations) {
+        pendingInvitations.push({ resultItem, recipient: invitationRecipient, setupLink });
+      } else {
+        try {
+          await mailService.sendPasswordSetupEmail(invitationRecipient, setupLink);
+          resultItem.invitationStatus = "SENT";
+        } catch (mailErr) {
+          logger.warn({ mailErr, recipient: invitationRecipient }, "Failed to send student password setup email");
+          resultItem.invitationStatus = "FAILED";
+        }
+      }
+    }
+
+    return resultItem;
   }
 
   // ─────────────────────────────────────────────────────────────

@@ -72,7 +72,17 @@ router.post("/upload", authenticate, requireOperationsAdmin(), async (req: AuthR
           }
 
           const cleanAdNo = finalAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
-          const studentEmail = row.Email ? String(row.Email) : `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
+          const isFictionalOrEmpty = (e?: string | null) => !e || !e.trim() || e.includes("@student.ssvm");
+          let invitationRecipient: string | null = null;
+          if (!isFictionalOrEmpty(row.Email ? String(row.Email) : null)) {
+            invitationRecipient = String(row.Email).trim();
+          } else if (!isFictionalOrEmpty(row.GuardianEmail ? String(row.GuardianEmail) : null)) {
+            invitationRecipient = String(row.GuardianEmail).trim();
+          }
+
+          const studentEmail = !isFictionalOrEmpty(row.Email ? String(row.Email) : null)
+            ? String(row.Email).trim()
+            : `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
           const unusableSecret = crypto.randomBytes(32).toString("hex");
           const hashedPassword = await hashPassword(unusableSecret);
 
@@ -103,10 +113,12 @@ router.post("/upload", authenticate, requireOperationsAdmin(), async (req: AuthR
           });
 
           const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-          try {
-            await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
-          } catch (mailErr) {
-            logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
+          if (invitationRecipient) {
+            try {
+              await mailService.sendPasswordSetupEmail(invitationRecipient, setupLink);
+            } catch (mailErr) {
+              logger.warn({ mailErr, recipient: invitationRecipient }, "Failed to send student password setup email");
+            }
           }
 
           await prisma.student.create({

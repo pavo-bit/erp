@@ -706,7 +706,17 @@ router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSc
       }
 
       const cleanAdNo = finalAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const studentEmail = email || `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
+      const isFictionalOrEmpty = (e?: string | null) => !e || !e.trim() || e.includes("@student.ssvm");
+      let invitationRecipient: string | null = null;
+      if (!isFictionalOrEmpty(email)) {
+        invitationRecipient = email.trim();
+      } else if (!isFictionalOrEmpty(profileData?.guardianEmail)) {
+        invitationRecipient = profileData.guardianEmail.trim();
+      }
+
+      const studentEmail = !isFictionalOrEmpty(email)
+        ? email.trim()
+        : `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
       const unusableSecret = crypto.randomBytes(32).toString("hex");
       const hashedStudentPw = await hashPassword(unusableSecret);
 
@@ -741,11 +751,6 @@ router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSc
       });
 
       const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-      try {
-        await mailService.sendPasswordSetupEmail(studentEmail, setupLink);
-      } catch (mailErr) {
-        logger.warn({ mailErr, studentEmail }, "Failed to send student password setup email");
-      }
 
       const student = await prisma.student.create({
         data: {
@@ -769,6 +774,15 @@ router.post("/register", authenticate, requireRole("ADMIN"), validate(registerSc
           updatedAt: true,
         },
       });
+
+      if (invitationRecipient) {
+        try {
+          await mailService.sendPasswordSetupEmail(invitationRecipient, setupLink);
+        } catch (mailErr) {
+          logger.warn({ mailErr, recipient: invitationRecipient }, "Failed to send student password setup email");
+        }
+      }
+
       logger.info({ studentId: student.id, createdBy: req.user!.id }, "Student registered directly");
       res.status(201).json({ success: true, data: student });
       return;

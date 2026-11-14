@@ -439,7 +439,7 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
 
     const currentYear = new Date().getFullYear();
     let createdStudent: any = null;
-    let pendingInvitation: { email: string; setupLink: string } | null = null;
+    let pendingInvitation: { recipient: string; setupLink: string } | null = null;
 
     await runWithTenantDatabaseTransaction(schoolId, async (tx: any) => {
       // 1. Resolve Section & Class (Fail if not found, DO NOT silently create)
@@ -506,7 +506,17 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
 
       // 4. Create User Account without usable password + Issue Password Setup Token
       const cleanAdNo = finalAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const studentEmail = `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
+      const isFictionalOrEmpty = (e?: string | null) => !e || !e.trim() || e.includes("@student.ssvm");
+      let invitationRecipient: string | null = null;
+      if (!isFictionalOrEmpty(req.body.email)) {
+        invitationRecipient = req.body.email.trim();
+      } else if (!isFictionalOrEmpty(guardianEmail)) {
+        invitationRecipient = guardianEmail.trim();
+      }
+
+      const studentEmail = !isFictionalOrEmpty(req.body.email)
+        ? req.body.email.trim()
+        : `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
       const unusableSecret = crypto.randomBytes(32).toString("hex");
       const hashedPassword = await hashPassword(unusableSecret);
 
@@ -537,7 +547,9 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
       });
 
       const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-      pendingInvitation = { email: studentEmail, setupLink };
+      if (invitationRecipient) {
+        pendingInvitation = { recipient: invitationRecipient, setupLink };
+      }
 
       // 5. Create Canonical Student Record
       createdStudent = await tx.student.create({
@@ -586,18 +598,24 @@ router.post("/", authenticate, requireAcademicAdmin(), async (req: AuthRequest, 
       });
     });
 
+    let invitationStatus: "SENT" | "UNDELIVERABLE" | "FAILED" = "UNDELIVERABLE";
     if (pendingInvitation) {
       try {
-        await mailService.sendPasswordSetupEmail(pendingInvitation.email, pendingInvitation.setupLink);
+        await mailService.sendPasswordSetupEmail(pendingInvitation.recipient, pendingInvitation.setupLink);
+        invitationStatus = "SENT";
       } catch (mailErr) {
-        logger.warn({ mailErr, studentEmail: pendingInvitation.email }, "Failed to send student password setup email");
+        logger.warn({ mailErr, recipient: pendingInvitation.recipient }, "Failed to send student password setup email");
+        invitationStatus = "FAILED";
       }
     }
 
     const { password: _, ...studentWithoutPassword } = createdStudent || {};
     res.status(201).json({
       success: true,
-      data: studentWithoutPassword,
+      data: {
+        ...studentWithoutPassword,
+        invitationStatus,
+      },
       message: "Student created successfully",
     });
   } catch (e: any) {

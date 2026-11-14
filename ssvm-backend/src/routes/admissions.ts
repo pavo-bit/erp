@@ -108,7 +108,7 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
     }
 
     const currentYear = new Date().getFullYear();
-    let pendingInvitation: { email: string; setupLink: string } | null = null;
+    let pendingInvitation: { recipient: string; setupLink: string } | null = null;
 
     const result = await runWithTenantDatabaseTransaction(admission.schoolId, async (tx: any) => {
       // 1. Monotonic admission number from SequenceCounter
@@ -135,7 +135,17 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
 
       // 3. User account with unusable password and password-setup token
       const cleanAdNo = finalAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const studentEmail = admission.parentEmail || `${cleanAdNo}_${admission.schoolId.slice(-6)}@student.ssvm`;
+      const isFictionalOrEmpty = (e?: string | null) => !e || !e.trim() || e.includes("@student.ssvm");
+      let invitationRecipient: string | null = null;
+      if (!isFictionalOrEmpty(req.body.email)) {
+        invitationRecipient = req.body.email.trim();
+      } else if (!isFictionalOrEmpty(admission.parentEmail)) {
+        invitationRecipient = admission.parentEmail.trim();
+      }
+
+      const studentEmail = !isFictionalOrEmpty(req.body.email)
+        ? req.body.email.trim()
+        : `${cleanAdNo}_${admission.schoolId.slice(-6)}@student.ssvm`;
       const unusableSecret = crypto.randomBytes(32).toString("hex");
       const hashedPassword = await hashPassword(unusableSecret);
 
@@ -166,7 +176,9 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
       });
 
       const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
-      pendingInvitation = { email: studentEmail, setupLink };
+      if (invitationRecipient) {
+        pendingInvitation = { recipient: invitationRecipient, setupLink };
+      }
 
       // 4. Student record
       const student = await tx.student.create({
@@ -209,16 +221,26 @@ router.post("/:id/enroll", authenticate, requireAdmissionsAdmin(), async (req: A
       return student;
     });
 
+    let invitationStatus: "SENT" | "UNDELIVERABLE" | "FAILED" = "UNDELIVERABLE";
     if (pendingInvitation) {
       try {
-        await mailService.sendPasswordSetupEmail(pendingInvitation.email, pendingInvitation.setupLink);
+        await mailService.sendPasswordSetupEmail(pendingInvitation.recipient, pendingInvitation.setupLink);
+        invitationStatus = "SENT";
       } catch (mailErr) {
-        logger.warn({ mailErr, studentEmail: pendingInvitation.email }, "Failed to send student password setup email");
+        logger.warn({ mailErr, recipient: pendingInvitation.recipient }, "Failed to send student password setup email");
+        invitationStatus = "FAILED";
       }
     }
 
     logger.info({ studentId: result.id, admissionId: admission.id }, "Student enrolled from admission");
-    res.status(201).json({ success: true, data: result, message: "Student enrolled successfully" });
+    res.status(201).json({
+      success: true,
+      data: {
+        ...result,
+        invitationStatus,
+      },
+      message: "Student enrolled successfully",
+    });
   } catch (e: any) {
     logger.error({ err: e }, "Enroll error");
     res.status(500).json({ success: false, error: "Server error" });
