@@ -54,3 +54,4 @@ describe("token algorithm allowlist", () => {
     expect(isTokenExpiredError(token)).toBe(false);
   });
 });
+

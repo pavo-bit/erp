@@ -26,3 +26,4 @@ Create, reset, and resend operations issue one-time, hashed, expiring setup toke
 ## Evidence status
 
 The route matrix is a contract, not proof that every route has been audited. Remaining route-specific review and test gaps are listed in `docs/AUDIT/evidence/laneC.json`.
+

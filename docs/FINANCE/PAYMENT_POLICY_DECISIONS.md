@@ -32,3 +32,4 @@ No school-specific policy for partial collection, refund/reversal, or account
 mapping was found in the current schema or finance docs. Owner approval is still
 required; this document records a reversible implementation default, not a finance
 policy decision.
+

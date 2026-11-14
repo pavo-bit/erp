@@ -588,7 +588,102 @@ export function DashboardLayout({
   );
 }
 
-/* ── Reusable StatCard Component ── */
+/* ── Reusable Dashboard UI Components ── */
+
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div>
+        <h1 className="text-[24px] font-bold text-text-primary font-[var(--font-heading)]">{title}</h1>
+        {subtitle ? <p className="text-[14px] text-text-secondary mt-1">{subtitle}</p> : null}
+      </div>
+      {action ? <div>{action}</div> : null}
+    </div>
+  );
+}
+
+export function DataTable({
+  headers,
+  rows,
+}: {
+  headers: string[];
+  rows: (string | React.ReactNode)[][];
+}) {
+  return (
+    <div className="bg-white rounded-2xl border border-border overflow-hidden shadow-xs">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border bg-surface/50">
+              {headers.map((h) => (
+                <th
+                  key={h}
+                  className="text-left px-5 py-3.5 text-[12px] font-semibold text-text-secondary uppercase tracking-[0.06em] font-[var(--font-heading)]"
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className="border-b border-border last:border-b-0 hover:bg-surface/50 transition-colors">
+                {row.map((cell, j) => (
+                  <td key={j} className="px-5 py-3.5 text-[13px] text-text-primary">
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+export function StatusBadge({ status, color }: { status: string; color: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full font-[var(--font-heading)]"
+      style={{ background: `${color}15`, color }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
+      {status}
+    </span>
+  );
+}
+
+export function ActivityItem({
+  icon,
+  title,
+  time,
+  desc,
+}: {
+  icon: string;
+  title: string;
+  time: string;
+  desc?: string;
+}) {
+  return (
+    <div className="flex gap-3 py-3 border-b border-border last:border-b-0">
+      <span className="text-[18px] mt-0.5">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium text-text-primary font-[var(--font-heading)]">{title}</div>
+        {desc ? <div className="text-[12px] text-text-secondary mt-0.5">{desc}</div> : null}
+      </div>
+      <span className="text-[11px] text-text-secondary whitespace-nowrap font-[var(--font-heading)]">{time}</span>
+    </div>
+  );
+}
 
 export function StatCard({
   icon,
