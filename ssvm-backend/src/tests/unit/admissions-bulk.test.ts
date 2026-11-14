@@ -560,6 +560,30 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
     });
 
     it("Scenario B: Successfully registers Re-admission preserving original permanent number", async () => {
+      if (!newStudentAdmissionNo) {
+        const fallbackStudent = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+          const grd = await tx.guardian.create({
+            data: {
+              schoolId,
+              primaryName: "Debabrata Nayak",
+              primaryPhone: "9876543210",
+            },
+          });
+          return tx.student.create({
+            data: {
+              schoolId,
+              name: "Aditya Narayan Nayak",
+              rollNo: "1",
+              admissionNo: "ADM-2026-0001",
+              password: "hash",
+              sectionId: testSectionId,
+              guardianId: grd.id,
+            },
+          });
+        });
+        newStudentAdmissionNo = fallbackStudent.admissionNo;
+        newStudentId = fallbackStudent.id;
+      }
       expect(newStudentAdmissionNo, "Previous student must have been created").toBeDefined();
 
       // Create new academic session 2027-2028 for Re-admission placement
