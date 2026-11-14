@@ -71,10 +71,9 @@ router.post("/reconcile", authenticate, requireFinanceAdmin(), async (req: AuthR
 
     // Reject empty placeholder reconciliation requests without creating false-positive records
     if (!effectiveLines || effectiveLines.length === 0) {
-        res.status(501).json({
+        res.status(400).json({
             success: false,
-            error: "Bank reconciliation is not implemented; no reconciliation was created",
-            code: "BANK_RECONCILIATION_UNAVAILABLE",
+            error: "statement lines are required",
         });
         return;
     }
