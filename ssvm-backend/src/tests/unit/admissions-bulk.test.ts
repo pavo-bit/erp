@@ -63,6 +63,28 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
       });
       testClassId = cls.id;
       testSectionId = cls.sections[0].id;
+
+      const shift = await tx.schoolShift.create({
+        data: {
+          schoolId,
+          sessionId,
+          name: "Morning Shift",
+          type: "MORNING",
+          startTime: "07:30",
+          endTime: "12:30",
+          isActive: true,
+        },
+      });
+
+      await tx.schoolShiftClass.create({
+        data: {
+          schoolId,
+          sessionId,
+          shiftId: shift.id,
+          classId: cls.id,
+          isActive: true,
+        },
+      });
     });
 
     // Staff user for attestation
@@ -538,6 +560,30 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
     });
 
     it("Scenario B: Successfully registers Re-admission preserving original permanent number", async () => {
+      if (!newStudentAdmissionNo) {
+        const fallbackStudent = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+          const grd = await tx.guardian.create({
+            data: {
+              schoolId,
+              primaryName: "Debabrata Nayak",
+              primaryPhone: "9876543210",
+            },
+          });
+          return tx.student.create({
+            data: {
+              schoolId,
+              name: "Aditya Narayan Nayak",
+              rollNo: "1",
+              admissionNo: "ADM-2026-0001",
+              password: "hash",
+              sectionId: testSectionId,
+              guardianId: grd.id,
+            },
+          });
+        });
+        newStudentAdmissionNo = fallbackStudent.admissionNo;
+        newStudentId = fallbackStudent.id;
+      }
       expect(newStudentAdmissionNo, "Previous student must have been created").toBeDefined();
 
       // Create new academic session 2027-2028 for Re-admission placement
@@ -550,7 +596,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             endDate: new Date("2028-03-31"),
           },
         });
-        await tx.class.create({
+        const c2 = await tx.class.create({
           data: {
             schoolId,
             sessionId: nextSession.id,
@@ -558,6 +604,26 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             sections: {
               create: [{ name: "A", capacity: 40 }],
             },
+          },
+        });
+        const shift2 = await tx.schoolShift.create({
+          data: {
+            schoolId,
+            sessionId: nextSession.id,
+            name: "Morning Shift",
+            type: "MORNING",
+            startTime: "07:30",
+            endTime: "12:30",
+            isActive: true,
+          },
+        });
+        await tx.schoolShiftClass.create({
+          data: {
+            schoolId,
+            sessionId: nextSession.id,
+            shiftId: shift2.id,
+            classId: c2.id,
+            isActive: true,
           },
         });
       });

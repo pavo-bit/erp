@@ -5,11 +5,16 @@ import { AuthRequest, authenticate, requireSuperAdmin } from "../../middleware/a
 
 const router = Router({ mergeParams: true });
 
+function parseParam(param: string | string[] | undefined): string {
+  if (Array.isArray(param)) return param[0] || "";
+  return param || "";
+}
+
 /**
  * Access guard: Super Admin can access any school; School Admin can only view their own school.
  */
 function authorizeSchoolAccess(req: AuthRequest, res: Response, next: any) {
-  const schoolId = req.params.schoolId;
+  const schoolId = parseParam(req.params.schoolId);
   if (!schoolId) {
     res.status(400).json({ success: false, error: "School ID is required." });
     return;
@@ -33,7 +38,7 @@ function authorizeSchoolAccess(req: AuthRequest, res: Response, next: any) {
  */
 router.get("/:schoolId/shifts", authenticate, authorizeSchoolAccess, async (req: AuthRequest, res: Response) => {
   try {
-    const { schoolId } = req.params;
+    const schoolId = parseParam(req.params.schoolId);
     const { sessionId } = req.query;
 
     const whereClause: any = { schoolId };
@@ -69,7 +74,7 @@ router.get("/:schoolId/shifts", authenticate, authorizeSchoolAccess, async (req:
  */
 router.get("/:schoolId/sessions", authenticate, authorizeSchoolAccess, async (req: AuthRequest, res: Response) => {
   try {
-    const { schoolId } = req.params;
+    const schoolId = parseParam(req.params.schoolId);
     const sessions = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
       return tx.academicSession.findMany({
         where: { schoolId },
@@ -93,7 +98,8 @@ router.get(
   authorizeSchoolAccess,
   async (req: AuthRequest, res: Response) => {
     try {
-      const { schoolId, sessionId } = req.params;
+      const schoolId = parseParam(req.params.schoolId);
+      const sessionId = parseParam(req.params.sessionId);
 
       const formatted = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
         // Verify session belongs to school
@@ -142,7 +148,7 @@ router.get(
  */
 router.post("/:schoolId/shifts", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const { schoolId } = req.params;
+    const schoolId = parseParam(req.params.schoolId);
     const { name, type, startTime, endTime, sessionId, classIds = [], effectiveFrom, effectiveTo } = req.body;
 
     if (!name || !type || !startTime || !endTime || !sessionId) {
@@ -266,7 +272,8 @@ router.post("/:schoolId/shifts", authenticate, requireSuperAdmin(), async (req: 
  */
 router.put("/:schoolId/shifts/:shiftId", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const { schoolId, shiftId } = req.params;
+    const schoolId = parseParam(req.params.schoolId);
+    const shiftId = parseParam(req.params.shiftId);
     const { name, type, startTime, endTime, classIds, effectiveFrom, effectiveTo, isActive } = req.body;
 
     if (startTime && endTime && startTime >= endTime) {
@@ -379,7 +386,8 @@ router.put("/:schoolId/shifts/:shiftId", authenticate, requireSuperAdmin(), asyn
  */
 router.delete("/:schoolId/shifts/:shiftId", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const { schoolId, shiftId } = req.params;
+    const schoolId = parseParam(req.params.schoolId);
+    const shiftId = parseParam(req.params.shiftId);
 
     await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
       const existingShift = await tx.schoolShift.findFirst({
@@ -421,7 +429,7 @@ router.delete("/:schoolId/shifts/:shiftId", authenticate, requireSuperAdmin(), a
  */
 router.post("/:schoolId/shifts/validate", authenticate, authorizeSchoolAccess, async (req: AuthRequest, res: Response) => {
   try {
-    const { schoolId } = req.params;
+    const schoolId = parseParam(req.params.schoolId);
     const { sessionId } = req.body;
 
     if (!sessionId) {
@@ -529,7 +537,7 @@ router.post("/:schoolId/shifts/validate", authenticate, authorizeSchoolAccess, a
  */
 router.post("/:schoolId/shifts/publish", authenticate, requireSuperAdmin(), async (req: AuthRequest, res: Response) => {
   try {
-    const { schoolId } = req.params;
+    const schoolId = parseParam(req.params.schoolId);
     const { sessionId } = req.body;
 
     if (!sessionId) {
@@ -617,7 +625,7 @@ router.post("/:schoolId/shifts/publish", authenticate, requireSuperAdmin(), asyn
  */
 router.get("/:schoolId/shifts/history", authenticate, authorizeSchoolAccess, async (req: AuthRequest, res: Response) => {
   try {
-    const { schoolId } = req.params;
+    const schoolId = parseParam(req.params.schoolId);
     const history = await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
       return tx.auditLog.findMany({
         where: {

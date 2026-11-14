@@ -4974,6 +4974,41 @@ export const TENANT_CLASSIFICATION = {
     "verification": "UNVERIFIED",
     "score": 0
   },
+  "PasswordSetupToken": {
+    "model": "PasswordSetupToken",
+    "table": "password_setup_tokens",
+    "migrationCoverage": "PRESENT",
+    "classification": "direct",
+    "schoolIdField": "schoolId",
+    "schoolIdColumn": "schoolId",
+    "path": [],
+    "relations": [
+      {
+        "relation": "user",
+        "relatedModel": "User",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "userId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      },
+      {
+        "relation": "school",
+        "relatedModel": "School",
+        "cardinality": "one",
+        "foreignKeyFields": [
+          "schoolId"
+        ],
+        "referencedFields": [
+          "id"
+        ]
+      }
+    ],
+    "verification": "UNVERIFIED",
+    "score": 0
+  },
   "PaymentAllocation": {
     "model": "PaymentAllocation",
     "table": "payment_allocations",
@@ -9757,6 +9792,7 @@ export const TENANT_MODEL_NAMES = [
   "NotificationTemplate",
   "OnboardingProgress",
   "OutboxMessage",
+  "PasswordSetupToken",
   "PaymentAllocation",
   "PaymentTransaction",
   "PermissionGroup",
@@ -9949,6 +9985,7 @@ export const TENANT_RLS_MODELS = [
   "NotificationTemplate",
   "OnboardingProgress",
   "OutboxMessage",
+  "PasswordSetupToken",
   "PaymentAllocation",
   "PaymentTransaction",
   "PermissionGroup",
@@ -10141,6 +10178,7 @@ export const TENANT_RLS_TABLES = [
   "notification_templates",
   "onboarding_progress",
   "OutboxMessage",
+  "password_setup_tokens",
   "payment_allocations",
   "payment_transactions",
   "permission_groups",

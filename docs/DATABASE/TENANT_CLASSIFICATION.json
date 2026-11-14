@@ -1,11 +1,11 @@
 {
   "schema": "ssvm-backend/prisma/schema.prisma",
   "generatedBy": "ssvm-backend/scripts/generate-tenant-classification.cjs",
-  "modelCount": 221,
-  "directCount": 140,
+  "modelCount": 222,
+  "directCount": 141,
   "indirectCount": 50,
   "globalCount": 31,
-  "tenantModelsWithMigrations": 190,
+  "tenantModelsWithMigrations": 191,
   "tenantModelsMissingMigrations": 0,
   "verification": "UNVERIFIED",
   "score": 0,
@@ -4975,6 +4975,41 @@
           "cardinality": "one",
           "foreignKeyFields": [
             "domainEventId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        }
+      ],
+      "verification": "UNVERIFIED",
+      "score": 0
+    },
+    {
+      "model": "PasswordSetupToken",
+      "table": "password_setup_tokens",
+      "migrationCoverage": "PRESENT",
+      "classification": "direct",
+      "schoolIdField": "schoolId",
+      "schoolIdColumn": "schoolId",
+      "path": [],
+      "relations": [
+        {
+          "relation": "user",
+          "relatedModel": "User",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "userId"
+          ],
+          "referencedFields": [
+            "id"
+          ]
+        },
+        {
+          "relation": "school",
+          "relatedModel": "School",
+          "cardinality": "one",
+          "foreignKeyFields": [
+            "schoolId"
           ],
           "referencedFields": [
             "id"

@@ -29,7 +29,7 @@ describe('Bank Reconciliation Engine (FIN-REC-01)', () => {
     bankAccountId = bankAccount!.id;
   });
 
-  it('rejects empty placeholder statements with 501', async () => {
+  it('rejects empty placeholder statements with 400', async () => {
     const res = await request(app)
       .post('/api/v1/finance/governance/reconcile')
       .set('Authorization', `Bearer ${accountantToken}`)
@@ -41,10 +41,10 @@ describe('Bank Reconciliation Engine (FIN-REC-01)', () => {
         lines: [],
       });
 
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(400);
     expect(res.body).toMatchObject({
       success: false,
-      code: 'BANK_RECONCILIATION_UNAVAILABLE',
+      error: 'statement lines are required',
     });
   });
 

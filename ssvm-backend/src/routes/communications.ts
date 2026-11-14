@@ -59,8 +59,29 @@ router.post("/templates", authenticate, requireRole("SUPER_ADMIN", "ERP_ADMIN"),
  * Dispatcher function to handle sending messages.
  * In production, this would integrate with Twilio/SendGrid/MSG91 APIs.
  */
-async function dispatchMessage(schoolId: string, channel: string, type: string, recipientId: string | null, recipientNum: string, compiledContent: string) {
-  // 1. Log as PENDING
+export function isProviderConfigured(channel: string): boolean {
+  if (process.env.COMMUNICATION_TEST_ADAPTER === "true") {
+    return true;
+  }
+  if (channel === "SMS") {
+    const sid = process.env.TWILIO_ACCOUNT_SID;
+    const token = process.env.TWILIO_AUTH_TOKEN;
+    return Boolean(sid && token && !sid.startsWith("dummy_") && !sid.startsWith("test_"));
+  }
+  if (channel === "WHATSAPP") {
+    const key = process.env.WHATSAPP_API_KEY;
+    return Boolean(key && !key.startsWith("dummy_") && !key.startsWith("test_"));
+  }
+  if (channel === "EMAIL") {
+    const host = process.env.SMTP_HOST;
+    const key = process.env.SENDGRID_API_KEY || process.env.RESEND_API_KEY;
+    return Boolean((host || key) && !key?.startsWith("dummy_") && !key?.startsWith("test_"));
+  }
+  return false;
+}
+
+export async function dispatchMessage(schoolId: string, channel: string, type: string, recipientId: string | null, recipientNum: string, compiledContent: string) {
+  // 1. Initial status: QUEUED
   const log = await prisma.communicationLog.create({
     data: {
       schoolId,
@@ -69,43 +90,62 @@ async function dispatchMessage(schoolId: string, channel: string, type: string, 
       channel,
       type,
       content: compiledContent,
-      status: "PENDING"
+      status: "QUEUED"
     }
   });
 
+  // Check provider configuration honestly
+  if (!isProviderConfigured(channel)) {
+    const errorMsg = `Provider credentials for channel '${channel}' are not configured`;
+    await prisma.communicationLog.update({
+      where: { id: log.id },
+      data: { status: "UNAVAILABLE", errorMsg }
+    });
+    return { success: false, status: "UNAVAILABLE", logId: log.id, error: errorMsg };
+  }
+
   try {
-    // 2. MOCK PROVIDER API CALL
     logger.info({ channel, recipientNum, compiledContent }, `[DISPATCHER] Sending ${channel} message`);
-    
-    // Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-    
-    // Simulate 95% success rate
-    const isSuccess = Math.random() > 0.05;
-    
-    if (isSuccess) {
-      // 3. Mark as DELIVERED
+
+    if (process.env.COMMUNICATION_TEST_ADAPTER === "true") {
+      if (recipientNum === "FAIL" || recipientNum === "+0000000000") {
+        throw new Error("Test adapter delivery rejected");
+      }
       await prisma.communicationLog.update({
         where: { id: log.id },
         data: { status: "DELIVERED" }
       });
-      return { success: true, logId: log.id };
-    } else {
-      throw new Error("Provider API timeout or rejected");
+      return { success: true, status: "DELIVERED", logId: log.id };
     }
+
+    throw new Error("Provider dispatch returned unexpected response");
   } catch (error: any) {
-    // 4. Mark as FAILED
     await prisma.communicationLog.update({
       where: { id: log.id },
       data: { status: "FAILED", errorMsg: error.message }
     });
-    return { success: false, logId: log.id, error: error.message };
+    return { success: false, status: "FAILED", logId: log.id, error: error.message };
   }
 }
 
 // ==========================================
 // SENDING ENDPOINTS
 // ==========================================
+
+// POST /api/communications/dispatch — Direct message dispatch
+router.post("/dispatch", authenticate, requireRole("ADMIN", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
+  try {
+    const { channel, type, recipientNum, content, recipientId } = req.body;
+    const schoolId = req.user!.schoolId!;
+    if (!channel || !content) {
+      return res.status(400).json({ success: false, error: "channel and content are required" });
+    }
+    const result = await dispatchMessage(schoolId, channel, type || "ALERT", recipientId || null, recipientNum || "", content);
+    res.json({ success: result.success, data: result });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
 
 // SEND an ad-hoc message using a unified template
 router.post("/send", authenticate, requireRole("ADMIN", "SUPER_ADMIN", "ERP_ADMIN"), async (req: AuthRequest, res: Response) => {
