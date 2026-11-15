@@ -26,8 +26,12 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "DATABASE_URL secret is not configured; skipping production pre-check."
-            exit 0
+            if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+              echo "DATABASE_URL secret is not configured; skipping production pre-check for pull_request event."
+              exit 0
+            fi
+            echo "Error: DATABASE_URL secret is required for production deployment pre-check on event '$GITHUB_EVENT_NAME'!" >&2
+            exit 1
           fi
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 << 'EOF'
           DO $$
