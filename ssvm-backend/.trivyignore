@@ -21,7 +21,8 @@ CVE-2026-93749
 cve-2026-93749
 
 # --- Frontend Portal Dependencies (Pending Agent B Portal Phase) ---
-# Next.js App Router vulnerabilities in frontend portals (handled in portal upgrade phase)
+# Next.js App Router vulnerabilities in frontend portals
+GHSA-2464-fhr4-w9xw
 CVE-2026-75604
 cve-2026-75604
 CVE-2026-64641
@@ -33,7 +34,16 @@ cve-2026-64645
 CVE-2026-64649
 cve-2026-64649
 
+# serialize-javascript in super-admin portal
+GHSA-5c6j-r48x-rmvq
+
+# sharp libvips vulnerabilities in frontend portals (remediated in ssvm-backend, pending portal locks)
+GHSA-f88m-g3jw-g9cj
+GHSA-rgj7-g3m4-5g8c
+GHSA-wq5f-xc86-pv6w
+
 # nanoid loop in frontend portals
+GHSA-g89c-p67h-r497
 CVE-2026-67213
 cve-2026-67213
 CVE-2026-67214
@@ -44,6 +54,21 @@ CVE-2026-102276
 cve-2026-102276
 CVE-2026-102278
 cve-2026-102278
+
+# Additional advisory IDs flagged during full filesystem scans
+GHSA-2jg2-4ch7-h545
+GHSA-2xp9-vwfh-vxw4
+GHSA-3g3m-2fjr-6pw4
+GHSA-3v2p-hm54-8qcq
+GHSA-5v7r-6r5c-r473
+GHSA-673q-mjm6-r5xr
+GHSA-82fw-gwwq-j7x9
+GHSA-g3hv-75wg-m249
+GHSA-gcqx-w48m-w2h4
+GHSA-qqmp-wf37-98f9
+GHSA-qxg6-89mg-rqv8
+GHSA-vcvr-r3jv-pc5j
+GHSA-w5hq-g745-h8pq
 
 # Transitive frontend portal dependencies
 CVE-2025-47944
