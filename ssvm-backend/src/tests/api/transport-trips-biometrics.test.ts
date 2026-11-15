@@ -180,6 +180,18 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
       },
     });
     stopId = stop.id;
+
+    // 8. Default scheduled trip for order-independent shuffled suite execution
+    const defaultTrip = await request(app)
+      .post('/api/v1/admin/transport/trips')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        routeId,
+        vehicleId,
+        tripType: 'MORNING_PICKUP',
+        scheduledStartTime: new Date().toISOString(),
+      });
+    tripId = defaultTrip.body.data.id;
   });
 
   // ═════════════════════════════════════════════════════════════════════
@@ -332,6 +344,20 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
   });
 
   it('lists registered biometric devices for the school', async () => {
+    biometricDeviceRegistry.set(`${schoolId}:ZKT-EAST-01`, {
+      id: 'ZKT-EAST-01',
+      name: 'East Wing Terminal',
+      model: 'ZKTeco K40 Pro',
+      location: 'Staff Entrance East',
+      status: 'ACTIVE',
+      credentialState: 'REGISTERED',
+      totalPunchesRecorded: 0,
+      supportedVerification: ['FINGERPRINT'],
+      schoolId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
     const res = await request(app)
       .get('/api/v1/attendance/biometric/devices')
       .set('Authorization', `Bearer ${adminToken}`);

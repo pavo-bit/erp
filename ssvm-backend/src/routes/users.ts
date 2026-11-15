@@ -12,7 +12,6 @@ const router = Router();
 
 // Zod schemas for validation
 export const ASSIGNABLE_ROLES: Record<string, readonly string[]> = {
-  SUPER_ADMIN: ["SUPER_ADMIN", "ERP_ADMIN", "WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"],
   ERP_ADMIN: ["WEBSITE_ADMIN", "TEACHER", "ACCOUNTANT", "HR", "RECEPTIONIST", "ALUMNI", "PARENT", "STUDENT", "LIBRARIAN", "ASSET_MANAGER"],
 };
 export function isLastSchoolAdminDemotion(targetRole: string, nextRole: string | undefined, activeAdminCount: number): boolean {

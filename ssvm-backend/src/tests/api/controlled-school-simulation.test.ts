@@ -524,6 +524,21 @@ describe("Master Controlled Three-School Simulation, Entitlements & E2E Validati
   // ═════════════════════════════════════════════════════════════════════
 
   it("[E2E Finance] Collects offline cash fee payment and generates official receipt", async () => {
+    if (!invoiceAId) {
+      const inv = await prisma.invoice.create({
+        data: {
+          schoolId: schoolAId,
+          studentId: studentAId,
+          amount: 10000,
+          amountPaid: 0,
+          remainingAmount: 10000,
+          dueDate: new Date(Date.now() + 86400000),
+          status: "PENDING",
+        },
+      });
+      invoiceAId = inv.id;
+    }
+
     const res = await request(app)
       .post(`/api/v1/finance/fee-collection/record-payment`)
       .set("Authorization", `Bearer ${cashierAToken}`)
@@ -610,6 +625,27 @@ describe("Master Controlled Three-School Simulation, Entitlements & E2E Validati
   });
 
   it("[E2E Parent Transport] Parent A can fetch student bus allocation with vehicle info", async () => {
+    if (!stopAId) {
+      if (!routeAId) {
+        const route = await prisma.transportRoute.create({
+          data: {
+            schoolId: schoolAId,
+            name: `Route North ${uid}`,
+          },
+        });
+        routeAId = route.id;
+      }
+      const stop = await prisma.transportStop.create({
+        data: {
+          routeId: routeAId,
+          name: `Central Station ${uid}`,
+          latitude: 12.9716,
+          longitude: 77.5946,
+        },
+      });
+      stopAId = stop.id;
+    }
+
     // Allocate Student A to Stop A
     await prisma.transportAllocation.create({
       data: {

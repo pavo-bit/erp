@@ -125,6 +125,17 @@ describe("Master Execution Verification: Business Modules Completion (Phases 2, 
     });
 
     it("creates, queries and deletes fee structures with monetary precision", async () => {
+      if (!createdCategoryId) {
+        const cat = await prisma.feeCategory.create({
+          data: {
+            schoolId,
+            name: `Tuition Fee Fallback ${uid}`,
+            description: "Standard tuition",
+          },
+        });
+        createdCategoryId = cat.id;
+      }
+
       const res = await request(app)
         .post("/api/v1/finance/fee-structures")
         .set("Authorization", `Bearer ${adminToken}`)
