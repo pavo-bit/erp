@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 
@@ -6,6 +6,9 @@ export const metadata: Metadata = {
   title: "Parent Portal | SSVM College Square",
   description: "Secure parent portal for student tracking, fees, and results.",
   manifest: "/manifest.json",
+};
+
+export const viewport: Viewport = {
   themeColor: "#10B981",
 };
 
