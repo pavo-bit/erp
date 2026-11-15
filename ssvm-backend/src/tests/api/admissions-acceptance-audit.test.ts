@@ -28,6 +28,7 @@ import {
   AdmissionType,
   OfflineApprovalAttestation,
   ValidatedStudentEntry,
+  ParsedAdmissionWorkbook,
 } from "../../services/admissions-bulk/admission-types";
 
 describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () => {
@@ -228,7 +229,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
         documents: [],
         errors: [],
         warnings: [],
-      };
+      } as any;
 
       const res1 = await AdmissionRegistrationService.commitBatch(
         schoolAId,
@@ -271,7 +272,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
         documents: [],
         errors: [],
         warnings: [],
-      };
+      } as any;
 
       const res2 = await AdmissionRegistrationService.commitBatch(
         schoolAId,
@@ -357,7 +358,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
         documents: [],
         errors: [],
         warnings: [],
-      };
+      } as any;
 
       const newRes = await AdmissionRegistrationService.commitBatch(
         schoolAId,
@@ -401,7 +402,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
         documents: [],
         errors: [],
         warnings: [],
-      };
+      } as any;
 
       const readmRes = await AdmissionRegistrationService.commitBatch(
         schoolAId,
@@ -426,7 +427,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
       expect(updatedStudent?.sectionRef?.class.name).toBe("Class 2");
       expect(updatedStudent?.timelines.length).toBe(2);
 
-      const timelineTypes = updatedStudent?.timelines.map((t) => t.type);
+      const timelineTypes = updatedStudent?.timelines.map((t: any) => t.type);
       expect(timelineTypes).toContain("NEW_ADMISSION");
       expect(timelineTypes).toContain("READMISSION");
     });
@@ -462,7 +463,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
           guardian: { guardianKey: "G-1", name: "Father Alpha", primaryPhone: `94${Math.floor(10000000 + Math.random() * 90000000)}` },
         }],
         documents: [], errors: [], warnings: [],
-      };
+      } as any;
 
       const entry2: ValidatedStudentEntry = {
         importKey: "STU-CONC-2",
@@ -479,7 +480,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
           guardian: { guardianKey: "G-2", name: "Mother Beta", primaryPhone: `95${Math.floor(10000000 + Math.random() * 90000000)}` },
         }],
         documents: [], errors: [], warnings: [],
-      };
+      } as any;
 
       // Launch both batch commits simultaneously
       const [res1, res2] = await Promise.all([
@@ -580,7 +581,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
           guardian: { guardianKey: "G-SEC", name: "Dhiren Jena", primaryPhone: `96${Math.floor(10000000 + Math.random() * 90000000)}` },
         }],
         documents: [], errors: [], warnings: [],
-      };
+      } as any;
 
       const res = await AdmissionRegistrationService.commitBatch(
         schoolAId,
@@ -637,7 +638,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
           guardian: { guardianKey: "G-FAIL", name: "Father Fail", primaryPhone: `97${Math.floor(10000000 + Math.random() * 90000000)}` },
         }],
         documents: [], errors: [], warnings: [],
-      };
+      } as any;
 
       // Attempt commit with invalid foreign key - must throw and roll back atomically
       await expect(
@@ -732,7 +733,7 @@ describe("PROMPT 4 — SSVM ERP Admission Acceptance & Verification Audit", () =
             },
           }],
           documents: [], errors: [], warnings: [],
-        });
+        } as any);
       }
 
       const startTime = performance.now();

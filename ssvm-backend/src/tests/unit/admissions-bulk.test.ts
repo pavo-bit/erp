@@ -278,7 +278,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
               sourceRowNumber: 2,
             },
           ],
-          previousEducations: [],
+          previousSchools: [],
           facilities: [],
           documents: [],
           parseErrors: [],
@@ -314,7 +314,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             sourceRowNumber: 2,
           },
         ],
-        previousEducations: [],
+        previousSchools: [],
         facilities: [],
         documents: [],
         parseErrors: [],
@@ -357,7 +357,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             sourceRowNumber: 2,
           },
         ],
-        previousEducations: [],
+        previousSchools: [],
         facilities: [],
         documents: [],
         parseErrors: [],
@@ -393,7 +393,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             sourceRowNumber: 2,
           },
         ],
-        previousEducations: [],
+        previousSchools: [],
         facilities: [],
         documents: [],
         parseErrors: [],
@@ -415,7 +415,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
 
       const unverifiedAttestation: OfflineApprovalAttestation = {
         admissionType: "NEW",
-        academicSession: "2026-2027",
+        sessionId,
         approvalDate: "2026-03-15",
         approvingAuthority: "Principal Dr. S. K. Dash",
         approvalRegisterNumber: "REG-2026-OFFLINE-01",
@@ -446,7 +446,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
     it("Scenario A: Successfully registers New Admission with unique monotonic number", async () => {
       const validAttestation: OfflineApprovalAttestation = {
         admissionType: "NEW",
-        academicSession: "2026-2027",
+        sessionId,
         approvalDate: "2026-03-15",
         approvingAuthority: "Principal Dr. S. K. Dash",
         approvalRegisterNumber: "OFFLINE-REG-001",
@@ -468,10 +468,8 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             gender: "MALE",
             bloodGroup: "O+",
             nationality: "Indian",
-            addressLine1: "Plot 102, Cuttack Road",
-            city: "Cuttack",
-            state: "Odisha",
-            pinCode: "753001",
+            address: "Plot 102, Cuttack Road",
+            pincode: "753001",
             sourceRowNumber: 2,
           },
         ],
@@ -481,7 +479,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             name: "Debabrata Nayak",
             relationship: "FATHER",
             primaryPhone: "9437012345",
-            email: "debabrata@ssvm.test",
+            primaryEmail: "debabrata@ssvm.test",
             occupation: "Bank Officer",
             sourceRowNumber: 2,
           },
@@ -504,7 +502,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             sourceRowNumber: 2,
           },
         ],
-        previousEducations: [],
+        previousSchools: [],
         facilities: [],
         documents: [],
         parseErrors: [],
@@ -530,7 +528,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
       expect(result.successfulRows).toBe(1);
       expect(result.failedRows).toBe(0);
 
-      const registered = result.records[0];
+      const registered = result.records![0];
       expect(registered.status).toBe("REGISTERED");
       expect(registered.admissionNo).toBeDefined();
       expect(registered.admissionNo).toMatch(/^ADM-\d{4}-\d{4}$/);
@@ -581,12 +579,13 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             },
           });
         });
-        newStudentAdmissionNo = fallbackStudent.admissionNo;
+        newStudentAdmissionNo = fallbackStudent.admissionNo!;
         newStudentId = fallbackStudent.id;
       }
       expect(newStudentAdmissionNo, "Previous student must have been created").toBeDefined();
 
       // Create new academic session 2027-2028 for Re-admission placement
+      let nextSessionId: string = "";
       await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
         const nextSession = await tx.academicSession.create({
           data: {
@@ -596,6 +595,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             endDate: new Date("2028-03-31"),
           },
         });
+        nextSessionId = nextSession.id;
         const c2 = await tx.class.create({
           data: {
             schoolId,
@@ -630,7 +630,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
 
       const validAttestation: OfflineApprovalAttestation = {
         admissionType: "READMISSION",
-        academicSession: "2027-2028",
+        sessionId: nextSessionId,
         approvalDate: "2026-03-20",
         approvingAuthority: "Principal Dr. S. K. Dash",
         approvalRegisterNumber: "OFFLINE-REG-002",
@@ -666,7 +666,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
             sourceRowNumber: 2,
           },
         ],
-        previousEducations: [],
+        previousSchools: [],
         facilities: [],
         documents: [],
         parseErrors: [],
@@ -691,7 +691,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
       expect(result.status).toBe("COMPLETED");
       expect(result.successfulRows).toBe(1);
 
-      const registered = result.records[0];
+      const registered = result.records![0];
       expect(registered.status).toBe("READMISSION_RECORDED");
       expect(registered.admissionNo).toBe(newStudentAdmissionNo); // PRESERVED original number!
       expect(registered.studentId).toBe(newStudentId); // PRESERVED canonical student identity!
@@ -708,7 +708,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
     it("Scenario C: Successfully registers Incoming Transfer Admission with previous school history", async () => {
       const validAttestation: OfflineApprovalAttestation = {
         admissionType: "TRANSFER",
-        academicSession: "2026-2027",
+        sessionId,
         approvalDate: "2026-03-22",
         approvingAuthority: "Principal Dr. S. K. Dash",
         approvalRegisterNumber: "OFFLINE-REG-003",
@@ -795,7 +795,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
       expect(result.status).toBe("COMPLETED");
       expect(result.successfulRows).toBe(1);
 
-      const registered = result.records[0];
+      const registered = result.records![0];
       expect(registered.status).toBe("REGISTERED");
       expect(registered.admissionNo).toBeDefined();
 
@@ -867,7 +867,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
         guardians,
         studentGuardians,
         academicPlacements,
-        previousEducations: [],
+        previousSchools: [],
         facilities: [],
         documents: [],
         parseErrors: [],

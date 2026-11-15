@@ -327,7 +327,7 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       schoolAId,
       "BATCH-SHIFT-1",
       "NEW",
-      attestation,
+      attestation as any,
       entries as any
     );
 
@@ -395,7 +395,7 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       schoolAId,
       "BATCH-SHIFT-7",
       "NEW",
-      attestation,
+      attestation as any,
       entries as any
     );
 
@@ -460,7 +460,7 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
         schoolAId,
         "BATCH-UNMAPPED",
         "NEW",
-        attestation,
+        attestation as any,
         entries as any
       )
     ).rejects.toThrow("NO_SHIFT_CONFIGURED_FOR_CLASS");
@@ -550,7 +550,7 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       schoolBId,
       "BATCH-EVENING-B",
       "NEW",
-      attestation,
+      attestation as any,
       entries as any
     );
 
