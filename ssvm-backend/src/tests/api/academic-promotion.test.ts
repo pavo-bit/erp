@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import request from "supertest";
 import { Role } from "@prisma/client";
 import { createTestApp, getTestPrisma, createTestUser, createTestSchool } from "../helpers/testApp";
@@ -233,6 +233,20 @@ describe("Student Academic Promotion Engine and Invariant Verification", () => {
     } catch {
       // ignore cleanup errors
     }
+  });
+
+  beforeEach(async () => {
+    // Reset student sections to section1AId to guarantee order independence under shuffle
+    await prisma.student.updateMany({
+      where: { id: { in: [studentPassingId, studentFailingMarksId, studentFailingAttendanceId] } },
+      data: { sectionId: section1AId },
+    });
+    await prisma.studentTimeline.deleteMany({
+      where: {
+        studentId: { in: [studentPassingId, studentFailingMarksId, studentFailingAttendanceId] },
+        type: "PROMOTION",
+      },
+    });
   });
 
   describe("GET /api/v1/academic/promote/evaluate/:studentId", () => {

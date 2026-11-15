@@ -512,12 +512,20 @@ describe("SSVM ERP Admission Operational Handoff & Data Integrity Suite", () => 
   });
 
   it("allows operational staff to update facility request review status with audit logging", async () => {
-    // Fetch pending request ID
-    const listRes = await request(app)
-      .get("/api/v1/admin/admissions/bulk/facilities/pending?facilityType=TRANSPORT")
-      .set("Authorization", `Bearer ${adminAToken}`);
-
-    const reqId = listRes.body.data.requests[0].id;
+    // Create dedicated facility request for status update test
+    let reqId: string = "";
+    await runWithTenantDatabaseTransaction(schoolAId, async (tx) => {
+      const fac = await tx.facilityRequest.create({
+        data: {
+          schoolId: schoolAId,
+          studentId: registeredStudentId,
+          facilityType: "TRANSPORT",
+          status: "REQUESTED",
+          details: "Route 4 Stop",
+        },
+      });
+      reqId = fac.id;
+    });
 
     const patchRes = await request(app)
       .patch(`/api/v1/admin/admissions/bulk/facilities/${reqId}/status`)

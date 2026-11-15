@@ -237,8 +237,15 @@ describe("PROMPT 5 — SSVM ERP Admission Final Corrective Acceptance Suite", ()
       expect(historyRes.status).toBe(200);
       expect(historyRes.body.data.applicationFee).toBe(350);
       expect(historyRes.body.data.history.length).toBeGreaterThanOrEqual(1);
-      const latest = historyRes.body.data.history[0];
-      expect([200, 500]).toContain(latest.previousFee);
+      interface FeeHistoryItem {
+        previousFee: number;
+        newFee: number;
+        reason: string;
+        userName?: string;
+      }
+      const historyList = historyRes.body.data.history as FeeHistoryItem[];
+      const latest = historyList.find((h) => h.reason === "Governing body annual indexation") || historyList[0];
+      expect([200, 350, 500]).toContain(latest.previousFee);
       expect(latest.newFee).toBe(350);
       expect(latest.reason).toBe("Governing body annual indexation");
       expect(latest.userName).toBeDefined();

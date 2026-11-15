@@ -224,8 +224,19 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
   });
 
   it('rejects invalid trip state transitions (e.g. SCHEDULED directly to COMPLETED)', async () => {
+    const schedTrip = await request(app)
+      .post('/api/v1/admin/transport/trips')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        routeId,
+        vehicleId,
+        tripType: 'MORNING_PICKUP',
+        scheduledStartTime: new Date().toISOString(),
+      });
+    const schedTripId = schedTrip.body.data.id;
+
     const res = await request(app)
-      .put(`/api/v1/admin/transport/trips/${tripId}/status`)
+      .put(`/api/v1/admin/transport/trips/${schedTripId}/status`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ status: 'COMPLETED' });
 
@@ -234,9 +245,20 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
   });
 
   it('executes valid state transitions: SCHEDULED -> READY -> STARTED -> IN_PROGRESS', async () => {
+    const schedTrip = await request(app)
+      .post('/api/v1/admin/transport/trips')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        routeId,
+        vehicleId,
+        tripType: 'MORNING_PICKUP',
+        scheduledStartTime: new Date().toISOString(),
+      });
+    const testTripId = schedTrip.body.data.id;
+
     // 1. SCHEDULED -> READY
     let res = await request(app)
-      .put(`/api/v1/admin/transport/trips/${tripId}/status`)
+      .put(`/api/v1/admin/transport/trips/${testTripId}/status`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ status: 'READY' });
     expect(res.status).toBe(200);
@@ -244,7 +266,7 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
 
     // 2. READY -> STARTED
     res = await request(app)
-      .put(`/api/v1/admin/transport/trips/${tripId}/status`)
+      .put(`/api/v1/admin/transport/trips/${testTripId}/status`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ status: 'STARTED' });
     expect(res.status).toBe(200);
@@ -253,7 +275,7 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
 
     // 3. STARTED -> IN_PROGRESS
     res = await request(app)
-      .put(`/api/v1/admin/transport/trips/${tripId}/status`)
+      .put(`/api/v1/admin/transport/trips/${testTripId}/status`)
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ status: 'IN_PROGRESS' });
     expect(res.status).toBe(200);
@@ -261,6 +283,29 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
   });
 
   it('records GEOFENCE_ENTER when vehicle reaches stop coordinates (< 50m)', async () => {
+    const geoTrip = await request(app)
+      .post('/api/v1/admin/transport/trips')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        routeId,
+        vehicleId,
+        tripType: 'MORNING_PICKUP',
+        scheduledStartTime: new Date().toISOString(),
+      });
+    const geoTripId = geoTrip.body.data.id;
+    await request(app)
+      .put(`/api/v1/admin/transport/trips/${geoTripId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'READY' });
+    await request(app)
+      .put(`/api/v1/admin/transport/trips/${geoTripId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'STARTED' });
+    await request(app)
+      .put(`/api/v1/admin/transport/trips/${geoTripId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'IN_PROGRESS' });
+
     const deviceToken = generateVehicleHardwareToken(vehicleId, schoolId);
 
     // Send telemetry directly at the stop coordinates (12.9716, 77.5946)
@@ -278,7 +323,7 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
 
     // Query trip details to assert geofence event
     const tripRes = await request(app)
-      .get(`/api/v1/admin/transport/trips/${tripId}`)
+      .get(`/api/v1/admin/transport/trips/${geoTripId}`)
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(tripRes.status).toBe(200);
@@ -306,6 +351,49 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
   });
 
   it('provides admin fleet overview with live telemetry and ONLINE_ACTIVE freshness', async () => {
+    // Dedicated vehicle for fleet overview test
+    const fleetVehicle = await prisma.transportVehicle.create({
+      data: {
+        schoolId,
+        registrationNumber: `KA-01-FL-${Date.now().toString().slice(-6)}`,
+        vehicleType: 'BUS',
+        capacity: 40,
+        status: 'ACTIVE',
+      },
+    });
+    const fleetVehicleId = fleetVehicle.id;
+
+    // Ensure active trip and live telemetry exist for fleet overview
+    const fleetTrip = await request(app)
+      .post('/api/v1/admin/transport/trips')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        routeId,
+        vehicleId: fleetVehicleId,
+        tripType: 'MORNING_PICKUP',
+        scheduledStartTime: new Date().toISOString(),
+      });
+    const fleetTripId = fleetTrip.body.data.id;
+    await request(app)
+      .put(`/api/v1/admin/transport/trips/${fleetTripId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'READY' });
+    await request(app)
+      .put(`/api/v1/admin/transport/trips/${fleetTripId}/status`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ status: 'STARTED' });
+
+    const deviceToken = generateVehicleHardwareToken(fleetVehicleId, schoolId);
+    await request(app)
+      .post(`/api/v1/admin/transport/vehicles/${fleetVehicleId}/telemetry`)
+      .set('X-Device-Token', deviceToken)
+      .send({
+        latitude: 12.9716,
+        longitude: 77.5946,
+        speed: 15.0,
+        heading: 90,
+      });
+
     const res = await request(app)
       .get('/api/v1/admin/transport/fleet/overview')
       .set('Authorization', `Bearer ${adminToken}`);
@@ -315,11 +403,11 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
     expect(res.body.totalVehicles).toBeGreaterThanOrEqual(1);
     expect(res.body.onlineCount).toBeGreaterThanOrEqual(1);
 
-    const vehicleEntry = res.body.fleet.find((v: any) => v.id === vehicleId);
+    const vehicleEntry = res.body.fleet.find((v: any) => v.id === fleetVehicleId);
     expect(vehicleEntry).toBeDefined();
     expect(vehicleEntry.freshness).toBe('ONLINE_ACTIVE');
     expect(vehicleEntry.telemetry.latitude).toBe(12.9716);
-    expect(vehicleEntry.activeTrip.id).toBe(tripId);
+    expect(vehicleEntry.activeTrip.id).toBe(fleetTripId);
   });
 
   // ═════════════════════════════════════════════════════════════════════
@@ -383,6 +471,31 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
   });
 
   it('processes biometric punch using mapped badge ID with shift rules and idempotency', async () => {
+    // Ensure terminal device and badge mapping exist
+    biometricDeviceRegistry.set('ZKT-EAST-01', {
+      id: 'ZKT-EAST-01',
+      name: 'East Wing Terminal',
+      model: 'ZKTeco K40 Pro',
+      location: 'Staff Entrance East',
+      status: 'ACTIVE',
+      credentialState: 'REGISTERED',
+      totalPunchesRecorded: 0,
+      supportedVerification: ['FINGERPRINT_ON_DEVICE'],
+      schoolId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    const mappingId = `map_punch_test_${Date.now()}`;
+    biometricTeacherMappingStore.set(mappingId, {
+      id: mappingId,
+      schoolId,
+      deviceUserId: 'BADGE-999',
+      teacherId,
+      employeeId: teacherEmployeeId,
+      teacherName: 'Teacher Fleet',
+      createdAt: new Date().toISOString(),
+    });
+
     const eventId = `bio-evt-map-${Date.now()}`;
     const deviceToken = generateBiometricHardwareToken('ZKT-EAST-01', schoolId);
 
@@ -434,8 +547,18 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
   });
 
   it('revokes a biometric terminal device', async () => {
+    await request(app)
+      .post('/api/v1/attendance/biometric/devices')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        deviceId: 'ZKT-REVOKE-01',
+        name: 'Revoke Terminal',
+        model: 'ZKTeco K40 Pro',
+        location: 'West Gate',
+      });
+
     const res = await request(app)
-      .delete('/api/v1/attendance/biometric/devices/ZKT-EAST-01')
+      .delete('/api/v1/attendance/biometric/devices/ZKT-REVOKE-01')
       .set('Authorization', `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
