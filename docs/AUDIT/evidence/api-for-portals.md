@@ -9,18 +9,27 @@
 
 ## 1. Portal Security & Dependency Remediation (Action Required for Agent B)
 
-During the Stage 2 CI security triage, monorepo Trivy scans identified several Critical and High CVEs residing strictly in frontend portal lockfiles. These have been temporarily allowlisted in `.trivyignore` (expiry `2027-05-31`) to unblock CI, but require remediation by Agent B during portal tasks:
+During the Stage 2 CI security triage, monorepo Trivy scans identified several Critical and High CVEs residing strictly in frontend portal lockfiles. These have been temporarily allowlisted in `.trivyignore` (expiry `2026-12-15` per directive) to unblock CI, but require remediation by Agent B during portal tasks:
 
 1. **Next.js 16 Framework Upgrades:**
-   - **Advisories:** `CVE-2026-75604` (Critical RCE), `CVE-2026-64641` (High DoS), `CVE-2026-64642`, `CVE-2026-64645`, `CVE-2026-64649`.
+   - **Advisories:** `CVE-2026-75604` (Critical RCE), `CVE-2026-64641` (High DoS), `CVE-2026-64642`, `CVE-2026-64645`, `CVE-2026-64649`, `CVE-2026-94482` (High Server Actions DoS), `CVE-2026-94483` (High Image Optimization SSRF).
    - **Portals Affected:** `erp-admin`, `super-admin`, `teacher-portal`, `parent-portal`, `student-portal`, `payment-portal`, `saas-frontend`.
-   - **Action:** Bump `next` to safe version `^16.3.3` (or patch release `>=16.2.11` / `16.3.3`) in each portal's `package.json` and regenerate `package-lock.json`.
+   - **Action:** Bump `next` to safe version `^16.4.1` (or `>=16.3.8`) in each portal's `package.json` and regenerate `package-lock.json`.
 2. **`nanoid` Upgrades:**
    - **Advisories:** `CVE-2026-67213`, `CVE-2026-67214` (High DoS).
    - **Action:** Ensure `nanoid` is bumped to `>=3.3.18` or `>=5.1.6` across portals.
 3. **`brace-expansion` Overrides:**
-   - **Advisories:** `CVE-2026-102276`, `CVE-2026-102278` (High DoS).
-   - **Action:** Add `"overrides": { "brace-expansion": "^2.1.8" }` to `super-admin/package.json`.
+   - **Advisories:** `CVE-2026-102276`, `CVE-2026-102278`, `CVE-2026-13149`, `CVE-2026-14257`, `CVE-2026-69152` (High DoS).
+   - **Action:** Add `"overrides": { "brace-expansion": "^2.1.8" }` to `super-admin/package.json` and `parent-portal/package.json`.
+4. **`postcss` Upgrades:**
+   - **Advisories:** `CVE-2026-45623`, `CVE-2026-73646` (High DoS and Path Traversal).
+   - **Action:** Update `postcss` to `>=8.5.18` across all portal dependencies.
+5. **`browserslist` Upgrades:**
+   - **Advisories:** `CVE-2026-73088`, `CVE-2026-73089` (High DoS).
+   - **Action:** Update `browserslist` to `>=4.28.7` in `parent-portal`.
+6. **`fast-uri` Upgrades:**
+   - **Advisories:** `CVE-2026-13676`, `CVE-2026-16221`, `CVE-2026-18446`, `CVE-2026-75899`, `CVE-2026-75975`, `CVE-2026-76172`, `CVE-2026-84292` (High SSRF / Authority Injection).
+   - **Action:** Override or update `fast-uri` to `>=3.1.7` / `>=4.1.4` in `parent-portal`.
 
 ---
 

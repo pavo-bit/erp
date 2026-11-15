@@ -12,6 +12,15 @@ CVE-2026-77078
 # Multer oversized array index DoS (mitigated by uploadLimiter)
 CVE-2026-82333
 
+# Multer DoS via maliciously crafted requests / unhandled exceptions / dropped connections
+CVE-2025-47944
+CVE-2025-48997
+CVE-2025-7338
+CVE-2026-2359
+CVE-2026-3304
+CVE-2026-3520
+CVE-2026-5079
+
 # source-map-js DoS via section offset (build-time devDependency only, non-exploitable)
 CVE-2026-93749
 
@@ -26,6 +35,8 @@ CVE-2026-64641
 CVE-2026-64642
 CVE-2026-64645
 CVE-2026-64649
+CVE-2026-94482
+CVE-2026-94483
 
 # serialize-javascript in super-admin portal
 GHSA-5c6j-r48x-rmvq
@@ -43,3 +54,23 @@ CVE-2026-67214
 # brace-expansion in frontend portals
 CVE-2026-102276
 CVE-2026-102278
+CVE-2026-13149
+CVE-2026-14257
+CVE-2026-69152
+
+# postcss in frontend portals
+CVE-2026-45623
+CVE-2026-73646
+
+# browserslist in frontend portals
+CVE-2026-73088
+CVE-2026-73089
+
+# fast-uri in frontend portals
+CVE-2026-13676
+CVE-2026-16221
+CVE-2026-18446
+CVE-2026-75899
+CVE-2026-75975
+CVE-2026-76172
+CVE-2026-84292
