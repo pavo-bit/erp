@@ -59,6 +59,7 @@ export class AdmissionRegistrationService {
     let finalStatus: "COMPLETED" | "PARTIALLY_COMPLETED" | "FAILED" = "COMPLETED";
 
     // 4. Execute Transactional Commit
+    const txTimeout = Math.max(30000, rowsToProcess.length * 1000);
     await runWithTenantDatabaseTransaction(schoolId, async (tx: any) => {
       // 3. Create BulkJob record inside tenant transaction
       const bulkJob = await tx.bulkJob.create({
@@ -143,7 +144,7 @@ export class AdmissionRegistrationService {
           errorFile: errorLog.length > 0 ? JSON.stringify(errorLog) : null,
         },
       });
-    });
+    }, { maxWait: 10000, timeout: txTimeout });
 
     // Send setup emails after the transaction commits (do not roll back if sending fails)
     for (const inv of pendingInvitations) {
