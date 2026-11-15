@@ -42,6 +42,10 @@
     "postcss": "^8.5.18",
     "browserslist": "^4.28.7",
     "fast-uri": "^3.1.7",
-    "js-yaml": "^4.3.2"
+    "js-yaml": "^4.3.2",
+    "minimatch": "^11.0.8",
+    "eslint-plugin-react-hooks": {
+      "zod": "^4.6.7"
+    }
   }
 }
