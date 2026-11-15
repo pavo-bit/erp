@@ -22,6 +22,8 @@ These two folders carry timestamps on `2026-11-01` (`16:00:00` and `17:00:00`), 
 - `20261108173000_library_enterprise_and_borrowing_history`
 - `20261112130000_admission_operational_handoff`
 - `20261112150000_school_shift_classes`
+- `20261114154000_school_shift_classes_tenant_rls`
+- `20261115143000_align_updated_at_defaults`
 
 ---
 
