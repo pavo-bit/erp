@@ -5,17 +5,23 @@ import logger from "../lib/logger";
 
 const env = getEnv();
 
-// In a real app, this would use ClamAV or an external API
-// We simulate the scan here
-async function simulateVirusScan(fileUrl: string): Promise<"CLEAN" | "QUARANTINED"> {
-  // Simulate delay
-  await new Promise(resolve => setTimeout(resolve, 3000));
-  
-  // 5% chance of being quarantined for simulation purposes
-  if (Math.random() < 0.05) {
-    return "QUARANTINED";
+async function performVirusScan(fileUrl: string): Promise<"CLEAN" | "QUARANTINED" | "SCAN_UNAVAILABLE"> {
+  const scannerHost = process.env.CLAMAV_HOST;
+  const isTestAdapter = process.env.VIRUS_SCAN_TEST_ADAPTER === "true";
+
+  if (!scannerHost && !isTestAdapter) {
+    logger.warn({ fileUrl }, "Virus scanner unconfigured. Returning SCAN_UNAVAILABLE.");
+    return "SCAN_UNAVAILABLE";
   }
-  return "CLEAN";
+
+  if (isTestAdapter) {
+    if (fileUrl.includes("eicar") || fileUrl.includes("virus")) {
+      return "QUARANTINED";
+    }
+    return "CLEAN";
+  }
+
+  return "SCAN_UNAVAILABLE";
 }
 
 export function startScanWorker() {
@@ -36,7 +42,7 @@ export function startScanWorker() {
           data: { scanStatus: "IN_PROGRESS" }
         });
 
-        const scanResult = await simulateVirusScan(fileUrl);
+        const scanResult = await performVirusScan(fileUrl);
 
         await prisma.storageObject.update({
           where: { id: documentId },

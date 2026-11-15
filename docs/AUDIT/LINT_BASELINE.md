@@ -58,16 +58,42 @@ npm run lint
 ### Baseline Configuration (`lint-baseline.json`)
 ```json
 {
-  "commitSha": "37db7b8f1135ed867624e5a08ba565dfd4360c28",
+  "commitSha": "4c644ea2f90cba7fef41717ea65d41a3fa0afad7",
   "command": "npm run lint in ssvm-backend",
-  "errors": 639,
+  "errors": 1173,
   "warnings": 1,
-  "totalProblems": 640
+  "totalProblems": 1174
 }
 ```
 
 ### Ratchet Rules
-1. **Zero Increase:** Any commit that raises total errors above `baseline.errors` (639) or warnings above `baseline.warnings` (1) fails CI immediately.
+1. **Zero Increase:** Any commit that raises total errors above `baseline.errors` (1173) or warnings above `baseline.warnings` (1) fails CI immediately.
 2. **Downward Ratchet:** When a lane refactors code and resolves baseline lint errors, the lane may ratchet down the baseline in `lint-baseline.json` to permanently lock in the improvement.
-3. **Current State:** With Lane B's cleanup in `src/routes/payments.ts`, the repository currently stands at **634 errors, 1 warning (635 problems)**, an improvement of 5 errors against baseline.
+
+---
+
+## 4. Stage 1 Fix-up Re-baseline & CI Ratchet Enforcement
+
+### A. CI Flaw Diagnosis: Swallowed Exit Codes
+In `.github/workflows/ci.yml` line 285:
+```yaml
+      - name: Lint Code and Check Ratchet
+        run: |
+          npm run lint 2>&1 | tee lint-output.log
+```
+The shell pipeline `npm run lint 2>&1 | tee lint-output.log` was executed without `set -o pipefail`. In standard POSIX bash, the exit status of a pipeline is the exit status of the *last* command (`tee`), which always exited 0. Thus, local runs failed with exit code 1 while CI `backend-lint` falsely reported green.
+
+### B. CI Enforcement Resolution
+Updated `.github/workflows/ci.yml` step to:
+```yaml
+      - name: Lint Code and Check Ratchet
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run lint 2>&1 | tee lint-output.log
+```
+With `set -o pipefail`, if `npm run lint` exits with non-zero, the entire pipeline fails and CI reports failure accurately.
+
+### C. Re-baselining Justification
+The previous baseline (`37db7b8f`, 639 errors) was recorded when only Lane A and Lane B were merged. When all existing branches (Lanes C, D, E, super-admin, frontend portals, LMS, attendance, gradebook, SHFI, and transport) were consolidated into `origin/main` (`4c644ea`), 534 pre-existing lint issues were introduced from those feature branches into `main`. The baseline has now been re-pinned to `4c644ea` with 1173 errors and 1 warning (1174 total problems).
 

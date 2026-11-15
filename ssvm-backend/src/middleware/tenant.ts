@@ -18,26 +18,23 @@ declare global {
  */
 export const tenantMiddleware = (req: Request, res: Response, next: NextFunction) => {
   try {
-    // 1. Try to get tenantId from custom header (e.g., x-tenant-id)
-    const headerTenantId = req.header('x-tenant-id');
+    // Tenant context must come ONLY from the authenticated user token (or explicit route parameter for SUPER_ADMIN)
+    // @ts-ignore - req.user is set by auth middleware
+    const user = req.user;
+    let tenantId = user?.schoolId;
 
-    // 2. Fallback to the authenticated user's schoolId (if auth middleware runs first)
-    // @ts-ignore - Assuming req.user is set by auth middleware
-    const userTenantId = req.user?.schoolId;
-
-    const tenantId = headerTenantId || userTenantId;
-
-    // Optional: Allow Super Admins to bypass tenant injection or explicitly provide one
-    // @ts-ignore
-    if (req.user?.role === 'SUPER_ADMIN') {
-        req.tenantId = headerTenantId; // Super Admins can query without tenantId if header is missing
+    if (!tenantId && user?.role === 'SUPER_ADMIN') {
+      tenantId = (req.params as any)?.schoolId || (req.params as any)?.id;
+      if (!tenantId) {
+        // Super Admins accessing platform-level route without school parameter
         return next();
+      }
     }
 
     if (!tenantId) {
       return res.status(400).json({
         success: false,
-        message: 'Tenant ID is required. Please provide x-tenant-id header.',
+        message: 'Tenant context required. Authenticated school context not found.',
       });
     }
 

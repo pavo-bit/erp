@@ -21,10 +21,8 @@ export const requireModule = (moduleId: string) => {
       if (!schoolId) {
         if (req.user?.role === Role.SUPER_ADMIN) {
           schoolId =
-            (req.headers['x-tenant-id'] as string) ||
-            (req.headers['x-school-id'] as string) ||
-            (req.params as any)?.id ||
-            (req.params as any)?.schoolId;
+            (req.params as any)?.schoolId ||
+            (req.params as any)?.id;
         } else if ((req as any).deviceAuth?.schoolId) {
           schoolId = (req as any).deviceAuth.schoolId;
         }

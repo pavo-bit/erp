@@ -366,18 +366,20 @@ const legacyCompatMiddleware = async (req: Request, res: Response, next: NextFun
     res.setHeader("Link", `<${req.protocol}://${req.get("host")}${v1Path}>; rel="successor-version"`);
 
     try {
-      const schoolId = (req.headers["x-school-id"] as string) || "UNKNOWN_TENANT";
-      await prisma.activityLog.create({
-        data: {
-          schoolId,
-          type: "NOTICE",
-          title: "Legacy Route Hit",
-          description: `Deprecated route accessed: ${req.path}`,
-          metadata: { path: req.path, method: req.method, timestamp: new Date().toISOString() }
-        }
-      });
+      const schoolId = (req as any).user?.schoolId;
+      if (schoolId) {
+        await prisma.activityLog.create({
+          data: {
+            schoolId,
+            type: "NOTICE",
+            title: "Legacy Route Hit",
+            description: `Deprecated route accessed: ${req.path}`,
+            metadata: { path: req.path, method: req.method, timestamp: new Date().toISOString() }
+          }
+        });
+      }
     } catch {
-      // Fallback if schoolId constraint fails
+      // Fallback if logging fails
     }
 
     req.url = req.url.replace(/^\/api\//, "/api/v1/");

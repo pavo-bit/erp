@@ -117,6 +117,37 @@ describe("SSVM ERP Admission Operational Handoff & Data Integrity Suite", () => 
         },
       });
       sec7AId = s7.id;
+
+      const morningShift = await tx.schoolShift.create({
+        data: {
+          schoolId: schoolAId,
+          sessionId: sessionAId,
+          name: "Morning Batch",
+          type: "MORNING",
+          startTime: "07:30",
+          endTime: "12:30",
+          isActive: true,
+        },
+      });
+
+      const dayShift = await tx.schoolShift.create({
+        data: {
+          schoolId: schoolAId,
+          sessionId: sessionAId,
+          name: "Day Batch",
+          type: "DAY",
+          startTime: "11:30",
+          endTime: "16:30",
+          isActive: true,
+        },
+      });
+
+      await tx.schoolShiftClass.createMany({
+        data: [
+          { schoolId: schoolAId, sessionId: sessionAId, shiftId: morningShift.id, classId: class1Id, isActive: true },
+          { schoolId: schoolAId, sessionId: sessionAId, shiftId: dayShift.id, classId: class7Id, isActive: true },
+        ],
+      });
     });
   });
 

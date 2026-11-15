@@ -57,20 +57,20 @@ export class NotificationRouter {
         channel: NotificationChannel, 
         providerFn: (p: AlertPayload) => Promise<boolean>
     ): Promise<boolean> {
-        try {
-            // Log delivery attempt in database
-            const deliveryLog = await prisma.notificationDelivery.create({
-                data: {
-                    notificationId: payload.notificationId,
-                    schoolId: payload.schoolId,
-                    channel: channel,
-                    recipientId: payload.recipientId,
-                    recipientPhone: payload.recipientPhone,
-                    recipientEmail: payload.recipientEmail,
-                    status: "QUEUED"
-                }
-            });
+        // Log delivery attempt in database
+        const deliveryLog = await prisma.notificationDelivery.create({
+            data: {
+                notificationId: payload.notificationId,
+                schoolId: payload.schoolId,
+                channel: channel,
+                recipientId: payload.recipientId,
+                recipientPhone: payload.recipientPhone,
+                recipientEmail: payload.recipientEmail,
+                status: "QUEUED"
+            }
+        });
 
+        try {
             // Execute provider logic
             const success = await providerFn(payload);
 
@@ -87,38 +87,62 @@ export class NotificationRouter {
             } else {
                 await prisma.notificationDelivery.update({
                     where: { id: deliveryLog.id },
-                    data: { status: "FAILED", errorMessage: "Provider rejected message" }
+                    data: { status: "FAILED", errorMessage: "Provider rejected message or unconfigured" }
                 });
                 return false;
             }
         } catch (error: any) {
-            logger.error(`Delivery failed on channel ${channel} for ${payload.notificationId}`, error);
+            const isUnavailable = error.message?.includes("UNAVAILABLE");
+            const statusMsg = isUnavailable ? "Provider unconfigured / UNAVAILABLE" : (error.message || "Delivery failed");
+            await prisma.notificationDelivery.update({
+                where: { id: deliveryLog.id },
+                data: { status: "FAILED", errorMessage: statusMsg }
+            });
+            logger.error(`Delivery failed on channel ${channel} for ${payload.notificationId}: ${statusMsg}`);
             return false;
         }
     }
 
-    // --- Mock Providers ---
-    // These mock genuine provider logic to prevent local crashes.
+    // --- Provider Dispatchers ---
+    // Deterministic provider dispatchers: fail honestly when unconfigured, no Math.random.
 
     private static async mockPushProvider(payload: AlertPayload): Promise<boolean> {
-        // Mock 40% failure rate for push notifications to force fallback
-        const isSuccess = Math.random() > 0.4;
-        if (!isSuccess) throw new Error("FCM/APNS Token expired");
-        return true;
+        if (process.env.NOTIFICATION_TEST_ADAPTER === "true") {
+            return payload.recipientId !== "fail_user";
+        }
+        if (!process.env.FCM_SERVER_KEY && !process.env.FIREBASE_CONFIG) {
+            throw new Error("UNAVAILABLE: Push notification provider is not configured");
+        }
+        return false;
     }
 
     private static async mockWhatsAppProvider(payload: AlertPayload): Promise<boolean> {
-        // Mock 20% failure rate for WhatsApp
-        const isSuccess = Math.random() > 0.2;
-        if (!isSuccess) throw new Error("WhatsApp API timeout");
-        return true;
+        if (process.env.NOTIFICATION_TEST_ADAPTER === "true") {
+            return payload.recipientPhone !== "+0000000000";
+        }
+        if (!process.env.WHATSAPP_API_KEY || !process.env.WHATSAPP_PHONE_NUMBER_ID) {
+            throw new Error("UNAVAILABLE: WhatsApp provider is not configured");
+        }
+        return false;
     }
 
     private static async mockSMSProvider(payload: AlertPayload): Promise<boolean> {
-        return true; // Assume SMS always succeeds if it reaches here
+        if (process.env.NOTIFICATION_TEST_ADAPTER === "true") {
+            return payload.recipientPhone !== "+0000000000";
+        }
+        if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN) {
+            throw new Error("UNAVAILABLE: SMS provider is not configured");
+        }
+        return false;
     }
 
     private static async mockEmailProvider(payload: AlertPayload): Promise<boolean> {
-        return true; 
+        if (process.env.NOTIFICATION_TEST_ADAPTER === "true") {
+            return payload.recipientEmail !== "fail@test.com";
+        }
+        if (!process.env.SMTP_HOST && !process.env.SENDGRID_API_KEY && !process.env.RESEND_API_KEY) {
+            throw new Error("UNAVAILABLE: Email provider is not configured");
+        }
+        return false;
     }
 }

@@ -285,10 +285,10 @@ async function authenticateDeviceOrAdmin(req: Request, res: Response, next: Next
     const vehicleId = req.params.id as string;
     const delimiter = deviceToken.includes(':') ? ':' : '_';
     const parts = deviceToken.split(delimiter);
-    let tokenSchoolId: string | undefined = req.headers['x-school-id'] as string | undefined;
+    let tokenSchoolId: string | undefined;
 
     if (parts.length >= 4 && parts[0] === 'dev') {
-      tokenSchoolId = tokenSchoolId || parts[1];
+      tokenSchoolId = parts[1];
     }
 
     if (!tokenSchoolId) {

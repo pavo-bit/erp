@@ -10,8 +10,7 @@ export const requireFeature = (featureCode: string) => {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authReq = req as AuthRequest;
-      // Depending on the route, schoolId might be in the user object or the tenant middleware
-      const schoolId = authReq.user?.schoolId || req.headers['x-tenant-id'] as string;
+      const schoolId = authReq.user?.schoolId || (authReq.user?.role === 'SUPER_ADMIN' ? (req.params as any)?.schoolId : undefined);
 
       if (!schoolId) {
         res.status(400).json({ success: false, error: 'School ID is required for feature validation' });
@@ -43,7 +42,7 @@ export const requireQuota = (resource: "STUDENT" | "TEACHER") => {
   return async (req: AuthRequest, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authReq = req as AuthRequest;
-      const schoolId = authReq.user?.schoolId || (req.headers['x-tenant-id'] as string);
+      const schoolId = authReq.user?.schoolId || (authReq.user?.role === 'SUPER_ADMIN' ? (req.params as any)?.schoolId : undefined);
 
       if (!schoolId) {
         res.status(400).json({ success: false, error: 'School ID is required for quota validation' });

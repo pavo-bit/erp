@@ -9,6 +9,7 @@
 import crypto from "crypto";
 import prisma, { runWithTenantDatabaseTransaction } from "../../lib/prisma";
 import { hashPassword } from "../../middleware/auth";
+import mailService from "../mail.service";
 import logger from "../../lib/logger";
 import {
   AdmissionType,
@@ -52,6 +53,7 @@ export class AdmissionRegistrationService {
 
     const results: AdmissionCommitResultItem[] = [];
     const errorLog: Array<{ importKey: string; rowNumber: number; errors: string[] }> = [];
+    const pendingInvitations: Array<{ resultItem: AdmissionCommitResultItem; recipient: string; setupLink: string }> = [];
     let successCount = 0;
     let failedCount = 0;
     let finalStatus: "COMPLETED" | "PARTIALLY_COMPLETED" | "FAILED" = "COMPLETED";
@@ -82,7 +84,8 @@ export class AdmissionRegistrationService {
               batchId,
               entry,
               attestation,
-              nextSeqNumber++
+              nextSeqNumber++,
+              pendingInvitations
             );
             results.push(resultItem);
             successCount++;
@@ -104,7 +107,8 @@ export class AdmissionRegistrationService {
               batchId,
               entry,
               attestation,
-              nextSeqNumber++
+              nextSeqNumber++,
+              pendingInvitations
             );
             results.push(resultItem);
             successCount++;
@@ -141,6 +145,17 @@ export class AdmissionRegistrationService {
       });
     });
 
+    // Send setup emails after the transaction commits (do not roll back if sending fails)
+    for (const inv of pendingInvitations) {
+      try {
+        await mailService.sendPasswordSetupEmail(inv.recipient, inv.setupLink);
+        inv.resultItem.invitationStatus = "SENT";
+      } catch (mailErr) {
+        logger.warn({ mailErr, recipient: inv.recipient }, "Failed to send student password setup email");
+        inv.resultItem.invitationStatus = "FAILED";
+      }
+    }
+
     return {
       batchId,
       admissionType,
@@ -166,7 +181,8 @@ export class AdmissionRegistrationService {
     batchId: string,
     entry: ValidatedStudentEntry,
     attestation: OfflineApprovalAttestation,
-    seqNumber: number
+    seqNumber: number,
+    pendingInvitations?: Array<{ resultItem: AdmissionCommitResultItem; recipient: string; setupLink: string }>
   ): Promise<AdmissionCommitResultItem> {
     const studentData = entry.student;
     const currentYear = new Date().getFullYear();
@@ -180,11 +196,11 @@ export class AdmissionRegistrationService {
       studentData.address
     );
 
-    // 2. Create User Account for Student Portal
+    // 2. Create User Account for Student Portal (invitation-based, unusable password)
     const cleanAdNo = allocatedAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
     const studentEmail = studentData.email || `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
-    const defaultPassword = `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
-    const hashedPassword = await hashPassword(defaultPassword);
+    const unusableSecret = crypto.randomBytes(32).toString("hex");
+    const hashedPassword = await hashPassword(unusableSecret);
 
     const user = await tx.user.create({
       data: {
@@ -193,9 +209,38 @@ export class AdmissionRegistrationService {
         name: studentData.name,
         passwordHash: hashedPassword,
         role: "STUDENT",
+        mustChangePassword: true,
         isActive: true,
       },
     });
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await tx.passwordSetupToken.create({
+      data: {
+        schoolId,
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+        createdBy: attestation.attestedByUserId || user.id,
+      },
+    });
+
+    const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
+    // Resolve invitation destination: student email -> guardian email -> none (UNDELIVERABLE)
+    const isFictionalOrEmpty = (e?: string | null) => !e || !e.trim() || e.includes("@student.ssvm");
+    let invitationRecipient: string | null = null;
+    if (!isFictionalOrEmpty(studentData.email)) {
+      invitationRecipient = studentData.email!.trim();
+    } else {
+      const primaryG = entry.guardians?.find((g) => g.isPrimary) || entry.guardians?.[0];
+      const gEmail = primaryG?.guardian?.primaryEmail;
+      if (!isFictionalOrEmpty(gEmail)) {
+        invitationRecipient = gEmail!.trim();
+      }
+    }
 
     // 3. Create Canonical Student Record with extended demographic fields
     const rollNo = entry.placement?.rollNo || String(seqNumber);
@@ -276,7 +321,7 @@ export class AdmissionRegistrationService {
     // 8. Link Document Metadata without fake URLs
     await this.persistDocuments(tx, schoolId, student.id, entry.documents);
 
-    return {
+    const resultItem: AdmissionCommitResultItem = {
       importKey: entry.importKey,
       sourceRowNumber: entry.sourceRowNumber,
       studentId: student.id,
@@ -286,7 +331,24 @@ export class AdmissionRegistrationService {
       message: `Successfully registered new student with Admission No ${allocatedAdmissionNo}.`,
       timelineId: timeline.id,
       enrollmentSection: entry.placement?.sectionName || undefined,
+      invitationStatus: invitationRecipient ? "PENDING" : "UNDELIVERABLE",
     };
+
+    if (invitationRecipient) {
+      if (pendingInvitations) {
+        pendingInvitations.push({ resultItem, recipient: invitationRecipient, setupLink });
+      } else {
+        try {
+          await mailService.sendPasswordSetupEmail(invitationRecipient, setupLink);
+          resultItem.invitationStatus = "SENT";
+        } catch (mailErr) {
+          logger.warn({ mailErr, recipient: invitationRecipient }, "Failed to send student password setup email");
+          resultItem.invitationStatus = "FAILED";
+        }
+      }
+    }
+
+    return resultItem;
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -402,7 +464,8 @@ export class AdmissionRegistrationService {
     batchId: string,
     entry: ValidatedStudentEntry,
     attestation: OfflineApprovalAttestation,
-    seqNumber: number
+    seqNumber: number,
+    pendingInvitations?: Array<{ resultItem: AdmissionCommitResultItem; recipient: string; setupLink: string }>
   ): Promise<AdmissionCommitResultItem> {
     const studentData = entry.student;
     const prevSchool = entry.previousSchool;
@@ -417,11 +480,11 @@ export class AdmissionRegistrationService {
       studentData.address
     );
 
-    // 2. Create Student User Account
+    // 2. Create Student User Account (invitation-based, unusable password)
     const cleanAdNo = allocatedAdmissionNo.toLowerCase().replace(/[^a-z0-9]/g, "");
     const studentEmail = studentData.email || `${cleanAdNo}_${schoolId.slice(-6)}@student.ssvm`;
-    const defaultPassword = `SSVM@${Math.floor(1000 + Math.random() * 9000)}`;
-    const hashedPassword = await hashPassword(defaultPassword);
+    const unusableSecret = crypto.randomBytes(32).toString("hex");
+    const hashedPassword = await hashPassword(unusableSecret);
 
     const user = await tx.user.create({
       data: {
@@ -430,9 +493,38 @@ export class AdmissionRegistrationService {
         name: studentData.name,
         passwordHash: hashedPassword,
         role: "STUDENT",
+        mustChangePassword: true,
         isActive: true,
       },
     });
+
+    const rawToken = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await tx.passwordSetupToken.create({
+      data: {
+        schoolId,
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+        createdBy: attestation.attestedByUserId || user.id,
+      },
+    });
+
+    const setupLink = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
+    // Resolve invitation destination: student email -> guardian email -> none (UNDELIVERABLE)
+    const isFictionalOrEmpty = (e?: string | null) => !e || !e.trim() || e.includes("@student.ssvm");
+    let invitationRecipient: string | null = null;
+    if (!isFictionalOrEmpty(studentData.email)) {
+      invitationRecipient = studentData.email!.trim();
+    } else {
+      const primaryG = entry.guardians?.find((g) => g.isPrimary) || entry.guardians?.[0];
+      const gEmail = primaryG?.guardian?.primaryEmail;
+      if (!isFictionalOrEmpty(gEmail)) {
+        invitationRecipient = gEmail!.trim();
+      }
+    }
 
     // 3. Create Canonical Student Record with transfer details
     const rollNo = entry.placement?.rollNo || String(seqNumber);
@@ -518,7 +610,7 @@ export class AdmissionRegistrationService {
     // 8. Link Supporting Documents and TC without fake URLs
     await this.persistDocuments(tx, schoolId, student.id, entry.documents);
 
-    return {
+    const resultItem: AdmissionCommitResultItem = {
       importKey: entry.importKey,
       sourceRowNumber: entry.sourceRowNumber,
       studentId: student.id,
@@ -528,7 +620,24 @@ export class AdmissionRegistrationService {
       message: `Incoming transfer admission recorded with new SSVM Admission No ${allocatedAdmissionNo}. Previous institution data archived.`,
       timelineId: timeline.id,
       enrollmentSection: entry.placement?.sectionName || undefined,
+      invitationStatus: invitationRecipient ? "PENDING" : "UNDELIVERABLE",
     };
+
+    if (invitationRecipient) {
+      if (pendingInvitations) {
+        pendingInvitations.push({ resultItem, recipient: invitationRecipient, setupLink });
+      } else {
+        try {
+          await mailService.sendPasswordSetupEmail(invitationRecipient, setupLink);
+          resultItem.invitationStatus = "SENT";
+        } catch (mailErr) {
+          logger.warn({ mailErr, recipient: invitationRecipient }, "Failed to send student password setup email");
+          resultItem.invitationStatus = "FAILED";
+        }
+      }
+    }
+
+    return resultItem;
   }
 
   // ─────────────────────────────────────────────────────────────

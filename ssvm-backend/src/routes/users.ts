@@ -258,27 +258,31 @@ router.put("/:id/reset-password", authenticate, requireRole("ERP_ADMIN"), async 
 // POST /api/users/:id/password-setup - Issue a password setup token (ERP_ADMIN only, own school)
 router.post("/:id/password-setup", authenticate, requireDirectRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
   try {
-    const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId: req.user.schoolId } });
+    const schoolId = req.user.schoolId;
+    const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId } });
     if (!existing) return res.status(404).json({ success: false, error: "User not found" });
 
     const rawToken = crypto.randomBytes(32).toString("hex");
     const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-    // Revoke previous unused tokens for this user
-    await prisma.passwordSetupToken.updateMany({
-      where: { userId: existing.id, usedAt: null, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
+    // All passwordSetupToken operations must run inside a tenant transaction so RLS is satisfied
+    await runWithTenantDatabaseTransaction(schoolId, async (tx: any) => {
+      // Revoke previous unused tokens for this user
+      await tx.passwordSetupToken.updateMany({
+        where: { userId: existing.id, usedAt: null, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
 
-    await prisma.passwordSetupToken.create({
-      data: {
-        schoolId: req.user.schoolId,
-        userId: existing.id,
-        tokenHash,
-        expiresAt,
-        createdBy: req.user.userId,
-      },
+      await tx.passwordSetupToken.create({
+        data: {
+          schoolId,
+          userId: existing.id,
+          tokenHash,
+          expiresAt,
+          createdBy: req.user.id,
+        },
+      });
     });
 
     const link = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
@@ -295,27 +299,30 @@ router.post("/:id/password-setup", authenticate, requireDirectRole("SUPER_ADMIN"
 
 // POST /api/users/:id/password-setup/resend
 router.post("/:id/password-setup/resend", authenticate, requireDirectRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
-  // Revoke all existing and issue a new one
-  await prisma.passwordSetupToken.updateMany({
-    where: { userId: req.params.id, usedAt: null, revokedAt: null },
-    data: { revokedAt: new Date() },
-  });
-  // delegate to issue by re-invoking create logic via redirect-like call: just create new
-  const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId: req.user.schoolId } });
+  const schoolId = req.user.schoolId;
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId } });
   if (!existing) return res.status(404).json({ success: false, error: "User not found" });
 
   const rawToken = crypto.randomBytes(32).toString("hex");
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  await prisma.passwordSetupToken.create({
-    data: {
-      schoolId: req.user.schoolId,
-      userId: existing.id,
-      tokenHash,
-      expiresAt,
-      createdBy: req.user.userId,
-    },
+  // Revoke all existing and issue a new one — inside tenant transaction for RLS
+  await runWithTenantDatabaseTransaction(schoolId, async (tx: any) => {
+    await tx.passwordSetupToken.updateMany({
+      where: { userId: existing.id, usedAt: null, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    await tx.passwordSetupToken.create({
+      data: {
+        schoolId,
+        userId: existing.id,
+        tokenHash,
+        expiresAt,
+        createdBy: req.user.id,
+      },
+    });
   });
 
   const link = `${process.env.FRONTEND_URL || "http://localhost:3000"}/set-password?token=${rawToken}`;
@@ -326,12 +333,15 @@ router.post("/:id/password-setup/resend", authenticate, requireDirectRole("SUPER
 
 // POST /api/users/:id/password-setup/revoke
 router.post("/:id/password-setup/revoke", authenticate, requireDirectRole("SUPER_ADMIN", "ERP_ADMIN"), async (req: any, res: Response) => {
-  const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId: req.user.schoolId } });
+  const schoolId = req.user.schoolId;
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id, schoolId } });
   if (!existing) return res.status(404).json({ success: false, error: "User not found" });
 
-  await prisma.passwordSetupToken.updateMany({
-    where: { userId: existing.id, usedAt: null, revokedAt: null },
-    data: { revokedAt: new Date() },
+  await runWithTenantDatabaseTransaction(schoolId, async (tx: any) => {
+    await tx.passwordSetupToken.updateMany({
+      where: { userId: existing.id, usedAt: null, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   });
 
   res.json({ success: true, message: "Password setup tokens revoked" });

@@ -218,19 +218,34 @@ async function authenticateBiometricDeviceOrStaff(req: Request, res: Response, n
       res.status(401).json({ success: false, error: 'Invalid device token format' });
       return;
     }
-    const schoolId = (req.headers['x-school-id'] as string) || (req.body?.schoolId as string);
-    if (!schoolId) {
+
+    const parts = deviceToken.split(':');
+    let tokenSchoolId: string | undefined;
+    let tokenDeviceId: string | undefined;
+
+    if (parts.length === 4 && parts[0] === 'bio') {
+      tokenSchoolId = parts[1];
+      tokenDeviceId = parts[2];
+    }
+
+    if (!tokenSchoolId || !tokenDeviceId) {
       res.status(401).json({ success: false, error: 'Device token missing tenant context' });
       return;
     }
-    const deviceId = (req.body?.deviceId as string) || (req.headers['x-device-id'] as string) || 'UNKNOWN_TERMINAL';
-    const expected = generateBiometricHardwareToken(deviceId, schoolId);
 
-    if (deviceToken !== expected && !deviceToken.startsWith('bio:test:') && deviceToken !== 'bio:valid-token') {
+    const expected = generateBiometricHardwareToken(tokenDeviceId, tokenSchoolId);
+
+    if (deviceToken !== expected) {
       res.status(401).json({ success: false, error: 'Unauthorized hardware device token' });
       return;
     }
-    (req as any).deviceAuth = { isDevice: true, schoolId, deviceId };
+
+    if (req.body?.schoolId && req.body.schoolId !== tokenSchoolId) {
+      res.status(403).json({ success: false, error: 'Cross-tenant hardware ingestion rejected' });
+      return;
+    }
+
+    (req as any).deviceAuth = { isDevice: true, schoolId: tokenSchoolId, deviceId: tokenDeviceId };
     return next();
   }
 

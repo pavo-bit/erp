@@ -86,13 +86,22 @@ jobs:
         run: |
           psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 -c "CREATE DATABASE ssvm_shadow;"
 
+      - name: Provision database roles and grants
+        run: |
+          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
+            -v app_password="$APP_DB_PASSWORD" \
+            -v fixture_password="$FIXTURE_DB_PASSWORD" \
+            -v auth_password="$AUTH_DB_PASSWORD" \
+            -v trusted_password="$TRUSTED_DB_PASSWORD" \
+            -f scripts/db/provision-roles.sql
+
       - name: Deploy full schema and RLS migrations as owner role
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ env.DIRECT_URL }}
           DIRECT_URL: ${{ env.DIRECT_URL }}
 
-      - name: Provision database roles and grants
+      - name: Re-apply database roles and grants on deployed schema
         run: |
           psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
             -v app_password="$APP_DB_PASSWORD" \
@@ -216,12 +225,20 @@ jobs:
           END $$;
           EOF
           echo "Pre-check passed: No duplicate receipt numbers found."
+      - name: Provision database roles and grants
+        run: |
+          psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
+            -v app_password="$APP_DB_PASSWORD" \
+            -v fixture_password="$FIXTURE_DB_PASSWORD" \
+            -v auth_password="$AUTH_DB_PASSWORD" \
+            -v trusted_password="$TRUSTED_DB_PASSWORD" \
+            -f scripts/db/provision-roles.sql
       - name: Deploy full schema and RLS migrations
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ env.DIRECT_URL }}
           DIRECT_URL: ${{ env.DIRECT_URL }}
-      - name: Provision database roles and grants
+      - name: Re-apply database roles and grants on deployed schema
         run: |
           psql --host localhost --username postgres --dbname ssvm_test --set=ON_ERROR_STOP=1 \
             -v app_password="$APP_DB_PASSWORD" \
@@ -281,7 +298,9 @@ jobs:
           cache-dependency-path: './ssvm-backend/package-lock.json'
       - run: npm ci
       - name: Lint Code and Check Ratchet
+        shell: bash
         run: |
+          set -o pipefail
           npm run lint 2>&1 | tee lint-output.log
       - name: Upload lint logs
         if: always()

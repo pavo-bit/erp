@@ -56,19 +56,22 @@ export class ImportProcessorService {
       }
     });
 
-    // Create BulkJob tracking record
-    const bulkJob = await prisma.bulkJob.create({
-      data: {
-        schoolId,
-        type: `${template.moduleId.toUpperCase()}_IMPORT`,
-        status: "PROCESSING",
-        totalRows: rows.length,
-        progress: 0,
-      },
-    });
+    let bulkJobId = "";
 
     // Execute in tenant transaction
     await runWithTenantDatabaseTransaction(schoolId, async (tx) => {
+      // Create BulkJob tracking record inside tenant context
+      const bulkJob = await tx.bulkJob.create({
+        data: {
+          schoolId,
+          type: `${template.moduleId.toUpperCase()}_IMPORT`,
+          status: "PROCESSING",
+          totalRows: rows.length,
+          progress: 0,
+        },
+      });
+      bulkJobId = bulkJob.id;
+
       for (const row of processableRows) {
         try {
           if (template.moduleId === "students") {
@@ -116,22 +119,22 @@ export class ImportProcessorService {
           });
         }
       }
-    });
 
-    // Update BulkJob completion status
-    await prisma.bulkJob.update({
-      where: { id: bulkJob.id },
-      data: {
-        status: failedCount === 0 ? "COMPLETED" : successCount > 0 ? "PARTIALLY_COMPLETED" : "FAILED",
-        progress: 100,
-        successRows: successCount,
-        failedRows: failedCount,
-        errorFile: errorLog.length > 0 ? JSON.stringify(errorLog) : null,
-      },
+      // Update BulkJob completion status inside tenant context
+      await tx.bulkJob.update({
+        where: { id: bulkJob.id },
+        data: {
+          status: failedCount === 0 ? "COMPLETED" : successCount > 0 ? "PARTIALLY_COMPLETED" : "FAILED",
+          progress: 100,
+          successRows: successCount,
+          failedRows: failedCount,
+          errorFile: errorLog.length > 0 ? JSON.stringify(errorLog) : null,
+        },
+      });
     });
 
     return {
-      jobId: bulkJob.id,
+      jobId: bulkJobId,
       totalRows: rows.length,
       successCount,
       failedCount,

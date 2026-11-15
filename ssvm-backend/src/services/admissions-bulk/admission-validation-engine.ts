@@ -17,6 +17,7 @@ import {
   OfflineApprovalAttestation,
   StudentSheetRow,
   GuardianSheetRow,
+  StudentGuardianLinkRow,
   AcademicPlacementRow,
 } from "./admission-types";
 
