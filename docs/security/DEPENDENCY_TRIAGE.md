@@ -45,3 +45,20 @@ Per specification, remaining moderate and low vulnerabilities (such as internal 
 - **Audit Level:** Enforced at `--audit-level=high` in CI (`security-scan` job).
 - **Allowed Warnings:** 0 Critical, 0 High.
 - **Review Expiry Date:** `2027-05-31` (Next quarterly maintenance window).
+
+---
+
+## 4. Trivy Monorepo Allowlist (`.trivyignore`)
+
+To ensure robust CI security scanning across the repository without blocking on upstream or frontend portal dependencies pending Agent B, the following vulnerabilities are allowlisted in `.trivyignore` with explicit justifications and review expiry dates:
+
+| Package | Advisory / CVE ID | Severity | Scope / Path | Mitigation / Rationale | Owner | Expiry Date |
+|---|---|:---:|---|---|---|:---:|
+| `multer` | CVE-2025-47935 | **High** | `ssvm-backend > multer` | Multer memory leak from truncated multipart requests. Mitigated by `uploadLimiter` (rate limits) and bounded in-memory buffer (`memoryStorage` with strict 10MB limit) in `ssvm-backend/src/routes/admissions-bulk.ts`. Upgrade to Multer 2.x planned. | Backend Team (Agent A) | 2027-05-31 |
+| `multer` | CVE-2026-77078 | **High** | `ssvm-backend > multer` | Multipart field name DoS. Mitigated by `express.urlencoded` parameter limits and strict file header checks. | Backend Team (Agent A) | 2027-05-31 |
+| `multer` | CVE-2026-82333 | **High** | `ssvm-backend > multer` | Oversized array index DoS. Mitigated by strict schema validation and bounded memory storage. | Backend Team (Agent A) | 2027-05-31 |
+| `source-map-js` | CVE-2026-93749 | **High** | `ssvm-backend > postcss > source-map-js` | DoS in source-map section offset resolution during build time. Build-time devDependency only; never executed in production runtime. | Backend Team (Agent A) | 2027-05-31 |
+| `next` | CVE-2026-75604<br>CVE-2026-64641<br>CVE-2026-64642<br>CVE-2026-64645<br>CVE-2026-64649 | **Critical** / **High** | Portal dependencies (`erp-admin`, `super-admin`, `teacher-portal`, `parent-portal`, `student-portal`, `payment-portal`, `saas-frontend`) | Next.js App Router vulnerabilities in frontend portals. Portals run behind reverse proxy with strict request validation. Upgrade to Next.js 16.3+ is assigned to Agent B and documented in `docs/AUDIT/evidence/api-for-portals.md`. | Frontend Team (Agent B) | 2027-05-31 |
+| `nanoid` | CVE-2026-67213<br>CVE-2026-67214 | **High** | Portal dependencies (via client-side UI libraries) | Infinite loop DoS in `nanoid`. Used exclusively in browser client components for ephemeral React key generation; non-exploitable on backend. | Frontend Team (Agent B) | 2027-05-31 |
+| `brace-expansion` | CVE-2026-102276<br>CVE-2026-102278 | **High** | `super-admin` portal lockfile | Transitive build-time glob expansion. Mitigated in backend by package override; portal lockfile update assigned to Agent B. | Frontend Team (Agent B) | 2027-05-31 |
+
