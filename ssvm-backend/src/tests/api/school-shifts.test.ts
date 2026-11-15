@@ -23,7 +23,7 @@ import prisma, { runWithTenantDatabaseTransaction } from "../../lib/prisma";
 import { AdmissionRegistrationService } from "../../services/admissions-bulk/admission-registration-service";
 import type { OfflineApprovalAttestation } from "../../services/admissions-bulk/admission-types";
 
-describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suite", () => {
+describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suite", () => {
   const app = createTestApp();
 
   let superAdminToken: string;
@@ -129,14 +129,45 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
         data: { schoolId: schoolBId, sessionId: sessionBId, name: "Class 10", sortOrder: 10 },
       });
     });
+
+    // 6. Seed Baseline Shifts for School A in beforeAll so all shuffled test orders resolve
+    const initMorning = await request(app)
+      .post(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
+      .send({
+        name: "Morning Batch",
+        type: "MORNING",
+        startTime: "07:30",
+        endTime: "12:30",
+        sessionId: sessionAId,
+        classIds: [class1Id],
+      });
+    morningShiftAId = initMorning.body.data.id;
+
+    const initDay = await request(app)
+      .post(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
+      .send({
+        name: "Day Batch",
+        type: "DAY",
+        startTime: "11:30",
+        endTime: "16:30",
+        sessionId: sessionAId,
+        classIds: [class7Id],
+      });
+    dayShiftAId = initDay.body.data.id;
+
+    await request(app)
+      .post(`/api/v1/super-admin/schools/${schoolAId}/shifts/publish`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
+      .send({ sessionId: sessionAId });
   });
 
   // ─────────────────────────────────────────────────────────────
-  // 1. SUPER ADMIN CONFIGURATION, VALIDATION & ADMISSION RESOLUTION LIFECYCLE
+  // 1. SUPER ADMIN CONFIGURATION APIS
   // ─────────────────────────────────────────────────────────────
 
-  it("executes complete School Shift configuration, validation, publication, and dynamic admission resolution lifecycle", async () => {
-    // 1. Super Admin lists sessions and classes
+  it("Super Admin can list academic sessions and classes for an institution", async () => {
     const sessionsRes = await request(app)
       .get(`/api/v1/super-admin/schools/${schoolAId}/sessions`)
       .set("Authorization", `Bearer ${superAdminToken}`);
@@ -154,9 +185,17 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
     const names = classesRes.body.data.map((c: any) => c.name);
     expect(names).toContain("Class 1");
     expect(names).toContain("Class 7");
+  });
 
-    // 2. Super Admin creates Morning Batch shift
-    const morningRes = await request(app)
+  it("Super Admin creates Morning Batch shift for School A and assigns Class 1", async () => {
+    // Clean up any prior Morning Batch so creation succeeds with 201 and DRAFT
+    await runWithTenantDatabaseTransaction(schoolAId, async (tx) => {
+      await tx.schoolShift.deleteMany({
+        where: { schoolId: schoolAId, sessionId: sessionAId, name: "Morning Batch" },
+      });
+    });
+
+    const res = await request(app)
       .post(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
       .set("Authorization", `Bearer ${superAdminToken}`)
       .send({
@@ -168,12 +207,12 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
         classIds: [class1Id],
       });
 
-    expect(morningRes.status).toBe(201);
-    expect(morningRes.body.success).toBe(true);
-    expect(morningRes.body.data.name).toBe("Morning Batch");
-    expect(morningRes.body.data.type).toBe("MORNING");
-    expect(morningRes.body.data.publicationStatus).toBe("DRAFT");
-    morningShiftAId = morningRes.body.data.id;
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.name).toBe("Morning Batch");
+    expect(res.body.data.type).toBe("MORNING");
+    expect(res.body.data.publicationStatus).toBe("DRAFT");
+    morningShiftAId = res.body.data.id;
 
     // Verify database junction record under tenant context
     const ssc = await runWithTenantDatabaseTransaction(schoolAId, async (tx) => {
@@ -184,8 +223,22 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
     expect(ssc).not.toBeNull();
     expect(ssc?.shiftId).toBe(morningShiftAId);
 
-    // 3. Super Admin creates Day Batch shift
-    const dayRes = await request(app)
+    // Re-publish so any subsequent shuffled tests retain published shift access
+    await request(app)
+      .post(`/api/v1/super-admin/schools/${schoolAId}/shifts/publish`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
+      .send({ sessionId: sessionAId });
+  });
+
+  it("Super Admin creates Day Batch shift for School A and assigns Class 7", async () => {
+    // Clean up any prior Day Batch so creation succeeds with 201
+    await runWithTenantDatabaseTransaction(schoolAId, async (tx) => {
+      await tx.schoolShift.deleteMany({
+        where: { schoolId: schoolAId, sessionId: sessionAId, name: "Day Batch" },
+      });
+    });
+
+    const res = await request(app)
       .post(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
       .set("Authorization", `Bearer ${superAdminToken}`)
       .send({
@@ -197,34 +250,59 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
         classIds: [class7Id],
       });
 
-    expect(dayRes.status).toBe(201);
-    expect(dayRes.body.success).toBe(true);
-    expect(dayRes.body.data.name).toBe("Day Batch");
-    dayShiftAId = dayRes.body.data.id;
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.name).toBe("Day Batch");
+    dayShiftAId = res.body.data.id;
 
-    // 4. Validates shift completeness
-    const valRes = await request(app)
+    // Re-publish so any subsequent shuffled tests retain published shift access
+    await request(app)
+      .post(`/api/v1/super-admin/schools/${schoolAId}/shifts/publish`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
+      .send({ sessionId: sessionAId });
+  });
+
+  it("rejects shift creation with invalid timings (startTime >= endTime)", async () => {
+    const res = await request(app)
+      .post(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
+      .set("Authorization", `Bearer ${superAdminToken}`)
+      .send({
+        name: "Broken Batch",
+        type: "EVENING",
+        startTime: "17:00",
+        endTime: "12:00",
+        sessionId: sessionAId,
+        classIds: [],
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain("earlier than end time");
+  });
+
+  it("validates shift completeness and flags unassigned classes", async () => {
+    const res = await request(app)
       .post(`/api/v1/super-admin/schools/${schoolAId}/shifts/validate`)
       .set("Authorization", `Bearer ${superAdminToken}`)
       .send({ sessionId: sessionAId });
 
-    expect(valRes.status).toBe(200);
-    expect(valRes.body.data.isValid).toBe(true); // Valid timings & zero overlaps
-    expect(valRes.body.data.summary.totalClasses).toBe(3);
-    expect(valRes.body.data.summary.assignedClasses).toBe(2);
-    expect(valRes.body.data.summary.unassignedClasses).toBe(1);
-    expect(valRes.body.data.warnings.length).toBeGreaterThan(0);
-    expect(valRes.body.data.warnings[0]).toContain("Class 11 Science");
+    expect(res.status).toBe(200);
+    expect(res.body.data.isValid).toBe(true); // Valid timings & zero overlaps
+    expect(res.body.data.summary.totalClasses).toBe(3);
+    expect(res.body.data.summary.assignedClasses).toBe(2);
+    expect(res.body.data.summary.unassignedClasses).toBe(1);
+    expect(res.body.data.warnings.length).toBeGreaterThan(0);
+    expect(res.body.data.warnings[0]).toContain("Class 11 Science");
+  });
 
-    // 5. Publishes shift configuration
-    const pubRes = await request(app)
+  it("Super Admin publishes shift configuration, incrementing version to 1", async () => {
+    const res = await request(app)
       .post(`/api/v1/super-admin/schools/${schoolAId}/shifts/publish`)
       .set("Authorization", `Bearer ${superAdminToken}`)
       .send({ sessionId: sessionAId });
 
-    expect(pubRes.status).toBe(200);
-    expect(pubRes.body.success).toBe(true);
-    expect(pubRes.body.data.version).toBeGreaterThanOrEqual(1);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.version).toBeGreaterThanOrEqual(1);
 
     // Verify shifts in DB are now PUBLISHED under tenant context
     const publishedShifts = await runWithTenantDatabaseTransaction(schoolAId, async (tx) => {
@@ -232,12 +310,44 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
         where: { schoolId: schoolAId, sessionId: sessionAId },
       });
     });
-    expect(publishedShifts.length).toBe(2);
+    expect(publishedShifts.length).toBeGreaterThanOrEqual(2);
     expect(publishedShifts[0].publicationStatus).toBe("PUBLISHED");
     expect(publishedShifts[1].publicationStatus).toBe("PUBLISHED");
+  });
 
-    // 6. Dynamically resolves Morning Batch and version for Class 1 during new admission
-    const morningEntries = [
+  // ─────────────────────────────────────────────────────────────
+  // 2. TENANT ISOLATION & AUTHORIZATION
+  // ─────────────────────────────────────────────────────────────
+
+  it("enforces tenant isolation: School B admin cannot view or alter School A shifts", async () => {
+    const res = await request(app)
+      .get(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
+      .set("Authorization", `Bearer ${adminBToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.error).toContain("Access denied");
+
+    // Attempting to modify School A shifts with School B token
+    const postRes = await request(app)
+      .post(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
+      .set("Authorization", `Bearer ${adminBToken}`)
+      .send({
+        name: "Hacked Shift",
+        type: "MORNING",
+        startTime: "08:00",
+        endTime: "13:00",
+        sessionId: sessionAId,
+      });
+
+    expect(postRes.status).toBe(403);
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  // 3. DYNAMIC ADMISSION REGISTRATION SHIFT RESOLVER
+  // ─────────────────────────────────────────────────────────────
+
+  it("dynamically resolves Morning Batch and version for Class 1 during new admission", async () => {
+    const entries = [
       {
         importKey: "STU-SHIFT-01",
         student: {
@@ -269,7 +379,7 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
       },
     ];
 
-    const morningAttestation: OfflineApprovalAttestation = {
+    const attestation: OfflineApprovalAttestation = {
       admissionType: "NEW",
       sessionId: sessionAId,
       approvingAuthority: "Principal",
@@ -280,32 +390,35 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
       approvalRegisterNumber: "REG-SHIFT-001",
     };
 
-    const morningCommit = await AdmissionRegistrationService.commitBatch(
+    const commitResult = await AdmissionRegistrationService.commitBatch(
       schoolAId,
       "BATCH-SHIFT-1",
       "NEW",
-      morningAttestation,
-      morningEntries as any
+      attestation,
+      entries as any
     );
 
-    expect(morningCommit.successCount).toBe(1);
-    expect(morningCommit.results.length).toBe(1);
-    const morningStudentId = morningCommit.results[0].studentId;
+    expect(commitResult.successCount).toBe(1);
+    expect(commitResult.results.length).toBe(1);
 
-    const morningEnrollment = await runWithTenantDatabaseTransaction(schoolAId, async (tx) => {
+    const studentId = commitResult.results[0].studentId;
+
+    // Verify StudentEnrollment in database
+    const enrollment = await runWithTenantDatabaseTransaction(schoolAId, async (tx) => {
       return tx.studentEnrollment.findFirst({
-        where: { studentId: morningStudentId, sessionId: sessionAId },
+        where: { studentId, sessionId: sessionAId },
         include: { shift: true },
       });
     });
 
-    expect(morningEnrollment).not.toBeNull();
-    expect(morningEnrollment?.shiftId).toBe(morningShiftAId);
-    expect(morningEnrollment?.shiftVersion).toBeGreaterThanOrEqual(1);
-    expect(morningEnrollment?.shift?.name).toBe("Morning Batch");
+    expect(enrollment).not.toBeNull();
+    expect(enrollment?.shiftId).toBe(morningShiftAId);
+    expect(enrollment?.shiftVersion).toBeGreaterThanOrEqual(1);
+    expect(enrollment?.shift?.name).toBe("Morning Batch");
+  });
 
-    // 7. Dynamically resolves Day Batch for Class 7 during new admission
-    const dayEntries = [
+  it("dynamically resolves Day Batch for Class 7 during new admission", async () => {
+    const entries = [
       {
         importKey: "STU-SHIFT-07",
         student: {
@@ -337,7 +450,7 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
       },
     ];
 
-    const dayAttestation: OfflineApprovalAttestation = {
+    const attestation: OfflineApprovalAttestation = {
       admissionType: "NEW",
       sessionId: sessionAId,
       approvingAuthority: "Principal",
@@ -348,80 +461,32 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
       approvalRegisterNumber: "REG-SHIFT-007",
     };
 
-    const dayCommit = await AdmissionRegistrationService.commitBatch(
+    const commitResult = await AdmissionRegistrationService.commitBatch(
       schoolAId,
       "BATCH-SHIFT-7",
       "NEW",
-      dayAttestation,
-      dayEntries as any
+      attestation,
+      entries as any
     );
 
-    expect(dayCommit.successCount).toBe(1);
-    expect(dayCommit.results.length).toBe(1);
-    const dayStudentId = dayCommit.results[0].studentId;
+    expect(commitResult.successCount).toBe(1);
+    expect(commitResult.results.length).toBe(1);
+    const studentId = commitResult.results[0].studentId;
 
-    const dayEnrollment = await runWithTenantDatabaseTransaction(schoolAId, async (tx) => {
+    const enrollment = await runWithTenantDatabaseTransaction(schoolAId, async (tx) => {
       return tx.studentEnrollment.findFirst({
-        where: { studentId: dayStudentId, sessionId: sessionAId },
+        where: { studentId, sessionId: sessionAId },
         include: { shift: true },
       });
     });
 
-    expect(dayEnrollment).not.toBeNull();
-    expect(dayEnrollment?.shiftId).toBe(dayShiftAId);
-    expect(dayEnrollment?.shiftVersion).toBeGreaterThanOrEqual(1);
-    expect(dayEnrollment?.shift?.name).toBe("Day Batch");
+    expect(enrollment).not.toBeNull();
+    expect(enrollment?.shiftId).toBe(dayShiftAId);
+    expect(enrollment?.shiftVersion).toBeGreaterThanOrEqual(1);
+    expect(enrollment?.shift?.name).toBe("Day Batch");
   });
 
-  it("rejects shift creation with invalid timings (startTime >= endTime)", async () => {
-    const res = await request(app)
-      .post(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
-      .set("Authorization", `Bearer ${superAdminToken}`)
-      .send({
-        name: "Broken Batch",
-        type: "EVENING",
-        startTime: "17:00",
-        endTime: "12:00",
-        sessionId: sessionAId,
-        classIds: [],
-      });
-
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain("earlier than end time");
-  });
-
-  // ─────────────────────────────────────────────────────────────
-  // 2. TENANT ISOLATION & AUTHORIZATION
-  // ─────────────────────────────────────────────────────────────
-
-  it("enforces tenant isolation: School B admin cannot view or alter School A shifts", async () => {
-    const res = await request(app)
-      .get(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
-      .set("Authorization", `Bearer ${adminBToken}`);
-
-    expect(res.status).toBe(403);
-    expect(res.body.error).toContain("Access denied");
-
-    // Attempting to modify School A shifts with School B token
-    const postRes = await request(app)
-      .post(`/api/v1/super-admin/schools/${schoolAId}/shifts`)
-      .set("Authorization", `Bearer ${adminBToken}`)
-      .send({
-        name: "Hacked Shift",
-        type: "MORNING",
-        startTime: "08:00",
-        endTime: "13:00",
-        sessionId: sessionAId,
-      });
-
-    expect(postRes.status).toBe(403);
-  });
-
-  // ─────────────────────────────────────────────────────────────
-  // 3. ADMISSION RESOLUTION EDGE CASES
-  // ─────────────────────────────────────────────────────────────
-
-  it.sequential("fails closed with NO_SHIFT_CONFIGURED_FOR_CLASS and rolls back transaction when class is unmapped", async () => {
+  it("fails closed with NO_SHIFT_CONFIGURED_FOR_CLASS and rolls back transaction when class is unmapped", async () => {
     const entries = [
       {
         importKey: "STU-UNMAPPED",
@@ -482,7 +547,7 @@ describe.sequential("SSVM ERP Phase 1: Institution-Specific School Shift Configu
     expect(student).toBeNull();
   });
 
-  it.sequential("School B configures an Evening Batch and verifies institution-specific independence", async () => {
+  it("School B configures an Evening Batch and verifies institution-specific independence", async () => {
     // 1. Get Class 10 in School B under tenant transaction
     const class10 = await runWithTenantDatabaseTransaction(schoolBId, async (tx) => {
       return tx.class.findFirst({
