@@ -21,6 +21,7 @@ import { Role } from "@prisma/client";
 import { createTestApp, createTestUser } from "../helpers/testApp";
 import prisma, { runWithTenantDatabaseTransaction } from "../../lib/prisma";
 import { AdmissionRegistrationService } from "../../services/admissions-bulk/admission-registration-service";
+import type { OfflineApprovalAttestation } from "../../services/admissions-bulk/admission-types";
 
 describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suite", () => {
   const app = createTestApp();
@@ -315,11 +316,14 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       },
     ];
 
-    const attestation = {
+    const attestation: OfflineApprovalAttestation = {
+      admissionType: "NEW",
+      sessionId: sessionAId,
       approvingAuthority: "Principal",
       approvalDate: "2026-11-12",
       attested: true,
-      confirmOfficialProcess: true,
+      attestedByUserId: "USER-1",
+      attestedAt: new Date().toISOString(),
       approvalRegisterNumber: "REG-SHIFT-001",
     };
 
@@ -327,7 +331,7 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       schoolAId,
       "BATCH-SHIFT-1",
       "NEW",
-      attestation as any,
+      attestation,
       entries as any
     );
 
@@ -383,11 +387,14 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       },
     ];
 
-    const attestation = {
+    const attestation: OfflineApprovalAttestation = {
+      admissionType: "NEW",
+      sessionId: sessionAId,
       approvingAuthority: "Principal",
       approvalDate: "2026-11-12",
       attested: true,
-      confirmOfficialProcess: true,
+      attestedByUserId: "USER-1",
+      attestedAt: new Date().toISOString(),
       approvalRegisterNumber: "REG-SHIFT-007",
     };
 
@@ -395,7 +402,7 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       schoolAId,
       "BATCH-SHIFT-7",
       "NEW",
-      attestation as any,
+      attestation,
       entries as any
     );
 
@@ -447,11 +454,14 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       },
     ];
 
-    const attestation = {
+    const attestation: OfflineApprovalAttestation = {
+      admissionType: "NEW",
+      sessionId: sessionAId,
       approvingAuthority: "Principal",
       approvalDate: "2026-11-12",
       attested: true,
-      confirmOfficialProcess: true,
+      attestedByUserId: "USER-1",
+      attestedAt: new Date().toISOString(),
       approvalRegisterNumber: "REG-UNMAPPED",
     };
 
@@ -460,7 +470,7 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
         schoolAId,
         "BATCH-UNMAPPED",
         "NEW",
-        attestation as any,
+        attestation,
         entries as any
       )
     ).rejects.toThrow("NO_SHIFT_CONFIGURED_FOR_CLASS");
@@ -538,11 +548,14 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       },
     ];
 
-    const attestation = {
+    const attestation: OfflineApprovalAttestation = {
+      admissionType: "NEW",
+      sessionId: sessionBId,
       approvingAuthority: "Director",
       approvalDate: "2026-11-12",
       attested: true,
-      confirmOfficialProcess: true,
+      attestedByUserId: "USER-1",
+      attestedAt: new Date().toISOString(),
       approvalRegisterNumber: "REG-EVENING-B",
     };
 
@@ -550,7 +563,7 @@ describe("SSVM ERP Phase 1: Institution-Specific School Shift Configuration Suit
       schoolBId,
       "BATCH-EVENING-B",
       "NEW",
-      attestation as any,
+      attestation,
       entries as any
     );
 

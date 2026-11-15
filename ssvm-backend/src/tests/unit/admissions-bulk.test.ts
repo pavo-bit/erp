@@ -13,6 +13,10 @@ import {
   AdmissionTemplateType,
   OfflineApprovalAttestation,
   ParsedAdmissionWorkbook,
+  StudentSheetRow,
+  GuardianSheetRow,
+  StudentGuardianLinkRow,
+  AcademicPlacementRow,
 } from "../../services/admissions-bulk/admission-types";
 import prisma, { runWithTenantDatabaseTransaction } from "../../lib/prisma";
 import { runWithSchoolContext } from "../../middleware/school-context.middleware";
@@ -22,7 +26,6 @@ import { Role } from "@prisma/client";
 describe("SSVM Bulk Student Registration & Admission Workflow", () => {
   let schoolId: string;
   let sessionId: string;
-  let testClassId: string;
   let testSectionId: string;
   let staffUserId: string;
 
@@ -61,7 +64,6 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
         },
         include: { sections: true },
       });
-      testClassId = cls.id;
       testSectionId = cls.sections[0].id;
 
       const shift = await tx.schoolShift.create({
@@ -196,6 +198,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
     it("maps empty optional cells to null and never converts them to literal 'N/A'", async () => {
       const buffer = await AdmissionTemplateRegistry.generateWorkbookBuffer("NEW");
       const parsed = await AdmissionWorkbookParser.parse(buffer);
+      expect(parsed).toBeDefined();
 
       expect(parsed.templateType).toBe("NEW");
       expect(parsed.students.length).toBeGreaterThanOrEqual(1);
@@ -210,6 +213,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
     it("preserves 1-based source row numbers for accurate error reporting", async () => {
       const buffer = await AdmissionTemplateRegistry.generateWorkbookBuffer("NEW");
       const parsed = await AdmissionWorkbookParser.parse(buffer);
+      expect(parsed).toBeDefined();
 
       for (let i = 0; i < parsed.students.length; i++) {
         expect(parsed.students[i].sourceRowNumber).toBe(i + 2); // Row 1 is header, data starts at Row 2
@@ -219,6 +223,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
     it("detects relationship keys correctly across multi-sheet structures", async () => {
       const buffer = await AdmissionTemplateRegistry.generateWorkbookBuffer("NEW");
       const parsed = await AdmissionWorkbookParser.parse(buffer);
+      expect(parsed).toBeDefined();
 
       expect(parsed.students[0].importKey).toBeDefined();
       expect(parsed.guardians.length).toBeGreaterThanOrEqual(1);
@@ -412,6 +417,7 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
     it("fails closed immediately if attestation is missing or attested is false", async () => {
       const buffer = await AdmissionTemplateRegistry.generateWorkbookBuffer("NEW");
       const parsed = await AdmissionWorkbookParser.parse(buffer);
+      expect(parsed).toBeDefined();
 
       const unverifiedAttestation: OfflineApprovalAttestation = {
         admissionType: "NEW",
@@ -816,10 +822,10 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
   // =========================================================================
   describe("6. Volume Benchmarks (1, 10, 50, 100, 500 records)", () => {
     function generateSyntheticBatch(count: number): ParsedAdmissionWorkbook {
-      const students: any[] = [];
-      const guardians: any[] = [];
-      const studentGuardians: any[] = [];
-      const academicPlacements: any[] = [];
+      const students: StudentSheetRow[] = [];
+      const guardians: GuardianSheetRow[] = [];
+      const studentGuardians: StudentGuardianLinkRow[] = [];
+      const academicPlacements: AcademicPlacementRow[] = [];
 
       for (let i = 1; i <= count; i++) {
         const importKey = `BENCH_${count}_${i}`;
