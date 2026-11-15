@@ -25,7 +25,10 @@ describe("Phase 2 Addendum: Manual Cash Collection, Offline Payments & Official 
   let invoiceA1Id: string;
   let invoiceA2Id: string;
   let invoiceA3Id: string;
+  let invoiceAdv1Id: string;
+  let invoiceAdv2Id: string;
   let invoiceB1Id: string;
+  let studentAdvanceId: string;
 
   let issuedReceiptId: string;
   let issuedReceiptNo: string;
@@ -162,6 +165,82 @@ describe("Phase 2 Addendum: Manual Cash Collection, Offline Payments & Official 
       },
     });
     invoiceB1Id = invB1.id;
+
+    // Dedicated student for excess advance payment test so studentA1 invoices stay unsettled
+    const studentAdv = await prisma.student.create({
+      data: {
+        schoolId: schoolAId,
+        rollNo: `R-ADV-${uid}`,
+        admissionNo: `ADM-ADV-${uid}`,
+        name: `Advance Student-${uid}`,
+        isActive: true,
+      },
+    });
+    studentAdvanceId = studentAdv.id;
+
+    const invAdv1 = await prisma.invoice.create({
+      data: {
+        schoolId: schoolAId,
+        studentId: studentAdvanceId,
+        type: "MONTHLY",
+        description: "Advance Test Fee 1",
+        amount: fromPaise(500000),
+        fineAmount: fromPaise(20000),
+        remainingAmount: fromPaise(520000),
+        dueDate: new Date("2026-03-10"),
+        status: "PENDING",
+        isOverdue: true,
+      },
+    });
+    invoiceAdv1Id = invAdv1.id;
+
+    const invAdv2 = await prisma.invoice.create({
+      data: {
+        schoolId: schoolAId,
+        studentId: studentAdvanceId,
+        type: "MONTHLY",
+        description: "Advance Test Fee 2",
+        amount: fromPaise(600000),
+        fineAmount: fromPaise(0),
+        remainingAmount: fromPaise(600000),
+        dueDate: new Date("2026-05-10"),
+        status: "PENDING",
+      },
+    });
+    invoiceAdv2Id = invAdv2.id;
+
+    // Initial receipts so HTML receipt, reprint, and daily register tests can run in any order
+    const initReceipt = await prisma.feeReceipt.create({
+      data: {
+        schoolId: schoolAId,
+        studentId: studentA2Id,
+        receiptNo: `REC-2026-INIT01`,
+        totalAmount: fromPaise(300000),
+        paymentMethod: "CASH",
+        cashierId: accountantA.user.id,
+        cashierName: accountantA.user.name,
+        status: "CLEARED",
+        paidAt: new Date(),
+        reprintCount: 0,
+      },
+    });
+    issuedReceiptId = initReceipt.id;
+    issuedReceiptNo = initReceipt.receiptNo;
+
+    await prisma.feeReceipt.create({
+      data: {
+        schoolId: schoolAId,
+        studentId: studentA2Id,
+        receiptNo: `REC-2026-INIT02`,
+        totalAmount: fromPaise(200000),
+        paymentMethod: "COUNTER_UPI",
+        cashierId: accountantA.user.id,
+        cashierName: accountantA.user.name,
+        status: "CLEARED",
+        paidAt: new Date(),
+        reprintCount: 0,
+      },
+    });
   });
 
   afterAll(async () => {
@@ -392,12 +471,12 @@ describe("Phase 2 Addendum: Manual Cash Collection, Offline Payments & Official 
     });
 
     it("records offline payment with excess funds creating StudentAdvanceCredit and advance ledger liability", async () => {
-      // Settle both A1 and A2 with excess amount: pay 12,000 for 11,200 dues (800 excess advance)
+      // Settle both Adv1 and Adv2 with excess amount: pay 12,000 for 11,200 dues (800 excess advance)
       const res = await request(app)
         .post("/api/v1/finance/cash/record-payment")
         .set("Authorization", `Bearer ${accountantAToken}`)
         .send({
-          studentId: studentA1Id,
+          studentId: studentAdvanceId,
           amountReceived: 12000,
           paymentMethod: "COUNTER_UPI",
           instrumentNo: "UPI-TXN-77889900",
@@ -406,9 +485,9 @@ describe("Phase 2 Addendum: Manual Cash Collection, Offline Payments & Official 
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
 
-      // Invoices A1 and A2 must both be PAID
-      const inv1 = await prisma.invoice.findUnique({ where: { id: invoiceA1Id } });
-      const inv2 = await prisma.invoice.findUnique({ where: { id: invoiceA2Id } });
+      // Invoices Adv1 and Adv2 must both be PAID
+      const inv1 = await prisma.invoice.findUnique({ where: { id: invoiceAdv1Id } });
+      const inv2 = await prisma.invoice.findUnique({ where: { id: invoiceAdv2Id } });
       expect(inv1?.status).toBe("PAID");
       expect(inv2?.status).toBe("PAID");
 

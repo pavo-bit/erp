@@ -117,6 +117,10 @@ router.get("/", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Re
 // POST /api/users - Create new user
 router.post("/", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
+    if (req.body?.role && !canAssignRole(req.user.role, req.body.role)) {
+      return res.status(403).json({ success: false, error: "Forbidden — cannot assign this role" });
+    }
+
     const data = createUserSchema.parse(req.body);
 
     if (!canAssignRole(req.user.role, data.role)) {
@@ -165,6 +169,10 @@ router.post("/", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: R
 // PUT /api/users/:id - Edit user
 router.put("/:id", authenticate, requireRole("ERP_ADMIN"), async (req: any, res: Response) => {
   try {
+    if (req.body?.role && !canAssignRole(req.user.role, req.body.role)) {
+      return res.status(403).json({ success: false, error: "Forbidden — cannot assign this role" });
+    }
+
     const data = updateUserSchema.parse(req.body);
     const userId = req.params.id;
 

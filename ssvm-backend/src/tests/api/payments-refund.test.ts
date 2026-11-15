@@ -23,6 +23,10 @@ describe("P0 Finance: Refund Lifecycle and Ledger Reversals", () => {
   let studentA: Student;
   let invoiceA: Invoice;
   let paymentTxA: PaymentTransaction;
+  let invoiceExcessive: Invoice;
+  let paymentTxExcessive: PaymentTransaction;
+  let invoiceFull: Invoice;
+  let paymentTxFull: PaymentTransaction;
 
   beforeAll(async () => {
     // 1. Create two independent test schools
@@ -128,6 +132,72 @@ describe("P0 Finance: Refund Lifecycle and Ledger Reversals", () => {
           status: "SUCCESS",
           transactionId: `order_rf_${suffix}`,
           gatewayPaymentId: `pay_rf_${suffix}`,
+          paidAt: new Date(),
+        },
+      }),
+    );
+
+    invoiceExcessive = await runWithTenantDatabaseTransaction(schoolA.id, (tx) =>
+      tx.invoice.create({
+        data: {
+          id: `inv_rf_exc_${suffix}`,
+          schoolId: schoolA.id,
+          studentId: studentA.id,
+          amount: 5000,
+          amountPaid: 5000,
+          remainingAmount: 0,
+          status: "PAID",
+          dueDate: new Date(),
+          paidDate: new Date(),
+          receiptNo: `REC-2026-EXC001`,
+        },
+      }),
+    );
+
+    paymentTxExcessive = await runWithTenantDatabaseTransaction(schoolA.id, (tx) =>
+      tx.paymentTransaction.create({
+        data: {
+          id: `pt_rf_exc_${suffix}`,
+          schoolId: schoolA.id,
+          invoiceId: invoiceExcessive.id,
+          amountPaid: 5000,
+          gateway: "RAZORPAY",
+          status: "SUCCESS",
+          transactionId: `order_rf_exc_${suffix}`,
+          gatewayPaymentId: `pay_rf_exc_${suffix}`,
+          paidAt: new Date(),
+        },
+      }),
+    );
+
+    invoiceFull = await runWithTenantDatabaseTransaction(schoolA.id, (tx) =>
+      tx.invoice.create({
+        data: {
+          id: `inv_rf_full_${suffix}`,
+          schoolId: schoolA.id,
+          studentId: studentA.id,
+          amount: 5000,
+          amountPaid: 5000,
+          remainingAmount: 0,
+          status: "PAID",
+          dueDate: new Date(),
+          paidDate: new Date(),
+          receiptNo: `REC-2026-FUL001`,
+        },
+      }),
+    );
+
+    paymentTxFull = await runWithTenantDatabaseTransaction(schoolA.id, (tx) =>
+      tx.paymentTransaction.create({
+        data: {
+          id: `pt_rf_full_${suffix}`,
+          schoolId: schoolA.id,
+          invoiceId: invoiceFull.id,
+          amountPaid: 5000,
+          gateway: "RAZORPAY",
+          status: "SUCCESS",
+          transactionId: `order_rf_full_${suffix}`,
+          gatewayPaymentId: `pay_rf_full_${suffix}`,
           paidAt: new Date(),
         },
       }),
@@ -246,12 +316,22 @@ describe("P0 Finance: Refund Lifecycle and Ledger Reversals", () => {
   });
 
   it("rejects subsequent refund that would exceed original payment amount with 400", async () => {
+    // Perform initial 2000 partial refund on dedicated excessive payment transaction
+    await request(app)
+      .post("/api/v1/payments/refund")
+      .set("Authorization", `Bearer ${accountantAToken}`)
+      .send({
+        paymentTransactionId: paymentTxExcessive.id,
+        amount: 2000,
+        reason: "Initial partial refund for excessive test",
+      });
+
     // 2000 was already refunded; only 3000 remains refundable
     const res = await request(app)
       .post("/api/v1/payments/refund")
       .set("Authorization", `Bearer ${accountantAToken}`)
       .send({
-        paymentTransactionId: paymentTxA.id,
+        paymentTransactionId: paymentTxExcessive.id,
         amount: 3500, // 3500 + 2000 = 5500 > 5000
         reason: "Excessive second refund",
       });
@@ -261,11 +341,21 @@ describe("P0 Finance: Refund Lifecycle and Ledger Reversals", () => {
   });
 
   it("executes remaining refund (3000), completing full refund and setting invoice to UNPAID", async () => {
+    // Perform initial 2000 partial refund on dedicated full-refund payment transaction
+    await request(app)
+      .post("/api/v1/payments/refund")
+      .set("Authorization", `Bearer ${accountantAToken}`)
+      .send({
+        paymentTransactionId: paymentTxFull.id,
+        amount: 2000,
+        reason: "Initial partial refund for full refund test",
+      });
+
     const res = await request(app)
       .post("/api/v1/payments/refund")
       .set("Authorization", `Bearer ${accountantAToken}`)
       .send({
-        paymentTransactionId: paymentTxA.id,
+        paymentTransactionId: paymentTxFull.id,
         amount: 3000,
         reason: "Final settlement of refund",
       });
@@ -275,7 +365,7 @@ describe("P0 Finance: Refund Lifecycle and Ledger Reversals", () => {
     expect(res.body.data.invoiceStatus).toBe("UNPAID");
     expect(Number(res.body.data.remainingAmount)).toBe(5000);
 
-    const updatedInv = await fixturePrisma.invoice.findUnique({ where: { id: invoiceA.id } });
+    const updatedInv = await fixturePrisma.invoice.findUnique({ where: { id: invoiceFull.id } });
     expect(Number(updatedInv?.amountPaid)).toBe(0);
     expect(Number(updatedInv?.remainingAmount)).toBe(5000);
     expect(updatedInv?.status).toBe("UNPAID");

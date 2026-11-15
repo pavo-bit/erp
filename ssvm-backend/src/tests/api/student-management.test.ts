@@ -25,6 +25,8 @@ describe("SSVM ERP — Student Management & Canonical Profile Acceptance Suite",
   let student1Id: string;
   let student2Id: string;
   let student3Id: string;
+  let studentToUpdateId: string;
+  let studentToDeleteId: string;
   let studentBId: string;
   let guardian1Id: string;
 
@@ -280,6 +282,40 @@ describe("SSVM ERP — Student Management & Canonical Profile Acceptance Suite",
           description: "Admitted via inter-state transfer from Delhi Public School.",
         },
       });
+
+      // Student for Update test (isolated from other tests)
+      const sUpd = await tx.student.create({
+        data: {
+          schoolId: schoolAId,
+          name: "Aarav ForUpdate",
+          admissionNo: `ADM-2026-UPD-${uid}`,
+          rollNo: "11",
+          dob: new Date("2015-05-15"),
+          gender: "MALE",
+          bloodGroup: "B+",
+          address: "100 Update Road, Bangalore",
+          sectionId: sec1Id,
+          isActive: true,
+        },
+      });
+      studentToUpdateId = sUpd.id;
+
+      // Student for Delete test (isolated from other tests)
+      const sDel = await tx.student.create({
+        data: {
+          schoolId: schoolAId,
+          name: "Aarav ForDelete",
+          admissionNo: `ADM-2026-DEL-${uid}`,
+          rollNo: "12",
+          dob: new Date("2015-06-16"),
+          gender: "MALE",
+          bloodGroup: "B+",
+          address: "101 Delete Road, Bangalore",
+          sectionId: sec1Id,
+          isActive: true,
+        },
+      });
+      studentToDeleteId = sDel.id;
     });
 
     // 4. Set up School B student inside School B transaction
@@ -583,7 +619,7 @@ describe("SSVM ERP — Student Management & Canonical Profile Acceptance Suite",
   describe("5. Profile Mutations & Fail-Closed Soft Delete", () => {
     it("PUT /api/v1/students/:id updates student attributes, records timeline, and logs audit", async () => {
       const res = await request(app)
-        .put(`/api/v1/students/${student1Id}`)
+        .put(`/api/v1/students/${studentToUpdateId}`)
         .set("Authorization", `Bearer ${adminAToken}`)
         .send({
           name: "Aarav Sharma (Updated)",
@@ -596,21 +632,21 @@ describe("SSVM ERP — Student Management & Canonical Profile Acceptance Suite",
       expect(res.body.data.bloodGroup).toBe("A+");
 
       const auditLog = await prisma.auditLog.findFirst({
-        where: { entity: "STUDENT", entityId: student1Id, action: "STUDENT_UPDATED" },
+        where: { entity: "STUDENT", entityId: studentToUpdateId, action: "STUDENT_UPDATED" },
       });
       expect(auditLog).toBeDefined();
     });
 
     it("DELETE /api/v1/students/:id soft-deletes student and archives record", async () => {
       const delRes = await request(app)
-        .delete(`/api/v1/students/${student3Id}`)
+        .delete(`/api/v1/students/${studentToDeleteId}`)
         .set("Authorization", `Bearer ${adminAToken}`);
 
       expect(delRes.status).toBe(200);
       expect(delRes.body.success).toBe(true);
 
       const getRes = await request(app)
-        .get(`/api/v1/students/${student3Id}`)
+        .get(`/api/v1/students/${studentToDeleteId}`)
         .set("Authorization", `Bearer ${adminAToken}`);
 
       expect(getRes.status).toBe(404);
@@ -620,11 +656,11 @@ describe("SSVM ERP — Student Management & Canonical Profile Acceptance Suite",
         .set("Authorization", `Bearer ${adminAToken}`);
 
       const ids = dirRes.body.data.map((s: any) => s.id);
-      expect(ids).not.toContain(student3Id);
+      expect(ids).not.toContain(studentToDeleteId);
 
       // 4. Verify database row still exists in database with deletedAt set (safe retention without physical deletion)
       await runWithTenantDatabaseTransaction(schoolAId, async (tx: any) => {
-        const rawRows = await tx.$queryRaw<any[]>`SELECT id, "deletedAt", "isActive" FROM students WHERE id = ${student3Id}`;
+        const rawRows = await tx.$queryRaw<any[]>`SELECT id, "deletedAt", "isActive" FROM students WHERE id = ${studentToDeleteId}`;
         expect(rawRows.length).toBe(1);
         expect(rawRows[0].deletedAt).not.toBeNull();
         expect(rawRows[0].isActive).toBe(false);

@@ -25,7 +25,7 @@ export function startExportWorker() {
       logger.info({ jobId: job.id, entity, schoolId }, "Starting export job");
 
     try {
-      let data: any[] = [];
+      let data: Record<string, unknown>[] = [];
 
       // 1. Fetch Data Based on Entity
       await job.updateProgress(10);
@@ -174,8 +174,8 @@ export function startExportWorker() {
       await job.updateProgress(100);
       logger.info({ jobId: job.id }, "Export job completed successfully");
       return { status: "COMPLETED", downloadUrl, recordCount: data.length };
-    } catch (error: any) {
-      logger.error({ jobId: job.id, err: error }, "Export job failed");
+    } catch (error: unknown) {
+      logger.error({ jobId: job.id, err: (error as Error)?.message }, "Export job failed");
       
       // Notify failure
       if (userEmail) {

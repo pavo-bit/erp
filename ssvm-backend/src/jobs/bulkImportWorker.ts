@@ -70,7 +70,7 @@ export function startImportWorker() {
         const totalRows = data.length;
         let successRows = 0;
         let failedRows = 0;
-        const errorLogs: any[] = [];
+        const errorLogs: Array<Record<string, unknown>> = [];
 
         await prisma.bulkJob.update({
           where: { id: jobId },
@@ -79,7 +79,7 @@ export function startImportWorker() {
 
         // Process rows in batches to avoid overwhelming DB/memory
         for (let i = 0; i < data.length; i++) {
-          const row: any = data[i];
+          const row = data[i] as Record<string, string | undefined>;
 
           try {
             if (type === "STUDENT_IMPORT") {
@@ -93,9 +93,9 @@ export function startImportWorker() {
               throw new Error("Unsupported import type");
             }
             successRows++;
-          } catch (err: any) {
+          } catch (err: unknown) {
             failedRows++;
-            errorLogs.push({ rowNumber: i + 1, ...row, error: err.message });
+            errorLogs.push({ rowNumber: i + 1, ...row, error: (err as Error).message });
           }
 
           // Update progress every 10 rows
@@ -135,11 +135,11 @@ export function startImportWorker() {
         });
 
         logger.info({ jobId, successRows, failedRows }, "Bulk import job completed");
-      } catch (error: any) {
-        logger.error({ err: error, jobId }, "Bulk import job failed catastrophically");
+      } catch (error: unknown) {
+        logger.error({ err: (error as Error)?.message, jobId }, "Bulk import job failed catastrophically");
         await prisma.bulkJob.update({
           where: { id: jobId },
-          data: { status: "FAILED", errorFile: error.message },
+          data: { status: "FAILED", errorFile: (error as Error)?.message || "Failed" },
         });
       }
     });

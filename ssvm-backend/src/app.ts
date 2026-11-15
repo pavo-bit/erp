@@ -123,8 +123,8 @@ export async function createApp(): Promise<Express> {
       IncidentService.initialize(),
       DiagnosticEventService.initialize(),
     ]);
-  } catch (err: any) {
-    logger.warn({ err: err?.message }, "Non-fatal error hydrating SHFI state on startup");
+  } catch (err: unknown) {
+    logger.warn({ err: (err as Error)?.message }, "Non-fatal error hydrating SHFI state on startup");
   }
 
 const httpRequestDurationMicroseconds = new client.Histogram({
@@ -366,7 +366,7 @@ const legacyCompatMiddleware = async (req: Request, res: Response, next: NextFun
     res.setHeader("Link", `<${req.protocol}://${req.get("host")}${v1Path}>; rel="successor-version"`);
 
     try {
-      const schoolId = (req as any).user?.schoolId;
+      const schoolId = (req as Request & { user?: { schoolId?: string } }).user?.schoolId;
       if (schoolId) {
         await prisma.activityLog.create({
           data: {

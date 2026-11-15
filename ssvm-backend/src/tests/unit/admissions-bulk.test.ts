@@ -573,12 +573,13 @@ describe("SSVM Bulk Student Registration & Admission Workflow", () => {
               primaryPhone: "9876543210",
             },
           });
+          const rand = Math.floor(1000 + Math.random() * 9000);
           return tx.student.create({
             data: {
               schoolId,
               name: "Aditya Narayan Nayak",
-              rollNo: "1",
-              admissionNo: "ADM-2026-0001",
+              rollNo: `R-${rand}`,
+              admissionNo: `ADM-2026-${rand}`,
               password: "hash",
               sectionId: testSectionId,
               guardianId: grd.id,

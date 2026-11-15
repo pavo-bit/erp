@@ -148,6 +148,51 @@ describe("SSVM ERP Admission Operational Handoff & Data Integrity Suite", () => 
           { schoolId: schoolAId, sessionId: sessionAId, shiftId: dayShift.id, classId: class7Id, isActive: true },
         ],
       });
+
+      // Seed baseline registered student so operational handoff & profile tests pass regardless of shuffle order
+      const baseStudent = await tx.student.create({
+        data: {
+          schoolId: schoolAId,
+          name: "Aarav Sharma",
+          admissionNo: `ADM-BASE-9988`,
+          rollNo: "109",
+          pen: "PEN-2026-8899",
+          locality: "Civil Lines",
+          pincode: "769001",
+          address: "Plot 12, Civil Lines, Rourkela",
+          medicalInfo: "Asthma inhaler required",
+          emergencyPhone: "9876543211",
+          nationality: "Indian",
+          religion: "Hindu",
+          gender: "MALE",
+          dob: new Date("2019-06-15"),
+          isActive: true,
+          sectionId: sec1AId,
+        },
+      });
+      registeredStudentId = baseStudent.id;
+
+      await tx.studentEnrollment.create({
+        data: {
+          schoolId: schoolAId,
+          studentId: baseStudent.id,
+          sessionId: sessionAId,
+          classId: class1Id,
+          sectionId: sec1AId,
+          shiftId: morningShift.id,
+          rollNo: "109",
+        },
+      });
+
+      await tx.facilityRequest.create({
+        data: {
+          schoolId: schoolAId,
+          studentId: baseStudent.id,
+          facilityType: "TRANSPORT",
+          status: "REQUESTED",
+          details: "Civil Lines Stop",
+        },
+      });
     });
   });
 

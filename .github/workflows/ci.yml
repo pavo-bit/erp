@@ -116,11 +116,15 @@ jobs:
             --command 'SELECT current_user, r.rolsuper, r.rolbypassrls, (SELECT count(*) FROM pg_policy) AS policy_count FROM pg_roles r WHERE r.rolname = current_user;'
 
       - name: Run Tests with Coverage
+        shell: bash
         run: |
+          set -o pipefail
           npm run test:ci 2>&1 | tee test-ci-coverage.log
 
       - name: Run Shuffled Parallel Tests (Full Backend Suite)
+        shell: bash
         run: |
+          set -o pipefail
           SHUFFLE_SEED=$((10000 + RANDOM % 90000))
           echo "Running vitest full backend test suite with sequence.shuffle and seed: $SHUFFLE_SEED"
           echo "### 🎲 Shuffled Backend Test Suite" >> $GITHUB_STEP_SUMMARY

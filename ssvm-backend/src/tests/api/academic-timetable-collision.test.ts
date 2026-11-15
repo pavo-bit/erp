@@ -285,12 +285,29 @@ describe("Academic Timetable Collision Detection and Isolation", () => {
   });
 
   it("should prevent teacher double-booking when the same teacher is scheduled in Section A2 at the same period", async () => {
+    // Ensure baseline slot on TUESDAY for teacherA1 in Section A1
+    await request(app)
+      .post("/api/v1/timetable")
+      .set("Authorization", `Bearer ${adminAToken}`)
+      .send({
+        sectionId: sectionA1Id,
+        day: "TUESDAY",
+        slots: [
+          {
+            period: 1,
+            teacherSubjectAssignmentId: assignmentA1Sec1Id,
+            startTime: "09:00",
+            endTime: "09:45"
+          }
+        ]
+      });
+
     const res = await request(app)
       .post("/api/v1/timetable")
       .set("Authorization", `Bearer ${adminAToken}`)
       .send({
         sectionId: sectionA2Id,
-        day: "MONDAY",
+        day: "TUESDAY",
         slots: [
           {
             period: 1, // teacherA1 is already in Section A1 during period 1!
@@ -308,12 +325,29 @@ describe("Academic Timetable Collision Detection and Isolation", () => {
   });
 
   it("should prevent teacher double-booking when times overlap even if period number differs", async () => {
+    // Ensure baseline slot on WEDNESDAY for teacherA1 in Section A1
+    await request(app)
+      .post("/api/v1/timetable")
+      .set("Authorization", `Bearer ${adminAToken}`)
+      .send({
+        sectionId: sectionA1Id,
+        day: "WEDNESDAY",
+        slots: [
+          {
+            period: 1,
+            teacherSubjectAssignmentId: assignmentA1Sec1Id,
+            startTime: "09:00",
+            endTime: "09:45"
+          }
+        ]
+      });
+
     const res = await request(app)
       .post("/api/v1/timetable")
       .set("Authorization", `Bearer ${adminAToken}`)
       .send({
         sectionId: sectionA2Id,
-        day: "MONDAY",
+        day: "WEDNESDAY",
         slots: [
           {
             period: 2, // Period 2, but time 09:30-10:15 overlaps Section A1 (09:00-09:45)
@@ -335,7 +369,7 @@ describe("Academic Timetable Collision Detection and Isolation", () => {
       .set("Authorization", `Bearer ${adminAToken}`)
       .send({
         sectionId: sectionA2Id,
-        day: "MONDAY",
+        day: "THURSDAY",
         slots: [
           {
             period: 1,
@@ -357,7 +391,7 @@ describe("Academic Timetable Collision Detection and Isolation", () => {
       .set("Authorization", `Bearer ${adminAToken}`)
       .send({
         sectionId: sectionA1Id,
-        day: "TUESDAY",
+        day: "FRIDAY",
         slots: [
           {
             period: 1,

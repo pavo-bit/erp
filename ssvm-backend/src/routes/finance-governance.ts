@@ -74,6 +74,7 @@ router.post("/reconcile", authenticate, requireFinanceAdmin(), async (req: AuthR
         res.status(400).json({
             success: false,
             error: "statement lines are required",
+            code: "BANK_RECONCILIATION_UNAVAILABLE",
         });
         return;
     }

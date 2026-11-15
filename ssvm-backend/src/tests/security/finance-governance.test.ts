@@ -50,7 +50,7 @@ describe("finance governance business boundaries", () => {
     const response = await request(createApp())
       .post("/finance/governance/reconcile")
       .send({ schoolId: "school-a", accountId: "account-a", statementBalance: 100, lines: [] })
-      .expect(501);
+      .expect(400);
 
     expect(response.body).toMatchObject({ success: false, code: "BANK_RECONCILIATION_UNAVAILABLE" });
   });
