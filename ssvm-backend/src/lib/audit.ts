@@ -2,6 +2,7 @@ import prisma from "./prisma";
 import logger from "./logger";
 import crypto from "crypto";
 import { runWithSchoolContext } from "../middleware/school-context.middleware";
+import { auditEventsTotal } from "../middleware/metrics";
 
 export async function createAuditLog({ data }: { data: {
   schoolId?: string | null;
@@ -16,6 +17,7 @@ export async function createAuditLog({ data }: { data: {
   device?: string | null;
 }}) {
   try {
+    auditEventsTotal.labels(data.action || "UNKNOWN").inc();
     if (data.schoolId) {
       return await runWithSchoolContext(data.schoolId, async () => {
         const lastLog = await prisma.auditLog.findFirst({

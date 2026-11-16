@@ -5,7 +5,7 @@ import { Role } from "@prisma/client";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { verifyAccessToken, isTokenExpiredError, AccessTokenPayload } from "../lib/tokens";
-import { jwtVerificationTotal } from "./metrics";
+import { jwtVerificationTotal, wrongPortalDenialsTotal } from "./metrics";
 import { setAuthenticatedSchoolContext } from "./school-context.middleware";
 import { getAuthPrisma } from "../lib/authPrisma";
 
@@ -292,6 +292,7 @@ export function requireRole(...roles: string[]) {
       return;
     }
 
+    wrongPortalDenialsTotal.inc();
     res.status(403).json({ success: false, error: "Forbidden — insufficient permissions" });
   };
 }
@@ -317,6 +318,7 @@ export function requireDirectRole(...roles: string[]) {
       next();
       return;
     }
+    wrongPortalDenialsTotal.inc();
     res.status(403).json({ success: false, error: "Forbidden — insufficient permissions" });
   };
 }

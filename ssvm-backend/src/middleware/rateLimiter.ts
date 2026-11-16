@@ -1,9 +1,10 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { Options } from "express-rate-limit";
 import RedisStore from "rate-limit-redis";
 import Redis from "ioredis";
 import { getEnv } from "../config/env";
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import logger from "../lib/logger";
+import { rateLimitHitsTotal } from "./metrics";
 
 // ═══════════════════════════════════════════
 // Rate Limiting (GAP 8 — Hardened)
@@ -20,7 +21,12 @@ if (!redisClient) {
   logger.warn("REDIS_URL not provided. Rate limiters will use memory store (not recommended for cluster mode).");
 }
 
-const defaultHandler = (req: Request, res: Response, _next: any, options: any) => {
+interface CustomLimiterOptions extends Options {
+  prefix?: string;
+}
+
+const defaultHandler = (req: Request, res: Response, _next: NextFunction, options: CustomLimiterOptions) => {
+  rateLimitHitsTotal.labels(options.prefix || "general").inc();
   const retryAfterSeconds = Math.ceil(options.windowMs / 1000);
   res.setHeader("Retry-After", retryAfterSeconds);
   res.status(options.statusCode).json({
@@ -44,7 +50,8 @@ const createLimiter = (options: {
     max: options.max,
     standardHeaders: true,  // Return X-RateLimit-Limit, X-RateLimit-Remaining
     legacyHeaders: false,
-    handler: defaultHandler,
+    handler: (req: Request, res: Response, next: NextFunction, opts: Options) =>
+      defaultHandler(req, res, next, { ...opts, prefix: options.prefix }),
     keyGenerator: options.keyGenerator || ((req) => req.ip || req.headers["x-forwarded-for"]?.toString() || "unknown"),
     skipFailedRequests: options.skipFailedRequests,
     skipSuccessfulRequests: options.skipSuccessfulRequests,

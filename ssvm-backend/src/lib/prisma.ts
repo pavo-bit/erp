@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "async_hooks";
 import { encryptionExtension } from "./prismaEncryptionMiddleware";
 import { getCurrentSchoolId, getSchoolContext, runWithSchoolContext } from "../middleware/school-context.middleware";
 import { TENANT_CLASSIFICATION } from "../generated/tenantClassification";
+import { rlsContextMissingTotal } from "../middleware/metrics";
 
 const inTxStorage = new AsyncLocalStorage<boolean>();
 const activeTxStorage = new AsyncLocalStorage<Prisma.TransactionClient>();
@@ -19,6 +20,10 @@ export async function runWithTenantDatabaseTransaction<T>(
   fn: (tx: Prisma.TransactionClient) => Promise<T>,
   options?: { maxWait?: number; timeout?: number; isolationLevel?: Prisma.TransactionIsolationLevel }
 ): Promise<T> {
+  if (!schoolId || typeof schoolId !== "string" || schoolId.trim() === "") {
+    rlsContextMissingTotal.inc();
+    throw new Error("Tenant database transaction requires a valid non-empty schoolId.");
+  }
   const existingTx = activeTxStorage.getStore();
   const activeSchoolId = activeTenantSchoolIdStorage.getStore();
 

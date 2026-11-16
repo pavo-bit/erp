@@ -14,6 +14,7 @@ import { logSecurityEvent } from "../lib/audit";
 import { razorpayCircuitBreaker } from "../lib/circuitBreaker";
 import { toPaise, fromPaise } from "../lib/money";
 import logger from "../lib/logger";
+import { webhookSignatureFailuresTotal } from "../middleware/metrics";
 
 const router = Router();
 const env = getEnv();
@@ -740,6 +741,7 @@ router.post("/webhook", async (req: import("express").Request, res: Response) =>
       : Buffer.from(JSON.stringify(req.body), "utf8");
 
     if (!verifyHmacSignature(payloadBuffer, signature, secret)) {
+      webhookSignatureFailuresTotal.inc();
       await logSecurityEvent({
         userId: "SYSTEM",
         eventType: "WEBHOOK_TAMPERING",

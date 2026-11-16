@@ -1,6 +1,7 @@
 import { doubleCsrf } from "csrf-csrf";
 import { getEnv } from "../config/env";
 import { Request, Response, NextFunction } from "express";
+import { csrfFailuresTotal } from "./metrics";
 
 const env = getEnv();
 
@@ -58,6 +59,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
       return res.status(500).json({ success: false, error: "csrf_origin_configuration_error" });
     }
     if (origin !== allowedOrigin) {
+      csrfFailuresTotal.inc();
       return res.status(403).json({ success: false, error: "invalid_origin", message: "Request origin is not allowed" });
     }
   }
@@ -116,6 +118,7 @@ export function csrfProtection(req: Request, res: Response, next: NextFunction) 
   // Validate CSRF token using doubleCsrfProtection
   doubleCsrfProtection(req, res, (err) => {
     if (err && err === invalidCsrfTokenError) {
+      csrfFailuresTotal.inc();
       return res.status(403).json({
         success: false,
         error: "invalid_csrf_token",

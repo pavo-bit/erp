@@ -4,7 +4,7 @@ import { authenticate, requireSchoolAccess, requireRole, AuthRequest } from "../
 import { Role } from "@prisma/client";
 import { z } from "zod";
 import crypto from "crypto";
-import { webhookProcessingTotal } from "../middleware/metrics";
+import { webhookProcessingTotal, webhookSignatureFailuresTotal } from "../middleware/metrics";
 import { IdempotencyService } from "../services/idempotency.service";
 import logger from "../lib/logger";
 import prisma from "../lib/prisma";
@@ -122,6 +122,7 @@ router.post("/razorpay", async (req, res) => {
 
   const signature = req.headers["x-razorpay-signature"];
   if (!signature) {
+    webhookSignatureFailuresTotal.inc();
     webhookProcessingTotal.labels("razorpay", "error_missing_signature", "unknown").inc();
     return res.status(400).json({ error: "Missing signature" });
   }
@@ -136,6 +137,7 @@ router.post("/razorpay", async (req, res) => {
     const eventType = req.body?.event || "unknown";
 
     if (expectedSignature !== signature) {
+      webhookSignatureFailuresTotal.inc();
       webhookProcessingTotal.labels("razorpay", "error_signature", eventType).inc();
       return res.status(400).json({ error: "Invalid signature" });
     }

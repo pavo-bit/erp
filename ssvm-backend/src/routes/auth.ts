@@ -25,6 +25,7 @@ import { incrementFailedLogins, resetFailedLogins, getFailedLogins } from "../li
 import { enqueueNotification } from "../jobs/queue";
 import { getAuthPrisma } from "../lib/authPrisma";
 import { mailService } from "../services/mail.service";
+import { accountLockoutsTotal } from "../middleware/metrics";
 
 const router = Router();
 
@@ -181,6 +182,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: user.id, schoolId: user.schoolId || undefined, req, success: false, failReason: "invalid_credentials", metadata: { email, attempts } });
       
       if (attempts >= 5) {
+        accountLockoutsTotal.inc();
         // Lockout! Notify ERP_ADMIN
         const admin = await authDb.user.findFirst({ where: { schoolId: user.schoolId, role: "ERP_ADMIN", isActive: true } });
         if (admin) {

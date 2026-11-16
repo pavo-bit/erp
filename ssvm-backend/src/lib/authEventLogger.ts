@@ -3,6 +3,7 @@ import { Request } from "express";
 import logger from "./logger";
 import { runWithSchoolContext } from "../middleware/school-context.middleware";
 import prisma from "./prisma";
+import { authFailuresTotal, accountLockoutsTotal } from "../middleware/metrics";
 
 export interface AuthEventPayload {
   userId?: string;
@@ -16,6 +17,13 @@ export interface AuthEventPayload {
 
 export async function logAuthEvent(_prisma: PrismaClient, event: AuthEventPayload) {
   try {
+    if (!event.success) {
+      const reason = event.failReason || "unknown";
+      authFailuresTotal.labels(reason).inc();
+      if (reason === "account_locked" || reason === "locked_out") {
+        accountLockoutsTotal.inc();
+      }
+    }
     const ipAddress = 
       (event.req.headers['x-forwarded-for'] as string)?.split(',')[0] || 
       event.req.ip || 
