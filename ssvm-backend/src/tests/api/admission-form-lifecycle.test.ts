@@ -242,6 +242,7 @@ describe("PROMPT 5 — SSVM ERP Admission Final Corrective Acceptance Suite", ()
         newFee: number;
         reason: string;
         userName?: string;
+        timestamp?: string;
       }
       const historyList = historyRes.body.data.history as FeeHistoryItem[];
       const latest = historyList.find((h) => h.reason === "Governing body annual indexation") || historyList[0];

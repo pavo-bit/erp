@@ -20,7 +20,7 @@ async function bootstrap(): Promise<void> {
     { createApp },
     { getEnv },
     { initSentry },
-    { disconnectRedis },
+    { initRedis, disconnectRedis },
     { startWorkers },
     { startTokenCleanupScheduler, stopTokenCleanupScheduler },
     { closeQueues },
@@ -38,6 +38,7 @@ async function bootstrap(): Promise<void> {
 
   const env = getEnv();
   initSentry();
+  await initRedis();
   const app = await createApp();
 
   const server: Server = app.listen(Number.parseInt(env.PORT, 10), "0.0.0.0", () => {

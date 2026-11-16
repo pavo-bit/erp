@@ -275,6 +275,22 @@ app.use(helmet({
 
 
 
+// Root Welcome / Discovery for Browser & Tools
+app.use((req, res, next) => {
+  if (req.method === "GET" && (req.path === "/" || req.path === "/api" || req.path === "/api/v1")) {
+    res.json({
+      name: "SSVM ERP REST API Server",
+      status: "running",
+      version: "1.0.0",
+      health: "/health",
+      metrics: "/metrics",
+      timestamp: new Date().toISOString(),
+    });
+    return;
+  }
+  next();
+});
+
 // PM2 / Load Balancer Healthcheck (Root Level)
 app.get("/health", async (req, res) => {
   let dbStatus = "disconnected";
