@@ -1,25 +1,23 @@
 groups:
   - name: SSVM_Backend_SLOs
     rules:
-      # 1. API Latency SLO
-      # Alert if the 95th percentile of HTTP request duration exceeds 500ms for 5 minutes.
+      # 1. API Latency SLO (p95 > 500ms / 0.5s)
       - alert: HighApiLatency
-        expr: histogram_quantile(0.95, sum(rate(ssvm_http_request_duration_ms_bucket[5m])) by (le)) > 500
+        expr: histogram_quantile(0.95, sum(rate(ssvm_http_request_duration_seconds_bucket[5m])) by (le)) > 0.5
         for: 5m
         labels:
           severity: warning
           component: backend_api
         annotations:
           summary: "High API Latency (p95 > 500ms)"
-          description: "The 95th percentile of API response times is {{ $value }}ms, which exceeds the 500ms SLO threshold."
+          description: "The 95th percentile of API response times is {{ $value }}s, which exceeds the 0.5s SLO threshold."
 
-      # 2. HTTP Error Rate SLO
-      # Alert if the percentage of HTTP 5xx errors is greater than 2% over 5 minutes.
+      # 2. HTTP Error Rate SLO (5xx > 2%)
       - alert: HighHttpErrorRate
         expr: |
-          sum(rate(ssvm_http_errors_total{code=~"5.."}[5m])) 
-          / 
-          sum(rate(ssvm_http_request_duration_ms_count[5m])) > 0.02
+          sum(rate(ssvm_http_errors_total{code=~"5.."}[5m]))
+          /
+          sum(rate(ssvm_http_request_duration_seconds_count[5m])) > 0.02
         for: 5m
         labels:
           severity: critical
@@ -28,12 +26,44 @@ groups:
           summary: "High HTTP 5xx Error Rate"
           description: "More than 2% of requests are failing with 5xx server errors over the last 5 minutes. Current rate: {{ $value | humanizePercentage }}."
 
-      # 3. Webhook Failure Rate SLO
-      # Alert if webhook failure rate (processing/signature errors) exceeds 5% over 10 minutes.
+      # 3. Auth Failure Spike (> 20 auth failures/min)
+      - alert: AuthFailureSpike
+        expr: sum(rate(ssvm_auth_failures_total[5m])) > 0.33
+        for: 2m
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Authentication Failure Spike Detected"
+          description: "Authentication failures are occurring at an elevated rate of {{ $value }} per second."
+
+      # 4. Account Lockout Spike (> 5 lockouts in 5 minutes)
+      - alert: AccountLockoutSpike
+        expr: sum(increase(ssvm_account_lockouts_total[5m])) > 5
+        for: 1m
+        labels:
+          severity: critical
+          component: security
+        annotations:
+          summary: "Account Lockout Spike Detected"
+          description: "More than 5 user accounts have been locked out in the last 5 minutes (possible credential stuffing)."
+
+      # 5. Webhook Signature Failures
+      - alert: WebhookSignatureFailures
+        expr: sum(rate(ssvm_webhook_signature_failures_total[5m])) > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: webhooks
+        annotations:
+          summary: "Webhook HMAC Signature Verification Failures"
+          description: "Incoming webhooks are failing HMAC signature validation. Webhook secret may be compromised or misconfigured."
+
+      # 6. Webhook Processing Failure Rate (> 5% over 10m)
       - alert: HighWebhookFailureRate
         expr: |
-          sum(rate(ssvm_webhook_processing_total{status=~"error_.*"}[10m])) 
-          / 
+          sum(rate(ssvm_webhook_processing_total{status=~"error_.*"}[10m]))
+          /
           sum(rate(ssvm_webhook_processing_total[10m])) > 0.05
         for: 10m
         labels:
@@ -41,10 +71,9 @@ groups:
           component: webhooks
         annotations:
           summary: "High Webhook Processing Failure Rate"
-          description: "More than 5% of incoming webhooks are failing (signature mismatch, config, or processing error). Current failure rate: {{ $value | humanizePercentage }}."
+          description: "More than 5% of incoming webhooks are failing. Current failure rate: {{ $value | humanizePercentage }}."
 
-      # 4. Background Job Queue Backlog
-      # Alert if any BullMQ queue has more than 100 pending jobs for over 10 minutes.
+      # 7. Background Job Queue Backlog
       - alert: HighJobQueueBacklog
         expr: ssvm_bullmq_queue_size > 100
         for: 10m
@@ -55,9 +84,29 @@ groups:
           summary: "BullMQ Queue Backlog is too high"
           description: "Queue '{{ $labels.queue }}' has {{ $value }} pending jobs. Workers might be stuck or down."
 
-      # 5. Missing Webhook Events
-      # Alert if we haven't received ANY webhooks for 24 hours, but we have had payments initiated.
-      # (This is an advanced synthetic rule: if payments happen but no webhooks arrive, the webhook config is broken).
+      # 8. Outbox Dead Letters Detected
+      - alert: OutboxDeadLetters
+        expr: ssvm_outbox_dead_letters_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          component: background_workers
+        annotations:
+          summary: "Transactional Outbox Dead Letters Detected"
+          description: "One or more events in outbox_events have exceeded max retries and moved to dead-letter state."
+
+      # 9. Support Session Open Longer Than Expiry
+      - alert: SupportSessionOpenLongerThanExpiry
+        expr: ssvm_support_sessions_active > 0
+        for: 2h
+        labels:
+          severity: warning
+          component: security
+        annotations:
+          summary: "Platform Support Session Remains Active"
+          description: "A platform support session has been active for more than 2 hours. Ensure manual session closure or automatic expiry."
+
+      # 10. Missing Webhook Events
       - alert: MissingPaymentWebhooks
         expr: |
           sum(increase(ssvm_payment_total[24h])) > 10

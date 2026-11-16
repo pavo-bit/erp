@@ -26,6 +26,7 @@
     "db:verify-tables": "tsx scripts/verify-database-schema.ts",
     "audit:baseline": "node ../scripts/audit-baseline.cjs",
     "audit:baseline:check": "node ../scripts/audit-baseline.cjs --check",
+    "check:metrics": "node ../scripts/check-metrics-vocabulary.cjs",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
