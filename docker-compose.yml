@@ -93,6 +93,7 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
+      - ./prometheus/metrics_token:/etc/prometheus/metrics_token:ro
       - ssvm_prometheus:/prometheus
     networks:
       - ssvm-network
@@ -126,6 +127,7 @@ services:
       DIRECT_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@database:5432/${POSTGRES_DB:-ssvm_platform}
       PORT: 5000
       REDIS_URL: redis://redis:6379
+      METRICS_TOKEN: ${METRICS_TOKEN:-ssvm-prom-secret-metrics-token-2026}
       UPLOAD_DIR: /app/uploads
       AWS_REGION: ${AWS_REGION:-ap-south-1}
     env_file:
