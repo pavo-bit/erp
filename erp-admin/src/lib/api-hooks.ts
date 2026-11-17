@@ -106,6 +106,8 @@ export function useTimetable(params?: string) { return useSWR(`/api/v1/timetable
 export function useNotifications(params?: string) { return useSWR(`/api/v1/notifications${params ? `?${params}` : ""}`, fetcher); }
 export function useAnalytics() { return useSWR("/api/v1/stats/detailed", fetcher); }
 export function useFinanceStats() { return useSWR("/api/v1/stats/finance", fetcher); }
+export function useSchoolAnalyticsOverview() { return useSWR("/api/v1/analytics/school/overview", fetcher); }
+export function useSchoolAnalyticsTrends() { return useSWR("/api/v1/analytics/school/trends", fetcher); }
 export function usePublicStats() { return useSWR("/api/v1/stats/public", fetcher); }
 export function useSearch(query: string) { return useSWR(query.length >= 2 ? `/api/v1/search?q=${query}` : null, fetcher); }
 
