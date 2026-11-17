@@ -301,6 +301,22 @@ export function requireSuperAdmin() {
   return requireRole("SUPER_ADMIN");
 }
 
+export function requireAudience(requiredAudience: "PLATFORM" | "SCHOOL") {
+  return (req: AuthRequest, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ success: false, error: "Not authenticated" });
+      return;
+    }
+    const tokenAud = (req.user as any).aud || (req.user.role === "SUPER_ADMIN" ? "PLATFORM" : "SCHOOL");
+    if (tokenAud !== requiredAudience) {
+      wrongPortalDenialsTotal.inc();
+      res.status(403).json({ success: false, error: `Forbidden — invalid audience. Expected ${requiredAudience}` });
+      return;
+    }
+    next();
+  };
+}
+
 export function requireAdmin() {
   return requireRole("ERP_ADMIN");
 }

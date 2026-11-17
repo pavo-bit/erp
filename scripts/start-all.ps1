@@ -1,4 +1,4 @@
-﻿<#
+<#
 .SYNOPSIS
   SSVM ERP — Unified 1-Command Startup Script
   Starts PostgreSQL 16, Redis 7, PgBouncer, Backend REST API Server, and all 7 Next.js Portals.

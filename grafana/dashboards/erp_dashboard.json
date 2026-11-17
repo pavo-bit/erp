@@ -33,7 +33,7 @@
       "targets": [
         {
           "format": "table",
-          "rawSql": "SELECT count(id) AS \"Students\" FROM students;",
+          "rawSql": "SELECT total_students AS \"Students\" FROM platform_metrics.platform_overview_v;",
           "refId": "A"
         }
       ],
@@ -71,7 +71,7 @@
       "targets": [
         {
           "format": "table",
-          "rawSql": "SELECT count(id) AS \"Schools\" FROM schools WHERE status = 'ACTIVE';",
+          "rawSql": "SELECT active_schools AS \"Schools\" FROM platform_metrics.platform_overview_v;",
           "refId": "A"
         }
       ],
@@ -109,7 +109,7 @@
       "targets": [
         {
           "format": "table",
-          "rawSql": "SELECT count(id) AS \"Faculty\" FROM teachers;",
+          "rawSql": "SELECT total_faculty AS \"Faculty\" FROM platform_metrics.platform_overview_v;",
           "refId": "A"
         }
       ],
@@ -147,7 +147,7 @@
       "targets": [
         {
           "format": "table",
-          "rawSql": "SELECT count(id) AS \"Users\" FROM users;",
+          "rawSql": "SELECT total_users AS \"Users\" FROM platform_metrics.platform_overview_v;",
           "refId": "A"
         }
       ],
@@ -319,7 +319,7 @@
       "targets": [
         {
           "format": "table",
-          "rawSql": "SELECT status AS \"Status\", count(id) AS \"Invoices\" FROM invoices GROUP BY status ORDER BY 2 DESC;",
+          "rawSql": "SELECT \"Status\", \"Invoices\" FROM platform_metrics.fee_invoices_by_status_v ORDER BY 2 DESC;",
           "refId": "A"
         }
       ],
@@ -341,7 +341,7 @@
       "targets": [
         {
           "format": "table",
-          "rawSql": "SELECT role AS \"Role\", count(id) AS \"Users\" FROM users GROUP BY role ORDER BY 2 DESC;",
+          "rawSql": "SELECT \"Role\", \"Users\" FROM platform_metrics.user_accounts_by_role_v ORDER BY 2 DESC;",
           "refId": "A"
         }
       ],
