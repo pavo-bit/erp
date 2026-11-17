@@ -1,0 +1,87 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "title": "Tenant Usage",
+  "uid": "ssvm_tenant_usage",
+  "tags": ["ssvm", "tenancy", "schools", "usage"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Active Requesting Schools",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "name": "Prometheus" },
+      "targets": [
+        {
+          "expr": "count(count by (schoolId) (ssvm_tenant_requests_total)) or vector(0)",
+          "legendFormat": "Schools",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Total Tenant Requests (Last 1h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "name": "Prometheus" },
+      "targets": [
+        {
+          "expr": "sum(increase(ssvm_tenant_requests_total[1h])) or vector(0)",
+          "legendFormat": "Requests",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Top 10 Schools by Traffic Volume (Last 1h)",
+      "type": "barchart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "name": "Prometheus" },
+      "targets": [
+        {
+          "expr": "topk(10, sum(increase(ssvm_tenant_requests_total[1h])) by (schoolId))",
+          "legendFormat": "{{ schoolId }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Tenant Request Rates (req/s)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "name": "Prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(ssvm_tenant_requests_total[5m])) by (schoolId)",
+          "legendFormat": "{{ schoolId }}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "School Platform Aggregates (Aggregated Views)",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "datasource": { "type": "postgres", "name": "PostgreSQL" },
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT school_id AS \"School ID\", school_name AS \"School Name\", status AS \"Status\", student_count AS \"Students\", staff_count AS \"Staff\", active_invoices AS \"Invoices\", total_revenue AS \"Total Revenue\" FROM platform_metrics.school_aggregates_v ORDER BY student_count DESC;",
+          "refId": "A"
+        }
+      ]
+    }
+  ],
+  "refresh": "10s",
+  "time": { "from": "now-1h", "to": "now" }
+}

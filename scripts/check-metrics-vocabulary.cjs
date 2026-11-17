@@ -116,6 +116,21 @@ if (!register) {
 
   // 5. Validate grafana/dashboards/*.json
   const referencedInDashboards = new Set();
+  function extractPromQlExpressions(obj, list = []) {
+    if (!obj || typeof obj !== "object") return list;
+    if (Array.isArray(obj)) {
+      for (const item of obj) extractPromQlExpressions(item, list);
+    } else {
+      if (typeof obj.expr === "string") {
+        list.push(obj.expr);
+      }
+      for (const key of Object.keys(obj)) {
+        extractPromQlExpressions(obj[key], list);
+      }
+    }
+    return list;
+  }
+
   if (fs.existsSync(dashboardsDir)) {
     const dashboardFiles = fs.readdirSync(dashboardsDir).filter(f => f.endsWith(".json"));
     for (const file of dashboardFiles) {
@@ -123,12 +138,15 @@ if (!register) {
       try {
         const content = fs.readFileSync(filePath, "utf8");
         const json = JSON.parse(content);
-        const matches = content.match(/ssvm_[a-zA-Z0-9_]+/g) || [];
-        for (const m of matches) {
-          referencedInDashboards.add(m);
-          if (!validIdentifiers.has(m)) {
-            console.error(`❌ Dashboard '${file}' references unknown metric: '${m}'`);
-            hasErrors = true;
+        const expressions = extractPromQlExpressions(json);
+        for (const expr of expressions) {
+          const matches = expr.match(/ssvm_[a-zA-Z0-9_]+/g) || [];
+          for (const m of matches) {
+            referencedInDashboards.add(m);
+            if (!validIdentifiers.has(m)) {
+              console.error(`❌ Dashboard '${file}' references unknown metric in query '${expr}': '${m}'`);
+              hasErrors = true;
+            }
           }
         }
       } catch (err) {

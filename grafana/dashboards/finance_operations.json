@@ -1,0 +1,97 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "title": "Finance Operations",
+  "uid": "ssvm_finance_operations",
+  "tags": ["ssvm", "finance", "ledger"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Payment Ingestion Volume by Gateway & Status",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "name": "Prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(ssvm_payment_total[5m])) by (gateway, status)",
+          "legendFormat": "{{gateway}} - {{status}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Payment Settlement Latency (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "name": "Prometheus" },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(ssvm_payment_processing_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95 Latency (s)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Webhook Ingestion by Status & Event",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 14, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "name": "Prometheus" },
+      "targets": [
+        {
+          "expr": "sum(rate(ssvm_webhook_processing_total[5m])) by (status, event)",
+          "legendFormat": "{{event}} [{{status}}]",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Total Payment Refunds",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 14, "y": 8 },
+      "datasource": { "type": "prometheus", "name": "Prometheus" },
+      "targets": [
+        {
+          "expr": "ssvm_payment_refunds_total or vector(0)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Reconciliation Gaps Detected",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 8 },
+      "datasource": { "type": "prometheus", "name": "Prometheus" },
+      "targets": [
+        {
+          "expr": "ssvm_reconciliation_gaps_total or vector(0)",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Fee Invoices by Status (Aggregate View)",
+      "type": "table",
+      "gridPos": { "h": 6, "w": 10, "x": 14, "y": 12 },
+      "datasource": { "type": "postgres", "name": "PostgreSQL" },
+      "targets": [
+        {
+          "format": "table",
+          "rawSql": "SELECT \"Status\", \"Invoices\" FROM platform_metrics.fee_invoices_by_status_v ORDER BY 2 DESC;",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}
