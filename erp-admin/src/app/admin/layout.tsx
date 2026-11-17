@@ -7,6 +7,7 @@ import { useSchoolModules } from "@/lib/api-hooks";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { QuickAccessDock } from "@/components/QuickAccessDock";
+import { SupportSessionBanner } from "@/components/SupportSessionBanner";
 
 interface NavChildDefinition extends SidebarSubItem {
   moduleCode?: string;
@@ -278,6 +279,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         userName={user?.name || "School Administrator"}
         userSubtitle={user?.email || "School Operations"}
       >
+        <SupportSessionBanner />
         <Breadcrumbs />
         <QuickAccessDock />
         {children}
