@@ -75,7 +75,12 @@ export default function SchoolsPage() {
                       <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
                         <Building2 className="w-5 h-5" />
                       </div>
-                      {school.name}
+                      <Link
+                        href={`/dashboard/schools/${school.id}`}
+                        className="hover:text-blue-400 transition-colors"
+                      >
+                        {school.name}
+                      </Link>
                     </td>
                     <td className="p-6 font-mono text-sm text-slate-400">{school.code || "-"}</td>
                     <td className="p-6 text-sm text-slate-400">{school.email || school.domain || "Standard"}</td>
@@ -85,6 +90,12 @@ export default function SchoolsPage() {
                       </span>
                     </td>
                     <td className="p-6 text-right space-x-3">
+                      <Link
+                        href={`/dashboard/schools/${school.id}`}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+                      >
+                        Detail & Health →
+                      </Link>
                       <Link
                         href={`/dashboard/schools/${school.id}/shifts`}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-colors"

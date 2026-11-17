@@ -327,4 +327,34 @@ router.post(
   }
 );
 
+/**
+ * GET /api/v1/platform/support-sessions/school/:schoolId
+ * Retrieve the current active support session for a school (if any).
+ */
+router.get(
+  "/support-sessions/school/:schoolId",
+  authenticate,
+  requireRole("SUPER_ADMIN"),
+  requireAudience("PLATFORM"),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    const schoolId = String(req.params.schoolId);
+    const session = SupportSessionService.getActiveSessionForSchool(schoolId);
+    res.json({
+      success: true,
+      data: session
+        ? {
+            id: session.id,
+            schoolId: session.schoolId,
+            superAdminEmail: session.superAdminEmail,
+            reason: session.reason,
+            durationMinutes: session.durationMinutes,
+            createdAt: session.createdAt,
+            expiresAt: session.expiresAt,
+            status: session.status,
+          }
+        : null,
+    });
+  }
+);
+
 export default router;
