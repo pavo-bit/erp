@@ -110,6 +110,7 @@ export async function createApp(): Promise<Express> {
   const shfiRoutes = (await import("./routes/admin/shfi")).default;
   const supportRoutes = (await import("./routes/support")).default;
   const platformRoutes = (await import("./routes/platform")).default;
+  const analyticsRoutes = (await import("./routes/analytics")).default;
   const { metricsMiddleware, getMetrics } = await import("./middleware/metrics");
   const swaggerUi = (await import("swagger-ui-express")).default;
   const { generateSpec } = await import("./openapi/generate");
@@ -453,6 +454,7 @@ app.use("/api/v1/guardians", guardiansRoutes);
 app.use("/api/v1/documents", uploadLimiter, documentsRoutes);
 app.use("/api/v1/saas", saasRoutes);
 app.use("/api/v1/platform", platformRoutes);
+app.use("/api/v1/analytics", analyticsRoutes);
 app.use("/api/v1/webhooks", webhookLimiter, webhooksRoutes);
 app.use("/api/v1/security", securityRoutes);
 app.use("/api/v1/sessions", sessionsRoutes);
