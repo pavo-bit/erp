@@ -137,3 +137,4 @@ export function useSaasMetrics() { return useSWR("/api/v1/saas/metrics", fetcher
 export function useShfiOverview() { return useSWR("/api/v1/shfi/health/overview", fetcher); }
 export function useShfiIncidents() { return useSWR("/api/v1/shfi/incidents", fetcher); }
 export function useSchoolModules(schoolId: string) { return useSWR(schoolId ? `/api/v1/schools/${schoolId}/modules` : null, fetcher); }
+export function useSecurityAuditLogs() { return useSWR("/api/v1/saas/security/audit-logs", fetcher); }

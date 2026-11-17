@@ -68,6 +68,20 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         matchPrefix: true,
       },
       {
+        icon: "🛡️",
+        label: "Security Center",
+        href: "/dashboard/security",
+        gradient: "from-red-500 to-rose-600",
+        matchPrefix: true,
+      },
+      {
+        icon: "🖥️",
+        label: "Infrastructure",
+        href: "/dashboard/infrastructure",
+        gradient: "from-cyan-500 to-blue-600",
+        matchPrefix: true,
+      },
+      {
         icon: "🩺",
         label: "Health & SHFI",
         href: "/dashboard/shfi",
