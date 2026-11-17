@@ -60,3 +60,113 @@ When submitting bulk admissions or offline approval attestations (`POST /api/v1/
 - `attestedByUserId` must be the UUID of the authenticated staff/admin user (`req.user.id`).
 - Dummy strings (e.g. `"USER-1"`) will fail foreign key constraint checks against `users(id)`.
 - If a student has no email, send the invitation to the guardian email; if no guardian email exists, the record is flagged with status `UNDELIVERABLE`. Never generate fake `@student.ssvm` email addresses.
+
+---
+
+## 4. Platform Health, Observability & Audited Support Session API Contract (Block M7)
+
+Targeted for Super Admin Portal (`super-admin`) and Institutional Administration (`erp-admin`):
+
+### 1. Per-School Platform Health & Usage Aggregates
+- **Endpoints:**
+  - `GET /api/v1/platform/schools/health-usage` (all schools)
+  - `GET /api/v1/platform/schools/:schoolId/health-usage` (single school)
+- **Security:** Requires `SUPER_ADMIN` role and `aud: PLATFORM`. School tokens and anonymous requests receive `403` / `401`.
+- **Response Shape:**
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "schoolId": "cmvwy984q0001qocgpclzv585",
+        "schoolName": "SSVM Central Campus",
+        "schoolCode": "MAIN",
+        "status": "ACTIVE",
+        "plan": "ENTERPRISE",
+        "modules": ["CORE_HR", "FEE_MANAGEMENT", "ATTENDANCE_LMS"],
+        "lastLogin": "2026-11-17T08:00:00.000Z",
+        "activeUsers": 42,
+        "requestVolume": 12850,
+        "errorRate": 0.0
+      }
+    ]
+  }
+  ```
+- **Privacy Guarantee:** Aggregates only; zero student rows are queried or exposed.
+
+### 2. Audited Support Session Request (MFA-Gated)
+- **Endpoint:** `POST /api/v1/platform/support-sessions/request`
+- **Security:** Requires `SUPER_ADMIN` role, `aud: PLATFORM`, and valid MFA re-authentication code (`mfaCode`).
+- **Request Body:**
+  ```json
+  {
+    "schoolId": "cmvwy984q0001qocgpclzv585",
+    "reason": "Investigating ledger reconciliation anomaly reported in ticket #4092",
+    "durationMinutes": 30,
+    "mfaCode": "123456"
+  }
+  ```
+- **Response Shape (201 Created):**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "sessionId": "supp_1794901200000_a1b2c3d4",
+      "token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "expiresAt": "2026-11-17T08:30:00.000Z",
+      "durationMinutes": 30,
+      "schoolId": "cmvwy984q0001qocgpclzv585",
+      "reason": "Investigating ledger reconciliation anomaly reported in ticket #4092",
+      "status": "ACTIVE"
+    }
+  }
+  ```
+- **Operational Invariants:**
+  - Increments Prometheus gauge `ssvm_support_sessions_active`.
+  - Emits in-app transactional notification to the target school.
+  - Appends SHA256 hashed audit log `SUPPORT_SESSION_INITIATED`.
+
+### 3. Support Session Revocation
+- **Endpoint:** `POST /api/v1/platform/support-sessions/:id/revoke`
+- **Security:** Requires `SUPER_ADMIN` role and `aud: PLATFORM`.
+- **Response Shape:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "message": "Support session successfully revoked",
+      "session": {
+        "id": "supp_1794901200000_a1b2c3d4",
+        "schoolId": "cmvwy984q0001qocgpclzv585",
+        "status": "REVOKED",
+        "revokedAt": "2026-11-17T08:15:00.000Z"
+      }
+    }
+  }
+  ```
+- **Operational Invariants:**
+  - Decrements Prometheus gauge `ssvm_support_sessions_active`.
+  - Blocklists JWT session `jti` in Redis.
+  - Appends SHA256 hashed audit log `SUPPORT_SESSION_REVOKED`.
+
+### 4. School Active Support Session Visibility
+- **Endpoint:** `GET /schools/me/support-session` (also accessible via `/api/v1/schools/me/support-session`)
+- **Security:** Authenticated school staff / `ERP_ADMIN`.
+- **Response Shape:**
+  ```json
+  {
+    "success": true,
+    "data": {
+      "active": true,
+      "session": {
+        "id": "supp_1794901200000_a1b2c3d4",
+        "reason": "Investigating ledger reconciliation anomaly reported in ticket #4092",
+        "startedAt": "2026-11-17T08:00:00.000Z",
+        "expiresAt": "2026-11-17T08:30:00.000Z",
+        "superAdminEmail": "platform-admin@ssvm.internal",
+        "status": "ACTIVE"
+      }
+    }
+  }
+  ```
+

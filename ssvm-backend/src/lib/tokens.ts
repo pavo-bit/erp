@@ -1,7 +1,6 @@
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { getEnv } from "../config/env";
-import logger from "./logger";
 import { jwtVerificationTotal } from "../middleware/metrics";
 
 // ═══════════════════════════════════════════
@@ -56,6 +55,17 @@ export function generateImpersonationToken(payload: Omit<AccessTokenPayload, "ty
     { ...payload, impersonated: true, jti, type: "access" } as AccessTokenPayload,
     env.ACCESS_TOKEN_PRIVATE_KEY,
     { algorithm: "RS256", expiresIn: "30m" }
+  );
+  return { token, jti };
+}
+
+export function generateSupportToken(payload: Omit<AccessTokenPayload, "type" | "jti">, durationMinutes = 15): { token: string; jti: string } {
+  const env = getEnv();
+  const jti = crypto.randomUUID();
+  const token = jwt.sign(
+    { ...payload, jti, type: "access" } as AccessTokenPayload,
+    env.ACCESS_TOKEN_PRIVATE_KEY,
+    { algorithm: "RS256", expiresIn: `${durationMinutes}m` }
   );
   return { token, jti };
 }

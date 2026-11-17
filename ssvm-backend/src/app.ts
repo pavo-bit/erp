@@ -407,6 +407,7 @@ app.use("/api/v1/auth", authLimiter, bruteForceCheck(), authRoutes);
 
 // All other routes
 app.use("/api/v1/schools", schoolRoutes);
+app.use("/schools", schoolRoutes);
 app.use("/api/v1/notices", noticeRoutes);
 app.use("/api/v1/events", eventRoutes);
 app.use("/api/v1/students", strictLimiter, studentRoutes);

@@ -4,6 +4,7 @@ import logger from "../lib/logger";
 import { AuthRequest, authenticate, requireSuperAdmin, requireAllowedIp } from "../middleware/auth";
 import { ModuleRegistryService } from "../services/module-registry.service";
 import { seedDefaultChartOfAccounts } from "../lib/chartOfAccounts";
+import { SupportSessionService } from "../services/support-session.service";
 
 const router = Router();
 
@@ -45,8 +46,40 @@ router.get("/me/modules", authenticate, async (req: AuthRequest, res: Response) 
         registry,
       },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     logger.error({ err: e }, "Get school modules error");
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+});
+
+// GET /api/v1/schools/me/support-session — Check active platform support session
+router.get("/me/support-session", authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    const schoolId = req.user?.schoolId;
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School context required" });
+      return;
+    }
+
+    const session = SupportSessionService.getActiveSessionForSchool(schoolId);
+    res.json({
+      success: true,
+      data: {
+        active: Boolean(session),
+        session: session
+          ? {
+              id: session.id,
+              reason: session.reason,
+              startedAt: session.createdAt,
+              expiresAt: session.expiresAt,
+              superAdminEmail: session.superAdminEmail,
+              status: session.status,
+            }
+          : null,
+      },
+    });
+  } catch (err: unknown) {
+    logger.error({ err }, "Get school active support session error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });
@@ -76,7 +109,7 @@ router.get("/:id/modules", authenticate, requireSuperAdmin(), async (req: AuthRe
         registry,
       },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     logger.error({ err: e, schoolId: req.params.id }, "Get target school modules error");
     res.status(500).json({ success: false, error: "Server error" });
   }
@@ -135,9 +168,9 @@ router.patch("/:id/modules/:moduleCode", authenticate, requireSuperAdmin(), asyn
         modules: updatedEntitlements,
       },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     logger.error({ err: e, schoolId: req.params.id, moduleCode: req.params.moduleCode }, "Patch school module error");
-    res.status(500).json({ success: false, error: e.message || "Server error" });
+    res.status(500).json({ success: false, error: (e as Error).message || "Server error" });
   }
 });
 
