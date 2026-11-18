@@ -187,6 +187,25 @@ class SupportSessionManager {
   }
 
   /**
+   * Get count of currently active support sessions.
+   */
+  getActiveSessionCount(): number {
+    const now = new Date();
+    let count = 0;
+    for (const session of this.sessions.values()) {
+      if (session.status === "ACTIVE") {
+        if (now >= session.expiresAt) {
+          session.status = "EXPIRED";
+          supportSessionsActive.dec();
+          continue;
+        }
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
    * Testing helper to reset active sessions.
    */
   clear(): void {
