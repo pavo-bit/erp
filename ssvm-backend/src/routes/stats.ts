@@ -1,167 +1,156 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { authenticate } from "../middleware/auth";
 import { ActivityType } from "@prisma/client";
+import { getRedisClient, isRedisAvailable } from "../lib/redis";
 
 const router = Router();
+const PUBLIC_STATS_CACHE_TTL_SECONDS = 300; // 5 minutes
 
 /**
- * GET /api/stats/public
- * Public stats for homepage (no auth required)
- * Returns: board results, student count, teacher count, awards
+ * GET /api/v1/stats/public
+ * Public landing metrics (explicit, cached, aggregate-only, zero personal data).
+ * No hardcoded defaults: pass rate and average computed from real marks and school pass settings;
+ * academic session dynamically resolved from active session.
  */
-router.get("/public", async (_req, res: Response) => {
+router.get("/public", async (req: Request, res: Response): Promise<void> => {
   try {
-    // Check if manual override exists in SiteContent
-    const manualStats = await prisma.siteContent.findMany({
-      where: { section: "homepage_stats" },
-    });
+    const requestedSchoolId = typeof req.query.schoolId === "string" ? req.query.schoolId : undefined;
+    const cacheKey = `stats:public:${requestedSchoolId || "platform"}`;
 
-    const statsMap: Record<string, string> = {};
-    manualStats.forEach((stat) => {
-      statsMap[stat.key] = stat.value;
-    });
-
-    // Calculate board results from Result model if not manually set
-    let boardResults = statsMap.board_results || null;
-    if (!boardResults) {
-      const currentSession = "2025-26";
-      const totalResults = await prisma.studentMark.count({
-        where: {},
-      });
-
-      if (totalResults > 0) {
-        // Count students who passed (obtained >= 33% of total marks)
-        const results = await prisma.studentMark.findMany({
-          where: {},
-          select: { marksObtained: true },
-        });
-
-        const passedCount = results.filter(
-          (r: any) => r.marksObtained >= r * 0.33
-        ).length;
-
-        boardResults = Math.round((passedCount / totalResults) * 100).toString();
-      } else {
-        boardResults = "98"; // Default fallback
+    // 1. Check Redis Cache
+    if (isRedisAvailable()) {
+      try {
+        const redis = getRedisClient();
+        if (redis) {
+          const cached = await redis.get(cacheKey);
+          if (cached) {
+            res.setHeader("Cache-Control", `public, max-age=${PUBLIC_STATS_CACHE_TTL_SECONDS}, s-maxage=${PUBLIC_STATS_CACHE_TTL_SECONDS}`);
+            res.setHeader("X-Cache", "HIT");
+            res.json(JSON.parse(cached));
+            return;
+          }
+        }
+      } catch (err: unknown) {
+        logger.warn({ err }, "Redis read failed for public stats cache; falling back to DB");
       }
     }
 
-    // Get student count
-    const studentCount = statsMap.student_count || (await prisma.student.count()).toString();
+    // 2. Resolve Active Academic Session (dynamic from DB, never hardcoded)
+    const activeSession = requestedSchoolId
+      ? await prisma.academicSession.findFirst({
+          where: { schoolId: requestedSchoolId, isCurrent: true },
+          select: { id: true, name: true },
+        })
+      : await prisma.academicSession.findFirst({
+          where: { isCurrent: true },
+          orderBy: { startDate: "desc" },
+          select: { id: true, name: true },
+        });
 
-    // Get teacher count
-    const teacherCount = statsMap.teacher_count || (await prisma.teacher.count({ where: { isActive: true } })).toString();
-
-    // Get awards count (from SiteContent or default)
-    const awardsCount = statsMap.awards_count || "250";
-
-    // Get establishment year
-    const establishmentYear = statsMap.establishment_year || "1952";
-
-    const stats = {
-      boardResults: `${boardResults}%`,
-      studentCount: `${studentCount}+`,
-      teacherCount: `${teacherCount}+`,
-      awardsCount: `${awardsCount}+`,
-      establishmentYear,
-    };
-
-    logger.info({ stats }, "Public stats fetched");
-    res.json({ success: true, data: stats });
-  } catch (e) {
-    logger.error({ err: e }, "Stats fetch error");
-    res.status(500).json({ success: false, error: "Server error" });
-  }
-});
-
-/**
- * GET /api/stats/detailed
- * Detailed stats calculation (for admin dashboard)
- */
-router.get("/detailed", async (_req, res: Response) => {
-  try {
-    const [
-      totalStudents,
-      totalTeachers,
-      totalAlumni,
-      totalNotices,
-      totalEvents,
-      totalGalleryImages,
-    ] = await Promise.all([
-      prisma.student.count(),
-      prisma.teacher.count({ where: { isActive: true } }),
-      prisma.alumni.count(),
-      prisma.notice.count({ where: { status: "PUBLISHED" } }),
-      prisma.event.count({ where: { status: { in: ["UPCOMING", "COMPLETED"] } } }),
-      prisma.galleryImage.count({ where: { isPublished: true } }),
-    ]);
-
-    // Calculate board results
-    const currentSession = "2025-26";
-    const results = await prisma.studentMark.findMany({
-      where: {},
-      select: { marksObtained: true },
+    // 3. Compute Real Academic Exam Performance (no fake defaults like 98%)
+    const marks = await prisma.studentMark.findMany({
+      where: {
+        ...(requestedSchoolId ? { student: { schoolId: requestedSchoolId, deletedAt: null } } : {}),
+        ...(activeSession ? { examSubject: { exam: { classRef: { sessionId: activeSession.id } } } } : {}),
+      },
+      include: {
+        examSubject: {
+          select: {
+            passMarks: true,
+            maxMarks: true,
+          },
+        },
+      },
     });
 
-    let boardPassPercentage = 98; // Default
-    if (results.length > 0) {
-      const passedCount = results.filter(
-        (r: any) => r.marksObtained >= r * 0.33
-      ).length;
-      boardPassPercentage = Math.round((passedCount / results.length) * 100);
-    }
+    let passRate: number | null = null;
+    let averageScore: number | null = null;
 
-    // Calculate average score
-    let averageScore = 0;
-    if (results.length > 0) {
-      const totalPercentage = results.reduce(
-        (sum: any, r: any) => sum + (r.marksObtained / r) * 100,
+    const validMarks = marks.filter((m) => (m.examSubject?.maxMarks ?? 0) > 0);
+    if (validMarks.length > 0) {
+      const passedCount = validMarks.filter((m) => {
+        const passMark = m.examSubject?.passMarks ?? 33;
+        return m.marksObtained >= passMark;
+      }).length;
+      passRate = Math.round((passedCount / validMarks.length) * 10000) / 100;
+
+      const totalPercentage = validMarks.reduce(
+        (sum, m) => sum + (m.marksObtained / m.examSubject!.maxMarks) * 100,
         0
       );
-      averageScore = Math.round(totalPercentage / results.length);
+      averageScore = Math.round((totalPercentage / validMarks.length) * 100) / 100;
     }
 
-    // Get attendance rate for current month
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const totalAtt = await prisma.attendance.count({
-      where: { date: { gte: monthStart } },
-    });
-    const presentAtt = await prisma.attendance.count({
-      where: { date: { gte: monthStart }, status: "PRESENT" },
-    });
-    const attendanceRate = totalAtt > 0 ? Math.round((presentAtt / totalAtt) * 100) : 0;
+    // 4. Aggregate Counts
+    const [studentCount, teacherCount] = await Promise.all([
+      prisma.student.count({
+        where: {
+          ...(requestedSchoolId ? { schoolId: requestedSchoolId } : {}),
+          isActive: true,
+          deletedAt: null,
+        },
+      }),
+      prisma.teacher.count({
+        where: {
+          ...(requestedSchoolId ? { schoolId: requestedSchoolId } : {}),
+          isActive: true,
+          deletedAt: null,
+        },
+      }),
+    ]);
 
-    const stats = {
-      students: totalStudents,
-      teachers: totalTeachers,
-      alumni: totalAlumni,
-      notices: totalNotices,
-      events: totalEvents,
-      galleryImages: totalGalleryImages,
-      boardPassPercentage,
-      averageScore,
-      attendanceRate,
+    const responsePayload = {
+      success: true,
+      isPublic: true,
+      scope: "PUBLIC_AGGREGATE",
+      asOf: new Date().toISOString(),
+      data: {
+        academicSession: activeSession?.name || null,
+        studentCount,
+        teacherCount,
+        passRate,
+        averageScore,
+        totalExamsEvaluated: validMarks.length,
+      },
     };
 
-    logger.info({ stats }, "Detailed stats calculated");
-    res.json({ success: true, data: stats });
-  } catch (e) {
-    logger.error({ err: e }, "Detailed stats error");
+    // 5. Populate Cache
+    if (isRedisAvailable()) {
+      try {
+        const redis = getRedisClient();
+        if (redis) {
+          await redis.setex(cacheKey, PUBLIC_STATS_CACHE_TTL_SECONDS, JSON.stringify(responsePayload));
+        }
+      } catch (err: unknown) {
+        logger.warn({ err }, "Redis write failed for public stats cache");
+      }
+    }
+
+    res.setHeader("Cache-Control", `public, max-age=${PUBLIC_STATS_CACHE_TTL_SECONDS}, s-maxage=${PUBLIC_STATS_CACHE_TTL_SECONDS}`);
+    res.setHeader("X-Cache", "MISS");
+    res.json(responsePayload);
+  } catch (e: unknown) {
+    logger.error({ err: e }, "Public stats fetch error");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });
 
-// GET /api/stats/activity-feed - Paginated and filtered activity feed
-router.get("/activity-feed", authenticate, async (req, res) => {
+// GET /api/v1/stats/activity-feed - Paginated and filtered activity feed
+router.get("/activity-feed", authenticate, async (req, res): Promise<void> => {
   try {
     const { page = "1", limit = "10", type } = req.query;
-    const pageNum = parseInt(page as string);
-    const limitNum = parseInt(limit as string);
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
 
-    let whereClause: any = { schoolId: (req as any).user.schoolId };
+    const schoolId = (req as any).user?.schoolId;
+    if (!schoolId) {
+      res.status(400).json({ success: false, error: "School context required" });
+      return;
+    }
+
+    const whereClause: Record<string, unknown> = { schoolId };
     if (type) {
       whereClause.type = type as ActivityType;
     }
@@ -185,66 +174,9 @@ router.get("/activity-feed", authenticate, async (req, res) => {
         totalPages: Math.ceil(total / limitNum),
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     logger.error({ err: error }, "Activity feed fetch error");
     res.status(500).json({ success: false, error: "Failed to fetch activity feed" });
-  }
-});
-
-// GET /api/stats/finance - High-level dashboard finance stats
-router.get("/finance", authenticate, async (req, res) => {
-  try {
-    const schoolId = (req as any).user.schoolId;
-
-    // Fetch accounts to calculate revenue using aggregate
-    const revenueAgg = await prisma.ledgerEntry.aggregate({
-      where: { LedgerAccount: { schoolId, category: 'REVENUE' } },
-      _sum: {
-        creditAmount: true,
-        debitAmount: true,
-      }
-    });
-
-    const totalRevenue = (Number(revenueAgg._sum?.creditAmount || 0)) - (Number(revenueAgg._sum?.debitAmount || 0));
-
-    // Fetch outstanding dues from invoices using aggregate
-    const duesAgg = await prisma.invoice.aggregate({
-      where: { schoolId, status: { in: ['PENDING', 'OVERDUE', 'PARTIAL'] } },
-      _sum: {
-        amount: true,
-        fineAmount: true,
-        amountPaid: true,
-      }
-    });
-
-    const outstandingDues = (Number(duesAgg._sum.amount || 0) + Number(duesAgg._sum.fineAmount || 0)) - Number(duesAgg._sum.amountPaid || 0);
-
-    // Get recent 30 days revenue
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const recentPaymentsAgg = await prisma.invoice.aggregate({
-      where: { 
-        schoolId, 
-        updatedAt: { gte: thirtyDaysAgo },
-        status: { in: ['PAID', 'PARTIAL'] }
-      },
-      _sum: { amountPaid: true }
-    });
-    
-    const recentRevenue = Number(recentPaymentsAgg._sum.amountPaid || 0);
-
-    const stats = {
-      totalRevenue,
-      outstandingDues,
-      recentRevenue
-    };
-
-    logger.info({ stats, schoolId }, "Finance stats fetched");
-    res.json({ success: true, data: stats });
-  } catch (error) {
-    logger.error({ err: error }, "Finance stats error");
-    res.status(500).json({ success: false, error: "Failed to fetch finance stats" });
   }
 });
 
