@@ -6,6 +6,8 @@ import { ModuleRegistryService } from "../services/module-registry.service";
 import { SupportSessionService } from "../services/support-session.service";
 import { getAuthPrisma } from "../lib/authPrisma";
 import { verifySync } from "otplib";
+import { register } from "../middleware/metrics";
+import { KpiRegistry, KpiResult } from "../kpi/registry";
 
 const router = Router();
 
@@ -354,6 +356,178 @@ router.get(
           }
         : null,
     });
+  }
+);
+
+/**
+ * GET /api/v1/platform/kpi
+ * SaaS platform overview and health KPIs (PLATFORM audience only).
+ * Aggregate lifecycle metrics, module adoption, DAU, support sessions, and Prometheus health indicators.
+ * Zero student rows. Rows from this endpoint feed Grafana views from Block M.
+ */
+router.get(
+  "/kpi",
+  authenticate,
+  requireRole("SUPER_ADMIN"),
+  requireAudience("PLATFORM"),
+  async (_req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      const now = new Date();
+      const past24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      // 1. School Lifecycle Counts
+      const [totalSchools, activeSchools, suspendedSchools, trialSchools] = await Promise.all([
+        prisma.school.count({ where: { deletedAt: null } }),
+        prisma.school.count({ where: { status: "ACTIVE", deletedAt: null } }),
+        prisma.school.count({ where: { status: "SUSPENDED", deletedAt: null } }),
+        prisma.school.count({ where: { status: "TRIAL", deletedAt: null } }),
+      ]);
+
+      // 2. Module Adoption Across Registered Schools
+      const allModules = ModuleRegistryService.getAllModules();
+      const featureFlags = await prisma.featureFlag.findMany({
+        where: { isActive: true },
+        select: { id: true, code: true },
+      });
+      const featureMap = new Map(featureFlags.map((f: { id: string; code: string }) => [f.code, f.id]));
+
+      const moduleAdoption = await Promise.all(
+        allModules.map(async (mod) => {
+          if (mod.isCore) {
+            return {
+              code: mod.code,
+              name: mod.name,
+              category: mod.category,
+              isCore: true,
+              adoptedSchools: activeSchools,
+              adoptionRate: activeSchools > 0 ? 100 : 0,
+            };
+          }
+          const featureId = featureMap.get(mod.code);
+          const enabledCount = featureId
+            ? await prisma.schoolFeature.count({
+                where: { featureId, isEnabled: true },
+              })
+            : 0;
+          const rate = totalSchools > 0 ? Math.round((enabledCount / totalSchools) * 10000) / 100 : 0;
+          return {
+            code: mod.code,
+            name: mod.name,
+            category: mod.category,
+            isCore: false,
+            adoptedSchools: enabledCount,
+            adoptionRate: rate,
+          };
+        })
+      );
+
+      // 3. Daily Active Users (DAU) Across Portals
+      const [dauTotal, dauAdmins, dauTeachers, dauStaff] = await Promise.all([
+        prisma.user.count({
+          where: { lastLogin: { gte: past24h }, isActive: true, deletedAt: null },
+        }),
+        prisma.user.count({
+          where: { lastLogin: { gte: past24h }, role: "ERP_ADMIN", isActive: true, deletedAt: null },
+        }),
+        prisma.user.count({
+          where: { lastLogin: { gte: past24h }, role: "TEACHER", isActive: true, deletedAt: null },
+        }),
+        prisma.user.count({
+          where: {
+            lastLogin: { gte: past24h },
+            role: { in: ["ACCOUNTANT", "ASSET_MANAGER", "LIBRARIAN", "HR", "RECEPTIONIST"] },
+            isActive: true,
+            deletedAt: null,
+          },
+        }),
+      ]);
+
+      // 4. Support Sessions
+      const activeSessionsCount = SupportSessionService.getActiveSessionCount();
+      const recentAuditSessions = await prisma.auditLog.count({
+        where: {
+          action: "SUPPORT_SESSION_INITIATED",
+          createdAt: { gte: past24h },
+        },
+      });
+
+      // 5. Platform Health Numbers from Prometheus-backed metrics or stored aggregates
+      const prometheusMetricsSummary: Record<string, number> = {};
+      try {
+        const metricValues = await register.getMetricsAsJSON();
+        for (const metric of metricValues) {
+          if (metric.name === "ssvm_http_requests_total") {
+            const values = (metric as { values?: Array<{ value?: number }> }).values || [];
+            const sum = values.reduce((acc: number, v: { value?: number }) => acc + (v.value || 0), 0);
+            prometheusMetricsSummary["http_requests_total"] = sum;
+          }
+          if (metric.name === "ssvm_http_errors_total") {
+            const values = (metric as { values?: Array<{ value?: number }> }).values || [];
+            const sum = values.reduce((acc: number, v: { value?: number }) => acc + (v.value || 0), 0);
+            prometheusMetricsSummary["http_errors_total"] = sum;
+          }
+          if (metric.name === "ssvm_auth_failures_total") {
+            const values = (metric as { values?: Array<{ value?: number }> }).values || [];
+            const sum = values.reduce((acc: number, v: { value?: number }) => acc + (v.value || 0), 0);
+            prometheusMetricsSummary["auth_failures_total"] = sum;
+          }
+          if (metric.name === "ssvm_support_sessions_active") {
+            const values = (metric as { values?: Array<{ value?: number }> }).values || [];
+            const val = values[0]?.value || 0;
+            prometheusMetricsSummary["support_sessions_active"] = val;
+          }
+        }
+      } catch (err: unknown) {
+        logger.warn({ err }, "Could not extract prometheus metrics JSON for platform KPI");
+      }
+
+      // 6. Registered Platform KPIs Evaluated
+      const platformDefs = KpiRegistry.getByScope("PLATFORM");
+      const evaluatedPlatformKpis: KpiResult[] = [];
+      const computeCtx = {
+        prisma,
+        targetDate: now,
+      };
+      for (const def of platformDefs) {
+        const result = await KpiRegistry.evaluateKpi(def, computeCtx);
+        evaluatedPlatformKpis.push(result);
+      }
+
+      res.json({
+        success: true,
+        audience: "PLATFORM",
+        asOf: now.toISOString(),
+        data: {
+          lifecycle: {
+            totalSchools,
+            activeSchools,
+            suspendedSchools,
+            trialSchools,
+          },
+          moduleAdoption,
+          dailyActiveUsers: {
+            total: dauTotal,
+            breakdown: {
+              erpAdmin: dauAdmins,
+              teachers: dauTeachers,
+              staff: dauStaff,
+            },
+          },
+          supportSessions: {
+            currentlyActive: activeSessionsCount,
+            initiatedPast24h: recentAuditSessions,
+          },
+          platformHealth: {
+            prometheus: prometheusMetricsSummary,
+            database: "CONNECTED",
+          },
+          kpis: evaluatedPlatformKpis,
+        },
+      });
+    } catch (err: unknown) {
+      logger.error({ err }, "Failed to fetch platform KPIs");
+      res.status(500).json({ success: false, error: "Failed to fetch platform KPIs" });
+    }
   }
 );
 
