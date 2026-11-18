@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 
 export type KpiScope = "SCHOOL" | "PLATFORM";
 export type KpiPeriodType = "REALTIME" | "DAILY" | "MONTHLY" | "ACADEMIC_YEAR";
@@ -6,7 +6,7 @@ export type KpiUnit = "count" | "percentage" | "currency" | "ratio";
 export type KpiStatus = "OK" | "NO_DATA" | "MODULE_DISABLED";
 
 export interface KpiComputeContext {
-  prisma: PrismaClient;
+  prisma: PrismaClient | Prisma.TransactionClient;
   schoolId?: string;
   userId?: string;
   role?: string;
@@ -180,9 +180,9 @@ export const KPI_REGISTRY: KpiDefinition[] = [
         select: { amount: true, amountPaid: true },
       });
       if (invoices.length === 0) return null;
-      const totalBilled = invoices.reduce((sum, inv) => sum + Number(inv.amount), 0);
+      const totalBilled = invoices.reduce((sum: number, inv) => sum + Number(inv.amount), 0);
       if (totalBilled <= 0) return null;
-      const totalCollected = invoices.reduce((sum, inv) => sum + Number(inv.amountPaid), 0);
+      const totalCollected = invoices.reduce((sum: number, inv) => sum + Number(inv.amountPaid), 0);
       return Math.round((totalCollected / totalBilled) * 10000) / 100;
     },
   },
@@ -211,7 +211,7 @@ export const KPI_REGISTRY: KpiDefinition[] = [
         if (anyInvoices === 0) return null;
         return 0;
       }
-      const sum = invoices.reduce((acc, inv) => acc + Number(inv.remainingAmount), 0);
+      const sum = invoices.reduce((acc: number, inv) => acc + Number(inv.remainingAmount), 0);
       return Math.round(sum * 100) / 100;
     },
   },
@@ -258,9 +258,9 @@ export const KPI_REGISTRY: KpiDefinition[] = [
         select: { totalCollected: true, totalRefunded: true },
       });
       if (projections.length === 0) return null;
-      const collected = projections.reduce((acc, p) => acc + p.totalCollected, 0);
+      const collected = projections.reduce((acc: number, p) => acc + p.totalCollected, 0);
       if (collected <= 0) return null;
-      const refunded = projections.reduce((acc, p) => acc + p.totalRefunded, 0);
+      const refunded = projections.reduce((acc: number, p) => acc + p.totalRefunded, 0);
       return Math.round((refunded / collected) * 10000) / 100;
     },
   },
@@ -294,7 +294,7 @@ export const KPI_REGISTRY: KpiDefinition[] = [
         if (anySalaries === 0) return null;
         return 0;
       }
-      const sum = salaries.reduce((acc, s) => acc + Number(s.netPay), 0);
+      const sum = salaries.reduce((acc: number, s) => acc + Number(s.netPay), 0);
       return Math.round(sum * 100) / 100;
     },
   },
@@ -314,7 +314,7 @@ export const KPI_REGISTRY: KpiDefinition[] = [
         select: { capacity: true },
       });
       if (rooms.length === 0) return null;
-      const totalCapacity = rooms.reduce((acc, r) => acc + r.capacity, 0);
+      const totalCapacity = rooms.reduce((acc: number, r) => acc + r.capacity, 0);
       if (totalCapacity <= 0) return null;
       const activeAllocations = await ctx.prisma.hostelAllocation.count({
         where: { schoolId: ctx.schoolId, status: "ACTIVE" },
@@ -487,7 +487,7 @@ export const KPI_REGISTRY: KpiDefinition[] = [
         select: { remainingAmount: true },
       });
       if (invoices.length === 0) return null;
-      const sum = invoices.reduce((acc, inv) => acc + Number(inv.remainingAmount), 0);
+      const sum = invoices.reduce((acc: number, inv) => acc + Number(inv.remainingAmount), 0);
       return Math.round(sum * 100) / 100;
     },
   },
@@ -515,7 +515,7 @@ export const KPI_REGISTRY: KpiDefinition[] = [
       const percentages = valid.map(
         (m) => (m.marksObtained / m.examSubject!.maxMarks) * 100
       );
-      const avg = percentages.reduce((a, b) => a + b, 0) / valid.length;
+      const avg = percentages.reduce((a: number, b: number) => a + b, 0) / valid.length;
       return Math.round(avg * 100) / 100;
     },
   },
@@ -575,13 +575,13 @@ export const KPI_REGISTRY: KpiDefinition[] = [
         include: { studentGuardians: { select: { studentId: true } } },
       });
       if (!guardian || guardian.studentGuardians.length === 0) return null;
-      const studentIds = guardian.studentGuardians.map((sg) => sg.studentId);
+      const studentIds = guardian.studentGuardians.map((sg: { studentId: string }) => sg.studentId);
       const invoices = await ctx.prisma.invoice.findMany({
         where: { studentId: { in: studentIds }, isVoided: false },
         select: { remainingAmount: true },
       });
       if (invoices.length === 0) return 0;
-      const sum = invoices.reduce((acc, inv) => acc + Number(inv.remainingAmount), 0);
+      const sum = invoices.reduce((acc: number, inv) => acc + Number(inv.remainingAmount), 0);
       return Math.round(sum * 100) / 100;
     },
   },
@@ -600,7 +600,7 @@ export const KPI_REGISTRY: KpiDefinition[] = [
         include: { studentGuardians: { select: { studentId: true } } },
       });
       if (!guardian || guardian.studentGuardians.length === 0) return null;
-      const studentIds = guardian.studentGuardians.map((sg) => sg.studentId);
+      const studentIds = guardian.studentGuardians.map((sg: { studentId: string }) => sg.studentId);
       const total = await ctx.prisma.attendance.count({
         where: { studentId: { in: studentIds } },
       });

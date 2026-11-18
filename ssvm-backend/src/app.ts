@@ -44,6 +44,7 @@ export async function createApp(): Promise<Express> {
   const alumniRoutes = (await import("./routes/alumni")).default;
   const cmsRoutes = (await import("./routes/cms")).default;
   const statsRoutes = (await import("./routes/stats")).default;
+  const kpiRoutes = (await import("./routes/kpi")).default;
   const paymentRoutes = (await import("./routes/payments")).default;
   const timetableRoutes = (await import("./routes/timetable")).default;
   const examRoutes = (await import("./routes/exams")).default;
@@ -423,6 +424,7 @@ app.use("/api/v1/gallery", uploadLimiter, galleryRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/alumni", alumniRoutes);
 app.use("/api/v1/stats", statsRoutes);
+app.use("/api/v1/kpi", kpiRoutes);
 app.use("/api/v1/payments", paymentCreateLimiter, paymentRoutes);
 app.use("/api/v1/crm", crmLimiter, crmRoutes);
 app.use("/api/v1/timetable", timetableRoutes);
