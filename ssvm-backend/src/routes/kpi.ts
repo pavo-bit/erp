@@ -21,6 +21,7 @@ const SCHOOL_KPI_IDS = [
   "kpi_school_fee_dues",
   "kpi_school_fee_defaulters",
   "kpi_school_refund_rate",
+  "kpi_school_net_cash_flow",
   "kpi_school_monthly_payroll_cost",
   "kpi_school_hostel_occupancy",
   "kpi_school_library_circulation",

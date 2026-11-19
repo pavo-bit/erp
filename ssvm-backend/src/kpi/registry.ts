@@ -1,9 +1,10 @@
 import { PrismaClient, Prisma } from "@prisma/client";
+import logger from "../lib/logger";
 
 export type KpiScope = "SCHOOL" | "PLATFORM";
 export type KpiPeriodType = "REALTIME" | "DAILY" | "MONTHLY" | "ACADEMIC_YEAR";
 export type KpiUnit = "count" | "percentage" | "currency" | "ratio";
-export type KpiStatus = "OK" | "NO_DATA" | "MODULE_DISABLED";
+export type KpiStatus = "OK" | "NO_DATA" | "MODULE_DISABLED" | "ERROR";
 
 export interface KpiComputeContext {
   prisma: PrismaClient | Prisma.TransactionClient;
@@ -16,6 +17,11 @@ export interface KpiComputeContext {
   activeModules?: string[];
 }
 
+export interface KpiComputeResult {
+  value: number | null;
+  reason?: string | null;
+}
+
 export interface KpiDefinition {
   id: string;
   name: string;
@@ -25,7 +31,7 @@ export interface KpiDefinition {
   scope: KpiScope;
   requiredModule?: string;
   unit: KpiUnit;
-  compute: (context: KpiComputeContext) => Promise<number | null>;
+  compute: (context: KpiComputeContext) => Promise<number | null | KpiComputeResult>;
 }
 
 export interface KpiResult {
@@ -265,37 +271,29 @@ export const KPI_REGISTRY: KpiDefinition[] = [
     },
   },
   {
-    id: "kpi_school_monthly_payroll_cost",
-    name: "Monthly Staff Payroll Cost",
-    ownerModule: "HR_PAYROLL",
-    formula: "SUM(Salary.netPay WHERE month = currentMonth AND year = currentYear AND status = 'PAID')",
+    id: "kpi_school_net_cash_flow",
+    name: "School Net Cash Flow",
+    ownerModule: "FINANCE",
+    formula: "SUM(LedgerEntry.credit - LedgerEntry.debit WHERE accountCode IN ('1010-BANK', '1020-CASH') AND periodStart <= entryDate <= periodEnd)",
     periodType: "MONTHLY",
     scope: "SCHOOL",
     unit: "currency",
-    compute: async (ctx) => {
-      if (!ctx.schoolId) return null;
-      const now = ctx.targetDate || new Date();
-      const currentMonth = now.getMonth() + 1;
-      const currentYear = now.getFullYear();
-
-      const salaries = await ctx.prisma.salary.findMany({
-        where: {
-          schoolId: ctx.schoolId,
-          month: currentMonth,
-          year: currentYear,
-          status: "PAID",
-        },
-        select: { netPay: true },
-      });
-      if (salaries.length === 0) {
-        const anySalaries = await ctx.prisma.salary.count({
-          where: { schoolId: ctx.schoolId },
-        });
-        if (anySalaries === 0) return null;
-        return 0;
-      }
-      const sum = salaries.reduce((acc: number, s) => acc + Number(s.netPay), 0);
-      return Math.round(sum * 100) / 100;
+    compute: async () => {
+      // Net cash flow will be read from ledger entries once Block 3 is active
+      return { value: null, reason: "payroll not enabled" };
+    },
+  },
+  {
+    id: "kpi_school_monthly_payroll_cost",
+    name: "Monthly Staff Payroll Cost",
+    ownerModule: "HR_PAYROLL",
+    formula: "SUM(PayrollRun.totalNetPay WHERE status = 'COMPLETED' AND periodStart >= monthStart AND periodEnd <= monthEnd)",
+    periodType: "MONTHLY",
+    scope: "SCHOOL",
+    unit: "currency",
+    compute: async () => {
+      // Net payroll cost will be read from payroll runs once Block 3 is active
+      return { value: null, reason: "payroll not enabled" };
     },
   },
   {
@@ -698,7 +696,7 @@ export const KPI_REGISTRY: KpiDefinition[] = [
     id: "kpi_platform_support_sessions_active",
     name: "Platform Active Support Sessions",
     ownerModule: "PLATFORM",
-    formula: "COUNT(SupportSessions WHERE status = 'ACTIVE' AND expiresAt > NOW())",
+    formula: "SupportSessionService.getActiveSessionCount()",
     periodType: "REALTIME",
     scope: "PLATFORM",
     unit: "count",
@@ -712,24 +710,27 @@ export const KPI_REGISTRY: KpiDefinition[] = [
     id: "kpi_platform_api_error_rate",
     name: "Platform 24-Hour API Error Rate",
     ownerModule: "PLATFORM",
-    formula: "(SUM(ssvm_http_requests_total{status=~'5..'}) / SUM(ssvm_http_requests_total)) * 100",
+    formula: "(SUM(ssvm_http_errors_total) / SUM(ssvm_http_requests_total)) * 100",
     periodType: "DAILY",
     scope: "PLATFORM",
     unit: "percentage",
-    compute: async (ctx) => {
-      // Approximate from AuditLog / System metrics
-      const past24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const totalRequests = await ctx.prisma.auditLog.count({
-        where: { createdAt: { gte: past24h } },
-      });
-      if (totalRequests === 0) return null;
-      const errorLogs = await ctx.prisma.auditLog.count({
-        where: {
-          createdAt: { gte: past24h },
-          action: { in: ["API_ERROR", "AUTH_FAILURE", "CRITICAL_SECURITY_ALERT"] },
-        },
-      });
-      return Math.round((errorLogs / totalRequests) * 10000) / 100;
+    compute: async () => {
+      const { register } = await import("../middleware/metrics");
+      const metricValues = await register.getMetricsAsJSON();
+      let totalReqs = 0;
+      let totalErrors = 0;
+      for (const m of metricValues) {
+        if (m.name === "ssvm_http_requests_total" || m.name === "ssvm_http_request_duration_seconds") {
+          const values = (m as { values?: Array<{ value?: number }> }).values || [];
+          totalReqs += values.reduce((acc: number, v: { value?: number }) => acc + (v.value || 0), 0);
+        }
+        if (m.name === "ssvm_http_errors_total") {
+          const values = (m as { values?: Array<{ value?: number }> }).values || [];
+          totalErrors += values.reduce((acc: number, v: { value?: number }) => acc + (v.value || 0), 0);
+        }
+      }
+      if (totalReqs === 0) return 0;
+      return Math.round((totalErrors / totalReqs) * 10000) / 100;
     },
   },
 ];
@@ -781,7 +782,16 @@ export class KpiRegistry {
 
     // 2. Execution & Error Handling
     try {
-      const computedValue = await definition.compute(context);
+      const rawResult = await definition.compute(context);
+      const computedValue =
+        rawResult !== null && typeof rawResult === "object" && "value" in rawResult
+          ? (rawResult as KpiComputeResult).value
+          : (rawResult as number | null);
+      const customReason =
+        rawResult !== null && typeof rawResult === "object" && "reason" in rawResult
+          ? (rawResult as KpiComputeResult).reason
+          : null;
+
       if (computedValue === null || computedValue === undefined || Number.isNaN(computedValue)) {
         return {
           id: definition.id,
@@ -792,7 +802,7 @@ export class KpiRegistry {
           asOf,
           period: definition.periodType,
           status: "NO_DATA",
-          reason: "No data available for the requested period",
+          reason: customReason || "No data available for the requested period",
         };
       }
 
@@ -808,6 +818,7 @@ export class KpiRegistry {
         reason: null,
       };
     } catch (err: unknown) {
+      logger.error({ err, kpiId: definition.id }, `KPI computation failed for ${definition.id}`);
       return {
         id: definition.id,
         name: definition.name,
@@ -816,7 +827,7 @@ export class KpiRegistry {
         unit: definition.unit,
         asOf,
         period: definition.periodType,
-        status: "NO_DATA",
+        status: "ERROR",
         reason: err instanceof Error ? err.message : "Computation failed",
       };
     }

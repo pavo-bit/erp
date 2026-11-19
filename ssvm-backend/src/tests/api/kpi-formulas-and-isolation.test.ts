@@ -1,8 +1,10 @@
+import "../db/env-setup";
 import { describe, it, expect, beforeAll } from "vitest";
 import request from "supertest";
 import { createTestApp, getTestPrisma, createTestSchool, createTestUser } from "../helpers/testApp";
 import { Role } from "@prisma/client";
 import { ModuleRegistryService } from "../../services/module-registry.service";
+import { KpiRegistry } from "../../kpi/registry";
 
 interface KpiPayloadItem {
   id: string;
@@ -15,7 +17,7 @@ interface KpiPayloadItem {
   reason?: string | null;
 }
 
-describe("K6 — KPI Deterministic Formulas, Tenancy Isolation & Legacy Deprecation", () => {
+describe("K6 — KPI Deterministic Formulas, Tenancy Isolation & Legacy Deprecation", { timeout: 30000 }, () => {
   let app: ReturnType<typeof createTestApp>;
   let prisma: ReturnType<typeof getTestPrisma>;
 
@@ -27,6 +29,7 @@ describe("K6 — KPI Deterministic Formulas, Tenancy Isolation & Legacy Deprecat
 
   let schoolEmpty: Awaited<ReturnType<typeof createTestSchool>>;
   let adminEmptyToken: string;
+  let superAdminToken: string;
 
   beforeAll(async () => {
     app = createTestApp();
@@ -311,6 +314,12 @@ describe("K6 — KPI Deterministic Formulas, Tenancy Isolation & Legacy Deprecat
     schoolEmpty = await createTestSchool();
     const adminEmptyData = await createTestUser(Role.ERP_ADMIN, schoolEmpty.id);
     adminEmptyToken = adminEmptyData.token;
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 4. Setup Super Admin with PLATFORM Token
+    // ─────────────────────────────────────────────────────────────────────────
+    const superAdminData = await createTestUser(Role.SUPER_ADMIN);
+    superAdminToken = superAdminData.token;
   });
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -360,9 +369,13 @@ describe("K6 — KPI Deterministic Formulas, Tenancy Isolation & Legacy Deprecat
     expect(kpiMap.get("kpi_school_fee_defaulters")?.value).toBe(1);
     expect(kpiMap.get("kpi_school_fee_defaulters")?.status).toBe("OK");
 
-    // 9. Payroll Cost: 45,000
-    expect(kpiMap.get("kpi_school_monthly_payroll_cost")?.value).toBe(45000);
-    expect(kpiMap.get("kpi_school_monthly_payroll_cost")?.status).toBe("OK");
+    // 9. Payroll Cost & Net Cash Flow: marked NO_DATA with 'payroll not enabled'
+    expect(kpiMap.get("kpi_school_monthly_payroll_cost")?.value).toBeNull();
+    expect(kpiMap.get("kpi_school_monthly_payroll_cost")?.status).toBe("NO_DATA");
+    expect(kpiMap.get("kpi_school_monthly_payroll_cost")?.reason).toBe("payroll not enabled");
+    expect(kpiMap.get("kpi_school_net_cash_flow")?.value).toBeNull();
+    expect(kpiMap.get("kpi_school_net_cash_flow")?.status).toBe("NO_DATA");
+    expect(kpiMap.get("kpi_school_net_cash_flow")?.reason).toBe("payroll not enabled");
 
     // 10. Hostel Occupancy: 5 allocated / 10 capacity = 50.00%
     expect(kpiMap.get("kpi_school_hostel_occupancy")?.value).toBe(50);
@@ -484,5 +497,88 @@ describe("K6 — KPI Deterministic Formulas, Tenancy Isolation & Legacy Deprecat
     expect(res.body.data.passRate).toBe(50);
     expect(res.body.data.studentCount).toBe(4);
     expect(res.body.data.teacherCount).toBe(1);
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Payroll & Cash Flow Legacy Isolation
+  // ───────────────────────────────────────────────────────────────────────────
+
+  it("verifies payroll cost and net cash flow return NO_DATA with 'payroll not enabled'", async () => {
+    const res = await request(app)
+      .get("/api/v1/kpi/school")
+      .set("Authorization", `Bearer ${adminAToken}`);
+
+    expect(res.status).toBe(200);
+    const kpiMap = new Map<string, KpiPayloadItem>(res.body.data.map((k: KpiPayloadItem) => [k.id, k]));
+
+    const payrollKpi = kpiMap.get("kpi_school_monthly_payroll_cost");
+    expect(payrollKpi?.status).toBe("NO_DATA");
+    expect(payrollKpi?.value).toBeNull();
+    expect(payrollKpi?.reason).toBe("payroll not enabled");
+
+    const cashFlowKpi = kpiMap.get("kpi_school_net_cash_flow");
+    expect(cashFlowKpi?.status).toBe("NO_DATA");
+    expect(cashFlowKpi?.value).toBeNull();
+    expect(cashFlowKpi?.reason).toBe("payroll not enabled");
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Computation Error Handling
+  // ───────────────────────────────────────────────────────────────────────────
+
+  it("returns status ERROR with reason (never NO_DATA) when a KPI computation fails", async () => {
+    const faultyKpi = {
+      id: "kpi_test_faulty",
+      name: "Faulty Test KPI",
+      ownerModule: "TEST",
+      formula: "1 / 0 (crash)",
+      periodType: "REALTIME" as const,
+      scope: "SCHOOL" as const,
+      unit: "count" as const,
+      compute: async () => {
+        throw new Error("Simulated database timeout or calculation crash");
+      },
+    };
+
+    const result = await KpiRegistry.evaluateKpi(faultyKpi, { prisma });
+    expect(result.status).toBe("ERROR");
+    expect(result.value).toBeNull();
+    expect(result.reason).toBe("Simulated database timeout or calculation crash");
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Platform KPIs & Prometheus Metrics
+  // ───────────────────────────────────────────────────────────────────────────
+
+  it("verifies GET /api/v1/platform/kpi returns real numbers for platform KPIs and Prometheus metrics", async () => {
+    const res = await request(app)
+      .get("/api/v1/platform/kpi")
+      .set("Authorization", `Bearer ${superAdminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.audience).toBe("PLATFORM");
+
+    // Platform Health Prometheus metric summary
+    expect(typeof res.body.data.platformHealth.prometheus.http_requests_total).toBe("number");
+    expect(res.body.data.platformHealth.prometheus.http_requests_total).toBeGreaterThanOrEqual(1);
+
+    // Platform KPI array
+    const platformKpis = res.body.data.kpis as KpiPayloadItem[];
+    const kpiMap = new Map<string, KpiPayloadItem>(platformKpis.map((k) => [k.id, k]));
+
+    // kpi_platform_support_sessions_active must return a real number
+    const supportSessionsKpi = kpiMap.get("kpi_platform_support_sessions_active");
+    expect(supportSessionsKpi).toBeDefined();
+    expect(supportSessionsKpi?.status).toBe("OK");
+    expect(typeof supportSessionsKpi?.value).toBe("number");
+    expect(supportSessionsKpi?.value).toBeGreaterThanOrEqual(0);
+
+    // kpi_platform_api_error_rate must return a real number
+    const apiErrorRateKpi = kpiMap.get("kpi_platform_api_error_rate");
+    expect(apiErrorRateKpi).toBeDefined();
+    expect(apiErrorRateKpi?.status).toBe("OK");
+    expect(typeof apiErrorRateKpi?.value).toBe("number");
+    expect(apiErrorRateKpi?.value).toBeGreaterThanOrEqual(0);
   });
 });

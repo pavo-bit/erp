@@ -1,3 +1,4 @@
+import "../db/env-setup";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import request from "supertest";
 import { createTestApp, getTestPrisma, createTestSchool, createTestUser } from "../helpers/testApp";

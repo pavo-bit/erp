@@ -15,6 +15,14 @@ register.setDefaultLabels({
 // Default process & runtime metrics with canonical ssvm_ prefix
 client.collectDefaultMetrics({ register, prefix: "ssvm_" });
 
+// ─── HTTP Requests Counter (SLI) ───
+export const httpRequestsTotal = new client.Counter({
+  name: "ssvm_http_requests_total",
+  help: "Total number of HTTP requests processed",
+  labelNames: ["method", "route", "code"],
+});
+register.registerMetric(httpRequestsTotal);
+
 // ─── HTTP Latency & Throughput (SLI) ───
 export const httpRequestDurationMicroseconds = new client.Histogram({
   name: "ssvm_http_request_duration_seconds",
@@ -227,6 +235,9 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
     const durationSeconds = (Date.now() - start) / 1000;
     const route = req.route ? req.route.path : req.path;
     const code = res.statusCode.toString();
+
+    // Record HTTP request count
+    httpRequestsTotal.labels(req.method, route, code).inc();
 
     // Record request duration in seconds
     httpRequestDurationMicroseconds

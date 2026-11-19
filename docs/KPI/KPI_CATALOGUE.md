@@ -1,7 +1,7 @@
 # SSVM ERP — Key Performance Indicators (KPI) Catalogue
 
 > **Generated Document:** Auto-generated from `ssvm-backend/src/kpi/registry.ts` by `scripts/generate-kpi-catalogue.cjs`.
-> **Total Registered KPIs:** 30
+> **Total Registered KPIs:** 31
 
 ---
 
@@ -9,9 +9,9 @@
 
 | Scope | Count |
 | :--- | :--- |
-| **SCHOOL** | 23 |
+| **SCHOOL** | 24 |
 | **PLATFORM** | 7 |
-| **Total** | **30** |
+| **Total** | **31** |
 
 ---
 
@@ -28,7 +28,8 @@
 | `kpi_school_fee_dues` | **Outstanding Student Fee Dues** | `FINANCE` | `SCHOOL` | `REALTIME` | `currency` | *none* | `SUM(Invoice.remainingAmount WHERE status IN ('PENDING', 'PARTIAL', 'OVERDUE') AND isVoided = false)` |
 | `kpi_school_fee_defaulters` | **Fee Defaulter Student Count** | `FINANCE` | `SCHOOL` | `REALTIME` | `count` | *none* | `COUNT(DISTINCT studentId FROM Invoice WHERE isOverdue = true OR (dueDate < NOW() AND remainingAmount > 0 AND isVoided = false))` |
 | `kpi_school_refund_rate` | **Fee Refund Ratio** | `FINANCE` | `SCHOOL` | `ACADEMIC_YEAR` | `percentage` | *none* | `(SUM(DailyRevenueProjection.totalRefunded) / SUM(DailyRevenueProjection.totalCollected)) * 100` |
-| `kpi_school_monthly_payroll_cost` | **Monthly Staff Payroll Cost** | `HR_PAYROLL` | `SCHOOL` | `MONTHLY` | `currency` | *none* | `SUM(Salary.netPay WHERE month = currentMonth AND year = currentYear AND status = 'PAID')` |
+| `kpi_school_net_cash_flow` | **School Net Cash Flow** | `FINANCE` | `SCHOOL` | `MONTHLY` | `currency` | *none* | `SUM(LedgerEntry.credit - LedgerEntry.debit WHERE accountCode IN ('1010-BANK', '1020-CASH') AND periodStart <= entryDate <= periodEnd)` |
+| `kpi_school_monthly_payroll_cost` | **Monthly Staff Payroll Cost** | `HR_PAYROLL` | `SCHOOL` | `MONTHLY` | `currency` | *none* | `SUM(PayrollRun.totalNetPay WHERE status = 'COMPLETED' AND periodStart >= monthStart AND periodEnd <= monthEnd)` |
 | `kpi_school_hostel_occupancy` | **Hostel Bed Occupancy Rate** | `HOSTEL` | `SCHOOL` | `REALTIME` | `percentage` | `HOSTEL` | `(COUNT(HostelAllocation WHERE status = 'ACTIVE') / SUM(HostelRoom.capacity)) * 100` |
 | `kpi_school_library_circulation` | **Active Library Book Circulations** | `LIBRARY` | `SCHOOL` | `REALTIME` | `count` | `LIBRARY` | `COUNT(BookIssue WHERE status = 'ISSUED' AND returnDate IS NULL)` |
 | `kpi_school_inventory_low_stock` | **Inventory Low Stock Alerts** | `INVENTORY` | `SCHOOL` | `REALTIME` | `count` | `INVENTORY` | `COUNT(InventoryItem WHERE isActive = true AND quantity <= reorderLevel)` |
@@ -47,8 +48,8 @@
 | `kpi_platform_schools_suspended` | **Platform Suspended Schools** | `PLATFORM` | `PLATFORM` | `REALTIME` | `count` | *none* | `COUNT(School WHERE status = 'SUSPENDED' AND deletedAt IS NULL)` |
 | `kpi_platform_module_adoption_rate` | **Platform Average Module Adoption Rate** | `PLATFORM` | `PLATFORM` | `REALTIME` | `percentage` | *none* | `(COUNT(SchoolFeature WHERE isEnabled = true) / (COUNT(School) * totalRegistryModules)) * 100` |
 | `kpi_platform_daily_active_users` | **Platform Daily Active Users (DAU)** | `PLATFORM` | `PLATFORM` | `DAILY` | `count` | *none* | `COUNT(DISTINCT userId FROM User WHERE lastLogin >= NOW() - 24 HOURS AND isActive = true)` |
-| `kpi_platform_support_sessions_active` | **Platform Active Support Sessions** | `PLATFORM` | `PLATFORM` | `REALTIME` | `count` | *none* | `COUNT(SupportSessions WHERE status = 'ACTIVE' AND expiresAt > NOW())` |
-| `kpi_platform_api_error_rate` | **Platform 24-Hour API Error Rate** | `PLATFORM` | `PLATFORM` | `DAILY` | `percentage` | *none* | `(SUM(ssvm_http_requests_total{status=~'5..'}) / SUM(ssvm_http_requests_total)) * 100` |
+| `kpi_platform_support_sessions_active` | **Platform Active Support Sessions** | `PLATFORM` | `PLATFORM` | `REALTIME` | `count` | *none* | `SupportSessionService.getActiveSessionCount()` |
+| `kpi_platform_api_error_rate` | **Platform 24-Hour API Error Rate** | `PLATFORM` | `PLATFORM` | `DAILY` | `percentage` | *none* | `(SUM(ssvm_http_errors_total) / SUM(ssvm_http_requests_total)) * 100` |
 
 ---
 
@@ -142,6 +143,13 @@
 - **Metric Unit:** `percentage`
 - **Mathematical Formula:** `(SUM(DailyRevenueProjection.totalRefunded) / SUM(DailyRevenueProjection.totalCollected)) * 100`
 
+#### `kpi_school_net_cash_flow` — School Net Cash Flow
+- **Owner Module:** `FINANCE`
+- **Scope:** `SCHOOL`
+- **Measurement Period:** `MONTHLY`
+- **Metric Unit:** `currency`
+- **Mathematical Formula:** `SUM(LedgerEntry.credit - LedgerEntry.debit WHERE accountCode IN ('1010-BANK', '1020-CASH') AND periodStart <= entryDate <= periodEnd)`
+
 #### `kpi_student_own_fee_due` — Student Personal Outstanding Fee Dues
 - **Owner Module:** `FINANCE`
 - **Scope:** `SCHOOL`
@@ -186,7 +194,7 @@
 - **Scope:** `SCHOOL`
 - **Measurement Period:** `MONTHLY`
 - **Metric Unit:** `currency`
-- **Mathematical Formula:** `SUM(Salary.netPay WHERE month = currentMonth AND year = currentYear AND status = 'PAID')`
+- **Mathematical Formula:** `SUM(PayrollRun.totalNetPay WHERE status = 'COMPLETED' AND periodStart >= monthStart AND periodEnd <= monthEnd)`
 
 ### Campus Operations (Hostel, Library, Inventory)
 
@@ -274,11 +282,11 @@
 - **Scope:** `PLATFORM`
 - **Measurement Period:** `REALTIME`
 - **Metric Unit:** `count`
-- **Mathematical Formula:** `COUNT(SupportSessions WHERE status = 'ACTIVE' AND expiresAt > NOW())`
+- **Mathematical Formula:** `SupportSessionService.getActiveSessionCount()`
 
 #### `kpi_platform_api_error_rate` — Platform 24-Hour API Error Rate
 - **Owner Module:** `PLATFORM`
 - **Scope:** `PLATFORM`
 - **Measurement Period:** `DAILY`
 - **Metric Unit:** `percentage`
-- **Mathematical Formula:** `(SUM(ssvm_http_requests_total{status=~'5..'}) / SUM(ssvm_http_requests_total)) * 100`
+- **Mathematical Formula:** `(SUM(ssvm_http_errors_total) / SUM(ssvm_http_requests_total)) * 100`
