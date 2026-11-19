@@ -1,3 +1,5 @@
+# NOTE: docker-compose.yml is the authoritative full-stack compose specification.
+# docker-compose.infra.yml is a convenience subset for local backing infrastructure services.
 services:
   database:
     image: postgres:16-alpine
@@ -59,7 +61,7 @@ services:
       retries: 5
 
   grafana:
-    image: grafana/grafana-enterprise:latest
+    image: grafana/grafana-enterprise:11.3.1
     container_name: ssvm-grafana
     restart: unless-stopped
     ports:
@@ -67,12 +69,17 @@ services:
     environment:
       - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
       - GF_SECURITY_ALLOW_EMBEDDING=true
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_AUTH_PROXY_ENABLED=true
+      - GF_AUTH_PROXY_HEADER_NAME=X-WEBAUTH-USER
+      - GF_AUTH_PROXY_HEADER_PROPERTY=username
+      - GF_AUTH_PROXY_AUTO_SIGN_UP=true
+      - GF_AUTH_PROXY_HEADERS=Role:X-WEBAUTH-ROLE
+      - GRAFANA_DB_USER=${GRAFANA_DB_USER:-ssvm_grafana_ro}
+      - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD:-grafana_ro_secure_pass_2026}
       - POSTGRES_DB=${POSTGRES_DB:-ssvm_platform}
     volumes:
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini:ro
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/etc/grafana/dashboards
       - ssvm_grafana:/var/lib/grafana
@@ -91,6 +98,7 @@ services:
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml
+      - ./prometheus/metrics_token:/etc/prometheus/metrics_token:ro
       - ssvm_prometheus:/prometheus
     networks:
       - ssvm-network
