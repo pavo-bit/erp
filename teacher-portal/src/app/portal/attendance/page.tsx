@@ -1,157 +1,262 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/lib/auth-context";
+import React, { useState } from "react";
+import { CheckCircle2, XCircle, Clock, Save, Users, AlertCircle } from "lucide-react";
+import { PageHeader, StatusBadge } from "@/components/ui/DataTable";
+import { Button } from "@/components/ui/Button";
 
-// Dummy student roster for UI showcase
-const classRoster = [
+interface StudentRecord {
+  id: string;
+  roll: string;
+  name: string;
+  status: "PRESENT" | "ABSENT" | "LATE";
+  remarks?: string;
+}
+
+const INITIAL_ROSTER: StudentRecord[] = [
   { id: "1", roll: "101", name: "Aarav Sharma", status: "PRESENT" },
   { id: "2", roll: "102", name: "Diya Patel", status: "PRESENT" },
-  { id: "3", roll: "103", name: "Rohan Gupta", status: "ABSENT" },
-  { id: "4", roll: "104", name: "Sneha Reddy", status: "LATE" },
+  { id: "3", roll: "103", name: "Rohan Gupta", status: "ABSENT", remarks: "Medical leave" },
+  { id: "4", roll: "104", name: "Sneha Reddy", status: "LATE", remarks: "School bus delayed" },
   { id: "5", roll: "105", name: "Arjun Singh", status: "PRESENT" },
+  { id: "6", roll: "106", name: "Ananya Mishra", status: "PRESENT" },
+  { id: "7", roll: "107", name: "Vikram Das", status: "PRESENT" },
+  { id: "8", roll: "108", name: "Pooja Verma", status: "ABSENT" },
 ];
 
-export default function AttendanceMatrixPage() {
-  const { user } = useAuth();
-  const [students, setStudents] = useState(classRoster);
+export default function TeacherAttendancePage() {
+  const [selectedClass, setSelectedClass] = useState("10");
+  const [selectedSection, setSelectedSection] = useState("A");
+  const [date, setDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [students, setStudents] = useState<StudentRecord[]>(INITIAL_ROSTER);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [submitted, setSubmitted] = useState(false);
 
-  const handleStatusChange = (id: string, newStatus: string) => {
-    setStudents(students.map(s => s.id === id ? { ...s, status: newStatus } : s));
+  const setStatus = (id: string, status: "PRESENT" | "ABSENT" | "LATE") => {
+    setStudents((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, status } : s))
+    );
   };
 
-  const markAll = (status: string) => {
-    setStudents(students.map(s => ({ ...s, status })));
+  const markAll = (status: "PRESENT" | "ABSENT") => {
+    setStudents((prev) => prev.map((s) => ({ ...s, status })));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSubmitting(true);
     setTimeout(() => {
-      toast("Attendance successfully pushed to the MDM engine and synced with the Parent Portal!");
       setIsSubmitting(false);
-    }, 1500);
+      setSubmitted(true);
+    }, 800);
   };
 
-  const stats = {
-    present: students.filter(s => s.status === 'PRESENT').length,
-    absent: students.filter(s => s.status === 'ABSENT').length,
-    late: students.filter(s => s.status === 'LATE').length,
-  };
+  const presentCount = students.filter((s) => s.status === "PRESENT").length;
+  const absentCount = students.filter((s) => s.status === "ABSENT").length;
+  const lateCount = students.filter((s) => s.status === "LATE").length;
+  const attendanceRate = Math.round((presentCount / students.length) * 100);
 
   return (
-    <div className="flex flex-col h-full space-y-6">
-      
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-widest mb-4">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Live Session
-          </motion.div>
-          <h1 className="text-[32px] font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-emerald-200 to-[var(--color-text-secondary)] font-[var(--font-heading)] leading-tight">
-            Attendance Matrix
-          </h1>
-          <p className="text-[14px] text-[var(--color-text-secondary)] mt-2 font-medium max-w-xl">
-            Real-time roll call. Changes made here will immediately trigger push notifications to the respective Parent Portals.
-          </p>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <PageHeader
+        title="Daily Roll Call & Attendance"
+        subtitle="Mark classroom attendance for assigned sections. Attendance records sync with the parent portal in real time."
+        action={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => markAll("PRESENT")}
+            >
+              Mark All Present
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => markAll("ABSENT")}
+            >
+              Mark All Absent
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Class & Date Selector Bar */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Class
+            </label>
+            <select
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value)}
+              className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-[14px] font-medium text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+            >
+              <option value="9">Class 9</option>
+              <option value="10">Class 10</option>
+              <option value="11">Class 11</option>
+              <option value="12">Class 12</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Section
+            </label>
+            <select
+              value={selectedSection}
+              onChange={(e) => setSelectedSection(e.target.value)}
+              className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-[14px] font-medium text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+            >
+              <option value="A">Section A</option>
+              <option value="B">Section B</option>
+              <option value="C">Section C</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-[14px] font-medium text-slate-800 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer"
+            />
+          </div>
         </div>
-        
-        <div className="flex items-center gap-4 bg-[var(--color-bg-card)] p-2 rounded-2xl border border-[var(--color-border-dark)]">
-          <input 
-            type="date" 
-            value={date} 
-            onChange={e => setDate(e.target.value)}
-            className="bg-transparent border-none text-white px-4 py-2 outline-none font-bold"
-          />
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="primary"
+            size="md"
+            icon={<Save className="w-4 h-4" />}
+            isLoading={isSubmitting}
+            onClick={handleSubmit}
+          >
+            Submit Roll Call
+          </Button>
         </div>
       </div>
 
-      {/* Analytics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {[
-          { label: "Total Present", value: stats.present, icon: "✅", gradient: "from-emerald-600 to-teal-500" },
-          { label: "Total Absent", value: stats.absent, icon: "❌", gradient: "from-rose-600 to-red-500" },
-          { label: "Marked Late", value: stats.late, icon: "⏰", gradient: "from-amber-600 to-orange-500" },
-        ].map((stat, i) => (
-          <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-            className="p-6 rounded-[1.5rem] relative overflow-hidden group border border-[var(--color-border-dark)] bg-[var(--color-bg-card)]">
-            <div className="absolute top-0 right-0 p-4 opacity-10 text-6xl group-hover:scale-110 group-hover:opacity-20 transition-all duration-500">{stat.icon}</div>
-            <div className="relative z-10">
-              <div className="text-[32px] font-black text-white tracking-tight mb-1">{stat.value}</div>
-              <div className="text-[12px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider">{stat.label}</div>
+      {submitted && (
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <div>
+              <p className="text-[14px] font-bold">Attendance Submitted Successfully</p>
+              <p className="text-[12px] text-emerald-700">
+                Class {selectedClass}-{selectedSection} roll call for {date} has been recorded ({presentCount} present, {absentCount} absent, {lateCount} late).
+              </p>
             </div>
-            <div className={`absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.gradient} opacity-50`} />
-          </motion.div>
-        ))}
+          </div>
+          <button
+            onClick={() => setSubmitted(false)}
+            className="text-[12px] font-bold text-emerald-700 hover:text-emerald-900 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Metric Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+          <span className="text-[12px] font-semibold text-slate-500 uppercase">Enrolled</span>
+          <div className="text-[24px] font-bold text-slate-900 mt-1">{students.length}</div>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-emerald-200 bg-emerald-50/20 shadow-xs">
+          <span className="text-[12px] font-semibold text-emerald-700 uppercase">Present</span>
+          <div className="text-[24px] font-bold text-emerald-700 mt-1">{presentCount}</div>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-rose-200 bg-rose-50/20 shadow-xs">
+          <span className="text-[12px] font-semibold text-rose-700 uppercase">Absent</span>
+          <div className="text-[24px] font-bold text-rose-700 mt-1">{absentCount}</div>
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-xs">
+          <span className="text-[12px] font-semibold text-amber-700 uppercase">Attendance Rate</span>
+          <div className="text-[24px] font-bold text-amber-700 mt-1">{attendanceRate}%</div>
+        </div>
       </div>
 
       {/* Roster Table */}
-      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border-dark)] rounded-[1.5rem] overflow-hidden flex-1 flex flex-col">
-        <div className="p-4 border-b border-[var(--color-border-dark)] flex items-center justify-between bg-[var(--color-bg-sidebar)]">
-          <div className="flex gap-2">
-            <button onClick={() => markAll('PRESENT')} className="px-4 py-2 rounded-lg text-[11px] font-bold text-emerald-400 bg-emerald-400/10 hover:bg-emerald-400/20 transition-colors uppercase tracking-wider">Mark All Present</button>
-            <button onClick={() => markAll('ABSENT')} className="px-4 py-2 rounded-lg text-[11px] font-bold text-rose-400 bg-rose-400/10 hover:bg-rose-400/20 transition-colors uppercase tracking-wider">Mark All Absent</button>
-          </div>
-          <motion.button 
-            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={handleSubmit} disabled={isSubmitting}
-            className="px-6 py-2.5 rounded-xl text-[13px] font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] disabled:opacity-50">
-            {isSubmitting ? "Syncing..." : "Publish to Ledger"}
-          </motion.button>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/60 flex items-center justify-between">
+          <span className="text-[14px] font-bold text-slate-800">
+            Student Roster (Class {selectedClass}-{selectedSection})
+          </span>
+          <span className="text-[12px] text-slate-500">
+            Click status pill to toggle Present / Absent / Late
+          </span>
         </div>
-        
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-left border-collapse min-w-[600px]">
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-[14px]">
             <thead>
-              <tr className="bg-[var(--color-bg-dark)] border-b border-[var(--color-border-dark)] sticky top-0 z-10">
-                <th className="p-4 text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider w-20">Roll</th>
-                <th className="p-4 text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider">Student Name</th>
-                <th className="p-4 text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider text-right">Attendance Action</th>
+              <tr className="border-b border-slate-200 bg-slate-50/30 text-[12px] font-bold uppercase tracking-wider text-slate-500">
+                <th className="px-6 py-3.5">Roll No</th>
+                <th className="px-6 py-3.5">Student Name</th>
+                <th className="px-6 py-3.5">Attendance Status</th>
+                <th className="px-6 py-3.5">Remarks</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[var(--color-border-dark)]">
-              <AnimatePresence>
-                {students.map((student) => (
-                  <motion.tr key={student.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="hover:bg-[var(--color-bg-dark)]/50 transition-colors">
-                    <td className="p-4 font-black text-[var(--color-text-secondary)]">{student.roll}</td>
-                    <td className="p-4">
-                      <div className="text-[14px] font-bold text-white flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-xs shadow-inner">
-                          {student.name.charAt(0)}
-                        </div>
-                        {student.name}
-                      </div>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="inline-flex rounded-xl bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)] p-1 overflow-hidden">
-                        {[
-                          { val: 'PRESENT', label: 'P', color: 'emerald' },
-                          { val: 'ABSENT', label: 'A', color: 'rose' },
-                          { val: 'LATE', label: 'L', color: 'amber' }
-                        ].map(st => (
-                          <button
-                            key={st.val}
-                            onClick={() => handleStatusChange(student.id, st.val)}
-                            className={`w-10 h-8 rounded-lg text-[13px] font-black transition-all duration-300
-                              ${student.status === st.val 
-                                ? `bg-${st.color}-500 text-white shadow-[0_0_10px_rgba(var(--color-${st.color}-500),0.5)]` 
-                                : `text-[var(--color-text-secondary)] hover:text-white hover:bg-[var(--color-bg-card-hover)]`}`}
-                          >
-                            {st.label}
-                          </button>
-                        ))}
-                      </div>
-                    </td>
-                  </motion.tr>
-                ))}
-              </AnimatePresence>
+            <tbody className="divide-y divide-slate-100">
+              {students.map((student) => (
+                <tr key={student.id} className="hover:bg-slate-50/50 transition-colors h-[56px]">
+                  <td className="px-6 py-3 font-mono font-bold text-slate-700">
+                    {student.roll}
+                  </td>
+                  <td className="px-6 py-3 font-semibold text-slate-900">
+                    {student.name}
+                  </td>
+                  <td className="px-6 py-3">
+                    <div className="inline-flex rounded-xl p-1 bg-slate-100 border border-slate-200 gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setStatus(student.id, "PRESENT")}
+                        className={`px-3 py-1 rounded-lg text-[12px] font-bold cursor-pointer transition-all ${
+                          student.status === "PRESENT"
+                            ? "bg-emerald-600 text-white shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Present
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStatus(student.id, "ABSENT")}
+                        className={`px-3 py-1 rounded-lg text-[12px] font-bold cursor-pointer transition-all ${
+                          student.status === "ABSENT"
+                            ? "bg-rose-600 text-white shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Absent
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setStatus(student.id, "LATE")}
+                        className={`px-3 py-1 rounded-lg text-[12px] font-bold cursor-pointer transition-all ${
+                          student.status === "LATE"
+                            ? "bg-amber-500 text-white shadow-xs"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Late
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-6 py-3 text-[13px] text-slate-500">
+                    {student.remarks || "—"}
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
-
     </div>
   );
 }

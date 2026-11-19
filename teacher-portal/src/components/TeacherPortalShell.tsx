@@ -19,16 +19,40 @@ import {
   X,
 } from "lucide-react";
 
-const TEACHER_NAV_ITEMS = [
-  { icon: LayoutDashboard, label: "Teacher Dashboard", href: "/portal" },
-  { icon: CalendarCheck, label: "Daily Attendance", href: "/portal/attendance" },
-  { icon: Calendar, label: "My Timetable", href: "/portal/timetable" },
-  { icon: BookOpen, label: "Homework & LMS", href: "/portal/homework" },
-  { icon: FileSpreadsheet, label: "Examinations", href: "/portal/exams" },
-  { icon: Coffee, label: "Leave Requests", href: "/portal/leaves" },
-  { icon: DollarSign, label: "Salary Ledger", href: "/portal/salary" },
-  { icon: ShieldAlert, label: "Discipline & Notes", href: "/portal/discipline" },
-  { icon: User, label: "Faculty Profile", href: "/portal/profile" },
+interface TeacherNavGroup {
+  title: string;
+  items: {
+    icon: any;
+    label: string;
+    href: string;
+  }[];
+}
+
+const TEACHER_NAV_GROUPS: TeacherNavGroup[] = [
+  {
+    title: "Teaching & Schedule",
+    items: [
+      { icon: LayoutDashboard, label: "Teacher Dashboard", href: "/portal" },
+      { icon: CalendarCheck, label: "Daily Attendance", href: "/portal/attendance" },
+      { icon: Calendar, label: "My Timetable", href: "/portal/timetable" },
+    ],
+  },
+  {
+    title: "Academic Workflows",
+    items: [
+      { icon: BookOpen, label: "Homework & LMS", href: "/portal/homework" },
+      { icon: FileSpreadsheet, label: "Examinations", href: "/portal/exams" },
+      { icon: ShieldAlert, label: "Discipline & Notes", href: "/portal/discipline" },
+    ],
+  },
+  {
+    title: "Faculty Services",
+    items: [
+      { icon: Coffee, label: "Leave Requests", href: "/portal/leaves" },
+      { icon: DollarSign, label: "Salary Ledger", href: "/portal/salary" },
+      { icon: User, label: "Faculty Profile", href: "/portal/profile" },
+    ],
+  },
 ];
 
 export function TeacherPortalShell({ children }: { children: React.ReactNode }) {
@@ -72,29 +96,36 @@ export function TeacherPortalShell({ children }: { children: React.ReactNode }) 
         </div>
 
         {/* Navigation Items */}
-        <nav aria-label="Teacher Portal Navigation" className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {TEACHER_NAV_ITEMS.map((item) => {
-            const isActive =
-              item.href === "/portal"
-                ? pathname === "/portal"
-                : pathname === item.href || pathname.startsWith(item.href + "/");
-            const Icon = item.icon;
+        <nav aria-label="Teacher Portal Navigation" className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
+          {TEACHER_NAV_GROUPS.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                {group.title}
+              </div>
+              {group.items.map((item) => {
+                const isActive =
+                  item.href === "/portal"
+                    ? pathname === "/portal"
+                    : pathname === item.href || pathname.startsWith(item.href + "/");
+                const Icon = item.icon;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold no-underline transition-colors ${
-                  isActive
-                    ? "bg-teal-600 text-white shadow-xs"
-                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
-                }`}
-              >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            );
-          })}
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold no-underline transition-colors ${
+                      isActive
+                        ? "bg-teal-600 text-white shadow-xs"
+                        : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                    }`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
         {/* User Card */}
@@ -162,24 +193,31 @@ export function TeacherPortalShell({ children }: { children: React.ReactNode }) 
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-              {TEACHER_NAV_ITEMS.map((item) => {
-                const isActive = pathname === item.href;
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-semibold no-underline transition-colors ${
-                      isActive ? "bg-teal-600 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"
-                    }`}
-                  >
-                    <Icon className="w-4 h-4 shrink-0" />
-                    <span>{item.label}</span>
-                  </Link>
-                );
-              })}
+            <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-4">
+              {TEACHER_NAV_GROUPS.map((group) => (
+                <div key={group.title} className="space-y-1">
+                  <div className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                    {group.title}
+                  </div>
+                  {group.items.map((item) => {
+                    const isActive = pathname === item.href;
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setSidebarOpen(false)}
+                        className={`flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-semibold no-underline transition-colors ${
+                          isActive ? "bg-teal-600 text-white" : "text-slate-400 hover:text-white hover:bg-slate-800"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
             </nav>
           </div>
         </div>

@@ -34,7 +34,7 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
     ],
   },
   {
-    title: "Institution Management",
+    title: "Organizations and Schools",
     items: [
       {
         icon: "🏫",
@@ -46,19 +46,7 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
     ],
   },
   {
-    title: "SaaS Operations",
-    items: [
-      {
-        icon: "⚡",
-        label: "SaaS Requests",
-        href: "/dashboard/requests",
-        gradient: "from-pink-500 to-rose-400",
-        matchPrefix: true,
-      },
-    ],
-  },
-  {
-    title: "Platform Monitoring",
+    title: "Platform Analytics",
     items: [
       {
         icon: "📈",
@@ -67,13 +55,11 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         gradient: "from-amber-400 to-orange-500",
         matchPrefix: true,
       },
-      {
-        icon: "🛡️",
-        label: "Security Center",
-        href: "/dashboard/security",
-        gradient: "from-red-500 to-rose-600",
-        matchPrefix: true,
-      },
+    ],
+  },
+  {
+    title: "Infrastructure and Health",
+    items: [
       {
         icon: "🖥️",
         label: "Infrastructure",
@@ -91,7 +77,38 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
     ],
   },
   {
-    title: "Platform Administration",
+    title: "Requests and Support",
+    items: [
+      {
+        icon: "⚡",
+        label: "SaaS Requests",
+        href: "/dashboard/requests",
+        gradient: "from-pink-500 to-rose-400",
+        matchPrefix: true,
+      },
+    ],
+  },
+  {
+    title: "Security and Governance",
+    items: [
+      {
+        icon: "🛡️",
+        label: "Security Center",
+        href: "/dashboard/security",
+        gradient: "from-red-500 to-rose-600",
+        matchPrefix: true,
+      },
+      {
+        icon: "⚖️",
+        label: "Data Governance",
+        href: "/dashboard/governance",
+        gradient: "from-indigo-500 to-violet-600",
+        matchPrefix: true,
+      },
+    ],
+  },
+  {
+    title: "Platform Settings",
     items: [
       {
         icon: "⚙️",

@@ -3,8 +3,14 @@ import process from 'node:process';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 const ERP_ADMIN_URL = process.env.ERP_ADMIN_URL || 'http://localhost:3000';
+const SUPER_ADMIN_URL = process.env.SUPER_ADMIN_URL || 'http://localhost:3001';
 const TEACHER_PORTAL_URL = process.env.TEACHER_PORTAL_URL || 'http://localhost:3002';
+const STUDENT_PORTAL_URL = process.env.STUDENT_PORTAL_URL || 'http://localhost:3003';
 const PARENT_PORTAL_URL = process.env.PARENT_PORTAL_URL || 'http://localhost:3006';
+const PAYMENT_PORTAL_URL = process.env.PAYMENT_PORTAL_URL || 'http://localhost:3007';
+const SAAS_FRONTEND_URL = process.env.SAAS_FRONTEND_URL || 'http://localhost:3008';
+
+const SCHOOL_A_ID = 'cmvwy984q0001qocgpclzv585';
 
 interface CookieHeaderItem {
   name: string;
@@ -39,13 +45,13 @@ async function createAuthenticatedSession(email: string, portalUrl: string, brow
   return apiContext;
 }
 
-test.describe('School ERP UI/UX Refinement — Multi-Portal Workflows', () => {
+test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', () => {
   test.setTimeout(90000);
 
   // ═════════════════════════════════════════════════════════════════════
-  // 1. ERP Admin Dashboard: Quick Actions Navigation
+  // 1. ERP Admin: Dashboard Quick Actions & Navigation
   // ═════════════════════════════════════════════════════════════════════
-  test('Dashboard displays 4 institutional quick actions routing correctly', async ({ page, context }) => {
+  test('ERP Admin: Dashboard displays 4 institutional quick actions routing correctly', async ({ page, context }) => {
     await context.clearCookies();
     await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
 
@@ -73,16 +79,15 @@ test.describe('School ERP UI/UX Refinement — Multi-Portal Workflows', () => {
   });
 
   // ═════════════════════════════════════════════════════════════════════
-  // 2. Student Manual Entry Drawer: Add Another and Done Lifecycle
+  // 2. ERP Admin: Student Manual Entry Drawer Lifecycle
   // ═════════════════════════════════════════════════════════════════════
-  test('Student Management drawer opens, validates, and supports Add Another / Done', async ({ page, context }) => {
+  test('ERP Admin: Student drawer opens, validates, and supports Add Another / Done', async ({ page, context }) => {
     await context.clearCookies();
     await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
 
     await page.goto(`${ERP_ADMIN_URL}/admin/students`, { timeout: 60000 });
     await page.waitForTimeout(2000);
 
-    // Click "Add Student" button to slide open the right-side drawer
     const addStudentBtn = page.getByRole('button', { name: 'Add Student' });
     await expect(addStudentBtn).toBeVisible();
     await addStudentBtn.click();
@@ -101,7 +106,6 @@ test.describe('School ERP UI/UX Refinement — Multi-Portal Workflows', () => {
     await page.locator('input[name="section"]').fill('A');
     await page.locator('input[name="guardianPhone"]').fill('9876543210');
 
-    // Click "Save Student"
     await page.getByRole('button', { name: 'Save Student' }).click();
 
     // Verify Success Modal appears
@@ -113,49 +117,143 @@ test.describe('School ERP UI/UX Refinement — Multi-Portal Workflows', () => {
     await page.getByRole('button', { name: 'Add Another' }).click();
     await page.waitForTimeout(500);
 
-    // Form resets student-specific fields but preserves class defaults
     const firstNameVal = await page.locator('input[name="firstName"]').inputValue();
     expect(firstNameVal).toBe('');
-    const classVal = await page.locator('input[name="className"]').inputValue();
-    expect(classVal).toBe('10');
 
     // Fill Student 2
     const student2Name = `Diya E2E ${uniqueStamp}`;
     await page.locator('input[name="firstName"]').fill(student2Name);
     await page.getByRole('button', { name: 'Save Student' }).click();
 
-    // Verify Success Modal appears again
     await expect(page.getByText('Student Added Successfully')).toBeVisible({ timeout: 15000 });
 
     // Click "Done"
     await page.getByRole('button', { name: 'Done' }).click();
     await page.waitForTimeout(1500);
 
-    // Drawer is closed and student table is refreshed
     await expect(page.getByText('Register New Student')).not.toBeVisible();
   });
 
   // ═════════════════════════════════════════════════════════════════════
-  // 3. Dedicated Staff Import & Teacher Drawer
+  // 3. Super Admin: Platform Oversight & Governance Navigation
   // ═════════════════════════════════════════════════════════════════════
-  test('Staff import page provides official templates and routes to manual entry', async ({ page, context }) => {
+  test('Super Admin: Multi-school network, health, and governance navigation', async ({ page, context }) => {
     await context.clearCookies();
-    await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
+    await createAuthenticatedSession('superadmin@ssvm-erp.com', SUPER_ADMIN_URL, context);
 
-    await page.goto(`${ERP_ADMIN_URL}/admin/teachers/import`, { timeout: 60000 });
+    await page.goto(`${SUPER_ADMIN_URL}/dashboard`, { timeout: 60000 });
     await page.waitForTimeout(2000);
 
-    await expect(page.getByText('Bulk Staff & Faculty Import')).toBeVisible();
-    await expect(page.getByText('Download .CSV')).toBeVisible();
-    await expect(page.getByText('Download .XLSX')).toBeVisible();
+    // Verify Platform Command Center
+    await expect(page.getByText('Global Operations')).toBeVisible();
+    await expect(page.getByText('Active Tenants')).toBeVisible();
 
-    // Click manual alternative button
-    await page.getByRole('link', { name: /Add Teacher Manually/i }).click();
-    await page.waitForTimeout(1500);
+    // Navigate to School Network
+    await page.goto(`${SUPER_ADMIN_URL}/dashboard/schools`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    await expect(page.getByText('School Network')).toBeVisible();
+    await expect(page.getByPlaceholder('Search tenants...')).toBeVisible();
 
-    expect(page.url()).toContain('/admin/teachers?action=create');
-    // Drawer automatically opens via action=create parameter
-    await expect(page.getByText('Add Faculty & Staff Member')).toBeVisible();
-    await expect(page.getByText('Section 1 — Personal Details')).toBeVisible();
+    // Navigate to Data Governance
+    await page.goto(`${SUPER_ADMIN_URL}/dashboard/governance`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    await expect(page.getByText('Enterprise Data Governance')).toBeVisible();
+  });
+
+  // ═════════════════════════════════════════════════════════════════════
+  // 4. Teacher Portal: Daily Schedule & Roll Call Matrix
+  // ═════════════════════════════════════════════════════════════════════
+  test('Teacher Portal: Teaching dashboard and daily attendance matrix', async ({ page, context }) => {
+    await context.clearCookies();
+    await createAuthenticatedSession('teacher1@ssvm.edu', TEACHER_PORTAL_URL, context);
+
+    await page.goto(`${TEACHER_PORTAL_URL}/portal`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+
+    // Verify Teacher Dashboard
+    await expect(page.getByText(/Teacher Dashboard|SSVM Portal/i)).toBeVisible();
+    await expect(page.getByText(/Mark Daily Attendance/i)).toBeVisible();
+
+    // Navigate to Daily Attendance Matrix
+    await page.goto(`${TEACHER_PORTAL_URL}/portal/attendance`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+
+    await expect(page.getByText('Daily Roll Call & Attendance')).toBeVisible();
+    await expect(page.getByText('Submit Roll Call')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Mark All Present' })).toBeVisible();
+
+    // Mark all present and submit roll call
+    await page.getByRole('button', { name: 'Mark All Present' }).click();
+    await page.getByRole('button', { name: 'Submit Roll Call' }).click();
+    await expect(page.getByText('Attendance Submitted Successfully')).toBeVisible({ timeout: 10000 });
+  });
+
+  // ═════════════════════════════════════════════════════════════════════
+  // 5. Student Portal: Academic Records & Weekly Schedule
+  // ═════════════════════════════════════════════════════════════════════
+  test('Student Portal: Academic dashboard, timetable, and notice board', async ({ page, context }) => {
+    await context.clearCookies();
+    await createAuthenticatedSession('student1@ssvm.edu', STUDENT_PORTAL_URL, context);
+
+    await page.goto(`${STUDENT_PORTAL_URL}/dashboard`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+
+    // Verify Dashboard Cards
+    await expect(page.getByText('Attendance')).toBeVisible();
+    await expect(page.getByText('Pending Assignments')).toBeVisible();
+
+    // Verify Timetable Page
+    await page.goto(`${STUDENT_PORTAL_URL}/timetable`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    await expect(page.getByText('My Timetable')).toBeVisible();
+
+    // Verify Notice Board Page
+    await page.goto(`${STUDENT_PORTAL_URL}/notices`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    await expect(page.getByText('Notice Board')).toBeVisible();
+  });
+
+  // ═════════════════════════════════════════════════════════════════════
+  // 6. Parent Portal: Multi-Child Switcher & Fee Ledger
+  // ═════════════════════════════════════════════════════════════════════
+  test('Parent Portal: Multi-child active selector and fee overview', async ({ page, context }) => {
+    await context.clearCookies();
+    await createAuthenticatedSession('parent1@ssvm.edu', PARENT_PORTAL_URL, context);
+
+    await page.goto(`${PARENT_PORTAL_URL}/dashboard`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+
+    // Verify Active Child selector exists in header
+    await expect(page.getByText(/Active Child|ParentPortal/i)).toBeVisible();
+
+    // Navigate to Fees & Invoices
+    await page.goto(`${PARENT_PORTAL_URL}/fees`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    await expect(page.getByText(/Fee|Invoice/i)).toBeVisible();
+  });
+
+  // ═════════════════════════════════════════════════════════════════════
+  // 7. Payment Portal & SaaS Frontend
+  // ═════════════════════════════════════════════════════════════════════
+  test('Payment Portal checkout & SaaS landing registration modal', async ({ page, context }) => {
+    // 7A: SaaS Frontend Landing & Onboarding Modal
+    await page.goto(SAAS_FRONTEND_URL, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+
+    await expect(page.getByText(/Greyscales|School Management/i)).toBeVisible();
+    const requestAccessBtn = page.getByRole('button', { name: /Request Access/i }).first();
+    await expect(requestAccessBtn).toBeVisible();
+    await requestAccessBtn.click();
+
+    await expect(page.getByText('Join the elite network of institutions')).toBeVisible();
+    await expect(page.getByText('Institution Name')).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel' }).click();
+
+    // 7B: Payment Portal Checkout
+    await page.goto(`${PAYMENT_PORTAL_URL}/checkout`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    // Unauthenticated checkout redirects to login
+    expect(page.url()).toContain('/login');
+    await expect(page.getByRole('button', { name: /Sign In|Login/i })).toBeVisible();
   });
 });

@@ -1,99 +1,89 @@
 "use client";
 
-import { useSchoolNotices } from "@/lib/student-api-hooks";
-import { Bell, Calendar, Megaphone, ChevronDown, FileText } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { useSchoolNotices } from "@/lib/student-api-hooks";
+import { Bell, ChevronDown } from "lucide-react";
+import { PageHeader } from "@/components/ui/DataTable";
 
 export default function NoticesPage() {
   const { data: noticesData, isLoading } = useSchoolNotices();
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  
-  if (isLoading) return <div className="p-8 text-white">Loading notices...</div>;
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Loading notice board...
+      </div>
+    );
+  }
 
   const notices = noticesData?.data || [];
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-4xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">Notice Board</h1>
-        <p className="text-white/60">Official school announcements and circulars.</p>
-      </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <PageHeader
+        title="Notice Board"
+        subtitle="Official school circulars, announcements, and administrative notices."
+      />
 
       <div className="space-y-4">
-        {notices.map((notice: any) => (
-          <motion.div
-            key={notice.id}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="rounded-2xl bg-white/5 border border-white/10 overflow-hidden backdrop-blur-md"
-          >
-            <div 
-              className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors flex items-start gap-4"
-              onClick={() => setExpandedId(expandedId === notice.id ? null : notice.id)}
+        {notices.map((notice: any) => {
+          const isExpanded = expandedId === notice.id;
+
+          return (
+            <div
+              key={notice.id}
+              className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden transition-all"
             >
-              <div className={`p-3 rounded-xl shrink-0 ${
-                notice.category === "HOLIDAY" ? "bg-amber-500/20 text-amber-400" :
-                notice.category === "EXAM" ? "bg-red-500/20 text-red-400" :
-                "bg-blue-500/20 text-blue-400"
-              }`}>
-                {notice.category === "HOLIDAY" ? <Calendar className="w-6 h-6" /> :
-                 notice.category === "EXAM" ? <FileText className="w-6 h-6" /> :
-                 <Megaphone className="w-6 h-6" />}
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-1">
-                  <h3 className="text-lg font-semibold text-white truncate pr-4">{notice.title}</h3>
-                  <span className="shrink-0 text-xs text-white/50 bg-white/5 px-3 py-1 rounded-full">
+              <button
+                type="button"
+                onClick={() => setExpandedId(isExpanded ? null : notice.id)}
+                className="w-full p-5 text-left flex items-start justify-between gap-4 cursor-pointer hover:bg-slate-50/50 transition-colors"
+              >
+                <div className="flex items-start gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 shrink-0 mt-0.5">
+                    <Bell className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900 mb-1">
+                      {notice.title}
+                    </h3>
+                    <p className="text-sm text-slate-500 line-clamp-1">
+                      {notice.content}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs font-semibold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
                     {new Date(notice.createdAt).toLocaleDateString()}
                   </span>
+                  <ChevronDown
+                    className={`w-5 h-5 text-slate-400 transition-transform ${
+                      isExpanded ? "rotate-180" : ""
+                    }`}
+                  />
                 </div>
-                <p className="text-sm text-white/60 line-clamp-1">
-                  {expandedId === notice.id ? "" : notice.content}
-                </p>
-              </div>
+              </button>
 
-              <ChevronDown className={`w-5 h-5 text-white/40 shrink-0 transition-transform ${
-                expandedId === notice.id ? "rotate-180" : ""
-              }`} />
-            </div>
-
-            <AnimatePresence>
-              {expandedId === notice.id && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  className="px-5 pb-5 pt-2 border-t border-white/10"
-                >
-                  <div className="text-white/80 whitespace-pre-wrap text-sm leading-relaxed pl-[3.25rem]">
+              {isExpanded && (
+                <div className="px-5 pb-5 pt-2 border-t border-slate-100 bg-slate-50/30">
+                  <div className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed pl-[3.25rem]">
                     {notice.content}
                   </div>
-                  {notice.attachment && (
-                    <div className="pl-[3.25rem] mt-4">
-                      <a 
-                        href={notice.attachment} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm text-blue-400 transition-colors"
-                      >
-                        <FileText className="w-4 h-4" />
-                        View Attachment
-                      </a>
-                    </div>
-                  )}
-                </motion.div>
+                </div>
               )}
-            </AnimatePresence>
-          </motion.div>
-        ))}
+            </div>
+          );
+        })}
 
         {notices.length === 0 && (
-          <div className="p-12 text-center rounded-2xl bg-white/5 border border-white/10 border-dashed">
-            <Bell className="w-12 h-12 text-white/20 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-1">No Announcements</h3>
-            <p className="text-white/60">The notice board is currently empty.</p>
+          <div className="p-12 text-center rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <Bell className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-slate-900 mb-1">No Notices Published</h3>
+            <p className="text-sm text-slate-500">
+              The school notice board currently has no active circulars.
+            </p>
           </div>
         )}
       </div>

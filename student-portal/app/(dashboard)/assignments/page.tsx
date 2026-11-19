@@ -2,18 +2,23 @@
 
 import { useState } from "react";
 import { useMyAssignments } from "@/lib/student-api-hooks";
-import { motion } from "framer-motion";
-import { BookOpen, Calendar, Clock, CheckCircle, FileText } from "lucide-react";
-import Link from "next/link";
+import { BookOpen, Calendar, Clock, CheckCircle2, FileText } from "lucide-react";
+import { PageHeader } from "@/components/ui/DataTable";
 
 export default function AssignmentsPage() {
   const { data: assignmentsData, isLoading } = useMyAssignments("current-section");
   const [activeTab, setActiveTab] = useState("pending");
 
-  if (isLoading) return <div className="p-8 text-white">Loading assignments...</div>;
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Loading assignments...
+      </div>
+    );
+  }
 
   const assignments = assignmentsData?.data || [];
-  
+
   const filteredAssignments = assignments.filter((a: any) => {
     if (activeTab === "pending") return !a.isSubmitted;
     if (activeTab === "submitted") return a.isSubmitted && !a.isGraded;
@@ -22,21 +27,23 @@ export default function AssignmentsPage() {
   });
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">My Assignments</h1>
-        <p className="text-white/60">View, submit, and track your coursework.</p>
-      </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <PageHeader
+        title="My Assignments"
+        subtitle="View, submit, and track your classroom coursework and homework."
+      />
 
-      <div className="flex gap-2 p-1 bg-white/5 backdrop-blur-md rounded-xl w-max border border-white/10">
+      {/* Filter Tabs */}
+      <div className="flex gap-2 p-1 bg-slate-100 rounded-xl w-max border border-slate-200">
         {["pending", "submitted", "graded"].map((tab) => (
           <button
             key={tab}
+            type="button"
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
               activeTab === tab
-                ? "bg-white/20 text-white shadow-sm"
-                : "text-white/60 hover:text-white hover:bg-white/5"
+                ? "bg-white text-slate-900 shadow-xs"
+                : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
             }`}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -46,61 +53,78 @@ export default function AssignmentsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredAssignments.map((assignment: any) => (
-          <motion.div
+          <div
             key={assignment.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md"
+            className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between"
           >
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-blue-500/20 text-blue-400">
-                  <BookOpen className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{assignment.title}</h3>
-                  <p className="text-sm text-white/60">{assignment.subject?.name || "General Subject"}</p>
-                </div>
+            <div>
+              <div className="flex justify-between items-start mb-4">
+                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
+                  {assignment.subject?.name || "General Subject"}
+                </span>
+                <span
+                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                    assignment.isGraded
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : assignment.isSubmitted
+                      ? "bg-blue-50 text-blue-700 border border-blue-200"
+                      : "bg-amber-50 text-amber-700 border border-amber-200"
+                  }`}
+                >
+                  {assignment.isGraded
+                    ? "Graded"
+                    : assignment.isSubmitted
+                    ? "Submitted"
+                    : "Due Soon"}
+                </span>
               </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                assignment.isGraded ? "bg-green-500/20 text-green-400" :
-                assignment.isSubmitted ? "bg-amber-500/20 text-amber-400" :
-                "bg-red-500/20 text-red-400"
-              }`}>
-                {assignment.isGraded ? "Graded" : assignment.isSubmitted ? "Submitted" : "Pending"}
-              </span>
+
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                {assignment.title}
+              </h3>
+              <p className="text-sm text-slate-600 mb-4 line-clamp-2">
+                {assignment.description || "Complete the exercises as instructed by faculty."}
+              </p>
+
+              <div className="space-y-2 py-3 border-t border-slate-100">
+                <div className="flex items-center text-sm text-slate-600">
+                  <Clock className="w-4 h-4 mr-2 text-slate-400" />
+                  <span>
+                    Due:{" "}
+                    <strong className="text-slate-900">
+                      {assignment.dueDate
+                        ? new Date(assignment.dueDate).toLocaleDateString()
+                        : "Not specified"}
+                    </strong>
+                  </span>
+                </div>
+                {assignment.maxMarks && (
+                  <div className="flex items-center text-sm text-slate-600">
+                    <FileText className="w-4 h-4 mr-2 text-slate-400" />
+                    <span>Max Marks: {assignment.maxMarks}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="space-y-3 mb-6">
-              <div className="flex items-center text-sm text-white/70">
-                <Calendar className="w-4 h-4 mr-2" />
-                <span>Due: {new Date(assignment.dueDate).toLocaleDateString()}</span>
+            {assignment.marks !== undefined && (
+              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-sm">
+                <span className="font-semibold text-slate-600">Marks Scored:</span>
+                <span className="font-bold text-emerald-700 text-base">
+                  {assignment.marks} / {assignment.maxMarks}
+                </span>
               </div>
-              <div className="flex items-center text-sm text-white/70">
-                <FileText className="w-4 h-4 mr-2" />
-                <span className="line-clamp-1">{assignment.description}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-white/10">
-              <div className="text-sm text-white/60">
-                Max Marks: {assignment.maxMarks || 100}
-              </div>
-              <Link 
-                href={`/assignments/${assignment.id}`}
-                className="px-4 py-2 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                {activeTab === "pending" ? "Submit Work" : "View Details"}
-              </Link>
-            </div>
-          </motion.div>
+            )}
+          </div>
         ))}
 
         {filteredAssignments.length === 0 && (
-          <div className="col-span-full p-12 text-center rounded-2xl bg-white/5 border border-white/10 border-dashed">
-            <CheckCircle className="w-12 h-12 text-white/20 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-1">All Caught Up!</h3>
-            <p className="text-white/60">No {activeTab} assignments at the moment.</p>
+          <div className="col-span-full p-12 text-center rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-slate-900 mb-1">All Caught Up!</h3>
+            <p className="text-sm text-slate-500">
+              No {activeTab} assignments found in this section.
+            </p>
           </div>
         )}
       </div>

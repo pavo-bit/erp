@@ -1,98 +1,96 @@
 "use client";
 
-import { useMyBooks } from "@/lib/student-api-hooks";
-import { Book, Clock, AlertTriangle, CheckCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { useMyLibrary } from "@/lib/student-api-hooks";
+import { BookOpen, CheckCircle2, Clock } from "lucide-react";
+import { PageHeader } from "@/components/ui/DataTable";
 
 export default function LibraryPage() {
-  const { data: booksData, isLoading } = useMyBooks("current-student-id");
-  
-  if (isLoading) return <div className="p-8 text-white">Loading library records...</div>;
+  const { data: libraryData, isLoading } = useMyLibrary();
 
-  const issuedBooks = booksData?.data || [];
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center text-slate-500">
+        Loading library records...
+      </div>
+    );
+  }
+
+  const issues = libraryData?.data || [];
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-3xl font-bold text-white mb-2">My Library</h1>
-        <p className="text-white/60">Track your issued books and due dates.</p>
-      </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <PageHeader
+        title="Library Books"
+        subtitle="Track your currently issued books, due dates, and return history."
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {issuedBooks.map((issue: any) => {
-          const isOverdue = new Date() > new Date(issue.dueDate) && issue.status !== "RETURNED";
-          
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {issues.map((issue: any) => {
+          const isOverdue =
+            issue.status === "ISSUED" && new Date(issue.dueDate) < new Date();
+
           return (
-            <motion.div
+            <div
               key={issue.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className={`p-6 rounded-2xl border backdrop-blur-md relative overflow-hidden ${
-                isOverdue 
-                  ? "bg-red-500/10 border-red-500/20" 
-                  : issue.status === "RETURNED"
-                  ? "bg-white/5 border-white/10"
-                  : "bg-blue-500/10 border-blue-500/20"
-              }`}
+              className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs flex flex-col justify-between"
             >
-              <div className="flex justify-between items-start mb-4">
-                <div className={`p-3 rounded-xl ${
-                  isOverdue ? "bg-red-500/20 text-red-400" :
-                  issue.status === "RETURNED" ? "bg-white/10 text-white/60" :
-                  "bg-blue-500/20 text-blue-400"
-                }`}>
-                  <Book className="w-6 h-6" />
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 ${
-                  isOverdue ? "bg-red-500/20 text-red-400" :
-                  issue.status === "RETURNED" ? "bg-green-500/20 text-green-400" :
-                  "bg-blue-500/20 text-blue-400"
-                }`}>
-                  {isOverdue && <AlertTriangle className="w-3 h-3" />}
-                  {isOverdue ? "Overdue" : issue.status}
-                </span>
-              </div>
-
-              <h3 className="text-xl font-semibold text-white mb-1 line-clamp-1">
-                {issue.book?.title || "Unknown Book"}
-              </h3>
-              <p className="text-sm text-white/50 mb-6">
-                by {issue.book?.author || "Unknown Author"}
-              </p>
-
-              <div className="space-y-3 pt-4 border-t border-white/10">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-white/50">Issued:</span>
-                  <span className="text-white">{new Date(issue.issueDate).toLocaleDateString()}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-white/50">Due Date:</span>
-                  <span className={`${isOverdue ? "text-red-400 font-semibold" : "text-white"}`}>
-                    {new Date(issue.dueDate).toLocaleDateString()}
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200">
+                    <BookOpen className="w-5 h-5" />
+                  </div>
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${
+                      issue.status === "RETURNED"
+                        ? "bg-slate-100 text-slate-600 border border-slate-200"
+                        : isOverdue
+                        ? "bg-rose-50 text-rose-700 border border-rose-200"
+                        : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    }`}
+                  >
+                    {issue.status === "RETURNED"
+                      ? "Returned"
+                      : isOverdue
+                      ? "Overdue"
+                      : "Issued"}
                   </span>
                 </div>
-                {issue.status === "RETURNED" && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-white/50">Returned:</span>
-                    <span className="text-green-400">{new Date(issue.returnDate).toLocaleDateString()}</span>
+
+                <h3 className="text-lg font-bold text-slate-900 mb-1 line-clamp-1">
+                  {issue.book?.title || "Library Book"}
+                </h3>
+                <p className="text-sm text-slate-500 mb-4">
+                  {issue.book?.author || "Author Unknown"} • ISBN: {issue.book?.isbn || "—"}
+                </p>
+
+                <div className="space-y-2 py-3 border-t border-slate-100 text-sm">
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Issued Date:</span>
+                    <strong className="text-slate-900">
+                      {new Date(issue.issueDate).toLocaleDateString()}
+                    </strong>
                   </div>
-                )}
-                {isOverdue && issue.fineAmount > 0 && (
-                  <div className="flex justify-between items-center text-sm mt-2 p-2 rounded bg-red-500/20">
-                    <span className="text-red-300">Accumulated Fine:</span>
-                    <span className="text-red-400 font-bold">₹{issue.fineAmount}</span>
+                  <div className="flex items-center justify-between text-slate-600">
+                    <span>Due Date:</span>
+                    <strong
+                      className={isOverdue ? "text-rose-600 font-bold" : "text-slate-900"}
+                    >
+                      {new Date(issue.dueDate).toLocaleDateString()}
+                    </strong>
                   </div>
-                )}
+                </div>
               </div>
-            </motion.div>
+            </div>
           );
         })}
 
-        {issuedBooks.length === 0 && (
-          <div className="col-span-full p-12 text-center rounded-2xl bg-white/5 border border-white/10 border-dashed">
-            <CheckCircle className="w-12 h-12 text-white/20 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-white mb-1">No Books Issued</h3>
-            <p className="text-white/60">You currently have no books issued from the library.</p>
+        {issues.length === 0 && (
+          <div className="col-span-full p-12 text-center rounded-2xl bg-white border border-slate-200 shadow-xs">
+            <CheckCircle2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-slate-900 mb-1">No Books Currently Issued</h3>
+            <p className="text-sm text-slate-500">
+              You do not have any active books borrowed from the school library.
+            </p>
           </div>
         )}
       </div>
