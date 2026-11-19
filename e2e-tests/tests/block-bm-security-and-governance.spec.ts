@@ -1,4 +1,5 @@
 import { test, expect, request as playwrightRequest, BrowserContext } from '@playwright/test';
+import process from 'node:process';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 const ERP_ADMIN_URL = process.env.ERP_ADMIN_URL || 'http://localhost:3000';
