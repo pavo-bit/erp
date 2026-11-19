@@ -1,8 +1,8 @@
 import { Router, Request, Response } from "express";
-import prisma from "../lib/prisma";
+import prisma, { runWithTenantDatabaseTransaction } from "../lib/prisma";
 import logger from "../lib/logger";
 import { authenticate } from "../middleware/auth";
-import { ActivityType } from "@prisma/client";
+import { ActivityType, Prisma, PrismaClient } from "@prisma/client";
 import { getRedisClient, isRedisAvailable } from "../lib/redis";
 
 const router = Router();
@@ -37,83 +37,92 @@ router.get("/public", async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // 2. Resolve Active Academic Session (dynamic from DB, never hardcoded)
-    const activeSession = requestedSchoolId
-      ? await prisma.academicSession.findFirst({
-          where: { schoolId: requestedSchoolId, isCurrent: true },
-          select: { id: true, name: true },
-        })
-      : await prisma.academicSession.findFirst({
-          where: { isCurrent: true },
-          orderBy: { startDate: "desc" },
-          select: { id: true, name: true },
-        });
+    // 2. Compute stats within tenant transaction if schoolId is provided (Postgres RLS)
+    const computeStats = async (db: Prisma.TransactionClient | PrismaClient) => {
+      // Resolve Active Academic Session (dynamic from DB, never hardcoded)
+      const activeSession = requestedSchoolId
+        ? await db.academicSession.findFirst({
+            where: { schoolId: requestedSchoolId, isCurrent: true },
+            select: { id: true, name: true },
+          })
+        : await db.academicSession.findFirst({
+            where: { isCurrent: true },
+            orderBy: { startDate: "desc" },
+            select: { id: true, name: true },
+          });
 
-    // 3. Compute Real Academic Exam Performance (no fake defaults like 98%)
-    const marks = await prisma.studentMark.findMany({
-      where: {
-        ...(requestedSchoolId ? { student: { schoolId: requestedSchoolId, deletedAt: null } } : {}),
-        ...(activeSession ? { examSubject: { exam: { classRef: { sessionId: activeSession.id } } } } : {}),
-      },
-      include: {
-        examSubject: {
-          select: {
-            passMarks: true,
-            maxMarks: true,
+      // Compute Real Academic Exam Performance (no fake defaults like 98%)
+      const marks = await db.studentMark.findMany({
+        where: {
+          ...(requestedSchoolId ? { student: { schoolId: requestedSchoolId, deletedAt: null } } : {}),
+          ...(activeSession ? { examSubject: { exam: { classRef: { sessionId: activeSession.id } } } } : {}),
+        },
+        include: {
+          examSubject: {
+            select: {
+              passMarks: true,
+              maxMarks: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    let passRate: number | null = null;
-    let averageScore: number | null = null;
+      let passRate: number | null = null;
+      let averageScore: number | null = null;
 
-    const validMarks = marks.filter((m) => (m.examSubject?.maxMarks ?? 0) > 0);
-    if (validMarks.length > 0) {
-      const passedCount = validMarks.filter((m) => {
-        const passMark = m.examSubject?.passMarks ?? 33;
-        return m.marksObtained >= passMark;
-      }).length;
-      passRate = Math.round((passedCount / validMarks.length) * 10000) / 100;
+      const validMarks = marks.filter((m) => (m.examSubject?.maxMarks ?? 0) > 0);
+      if (validMarks.length > 0) {
+        const passedCount = validMarks.filter((m) => {
+          const passMark = m.examSubject?.passMarks ?? 33;
+          return m.marksObtained >= passMark;
+        }).length;
+        passRate = Math.round((passedCount / validMarks.length) * 10000) / 100;
 
-      const totalPercentage = validMarks.reduce(
-        (sum, m) => sum + (m.marksObtained / m.examSubject!.maxMarks) * 100,
-        0
-      );
-      averageScore = Math.round((totalPercentage / validMarks.length) * 100) / 100;
-    }
+        const totalPercentage = validMarks.reduce(
+          (sum, m) => sum + (m.marksObtained / m.examSubject!.maxMarks) * 100,
+          0
+        );
+        averageScore = Math.round((totalPercentage / validMarks.length) * 100) / 100;
+      }
 
-    // 4. Aggregate Counts
-    const [studentCount, teacherCount] = await Promise.all([
-      prisma.student.count({
-        where: {
-          ...(requestedSchoolId ? { schoolId: requestedSchoolId } : {}),
-          isActive: true,
-          deletedAt: null,
-        },
-      }),
-      prisma.teacher.count({
-        where: {
-          ...(requestedSchoolId ? { schoolId: requestedSchoolId } : {}),
-          isActive: true,
-          deletedAt: null,
-        },
-      }),
-    ]);
+      // Aggregate Counts
+      const [studentCount, teacherCount] = await Promise.all([
+        db.student.count({
+          where: {
+            ...(requestedSchoolId ? { schoolId: requestedSchoolId } : {}),
+            isActive: true,
+            deletedAt: null,
+          },
+        }),
+        db.teacher.count({
+          where: {
+            ...(requestedSchoolId ? { schoolId: requestedSchoolId } : {}),
+            isActive: true,
+            deletedAt: null,
+          },
+        }),
+      ]);
 
-    const responsePayload = {
-      success: true,
-      isPublic: true,
-      scope: "PUBLIC_AGGREGATE",
-      asOf: new Date().toISOString(),
-      data: {
+      return {
         academicSession: activeSession?.name || null,
         studentCount,
         teacherCount,
         passRate,
         averageScore,
         totalExamsEvaluated: validMarks.length,
-      },
+      };
+    };
+
+    const data = requestedSchoolId
+      ? await runWithTenantDatabaseTransaction(requestedSchoolId, (tx) => computeStats(tx))
+      : await computeStats(prisma);
+
+    const responsePayload = {
+      success: true,
+      isPublic: true,
+      scope: "PUBLIC_AGGREGATE",
+      asOf: new Date().toISOString(),
+      data,
     };
 
     // 5. Populate Cache

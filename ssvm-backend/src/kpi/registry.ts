@@ -52,7 +52,7 @@ export const KPI_REGISTRY: KpiDefinition[] = [
     id: "kpi_school_admissions",
     name: "New Student Admissions",
     ownerModule: "ACADEMICS",
-    formula: "COUNT(Student) WHERE admissionDate >= periodStart AND admissionDate <= periodEnd AND deletedAt IS NULL",
+    formula: "COUNT(Student) WHERE createdAt >= periodStart AND createdAt <= periodEnd AND deletedAt IS NULL",
     periodType: "ACADEMIC_YEAR",
     scope: "SCHOOL",
     unit: "count",
@@ -68,9 +68,9 @@ export const KPI_REGISTRY: KpiDefinition[] = [
         deletedAt: null,
       };
       if (ctx.periodStart && ctx.periodEnd) {
-        filter.admissionDate = { gte: ctx.periodStart, lte: ctx.periodEnd };
+        filter.createdAt = { gte: ctx.periodStart, lte: ctx.periodEnd };
       } else if (ctx.periodStart) {
-        filter.admissionDate = { gte: ctx.periodStart };
+        filter.createdAt = { gte: ctx.periodStart };
       }
       const count = await ctx.prisma.student.count({ where: filter });
       return count;

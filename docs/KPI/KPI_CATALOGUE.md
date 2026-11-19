@@ -19,7 +19,7 @@
 
 | ID | Name | Module | Scope | Period | Unit | Required Module | Formula |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `kpi_school_admissions` | **New Student Admissions** | `ACADEMICS` | `SCHOOL` | `ACADEMIC_YEAR` | `count` | *none* | `COUNT(Student) WHERE admissionDate >= periodStart AND admissionDate <= periodEnd AND deletedAt IS NULL` |
+| `kpi_school_admissions` | **New Student Admissions** | `ACADEMICS` | `SCHOOL` | `ACADEMIC_YEAR` | `count` | *none* | `COUNT(Student) WHERE createdAt >= periodStart AND createdAt <= periodEnd AND deletedAt IS NULL` |
 | `kpi_school_active_students` | **Enrolled Active Students** | `ACADEMICS` | `SCHOOL` | `REALTIME` | `count` | *none* | `COUNT(Student) WHERE isActive = true AND deletedAt IS NULL` |
 | `kpi_school_student_attendance_rate` | **Student Attendance Rate** | `ACADEMICS` | `SCHOOL` | `MONTHLY` | `percentage` | *none* | `(COUNT(Attendance WHERE status = 'PRESENT') / COUNT(Attendance)) * 100` |
 | `kpi_school_staff_attendance_rate` | **Staff Attendance Rate** | `HR_PAYROLL` | `SCHOOL` | `MONTHLY` | `percentage` | *none* | `(COUNT(TeacherAttendance WHERE status = 'PRESENT') / COUNT(TeacherAttendance)) * 100` |
@@ -61,7 +61,7 @@
 - **Scope:** `SCHOOL`
 - **Measurement Period:** `ACADEMIC_YEAR`
 - **Metric Unit:** `count`
-- **Mathematical Formula:** `COUNT(Student) WHERE admissionDate >= periodStart AND admissionDate <= periodEnd AND deletedAt IS NULL`
+- **Mathematical Formula:** `COUNT(Student) WHERE createdAt >= periodStart AND createdAt <= periodEnd AND deletedAt IS NULL`
 
 #### `kpi_school_active_students` — Enrolled Active Students
 - **Owner Module:** `ACADEMICS`
