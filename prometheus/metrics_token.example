@@ -1,0 +1,6 @@
+# Place your secret Prometheus metrics bearer token here without trailing newline.
+# This file is gitignored to prevent secret exposure.
+# Copy this file to 'prometheus/metrics_token' for local/docker operation:
+# cp prometheus/metrics_token.example prometheus/metrics_token
+
+ssvm-prom-secret-metrics-token-2026

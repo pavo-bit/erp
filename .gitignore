@@ -63,3 +63,6 @@ tsconfig.tsbuildinfo
 
 # CodeGraph (local index)
 .codegraph/
+
+# Prometheus metrics bearer token
+prometheus/metrics_token

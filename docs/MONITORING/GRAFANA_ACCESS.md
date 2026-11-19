@@ -102,3 +102,41 @@ SELECT role AS "Role", COUNT(id) AS "Users" FROM users WHERE "deletedAt" IS NULL
 CREATE OR REPLACE VIEW platform_metrics.outbox_queue_stats_v AS
 SELECT status, COUNT(*) AS event_count FROM "OutboxMessage" GROUP BY status;
 ```
+
+---
+
+## 5. Database Role & Secret Rotation Procedures
+
+### 5.1 `ssvm_grafana_ro` Database Credential Rotation
+
+The database password for `ssvm_grafana_ro` is decoupled from static migration definitions. Deploy-time migration `20261119183000_alter_ssvm_grafana_ro_password` enables dynamic alteration.
+
+To rotate the password in any environment:
+
+1. **Deploy-Time Environment Variable:**
+   ```bash
+   export GRAFANA_DB_PASSWORD="<new-secure-password>"
+   ```
+
+2. **Execute PostgreSQL ALTER Command:**
+   ```bash
+   psql -h $DATABASE_HOST -p 5432 -U postgres -d ssvm_platform -c "ALTER ROLE ssvm_grafana_ro WITH LOGIN PASSWORD '${GRAFANA_DB_PASSWORD}';"
+   ```
+
+3. **Update Grafana Container / Helm Config:**
+   Update the datasource password or container environment variable `GRAFANA_DB_PASSWORD` in `docker-compose.yml` or Kubernetes Secret, then restart Grafana.
+
+### 5.2 Prometheus `METRICS_TOKEN` Rotation
+
+1. **Generate New Cryptographic Token:**
+   ```bash
+   openssl rand -hex 32 > prometheus/metrics_token
+   chmod 600 prometheus/metrics_token
+   ```
+
+2. **Update Backend Service:**
+   Set `METRICS_TOKEN` environment variable on the backend API container and restart. The backend fails to start in production if `METRICS_TOKEN` is unset or blank.
+
+3. **Reload Prometheus Ingress:**
+   Send `POST /-/reload` to the Prometheus server container to read the mounted `/etc/prometheus/metrics_token:ro`.
+

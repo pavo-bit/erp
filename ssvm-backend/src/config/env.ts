@@ -69,6 +69,9 @@ const envSchema = z.object({
   TWILIO_ACCOUNT_SID: z.string().optional(),
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),
+
+  // ─── Observability & Monitoring ───
+  METRICS_TOKEN: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -115,6 +118,9 @@ function validateProductionSecrets(env: Env): void {
   }
   if (!env.SENTRY_DSN) {
     errors.push("SENTRY_DSN is required in production for error tracking");
+  }
+  if (!env.METRICS_TOKEN || env.METRICS_TOKEN.trim().length === 0) {
+    errors.push("METRICS_TOKEN is required in production to secure the Prometheus /metrics endpoint");
   }
 
   if (errors.length > 0) {
