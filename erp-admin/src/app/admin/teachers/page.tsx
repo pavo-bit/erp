@@ -1,121 +1,338 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { PageHeader, StatCard, StatusBadge } from "@/components/DashboardLayout";
+import { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import {
+  Search,
+  Plus,
+  Upload,
+  RefreshCw,
+  Mail,
+  Briefcase,
+  AlertCircle,
+  GraduationCap,
+  Users,
+} from "lucide-react";
+import { StatusBadge } from "@/components/DashboardLayout";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { TeacherEntryDrawer } from "@/components/teachers/TeacherEntryDrawer";
+import { SubmissionSuccessModal } from "@/components/ui/SubmissionSuccessModal";
 import { useTeachers, apiCall, invalidateAll } from "@/lib/api-hooks";
 
-// Helper function to calculate dynamic experience
-function calculateDynamicExperience(pastExperienceStr: string, joiningDateStr?: string) {
-  let pastExpYears = parseFloat(pastExperienceStr) || 0;
-  let dynamicYears = 0;
-
-  if (joiningDateStr) {
-    const joiningDate = new Date(joiningDateStr);
-    const now = new Date();
-    // Calculate difference in milliseconds, then convert to years
-    const diffMs = now.getTime() - joiningDate.getTime();
-    dynamicYears = diffMs / (1000 * 60 * 60 * 24 * 365.25);
-  }
-
-  const totalExperience = (pastExpYears + dynamicYears).toFixed(1);
-  return `${totalExperience} Years`;
-}
-
-export default function TeachersPage() {
-  const { data: raw, isLoading } = useTeachers();
+function TeachersPageContent() {
+  const searchParams = useSearchParams();
+  const { data: raw, isLoading, error, mutate } = useTeachers();
   const teachers = Array.isArray(raw) ? raw : raw?.data || [];
 
-  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
-  const [isDeactivating, setIsDeactivating] = useState(false);
+  // Filter States
+  const [search, setSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
-  const totalTeachers = teachers.length;
-  const departments = [...new Set(teachers.map((t: any) => t.department).filter(Boolean))];
+  // Drawer & Success Dialog States
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [successInfo, setSuccessInfo] = useState<{
+    id: string;
+    name: string;
+    employeeId?: string;
+  } | null>(null);
 
-  const handleDeactivate = async (id: string) => {
-    if (!confirm("Are you sure you want to remove/deactivate this teacher? They will no longer be able to log in.")) return;
-    
-    setIsDeactivating(true);
-    try {
-      await apiCall(`/api/v1/teachers/${id}`, "DELETE");
-      toast("Teacher deactivated successfully!");
-      setSelectedTeacher(null);
-      invalidateAll("/api/v1/teachers"); // refresh data
-    } catch (e: any) {
-      toast(e.message || "Failed to deactivate teacher");
-    } finally {
-      setIsDeactivating(false);
+  // Auto-open drawer if navigated with ?action=create
+  useEffect(() => {
+    if (searchParams.get("action") === "create") {
+      setIsDrawerOpen(true);
     }
+  }, [searchParams]);
+
+  const departments = [
+    ...new Set(
+      teachers.map((t: any) => t.department || t.departmentId).filter(Boolean)
+    ),
+  ];
+
+  // Filtering
+  const filteredTeachers = teachers.filter((t: any) => {
+    const user = t.user || {};
+    const nameMatch = (user.name || "").toLowerCase().includes(search.toLowerCase());
+    const emailMatch = (user.email || "").toLowerCase().includes(search.toLowerCase());
+    const empMatch = (t.employeeId || "").toLowerCase().includes(search.toLowerCase());
+    const subjectMatch = (
+      typeof t.subjects === "string" ? t.subjects : (t.subjects || []).join(" ")
+    )
+      .toLowerCase()
+      .includes(search.toLowerCase());
+
+    const matchesSearch = !search || nameMatch || emailMatch || empMatch || subjectMatch;
+
+    const deptVal = t.department || t.departmentId || "";
+    const matchesDept = deptFilter === "ALL" || deptVal === deptFilter;
+
+    const matchesStatus =
+      statusFilter === "ALL" ||
+      (statusFilter === "ACTIVE" && t.isActive) ||
+      (statusFilter === "INACTIVE" && !t.isActive);
+
+    return matchesSearch && matchesDept && matchesStatus;
+  });
+
+  const handleTeacherCreated = (created: { id: string; name: string; employeeId?: string }) => {
+    setIsDrawerOpen(false);
+    setSuccessInfo(created);
+    mutate();
+  };
+
+  const handleAddAnother = () => {
+    setSuccessInfo(null);
+    setIsDrawerOpen(true);
+  };
+
+  const handleDone = () => {
+    setSuccessInfo(null);
+    setIsDrawerOpen(false);
+    mutate();
   };
 
   return (
-    <>
-      <PageHeader 
-        title="Teacher Management" 
-        subtitle="Manage faculty profiles, departments, and assignments" 
-        action={
-          <button className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold text-white border-none cursor-pointer gradient-btn font-[var(--font-heading)]">
-            + Add Teacher
-          </button>
-        }
-      />
+    <div className="space-y-6">
+      {/* 1. Header with Actions */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-[26px] font-bold text-slate-900 font-[var(--font-heading)]">
+              Teachers & Faculty Management
+            </h1>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              {teachers.length} Faculty
+            </span>
+          </div>
+          <p className="text-[14px] text-slate-500 mt-1">
+            Manage academic staff profiles, department assignments, and portal login credentials.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard icon="👨‍🏫" label="Total Teachers" value={String(totalTeachers)} color="#3B82F6" />
-        <StatCard icon="🏢" label="Departments" value={String(departments.length)} color="#10B981" />
-        <StatCard icon="✅" label="Active" value={String(teachers.filter((t: any) => t.isActive).length)} color="#8B5CF6" />
-        <StatCard icon="📚" label="Subjects Covered" value={String(new Set(teachers.flatMap((t: any) => typeof t.subjects === "string" ? t.subjects.split(",").filter(Boolean) : (t.subjects || []))).size)} color="#F59E0B" />
+        <div className="flex items-center gap-3 shrink-0">
+          <Link
+            href="/admin/teachers/import"
+            className="inline-flex items-center gap-2 px-4 py-2.5 h-[44px] rounded-xl text-[14px] font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 hover:text-slate-900 transition-colors shadow-xs no-underline"
+          >
+            <Upload className="w-4 h-4 text-slate-500" />
+            <span>Import Staff</span>
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => setIsDrawerOpen(true)}
+            className="inline-flex items-center gap-2 px-5 py-2.5 h-[44px] rounded-xl text-[14px] font-semibold text-white bg-blue-700 hover:bg-blue-800 shadow-xs transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 cursor-pointer border-none"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add Teacher</span>
+          </button>
+        </div>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl border border-border overflow-hidden">
+      {/* 2. Search & Filters */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
+        <div className="flex-1 max-w-md relative">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by faculty name, email, employee ID, or subject..."
+            className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Department Filter */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+            <span className="text-[12px] text-slate-500 font-semibold">Dept:</span>
+            <select
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              className="bg-transparent text-[13px] text-slate-800 font-medium border-none outline-none cursor-pointer"
+            >
+              <option value="ALL">All Departments</option>
+              {departments.map((d: any) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
+            <span className="text-[12px] text-slate-500 font-semibold">Status:</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="bg-transparent text-[13px] text-slate-800 font-medium border-none outline-none cursor-pointer"
+            >
+              <option value="ALL">All Status</option>
+              <option value="ACTIVE">Active Faculty</option>
+              <option value="INACTIVE">Inactive</option>
+            </select>
+          </div>
+
+          {(search || deptFilter !== "ALL" || statusFilter !== "ALL") && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setDeptFilter("ALL");
+                setStatusFilter("ALL");
+              }}
+              className="text-[13px] text-blue-700 hover:text-blue-900 font-semibold px-2 py-1.5 rounded-lg hover:bg-blue-50 transition-colors border-none bg-transparent cursor-pointer"
+            >
+              Clear Filters
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => mutate()}
+            title="Refresh List"
+            className="p-2 text-slate-500 hover:text-slate-800 rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer bg-white"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
         {isLoading ? (
-          <div className="py-12 text-center"><div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" /></div>
+          <div className="py-20 text-center">
+            <div className="w-8 h-8 border-3 border-blue-500/30 border-t-blue-600 rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-[14px] text-slate-500 font-medium">Loading faculty directory...</p>
+          </div>
+        ) : error ? (
+          <div className="py-16 text-center text-rose-600">
+            <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-80" />
+            <p className="text-[14px] font-semibold">Error loading faculty: {(error as Error).message}</p>
+          </div>
+        ) : filteredTeachers.length === 0 ? (
+          <EmptyState
+            icon={<Users className="w-12 h-12 text-slate-300" />}
+            title="No faculty members found"
+            description={
+              search || deptFilter !== "ALL" || statusFilter !== "ALL"
+                ? "No teachers matched your search or department filter. Try resetting filters."
+                : "No faculty members have been registered yet. Add faculty individually or import staff from a spreadsheet."
+            }
+            primaryAction={{
+              label: "Add Teacher",
+              onClick: () => setIsDrawerOpen(true),
+              icon: <Plus className="w-4 h-4" />,
+            }}
+            secondaryAction={{
+              label: "Import Staff",
+              href: "/admin/teachers/import",
+              icon: <Upload className="w-4 h-4" />,
+            }}
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="border-b border-border">
-                  {["Name", "Email", "Department", "Designation", "Subjects", "Experience", "Status", "Actions"].map(h => (
-                    <th key={h} className="text-left px-5 py-3.5 text-[12px] font-semibold text-text-secondary uppercase tracking-[0.06em] font-[var(--font-heading)]">{h}</th>
-                  ))}
+                <tr className="border-b border-slate-200 bg-slate-50/80">
+                  <th className="px-5 py-3.5 text-[12px] font-semibold text-slate-600 uppercase tracking-[0.05em] font-[var(--font-heading)]">
+                    Faculty Details
+                  </th>
+                  <th className="px-5 py-3.5 text-[12px] font-semibold text-slate-600 uppercase tracking-[0.05em] font-[var(--font-heading)]">
+                    Employee ID
+                  </th>
+                  <th className="px-5 py-3.5 text-[12px] font-semibold text-slate-600 uppercase tracking-[0.05em] font-[var(--font-heading)]">
+                    Department & Role
+                  </th>
+                  <th className="px-5 py-3.5 text-[12px] font-semibold text-slate-600 uppercase tracking-[0.05em] font-[var(--font-heading)]">
+                    Subjects
+                  </th>
+                  <th className="px-5 py-3.5 text-[12px] font-semibold text-slate-600 uppercase tracking-[0.05em] font-[var(--font-heading)]">
+                    Status
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                {teachers.map((t: any) => {
+              <tbody className="divide-y divide-slate-100">
+                {filteredTeachers.map((t: any) => {
                   const user = t.user || {};
+                  const initials = user.name
+                    ? user.name
+                        .split(" ")
+                        .map((n: string) => n[0])
+                        .slice(0, 2)
+                        .join("")
+                        .toUpperCase()
+                    : "TC";
+
+                  const subjectsList =
+                    typeof t.subjects === "string"
+                      ? t.subjects.split(",").map((s: string) => s.trim()).filter(Boolean)
+                      : (t.subjects || []);
+
                   return (
-                    <tr key={t.id} className="border-b border-border last:border-b-0 hover:bg-surface/50 transition-colors">
-                      <td className="px-5 py-3.5">
+                    <tr key={t.id} className="hover:bg-slate-50/60 transition-colors h-[56px]">
+                      {/* Name & Email */}
+                      <td className="px-5 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-[14px] font-bold text-blue-600">
-                            {(user.name || "?")[0]}
+                          <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 font-bold text-[12px] flex items-center justify-center border border-emerald-200 shrink-0">
+                            {initials}
                           </div>
-                          <span className="text-[13px] font-semibold text-text-primary">{user.name || "—"}</span>
+                          <div>
+                            <div className="text-[14px] font-semibold text-slate-900">
+                              {user.name || "—"}
+                            </div>
+                            <span className="text-[12px] text-slate-500 flex items-center gap-1">
+                              <Mail className="w-3 h-3 text-slate-400" />
+                              {user.email || "—"}
+                            </span>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-[12px] text-text-secondary">{user.email || "—"}</td>
-                      <td className="px-5 py-3.5 text-[13px] text-text-primary">{t.department || "—"}</td>
-                      <td className="px-5 py-3.5 text-[13px] text-text-primary">{t.designation || "—"}</td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex gap-1 flex-wrap">
-                          {(typeof t.subjects === "string" ? t.subjects.split(",").filter(Boolean) : (t.subjects || [])).map((s: string) => (
-                            <span key={s} className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[10px] font-semibold">{s.trim()}</span>
-                          ))}
+
+                      {/* Employee ID */}
+                      <td className="px-5 py-3">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 text-[12px] font-mono font-semibold border border-slate-200">
+                          {t.employeeId || "—"}
+                        </span>
+                      </td>
+
+                      {/* Department & Designation */}
+                      <td className="px-5 py-3">
+                        <div className="text-[13px] font-semibold text-slate-900">
+                          {t.designation || "Faculty Member"}
+                        </div>
+                        <span className="text-[12px] text-slate-500">
+                          {t.department || t.departmentId || "Academics"}
+                        </span>
+                      </td>
+
+                      {/* Subjects */}
+                      <td className="px-5 py-3">
+                        <div className="flex flex-wrap gap-1 max-w-xs">
+                          {subjectsList.length > 0 ? (
+                            subjectsList.map((s: string, idx: number) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200"
+                              >
+                                {s}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-[12px] text-slate-400">—</span>
+                          )}
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-[13px] font-semibold text-blue-600 bg-blue-50/30 rounded-lg">
-                        {calculateDynamicExperience(t.experience || "0", t.joiningDate)}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <StatusBadge status={t.isActive ? "Active" : "Inactive"} color={t.isActive ? "#10B981" : "#EF4444"} />
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <button 
-                          onClick={() => setSelectedTeacher(t)} 
-                          className="px-3 py-1.5 bg-surface border border-border text-text-primary text-[12px] font-semibold rounded-md hover:bg-border transition cursor-pointer"
-                        >
-                          View Profile
-                        </button>
+
+                      {/* Status */}
+                      <td className="px-5 py-3">
+                        <StatusBadge
+                          status={t.isActive ? "Active" : "Inactive"}
+                          color={t.isActive ? "#10B981" : "#EF4444"}
+                        />
                       </td>
                     </tr>
                   );
@@ -124,80 +341,40 @@ export default function TeachersPage() {
             </table>
           </div>
         )}
-      </motion.div>
+      </div>
 
-      {/* Teacher Profile Modal */}
-      <AnimatePresence>
-        {selectedTeacher && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 10 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 10 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-border"
-            >
-              <div className="p-6 border-b border-border flex justify-between items-start bg-surface">
-                <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-[24px] font-bold text-blue-600 shadow-sm border border-blue-200">
-                    {(selectedTeacher.user?.name || "?")[0]}
-                  </div>
-                  <div>
-                    <h3 className="text-[18px] font-bold text-text-primary font-[var(--font-heading)]">{selectedTeacher.user?.name}</h3>
-                    <p className="text-[13px] text-text-secondary">{selectedTeacher.designation || "Teacher"} • {selectedTeacher.department}</p>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedTeacher(null)} className="text-text-secondary hover:text-text-primary bg-transparent border-none cursor-pointer text-xl">✕</button>
-              </div>
-              
-              <div className="p-6 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-surface p-3 rounded-xl border border-border">
-                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block mb-1">Email ID</span>
-                    <span className="text-[13px] text-text-primary font-medium">{selectedTeacher.user?.email}</span>
-                  </div>
-                  <div className="bg-surface p-3 rounded-xl border border-border">
-                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block mb-1">Phone No</span>
-                    <span className="text-[13px] text-text-primary font-medium">{selectedTeacher.user?.phone || "N/A"}</span>
-                  </div>
-                  <div className="bg-surface p-3 rounded-xl border border-border">
-                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block mb-1">Total Experience</span>
-                    <span className="text-[13px] text-text-primary font-medium">{calculateDynamicExperience(selectedTeacher.experience || "0", selectedTeacher.joiningDate)}</span>
-                  </div>
-                  <div className="bg-surface p-3 rounded-xl border border-border">
-                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block mb-1">Qualification</span>
-                    <span className="text-[13px] text-text-primary font-medium">{selectedTeacher.qualification || "N/A"}</span>
-                  </div>
-                  <div className="bg-surface p-3 rounded-xl border border-border col-span-2">
-                    <span className="text-[11px] font-bold text-text-secondary uppercase tracking-wider block mb-1">Subjects Handled</span>
-                    <span className="text-[13px] text-text-primary font-medium">{selectedTeacher.subjects || "N/A"}</span>
-                  </div>
-                </div>
+      {/* 4. SlideOver Manual Entry Drawer */}
+      <TeacherEntryDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onSuccess={handleTeacherCreated}
+      />
 
-                <div className="mt-6 pt-4 border-t border-border flex justify-end gap-3">
-                  <button onClick={() => setSelectedTeacher(null)} className="px-4 py-2 border border-border text-text-primary bg-white rounded-lg text-sm font-semibold cursor-pointer hover:bg-surface">Close</button>
-                  {selectedTeacher.isActive && (
-                    <button 
-                      onClick={() => handleDeactivate(selectedTeacher.id)} 
-                      disabled={isDeactivating}
-                      className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm font-semibold cursor-pointer hover:bg-red-100 disabled:opacity-50"
-                    >
-                      {isDeactivating ? "Removing..." : "Remove / Deactivate"}
-                    </button>
-                  )}
-                  {!selectedTeacher.isActive && (
-                    <span className="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-semibold">Deactivated</span>
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
+      {/* 5. Success Modal with Add Another & Done Lifecycles */}
+      <SubmissionSuccessModal
+        isOpen={successInfo !== null}
+        title="Teacher Added Successfully"
+        recordIdentifier={successInfo?.employeeId}
+        entityName="Teacher"
+        message={`Faculty record for "${successInfo?.name}" has been permanently committed to the staff register with Teacher Portal credentials.`}
+        onAddAnother={handleAddAnother}
+        onDone={handleDone}
+      />
+    </div>
+  );
+}
+
+export default function TeachersPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="py-20 text-center">
+          <div className="w-8 h-8 border-3 border-blue-500/30 border-t-blue-600 rounded-full animate-spin mx-auto mb-3" />
+          <p className="text-[14px] text-slate-500 font-medium">Loading Teachers Management...</p>
+        </div>
+      }
+    >
+      <TeachersPageContent />
+    </Suspense>
   );
 }

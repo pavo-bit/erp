@@ -78,141 +78,108 @@ function resolveModuleStatus(moduleData: any, code?: string): ModuleStatusInfo {
 }
 
 /**
- * Canonical ERP Admin Information Architecture (Exactly 10 Expandable Groups)
- * In strict compliance with Prompt Section 5.3 & docs/ERP_ADMIN_INFORMATION_ARCHITECTURE.md.
+ * Institutional ERP Admin Navigation Architecture
+ * Exact hierarchy in compliance with Section 5.1 of the UI/UX Specification:
+ * - Overview / Dashboard
+ * - Admissions and Students
+ * - Staff and Academics
+ * - Daily Operations
+ * - Finance
+ * - Assessment
+ * - Campus Operations
+ * - Reports and Administration
  */
 const NAV_GROUPS: NavGroupDefinition[] = [
-  // Group 1 — Institution Setup
-  {
-    icon: "🏛️",
-    label: "Institution Setup",
-    href: "/admin/institution",
-    moduleCode: "ACADEMICS",
-    children: [
-      { icon: "📅", label: "Academic Sessions & Calendar", href: "/admin/institution/sessions" },
-      { icon: "🏷️", label: "Classes, Sections & Grades", href: "/admin/institution/classes" },
-      { icon: "📖", label: "Curriculum & Subjects", href: "/admin/institution/curriculum" },
-      { icon: "⚙️", label: "Institution & Campus Settings", href: "/admin/settings" },
-    ],
-  },
-
-  // Group 2 — Admissions & Student Affairs
+  // 1. Admissions and Students
   {
     icon: "👥",
-    label: "Admissions & Students",
+    label: "Admissions and Students",
     href: "/admin/admissions",
     moduleCode: "ACADEMICS",
     children: [
-      { icon: "📋", label: "Admissions & CRM", href: "/admin/admissions" },
-      { icon: "📥", label: "Bulk Registration", href: "/admin/admissions/bulk" },
-      { icon: "📜", label: "Import History", href: "/admin/admissions/history" },
+      { icon: "📋", label: "Admissions CRM", href: "/admin/admissions" },
       { icon: "👨‍🎓", label: "Student Directory", href: "/admin/students" },
-      { icon: "👨‍👩‍👧", label: "Parents & Guardians", href: "/admin/students/guardians" },
+      { icon: "📥", label: "Import Students", href: "/admin/students/import" },
+      { icon: "👨‍👩‍👧", label: "Guardians & Family", href: "/admin/students/guardians" },
       { icon: "📑", label: "Document Verification", href: "/admin/documents" },
     ],
   },
 
-  // Group 3 — Academic Operations
+  // 2. Staff and Academics
   {
-    icon: "📚",
-    label: "Academic Operations",
-    href: "/admin/academic",
+    icon: "👔",
+    label: "Staff and Academics",
+    href: "/admin/teachers",
     moduleCode: "ACADEMICS",
     children: [
-      { icon: "✅", label: "Daily Attendance", href: "/admin/attendance" },
-      { icon: "⏱️", label: "Timetable & Substitution", href: "/admin/timetable" },
-      { icon: "📝", label: "Assignments & LMS", href: "/admin/assignments" },
-      { icon: "📑", label: "Examination Management", href: "/admin/exams", moduleCode: "EXAMS" },
-      { icon: "🏆", label: "Results & Report Cards", href: "/admin/results", moduleCode: "EXAMS" },
+      { icon: "👨‍🏫", label: "Teachers & Staff", href: "/admin/teachers" },
+      { icon: "📥", label: "Import Staff", href: "/admin/teachers/import" },
+      { icon: "🏷️", label: "Classes & Sections", href: "/admin/institution/classes" },
+      { icon: "📖", label: "Subjects & Curriculum", href: "/admin/institution/curriculum" },
+      { icon: "⏱️", label: "Timetable Management", href: "/admin/timetable" },
     ],
   },
 
-  // Group 4 — Finance & Accounts
+  // 3. Daily Operations
+  {
+    icon: "✅",
+    label: "Daily Operations",
+    href: "/admin/attendance",
+    children: [
+      { icon: "📅", label: "Student & Staff Attendance", href: "/admin/attendance" },
+      { icon: "📢", label: "Announcements & Alerts", href: "/admin/notifications", moduleCode: "COMMUNICATIONS" },
+      { icon: "🗓️", label: "School Events Calendar", href: "/admin/events", moduleCode: "COMMUNICATIONS" },
+      { icon: "🛎️", label: "Reception & Visitors", href: "/admin/reception" },
+    ],
+  },
+
+  // 4. Finance & Accounts
   {
     icon: "💰",
-    label: "Finance & Accounts",
+    label: "Finance",
     href: "/admin/fees",
     moduleCode: "FINANCE",
     children: [
-      { icon: "💳", label: "Fee Management", href: "/admin/fees" },
+      { icon: "💳", label: "Fee Management & Structure", href: "/admin/fees" },
       { icon: "⚠️", label: "Payments & Dues", href: "/admin/fees/defaulters" },
-      { icon: "📒", label: "Accounting & Ledger", href: "/admin/fees/ledger" },
+      { icon: "📒", label: "Receipts & General Ledger", href: "/admin/fees/ledger" },
     ],
   },
 
-  // Group 5 — HR & Workforce
+  // 5. Assessment
   {
-    icon: "👔",
-    label: "HR & Workforce",
-    href: "/admin/hr",
-    moduleCode: "HR_PAYROLL",
+    icon: "📝",
+    label: "Assessment",
+    href: "/admin/exams",
+    moduleCode: "EXAMS",
     children: [
-      { icon: "📋", label: "Staff Directory & Ops", href: "/admin/hr", moduleCode: "HR_PAYROLL" },
-      { icon: "👨‍🏫", label: "Faculty & Teachers", href: "/admin/teachers", moduleCode: "HR_PAYROLL" },
+      { icon: "📑", label: "Examinations", href: "/admin/exams", moduleCode: "EXAMS" },
+      { icon: "🏆", label: "Marks & Results", href: "/admin/results", moduleCode: "EXAMS" },
+      { icon: "📚", label: "Assignments & LMS", href: "/admin/assignments" },
     ],
   },
 
-  // Group 6 — Campus Operations [Dynamic Group: collapses if both HOSTEL and TRANSPORT are disabled]
+  // 6. Campus Operations (Dynamic Group: collapses if HOSTEL and TRANSPORT are both disabled)
   {
     icon: "🏫",
     label: "Campus Operations",
-    href: "/admin/campus-operations",
+    href: "/admin/hostel",
     children: [
       { icon: "🛏️", label: "Hostel Management", href: "/admin/hostel", moduleCode: "HOSTEL" },
       { icon: "🚌", label: "Transport & Vehicles", href: "/admin/transport", moduleCode: "TRANSPORT" },
     ],
   },
 
-  // Group 7 — Campus Services & Resources
-  {
-    icon: "🛎️",
-    label: "Campus Services",
-    href: "/admin/services",
-    children: [
-      { icon: "📖", label: "Library Management", href: "/admin/library", moduleCode: "LIBRARY" },
-      { icon: "📦", label: "Inventory & Assets", href: "/admin/assets", moduleCode: "INVENTORY" },
-      { icon: "🛎️", label: "Reception & Visitors", href: "/admin/reception" },
-      { icon: "⚖️", label: "Discipline & Welfare", href: "/admin/discipline" },
-    ],
-  },
-
-  // Group 8 — Communication & Records
-  {
-    icon: "📢",
-    label: "Communication & Records",
-    href: "/admin/communication",
-    children: [
-      { icon: "🗓️", label: "Events & Calendar", href: "/admin/events", moduleCode: "COMMUNICATIONS" },
-      { icon: "📌", label: "Notices & Announcements", href: "/admin/notices", moduleCode: "COMMUNICATIONS" },
-      { icon: "🔔", label: "Communication Alerts", href: "/admin/notifications", moduleCode: "COMMUNICATIONS" },
-      { icon: "📜", label: "Documents & Records", href: "/admin/documents" },
-      { icon: "🎓", label: "Alumni Management", href: "/admin/alumni-mgmt" },
-      { icon: "🌐", label: "School Website CMS", href: "/admin/site-settings" },
-    ],
-  },
-
-  // Group 9 — Reports & Analytics
-  {
-    icon: "📈",
-    label: "Reports & Analytics",
-    href: "/admin/analytics",
-    moduleCode: "ACADEMICS",
-    children: [
-      { icon: "📊", label: "Executive Analytics", href: "/admin/analytics" },
-    ],
-  },
-
-  // Group 10 — Administration & Settings
+  // 7. Reports and Administration
   {
     icon: "⚙️",
-    label: "Administration & Settings",
+    label: "Reports and Administration",
     href: "/admin/settings",
     children: [
-      { icon: "👤", label: "User Management", href: "/admin/users" },
-      { icon: "🏢", label: "Institution Settings", href: "/admin/settings" },
+      { icon: "📈", label: "Institutional Reports", href: "/admin/analytics", moduleCode: "ACADEMICS" },
+      { icon: "👤", label: "Users & Roles", href: "/admin/users" },
+      { icon: "⚙️", label: "School Settings", href: "/admin/settings" },
       { icon: "📜", label: "System Audit Logs", href: "/admin/settings/audit-logs" },
-      { icon: "🛡️", label: "Policies & Data Retention", href: "/admin/settings/policies" },
-      { icon: "🏛️", label: "Institutional Governance", href: "/admin/governance" },
     ],
   },
 ];
@@ -222,14 +189,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const { data: moduleData } = useSchoolModules();
 
   const sidebarItems: SidebarItem[] = useMemo(() => {
-    // 1. Standalone Dashboard Entry
+    // 1. Top-Level Overview / Dashboard
     const items: SidebarItem[] = [
       { icon: "📊", label: "Dashboard", href: "/admin" },
     ];
 
-    // 2. Canonical 10 Expandable Groups (Governed by Institutional Module Entitlements)
+    // 2. Canonical Groups Filtered by Strict Tenant Entitlements
     for (const group of NAV_GROUPS) {
-      // Entitlement filter on group level
       if (group.moduleCode) {
         const groupStatus = resolveModuleStatus(moduleData, group.moduleCode);
         if (!groupStatus.isEnabled) {
@@ -250,7 +216,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
       }
 
-      // Hide parent groups where all children are unentitled
+      // Hide group if all its children are unentitled
       if (enabledChildren.length > 0) {
         items.push({
           icon: group.icon,
@@ -261,7 +227,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
     }
 
-    // 3. Platform Super Admin Additions
+    // 3. Platform Super Admin Delegated Links
     if (user?.role === "SUPER_ADMIN") {
       items.push({ icon: "🏢", label: "SaaS Requests", href: "/admin/saas-requests" });
     }
