@@ -1,4 +1,4 @@
-import { test, expect, request as playwrightRequest } from '@playwright/test';
+import { test, expect, request as playwrightRequest, BrowserContext } from '@playwright/test';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
 const ERP_ADMIN_URL = process.env.ERP_ADMIN_URL || 'http://localhost:3000';
@@ -7,10 +7,31 @@ const SUPER_ADMIN_URL = process.env.SUPER_ADMIN_URL || 'http://localhost:3001';
 const SCHOOL_A_ID = 'cmvwy984q0001qocgpclzv585';
 const SCHOOL_B_ID = 'cmwlv04vd0000plc6gnl6zwhh';
 
+interface CookieHeaderItem {
+  name: string;
+  value: string;
+}
+
+interface ModuleStatusItem {
+  code?: string;
+  isEnabled?: boolean;
+  enabled?: boolean;
+  module?: {
+    code: string;
+  };
+}
+
+interface AuditLogRecord {
+  id?: string;
+  action: string;
+  entityId: string;
+  schoolId: string;
+}
+
 /**
  * Helper to log in a dedicated APIRequestContext and inject its cookies into a browser context
  */
-async function createAuthenticatedSession(email: string, portalUrl: string, browserContext?: any) {
+async function createAuthenticatedSession(email: string, portalUrl: string, browserContext?: BrowserContext) {
   // 1. Post to login with an isolated unauthenticated context to fetch access_token and set-cookie
   const loginClient = await playwrightRequest.newContext();
   const loginRes = await loginClient.post(`${BACKEND_URL}/api/v1/auth/login`, {
@@ -18,13 +39,13 @@ async function createAuthenticatedSession(email: string, portalUrl: string, brow
   });
   expect(loginRes.status()).toBe(200);
 
-  const headers = loginRes.headersArray ? loginRes.headersArray() : [];
-  const setCookies = headers.filter((h: any) => h.name.toLowerCase() === 'set-cookie');
-  const accessCookie = setCookies.find((h: any) => h.value.startsWith('access_token='));
+  const headers = (loginRes.headersArray ? loginRes.headersArray() : []) as CookieHeaderItem[];
+  const setCookies = headers.filter((h: CookieHeaderItem) => h.name.toLowerCase() === 'set-cookie');
+  const accessCookie = setCookies.find((h: CookieHeaderItem) => h.value.startsWith('access_token='));
   const accessToken = accessCookie ? accessCookie.value.split(';')[0].split('=')[1] : '';
 
   if (browserContext) {
-    const cookiesToSet = setCookies.map((h: any) => {
+    const cookiesToSet = setCookies.map((h: CookieHeaderItem) => {
       const parts = h.value.split(';');
       const [name, ...valParts] = parts[0].trim().split('=');
       const value = valParts.join('=');
@@ -156,7 +177,7 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     expect(schoolBModulesRes.status()).toBe(200);
     const schoolBModules = await schoolBModulesRes.json();
     const hostelOnB = (schoolBModules.data?.modules || []).find(
-      (m: any) => (m.module?.code || m.code) === 'HOSTEL'
+      (m: ModuleStatusItem) => (m.module?.code || m.code) === 'HOSTEL'
     );
     expect(hostelOnB?.isEnabled ?? hostelOnB?.enabled).toBe(false);
 
@@ -236,18 +257,18 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     expect(auditRes.status()).toBe(200);
     const auditData = await auditRes.json();
     expect(auditData.success).toBe(true);
-    const logs = auditData.data || [];
+    const logs = (auditData.data || []) as AuditLogRecord[];
 
     const initiatedAudit = logs.find(
-      (l: any) => l.action === 'SUPPORT_SESSION_INITIATED' && l.entityId === sessionId
+      (l: AuditLogRecord) => l.action === 'SUPPORT_SESSION_INITIATED' && l.entityId === sessionId
     );
     expect(initiatedAudit).toBeTruthy();
-    expect(initiatedAudit.schoolId).toBe(SCHOOL_A_ID);
+    expect(initiatedAudit?.schoolId).toBe(SCHOOL_A_ID);
 
     const revokedAudit = logs.find(
-      (l: any) => l.action === 'SUPPORT_SESSION_REVOKED' && l.entityId === sessionId
+      (l: AuditLogRecord) => l.action === 'SUPPORT_SESSION_REVOKED' && l.entityId === sessionId
     );
     expect(revokedAudit).toBeTruthy();
-    expect(revokedAudit.schoolId).toBe(SCHOOL_A_ID);
+    expect(revokedAudit?.schoolId).toBe(SCHOOL_A_ID);
   });
 });
