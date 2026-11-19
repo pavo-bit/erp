@@ -26,6 +26,8 @@ export interface AuthRequest extends Request {
     phone: string | null;
     schoolId: string | null;
     branchId: string | null;
+    aud?: "PLATFORM" | "SCHOOL";
+    mfaVerified?: boolean;
     impersonated?: boolean;
     originalUserId?: string;
   };
@@ -250,14 +252,23 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
+    const audClaim = ("aud" in payload ? payload.aud : undefined) as "PLATFORM" | "SCHOOL" | undefined;
+    const mfaVerifiedClaim = "mfaVerified" in payload ? (payload as AccessTokenPayload).mfaVerified : undefined;
+
     if ('impersonated' in payload && payload.impersonated) {
       req.user = {
         ...user,
+        aud: audClaim,
+        mfaVerified: mfaVerifiedClaim,
         impersonated: true,
         originalUserId: payload.originalUserId
       };
     } else {
-      req.user = user;
+      req.user = {
+        ...user,
+        aud: audClaim,
+        mfaVerified: mfaVerifiedClaim,
+      };
     }
 
     setAuthenticatedSchoolContext({

@@ -72,6 +72,7 @@
     "file-type": "^16.5.4",
     "handlebars": "^4.7.9",
     "helmet": "^8.2.0",
+    "http-proxy-middleware": "^4.2.2",
     "ioredis": "^5.11.1",
     "json2csv": "^5.0.7",
     "jsonwebtoken": "^9.0.2",

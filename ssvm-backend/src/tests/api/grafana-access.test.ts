@@ -19,6 +19,7 @@ import { PrismaClient } from "@prisma/client";
 
 describe("Block M4 — Grafana Hardening & Platform Access Suite", { timeout: 30000 }, () => {
   const app = createTestApp();
+  let superAdminUserId: string;
   let platformSuperAdminToken: string;
   let schoolAdminToken: string;
   let teacherToken: string;
@@ -26,6 +27,7 @@ describe("Block M4 — Grafana Hardening & Platform Access Suite", { timeout: 30
   beforeAll(async () => {
     // 1. Create Super Admin (Platform session)
     const superAdminRes = await createTestUser(Role.SUPER_ADMIN);
+    superAdminUserId = superAdminRes.user.id;
     platformSuperAdminToken = superAdminRes.token;
 
     // 2. Create School Admin (School session)
@@ -58,14 +60,44 @@ describe("Block M4 — Grafana Hardening & Platform Access Suite", { timeout: 30
     expect(res.status).toBe(403);
   });
 
-  it("allows Platform Super Admin with 200 OK", async () => {
+  it("denies Platform Super Admin when MFA verification is unverified", async () => {
+    const { generateAccessToken } = await import("../../lib/tokens");
+    // Generate token for the real Super Admin user with mfaVerified explicitly false
+    const { token } = generateAccessToken({
+      userId: superAdminUserId,
+      email: "superadmin@ssvm.test",
+      role: "SUPER_ADMIN",
+      name: "Super Admin",
+      sid: "test-sid",
+      mfaVerified: false,
+    });
+
     const res = await request(app)
-      .get("/api/v1/platform/grafana/dashboard")
+      .get("/api/v1/platform/grafana/api/health")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("MFA_REQUIRED");
+  });
+
+  it("allows Platform Super Admin with 200 OK and proxies to Grafana API health", async () => {
+    const res = await request(app)
+      .get("/api/v1/platform/grafana/api/health")
       .set("Authorization", `Bearer ${platformSuperAdminToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.success).toBe(true);
-    expect(res.body.data.proxyTarget).toBe("http://ssvm-grafana:3000");
+    expect(res.body.database).toBe("ok");
+    expect(res.body.version).toBe("11.3.1");
+  });
+
+  it("allows Platform Super Admin with 200 OK and proxies to Grafana HTML page", async () => {
+    const res = await request(app)
+      .get("/api/v1/platform/grafana/")
+      .set("Authorization", `Bearer ${platformSuperAdminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toContain("text/html");
+    expect(res.text).toContain("<!DOCTYPE html>");
   });
 
   it("verifies ssvm_grafana_ro database role permissions in PostgreSQL", async () => {

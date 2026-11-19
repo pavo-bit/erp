@@ -1,4 +1,5 @@
-import { Router, Response } from "express";
+import { Router, Request, Response } from "express";
+import http from "http";
 import { AuthRequest, authenticate, requireRole, requireAudience } from "../middleware/auth";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
@@ -8,32 +9,70 @@ import { getAuthPrisma } from "../lib/authPrisma";
 import { verifySync } from "otplib";
 import { register } from "../middleware/metrics";
 import { KpiRegistry, KpiResult } from "../kpi/registry";
+import { createProxyMiddleware } from "http-proxy-middleware";
 
 const router = Router();
 
 // ═══════════════════════════════════════════
-// Platform Grafana Reverse Proxy & Access Gate (Block M4)
+// Platform Grafana Reverse Proxy & Access Gate (Block M4 / Close-Out)
 // ═══════════════════════════════════════════
+
+const grafanaTarget =
+  process.env.GRAFANA_URL ||
+  (process.env.NODE_ENV === "production" ? "http://ssvm-grafana:3000" : "http://127.0.0.1:3004");
+
+const grafanaProxy = createProxyMiddleware({
+  target: grafanaTarget,
+  changeOrigin: true,
+  pathRewrite: (path) => path.replace(/^(\/api\/v1\/platform)?\/grafana/, "") || "/",
+  on: {
+    proxyReq: (proxyReq: http.ClientRequest, req: Request) => {
+      const authReq = req as AuthRequest;
+      // Strip client authorization and cookies before forwarding
+      proxyReq.removeHeader("authorization");
+      proxyReq.removeHeader("cookie");
+
+      // Inject Grafana auth.proxy headers
+      const email = authReq.user?.email || "superadmin@ssvm.internal";
+      const name = authReq.user?.name || "Super Admin";
+      proxyReq.setHeader("X-WEBAUTH-USER", email);
+      proxyReq.setHeader("X-WEBAUTH-NAME", name);
+      proxyReq.setHeader("X-WEBAUTH-ROLE", "Admin");
+    },
+    error: (err: Error, _req: Request, res: Response | http.ServerResponse) => {
+      logger.error({ err }, "Grafana reverse proxy connection failed");
+      const expressRes = res as Response;
+      if (!expressRes.headersSent && typeof expressRes.status === "function") {
+        expressRes.status(502).json({
+          success: false,
+          error: "Grafana monitoring service is currently unavailable",
+          code: "GRAFANA_UNAVAILABLE",
+        });
+      }
+    },
+  },
+});
+
+function requireMfaSession(req: AuthRequest, res: Response, next: () => void): void {
+  const isMfaVerified = req.user?.mfaVerified !== false;
+  if (!isMfaVerified) {
+    res.status(403).json({
+      success: false,
+      error: "MFA verification required for platform Grafana access",
+      code: "MFA_REQUIRED",
+    });
+    return;
+  }
+  next();
+}
+
 router.all(
   "/grafana{/*path}",
   authenticate,
   requireRole("SUPER_ADMIN"),
   requireAudience("PLATFORM"),
-  async (req: AuthRequest, res: Response) => {
-    res.status(200).json({
-      success: true,
-      data: {
-        message: "Grafana platform access authorized",
-        proxyTarget: "http://ssvm-grafana:3000",
-        path: req.params[0] || "/",
-        session: {
-          user: req.user?.email,
-          role: req.user?.role,
-          audience: "PLATFORM",
-        },
-      },
-    });
-  }
+  requireMfaSession,
+  grafanaProxy
 );
 
 // ═══════════════════════════════════════════

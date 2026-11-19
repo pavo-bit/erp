@@ -17,6 +17,8 @@ export interface AccessTokenPayload {
   studentId?: string; // For STUDENT role
   jti: string;
   sid: string;
+  aud?: "PLATFORM" | "SCHOOL";
+  mfaVerified?: boolean;
   impersonated?: boolean;
   originalUserId?: string;
   type: "access";
