@@ -25,9 +25,30 @@ import { incrementFailedLogins, resetFailedLogins, getFailedLogins } from "../li
 import { enqueueNotification } from "../jobs/queue";
 import { getAuthPrisma } from "../lib/authPrisma";
 import { mailService } from "../services/mail.service";
-import { accountLockoutsTotal } from "../middleware/metrics";
+import { accountLockoutsTotal, wrongPortalDenialsTotal } from "../middleware/metrics";
 
 const router = Router();
+
+// ═══════════════════════════════════════════
+// Helper: Clear all auth cookies across audiences
+// ═══════════════════════════════════════════
+
+function clearAllAuthCookies(res: Response): void {
+  const env = getEnv();
+  const isSecure = env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false);
+  const clearOptions = { httpOnly: true, secure: isSecure, sameSite: "lax" as const };
+
+  res.clearCookie("platform_access_token", { ...clearOptions, path: "/" });
+  res.clearCookie("platform_refresh_token", { ...clearOptions, path: "/api/auth" });
+  res.clearCookie("platform_refresh_token", { ...clearOptions, path: "/api/v1/auth" });
+  res.clearCookie("school_access_token", { ...clearOptions, path: "/" });
+  res.clearCookie("school_refresh_token", { ...clearOptions, path: "/api/auth" });
+  res.clearCookie("school_refresh_token", { ...clearOptions, path: "/api/v1/auth" });
+  res.clearCookie("access_token", { ...clearOptions, path: "/" });
+  res.clearCookie("refresh_token", { ...clearOptions, path: "/api/auth" });
+  res.clearCookie("refresh_token", { ...clearOptions, path: "/api/v1/auth" });
+  res.clearCookie("auth_token", { ...clearOptions, path: "/" });
+}
 
 // ═══════════════════════════════════════════
 // Helper: Issue token pair and set cookies
@@ -37,7 +58,7 @@ export async function issueTokenPair(
   res: Response,
   user: { id: string; email: string; role: string; name: string; schoolId?: string | null; branchId?: string | null },
   req: { ip?: string; headers: Record<string, unknown> },
-  options?: { family?: string; replacedBy?: string }
+  options?: { family?: string; replacedBy?: string; audience?: "PLATFORM" | "SCHOOL" }
 ): Promise<void> {
   // We will generate the access token later after session is resolved
 
@@ -117,7 +138,9 @@ export async function issueTokenPair(
     });
   }
 
-  // Generate access token (15m)
+  const audience: "PLATFORM" | "SCHOOL" = options?.audience || (user.role === "SUPER_ADMIN" ? "PLATFORM" : "SCHOOL");
+
+  // Generate access token (15m) with real aud claim
   const { token: accessToken, jti: accessJti } = generateAccessToken({
     userId: user.id,
     email: user.email,
@@ -126,22 +149,23 @@ export async function issueTokenPair(
     schoolId: user.schoolId,
     branchId: user.branchId,
     sid: sessionId,
+    aud: audience,
   });
 
+  // Audience-separated cookie architecture (Block M Task 2)
+  if (audience === "PLATFORM") {
+    res.cookie("platform_access_token", accessToken, getAccessTokenCookieOptions());
+    res.cookie("platform_refresh_token", refreshToken, getRefreshTokenCookieOptions());
+  } else {
+    res.cookie("school_access_token", accessToken, getAccessTokenCookieOptions());
+    res.cookie("school_refresh_token", refreshToken, getRefreshTokenCookieOptions());
+  }
 
-  // Set cookies
+  // Backward compatibility: also set generic access_token/refresh_token
   res.cookie("access_token", accessToken, getAccessTokenCookieOptions());
   res.cookie("refresh_token", refreshToken, getRefreshTokenCookieOptions());
 
-  // Also set legacy cookie for backward compat with existing frontend
-  const legacyToken = signToken({ userId: user.id, email: user.email, role: user.role, name: user.name });
-  res.cookie("auth_token", legacyToken, {
-    httpOnly: true,
-    secure: env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false),
-    sameSite: "lax" as const,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: "/",
-  });
+  // NOTE: Legacy auth_token cookie is permanently deleted
 }
 
 // ═══════════════════════════════════════════
@@ -150,7 +174,7 @@ export async function issueTokenPair(
 
 router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, portal } = req.body;
     const authDb = getAuthPrisma();
 
     const user = await authDb.user.findUnique({
@@ -167,6 +191,38 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: user.id, schoolId: user.schoolId || undefined, req, success: false, failReason: "account_disabled", metadata: { email } });
       res.status(403).json({ success: false, error: "Account deactivated" }); 
       return; 
+    }
+
+    // Validate portal parameter and determine audience (Block M Task 2)
+    const platformPortals = ["super-admin", "platform", "saas-frontend"];
+    const schoolPortals = ["erp-admin", "teacher-portal", "student-portal", "parent-portal", "payment-portal", "school"];
+    let audience: "PLATFORM" | "SCHOOL" = user.role === "SUPER_ADMIN" ? "PLATFORM" : "SCHOOL";
+
+    if (portal) {
+      const normalizedPortal = String(portal).trim().toLowerCase();
+      if (platformPortals.includes(normalizedPortal)) {
+        if (user.role !== "SUPER_ADMIN") {
+          wrongPortalDenialsTotal.inc();
+          res.status(403).json({
+            success: false,
+            error: "WRONG_PORTAL",
+            code: "WRONG_PORTAL",
+            message: "School accounts cannot log into the platform portal",
+          });
+          return;
+        }
+        audience = "PLATFORM";
+      } else if (schoolPortals.includes(normalizedPortal)) {
+        audience = "SCHOOL";
+      } else {
+        res.status(400).json({
+          success: false,
+          error: "INVALID_PORTAL",
+          code: "INVALID_PORTAL",
+          message: `Invalid portal '${portal}'. Expected one of: ${[...platformPortals, ...schoolPortals].join(", ")}`,
+        });
+        return;
+      }
     }
 
     const priorFailedAttempts = await getFailedLogins(email);
@@ -223,7 +279,7 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
     }
 
     // Issue access + refresh token pair
-    await issueTokenPair(res, user, req);
+    await issueTokenPair(res, user, req, { audience });
 
     await logAuthEvent(prisma, { eventType: "LOGIN_SUCCESS", userId: user.id, schoolId: user.schoolId || undefined, req, success: true });
     logger.info({ userId: user.id, role: user.role }, "User logged in");
@@ -344,7 +400,11 @@ router.post("/student/login", async (req: AuthRequest, res: Response) => {
 
 router.post("/refresh", async (req: AuthRequest, res: Response) => {
   try {
-    const refreshTokenCookie = req.cookies?.refresh_token;
+    const isPlatform = Boolean(req.cookies?.platform_refresh_token);
+    const refreshTokenCookie =
+      req.cookies?.platform_refresh_token ||
+      req.cookies?.school_refresh_token ||
+      req.cookies?.refresh_token;
 
     if (!refreshTokenCookie) {
       res.status(401).json({ success: false, error: "No refresh token provided" });
@@ -422,8 +482,11 @@ router.post("/refresh", async (req: AuthRequest, res: Response) => {
       data: { revokedAt: new Date() },
     });
 
+    const refreshAudience = isPlatform
+      ? "PLATFORM"
+      : (storedToken.user.role === "SUPER_ADMIN" ? "PLATFORM" : "SCHOOL");
     // 2. Issue new token pair
-    await issueTokenPair(res, storedToken.user as any, req);
+    await issueTokenPair(res, storedToken.user as any, req, { audience: refreshAudience });
 
     logger.info({ userId: storedToken.userId }, "Token refreshed");
     await logAuthEvent(prisma, { eventType: "TOKEN_REFRESH", userId: storedToken.userId, req, success: true });
@@ -478,14 +541,8 @@ router.post("/logout", async (req: AuthRequest, res: Response) => {
       });
     }
 
-    // Clear ALL auth cookies
-    const env = getEnv();
-    const isSecure = env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false);
-    const clearOptions = { httpOnly: true, secure: isSecure, sameSite: "lax" as const };
-
-    res.clearCookie("access_token", { ...clearOptions, path: "/" });
-    res.clearCookie("refresh_token", { ...clearOptions, path: "/api/auth" });
-    res.clearCookie("auth_token", { ...clearOptions, path: "/" }); // legacy
+    // Clear ALL auth cookies across audiences
+    clearAllAuthCookies(res);
 
     if (accessTokenCookie) {
       // Decode user context from token if possible for the log
@@ -504,13 +561,7 @@ router.post("/logout", async (req: AuthRequest, res: Response) => {
   } catch (e) {
     logger.error({ err: e }, "Logout error");
     // Still clear cookies even on DB error
-    const env = getEnv();
-    const isSecure = env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false);
-    const clearOptions = { httpOnly: true, secure: isSecure, sameSite: "lax" as const };
-    
-    res.clearCookie("access_token", { ...clearOptions, path: "/" });
-    res.clearCookie("refresh_token", { ...clearOptions, path: "/api/auth" });
-    res.clearCookie("auth_token", { ...clearOptions, path: "/" });
+    clearAllAuthCookies(res);
     res.json({ success: true, data: { message: "Logged out" } });
   }
 });
@@ -531,13 +582,7 @@ router.post("/logout/all", authenticate, async (req: AuthRequest, res: Response)
       data: { isActive: false }
     });
 
-    const env = getEnv();
-    const isSecure = env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false);
-    const clearOptions = { httpOnly: true, secure: isSecure, sameSite: "lax" as const };
-
-    res.clearCookie("access_token", { ...clearOptions, path: "/" });
-    res.clearCookie("refresh_token", { ...clearOptions, path: "/api/auth" });
-    res.clearCookie("auth_token", { ...clearOptions, path: "/" });
+    clearAllAuthCookies(res);
 
     logger.info({ userId: req.user!.id, revokedCount: result.count }, "All sessions revoked");
     res.json({ success: true, data: { message: `${result.count} session(s) revoked` } });
@@ -952,14 +997,8 @@ router.post("/change-password", authenticate, async (req: AuthRequest, res: Resp
       }
     }
 
-    // Clear cookies
-    const env = getEnv();
-    const isSecure = env.NODE_ENV === "production" && (env.FRONTEND_URL?.startsWith("https") ?? false);
-    const clearOptions = { httpOnly: true, secure: isSecure, sameSite: "lax" as const };
-
-    res.clearCookie("access_token", { ...clearOptions, path: "/" });
-    res.clearCookie("refresh_token", { ...clearOptions, path: "/api/auth" });
-    res.clearCookie("auth_token", { ...clearOptions, path: "/" });
+    // Clear cookies across audiences
+    clearAllAuthCookies(res);
 
     logger.info({ userId: user.id }, "Password changed successfully");
     await logAuthEvent(prisma, { eventType: "PASSWORD_RESET_SUCCESS", userId: user.id, req, success: true });

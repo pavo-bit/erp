@@ -125,24 +125,50 @@ export function verifyToken(token: string): TokenPayload | null {
 // ═══════════════════════════════════════════
 
 /**
- * Primary authentication middleware.
- * Reads from:
- *   1. "access_token" cookie (new system)
- *   2. "auth_token" cookie (legacy — backward compat)
- *   3. Authorization: Bearer header
+ * Primary authentication middleware (Audience-Separated Cookie Architecture).
+ * Reads:
+ *   - On PLATFORM routes: "platform_access_token" cookie
+ *   - On SCHOOL routes: "school_access_token" cookie
+ *   - Authorization: Bearer header (any route, verified against aud claim)
  *
- * On expired access token: sets X-Token-Expired header so frontend can auto-refresh.
+ * If a caller attempts to use only the opposite portal's cookie, rejects with 403 WRONG_PORTAL
+ * and increments ssvm_wrong_portal_denials_total.
+ * Legacy "auth_token" cookie is permanently deleted.
  */
 export async function authenticate(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
-  // Read token from multiple sources (priority order)
-  const accessTokenCookie = req.cookies?.access_token;
-  const legacyTokenCookie = req.cookies?.auth_token;
+  const isPlatformRoute = req.originalUrl?.includes("/platform") || req.baseUrl?.includes("/platform");
+  const expectedAudience: "PLATFORM" | "SCHOOL" = isPlatformRoute ? "PLATFORM" : "SCHOOL";
+
+  // Auth middleware reads only the cookie of the route's audience
+  const audienceCookie = isPlatformRoute
+    ? req.cookies?.platform_access_token
+    : req.cookies?.school_access_token;
+
   const authHeader = req.headers.authorization;
   const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
 
-  const token = accessTokenCookie || legacyTokenCookie || bearerToken;
+  // Fallback to generic access_token if present (backward compatibility)
+  const genericAccessToken = req.cookies?.access_token;
+
+  const token = audienceCookie || bearerToken || genericAccessToken;
 
   if (!token) {
+    // Cross-cookie check: did caller provide ONLY the opposite portal's cookie?
+    const crossCookie = isPlatformRoute
+      ? req.cookies?.school_access_token
+      : req.cookies?.platform_access_token;
+
+    if (crossCookie) {
+      wrongPortalDenialsTotal.inc();
+      res.status(403).json({
+        success: false,
+        error: "WRONG_PORTAL",
+        code: "WRONG_PORTAL",
+        message: `Forbidden — cross-portal cookie mismatch. Route requires ${expectedAudience} credentials.`,
+      });
+      return;
+    }
+
     res.status(401).json({ success: false, error: "Unauthorized — please log in" });
     return;
   }
@@ -271,6 +297,17 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       };
     }
 
+    if (isPlatformRoute && req.user?.aud && req.user.aud !== "PLATFORM") {
+      wrongPortalDenialsTotal.inc();
+      res.status(403).json({
+        success: false,
+        error: "WRONG_PORTAL",
+        code: "WRONG_PORTAL",
+        message: "Forbidden — invalid audience. Expected PLATFORM credentials",
+      });
+      return;
+    }
+
     setAuthenticatedSchoolContext({
       id: user.id,
       schoolId: user.schoolId,
@@ -318,10 +355,15 @@ export function requireAudience(requiredAudience: "PLATFORM" | "SCHOOL") {
       res.status(401).json({ success: false, error: "Not authenticated" });
       return;
     }
-    const tokenAud = (req.user as any).aud || (req.user.role === "SUPER_ADMIN" ? "PLATFORM" : "SCHOOL");
+    const tokenAud = req.user.aud;
     if (tokenAud !== requiredAudience) {
       wrongPortalDenialsTotal.inc();
-      res.status(403).json({ success: false, error: `Forbidden — invalid audience. Expected ${requiredAudience}` });
+      res.status(403).json({
+        success: false,
+        error: "WRONG_PORTAL",
+        code: "WRONG_PORTAL",
+        message: `Forbidden — invalid audience. Expected ${requiredAudience}`,
+      });
       return;
     }
     next();
@@ -418,11 +460,14 @@ export function requireSchoolAccess() {
 // ═══════════════════════════════════════════
 
 export async function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction): Promise<void> {
-  const accessTokenCookie = req.cookies?.access_token;
-  const legacyTokenCookie = req.cookies?.auth_token;
+  const isPlatformRoute = req.originalUrl?.includes("/platform") || req.baseUrl?.includes("/platform");
+  const audienceCookie = isPlatformRoute
+    ? req.cookies?.platform_access_token
+    : req.cookies?.school_access_token;
+  const genericAccessToken = req.cookies?.access_token;
   const authHeader = req.headers.authorization;
   const bearerToken = authHeader?.startsWith("Bearer ") ? authHeader.substring(7) : null;
-  const token = accessTokenCookie || legacyTokenCookie || bearerToken;
+  const token = audienceCookie || genericAccessToken || bearerToken;
 
   if (!token) {
     next();

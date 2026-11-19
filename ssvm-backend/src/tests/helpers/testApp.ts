@@ -87,8 +87,10 @@ export async function createTestUser(role: Role = Role.ERP_ADMIN, schoolId?: str
     }
   }
 
-  const cookie = `access_token=${token}; HttpOnly; Path=/; SameSite=Lax`;
-  return { user, cookie, token };
+  const platformCookie = `platform_access_token=${token}; HttpOnly; Path=/; SameSite=Lax`;
+  const schoolCookie = `school_access_token=${token}; HttpOnly; Path=/; SameSite=Lax`;
+  const cookie = user.role === Role.SUPER_ADMIN ? platformCookie : schoolCookie;
+  return { user, cookie, token, platformCookie, schoolCookie };
 }
 
 export async function createTestSchool() {

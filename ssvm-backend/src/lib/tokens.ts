@@ -42,8 +42,9 @@ export interface PendingTwoFactorPayload {
 export function generateAccessToken(payload: Omit<AccessTokenPayload, "type" | "jti">): { token: string; jti: string } {
   const env = getEnv();
   const jti = crypto.randomUUID();
+  const aud = payload.aud || (payload.role === "SUPER_ADMIN" ? "PLATFORM" : "SCHOOL");
   const token = jwt.sign(
-    { ...payload, jti, type: "access" } as AccessTokenPayload,
+    { ...payload, aud, jti, type: "access" } as AccessTokenPayload,
     env.ACCESS_TOKEN_PRIVATE_KEY,
     { algorithm: "RS256", expiresIn: "15m" }
   );

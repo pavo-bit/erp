@@ -198,8 +198,9 @@ router.post("/validate", validate(validateLoginSchema), async (req: Request, res
       res.status(401).json({ success: false, error: "Invalid authenticator token or backup code" }); return;
     }
 
-    // Issue access + refresh token pair
-    await issueTokenPair(res, user, req);
+    // Issue access + refresh token pair with appropriate audience
+    const audience = user.role === "SUPER_ADMIN" ? "PLATFORM" : "SCHOOL";
+    await issueTokenPair(res, user, req, { audience });
 
     const { passwordHash: _, twoFactorSecret, twoFactorBackupCodes, ...userWithoutPw } = user as any;
     logger.info({ userId: user.id, role: user.role }, "User logged in with 2FA");

@@ -5,6 +5,7 @@ extendZodWithOpenApi(z);
 export const loginSchema = z.object({
   email: z.string().email("Invalid email address").transform((v) => v.toLowerCase().trim()),
   password: z.string().min(1, "Password is required"),
+  portal: z.string().optional(),
 });
 
 export const registerSchema = z.object({

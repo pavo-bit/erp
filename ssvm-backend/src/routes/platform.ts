@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import http from "http";
+import net from "net";
 import { AuthRequest, authenticate, requireRole, requireAudience } from "../middleware/auth";
 import prisma from "../lib/prisma";
 import logger from "../lib/logger";
@@ -39,7 +40,7 @@ const grafanaProxy = createProxyMiddleware({
       proxyReq.setHeader("X-WEBAUTH-NAME", name);
       proxyReq.setHeader("X-WEBAUTH-ROLE", "Admin");
     },
-    error: (err: Error, _req: Request, res: Response | http.ServerResponse) => {
+    error: (err: Error, _req: Request, res: Response | http.ServerResponse | net.Socket) => {
       logger.error({ err }, "Grafana reverse proxy connection failed");
       const expressRes = res as Response;
       if (!expressRes.headersSent && typeof expressRes.status === "function") {
