@@ -481,7 +481,6 @@ app.use("/api/v1/health", healthRoutes);
 app.use("/api/v1/shfi", shfiRoutes);
 app.use("/api/v1/support", supportRoutes);
 
-app.use('/api/v1/certificates', certificatesRoutes);
 app.use('/api/v1/preferences', preferencesRoutes);
 
 // SaaS specific admin routes
