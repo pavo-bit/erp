@@ -43,6 +43,7 @@
     "teacher-portal",
     "parent-portal",
     "payment-portal",
-    "saas-frontend"
+    "saas-frontend",
+    "e2e-tests"
   ]
 }
