@@ -250,20 +250,24 @@ export const metricsMiddleware = (req: Request, res: Response, next: NextFunctio
   next();
 };
 
-export function isInternalNetwork(ip: string): boolean {
+export function isLoopbackAddress(ip: string): boolean {
   if (!ip) return false;
-  const cleanIp = ip.replace(/^.*:/, "");
-  if (cleanIp === "127.0.0.1" || ip === "::1" || ip === "localhost") return true;
-  if (/^10\./.test(cleanIp)) return true;
-  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(cleanIp)) return true;
-  if (/^192\.168\./.test(cleanIp)) return true;
-  return false;
+  const cleanIp = ip.replace(/^::ffff:/, "").trim();
+  return cleanIp === "127.0.0.1" || ip === "::1" || cleanIp === "::1" || cleanIp === "localhost";
+}
+
+/**
+ * @deprecated For metrics security, only loopback addresses are allowed outside production.
+ * Private ranges (10.x, 172.16-31.x, 192.168.x) are never granted unauthenticated access.
+ */
+export function isInternalNetwork(ip: string): boolean {
+  return isLoopbackAddress(ip);
 }
 
 export const getMetrics = async (req: Request, res: Response): Promise<void> => {
+  const isProduction = process.env.NODE_ENV === "production";
   const metricsToken = process.env.METRICS_TOKEN;
   const authHeader = req.headers.authorization;
-  const clientIp = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "";
 
   // Authorized if valid bearer token matches METRICS_TOKEN
   if (metricsToken && authHeader) {
@@ -274,20 +278,39 @@ export const getMetrics = async (req: Request, res: Response): Promise<void> => 
       res.send(metrics);
       return;
     }
+    res.status(401).json({
+      type: "https://ssvm.in/errors/unauthorized",
+      title: "Unauthorized",
+      status: 401,
+      detail: "Invalid metrics authorization credentials",
+    });
+    return;
   }
 
-  // Authorized if direct connection originates from internal/loopback network without untrusted external forward
-  const isDirectInternal = isInternalNetwork(req.socket.remoteAddress || "");
-  const hasExternalProxy = Boolean(req.headers["x-forwarded-for"] && !isInternalNetwork(clientIp));
+  // In production, bearer token is strictly required. No network position bypass allowed.
+  if (isProduction) {
+    res.status(401).json({
+      type: "https://ssvm.in/errors/unauthorized",
+      title: "Unauthorized",
+      status: 401,
+      detail: "Bearer token required for /metrics in production",
+    });
+    return;
+  }
 
-  if (isDirectInternal && !hasExternalProxy) {
+  // Outside production: network position allow rule for loopback only (never private IP ranges).
+  // Strictly reject if request has x-forwarded-for header (could be spoofed or forwarded).
+  const directSocketIp = req.socket.remoteAddress || "";
+  const hasForwardedHeader = Boolean(req.headers["x-forwarded-for"]);
+
+  if (isLoopbackAddress(directSocketIp) && !hasForwardedHeader) {
     res.setHeader("Content-Type", register.contentType);
     const metrics = await register.metrics();
     res.send(metrics);
     return;
   }
 
-  // Not authorized
+  // If authHeader was present but token did not match or METRICS_TOKEN was missing
   if (authHeader) {
     res.status(401).json({
       type: "https://ssvm.in/errors/unauthorized",

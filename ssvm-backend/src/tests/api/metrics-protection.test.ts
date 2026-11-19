@@ -78,4 +78,66 @@ describe("Block M2 — /metrics Access Protection Suite", { timeout: 30000 }, ()
     expect(res.text).toContain("# HELP ssvm_");
     expect(res.text).toContain("ssvm_http_errors_total");
   });
+
+  it("denies access with 403 Forbidden when request contains a spoofed x-forwarded-for header (even claiming 127.0.0.1)", async () => {
+    const res = await request(app)
+      .get("/metrics")
+      .set("x-forwarded-for", "127.0.0.1");
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({
+      status: 403,
+      title: "Forbidden",
+      detail: "Public access to /metrics is restricted",
+    });
+  });
+
+  it("denies access with 403 Forbidden when request contains a spoofed private IP in x-forwarded-for without credentials", async () => {
+    const res1 = await request(app)
+      .get("/metrics")
+      .set("x-forwarded-for", "10.0.0.1");
+    expect(res1.status).toBe(403);
+
+    const res2 = await request(app)
+      .get("/metrics")
+      .set("x-forwarded-for", "172.16.0.1");
+    expect(res2.status).toBe(403);
+
+    const res3 = await request(app)
+      .get("/metrics")
+      .set("x-forwarded-for", "192.168.1.1");
+    expect(res3.status).toBe(403);
+  });
+
+  describe("Production Mode Hardening", () => {
+    const savedNodeEnv = process.env.NODE_ENV;
+
+    beforeAll(() => {
+      process.env.NODE_ENV = "production";
+    });
+
+    afterAll(() => {
+      process.env.NODE_ENV = savedNodeEnv;
+    });
+
+    it("requires bearer token always in production (rejects loopback request without token)", async () => {
+      const res = await request(app).get("/metrics");
+
+      expect(res.status).toBe(401);
+      expect(res.body).toMatchObject({
+        status: 401,
+        title: "Unauthorized",
+        detail: "Bearer token required for /metrics in production",
+      });
+    });
+
+    it("allows access in production when valid Bearer token is provided", async () => {
+      const res = await request(app)
+        .get("/metrics")
+        .set("Authorization", `Bearer ${testToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.text).toContain("# HELP ssvm_");
+    });
+  });
 });
