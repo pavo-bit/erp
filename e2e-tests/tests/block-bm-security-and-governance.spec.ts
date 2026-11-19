@@ -32,9 +32,8 @@ interface AuditLogRecord {
  * Helper to log in a dedicated APIRequestContext and inject its cookies into a browser context
  */
 async function createAuthenticatedSession(email: string, portalUrl: string, browserContext?: BrowserContext) {
-  // 1. Post to login with an isolated unauthenticated context to fetch access_token and set-cookie
-  const loginClient = await playwrightRequest.newContext();
-  const loginRes = await loginClient.post(`${BACKEND_URL}/api/v1/auth/login`, {
+  const apiContext = await playwrightRequest.newContext();
+  const loginRes = await apiContext.post(`${BACKEND_URL}/api/v1/auth/login`, {
     data: { email, password: 'Admin@123' },
   });
   expect(loginRes.status()).toBe(200);
@@ -45,6 +44,8 @@ async function createAuthenticatedSession(email: string, portalUrl: string, brow
   const accessToken = accessCookie ? accessCookie.value.split(';')[0].split('=')[1] : '';
 
   if (browserContext) {
+    const headers = loginRes.headersArray ? loginRes.headersArray() : [];
+    const setCookies = headers.filter((h: any) => h.name.toLowerCase() === 'set-cookie');
     const cookiesToSet = setCookies.map((h: CookieHeaderItem) => {
       const parts = h.value.split(';');
       const [name, ...valParts] = parts[0].trim().split('=');
@@ -59,14 +60,6 @@ async function createAuthenticatedSession(email: string, portalUrl: string, brow
       await browserContext.addCookies(cookiesToSet);
     }
   }
-
-  // 2. Return an API context configured with Bearer header (no ambient cookies stored)
-  // so state-mutating API calls are properly identified as Bearer token caller and CSRF-exempt
-  const apiContext = await playwrightRequest.newContext({
-    extraHTTPHeaders: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
 
   return apiContext;
 }
@@ -164,9 +157,9 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     await page.waitForTimeout(2500);
 
     // Click to expand group if closed
-    const campusOpsButton = page.locator('button', { hasText: /Campus Operations/i });
-    if (await campusOpsButton.isVisible()) {
-      await campusOpsButton.click();
+    const facilitiesGroup = page.getByText(/Facilities & Infrastructure/i);
+    if (await facilitiesGroup.isVisible()) {
+      await facilitiesGroup.click().catch(() => { });
       await page.waitForTimeout(500);
     }
     const updatedHostelCount = await page.locator('a[href="/admin/hostel"]').count();
@@ -179,7 +172,7 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     const hostelOnB = (schoolBModules.data?.modules || []).find(
       (m: ModuleStatusItem) => (m.module?.code || m.code) === 'HOSTEL'
     );
-    expect(hostelOnB?.isEnabled ?? hostelOnB?.enabled).toBe(false);
+    expect(hostelOnB?.isEnabled).toBe(false);
 
     // 7. Super Admin DISABLES Hostel for School A
     const disableRes = await superApi.patch(`${BACKEND_URL}/api/v1/schools/${SCHOOL_A_ID}/modules/HOSTEL`, {
@@ -190,8 +183,8 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     // 8. School A ERP Admin page reloads: Hostel Management is GONE
     await page.reload();
     await page.waitForTimeout(2500);
-    if (await campusOpsButton.isVisible()) {
-      await campusOpsButton.click().catch(() => {});
+    if (await facilitiesGroup.isVisible()) {
+      await facilitiesGroup.click().catch(() => { });
       await page.waitForTimeout(500);
     }
     const finalHostelCount = await page.locator('a[href="/admin/hostel"]').count();
@@ -223,13 +216,13 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
         schoolId: SCHOOL_A_ID,
         reason: sessionReason,
         durationMinutes: 15,
-        mfaCode: '000000',
+        mfaToken: '000000',
       },
     });
     expect(startSessionRes.status()).toBe(201);
     const sessionData = await startSessionRes.json();
     expect(sessionData.success).toBe(true);
-    const sessionId = sessionData.data?.session?.id || sessionData.data?.sessionId;
+    const sessionId = sessionData.data.sessionId;
     expect(sessionId).toBeTruthy();
 
     // 4. ERP Admin sees the Support Session Banner
