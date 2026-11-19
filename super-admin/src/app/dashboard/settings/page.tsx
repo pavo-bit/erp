@@ -21,12 +21,12 @@ export default function GlobalSettingsPage() {
 
   const handleSaveBranding = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Global Branding Saved Successfully. All tenants will receive these fallback defaults.");
+    toast("Global Branding Saved Successfully. All tenants will receive these fallback defaults.");
   };
 
   const handleSaveFeatures = (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Feature Flags Updated. Nodes are restarting...");
+    toast("Feature Flags Updated. Nodes are restarting...");
   };
 
   return (

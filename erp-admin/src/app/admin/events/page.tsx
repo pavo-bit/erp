@@ -38,19 +38,19 @@ export default function EventsPage() {
       invalidateAll("/api/v1/events");
       setShowModal(false);
       setFormTitle(""); setFormDate(""); setFormVenue(""); setFormDesc("");
-    } catch (err) { alert((err as Error).message); }
+    } catch (err) { toast((err as Error).message); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this event?")) return;
     try { await apiCall(`/api/v1/events/${id}`, "DELETE"); invalidateAll("/api/v1/events"); }
-    catch (err) { alert((err as Error).message); }
+    catch (err) { toast((err as Error).message); }
   };
 
   const handleStatusChange = async (id: string, status: string) => {
     try { await apiCall(`/api/v1/events/${id}`, "PUT", { status }); invalidateAll("/api/v1/events"); }
-    catch (err) { alert((err as Error).message); }
+    catch (err) { toast((err as Error).message); }
   };
 
   return (

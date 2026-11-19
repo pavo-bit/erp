@@ -17,9 +17,9 @@ export default function FeesPage() {
     if (confirm("Are you sure you want to auto-generate invoices for all students for this month?")) {
       try {
         await apiCall("/api/v1/finance/generate-monthly-fees", "POST");
-        alert("Monthly fees generated successfully!");
+        toast("Monthly fees generated successfully!");
       } catch (e: any) {
-        alert(e.message || "Failed to generate fees");
+        toast(e.message || "Failed to generate fees");
       }
     }
   };

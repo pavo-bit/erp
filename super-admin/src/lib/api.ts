@@ -71,6 +71,16 @@ export function invalidateAll(prefix: string) {
   globalMutate((key) => typeof key === "string" && key.startsWith(prefix), undefined, { revalidate: true });
 }
 
+export async function apiFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+  const response = await fetchWithAuthRetry(input, init);
+  if (!response.ok) {
+    let message = "Request failed (" + response.status + ")";
+    try { const data = await response.json(); message = data.error || message; } catch {}
+    throw new Error(message);
+  }
+  return response;
+}
+
 // ─── Platform Hooks ───
 export function useSchools(params?: string) { return useSWR("/api/v1/schools" + (params ? "?" + params : ""), fetcher); }
 export function useSchoolHealthUsage(schoolId?: string) { return useSWR(schoolId ? `/api/v1/platform/schools/${schoolId}/health-usage` : null, fetcher); }

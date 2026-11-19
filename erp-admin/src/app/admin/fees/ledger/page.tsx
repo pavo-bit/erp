@@ -75,9 +75,9 @@ export default function LedgerAndFinancialClosePage() {
             : p
         )
       );
-      alert("Financial period closed successfully. All historical ledger entries for this period are locked.");
+      toast("Financial period closed successfully. All historical ledger entries for this period are locked.");
     } catch (err: any) {
-      alert("Failed to close financial period: " + err.message);
+      toast("Failed to close financial period: " + err.message);
     } finally {
       setIsClosingPeriod(false);
     }
@@ -147,7 +147,7 @@ export default function LedgerAndFinancialClosePage() {
               </div>
             </div>
             <button
-              onClick={() => alert("Trial balance report exported.")}
+              onClick={() => toast("Trial balance report exported.")}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-surface-hover border border-border text-xs font-semibold rounded-lg text-text-primary transition"
             >
               <Download className="w-3.5 h-3.5 text-text-secondary" />

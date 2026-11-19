@@ -219,7 +219,7 @@ export default function TransportLogisticsPage() {
       invalidate("/api/v1/admin/transport/vehicles");
       invalidate("/api/v1/admin/transport/fleet/overview");
     } catch (err: any) {
-      alert(err.message || "Delete vehicle failed");
+      toast(err.message || "Delete vehicle failed");
     } finally {
       setActionLoading(false);
     }
@@ -379,7 +379,7 @@ export default function TransportLogisticsPage() {
       invalidate("/api/v1/admin/transport/overview");
       if (selectedRouteId === routeId) setSelectedRouteId(null);
     } catch (err: any) {
-      alert(err.message || "Delete route failed");
+      toast(err.message || "Delete route failed");
     } finally {
       setActionLoading(false);
     }
@@ -456,7 +456,7 @@ export default function TransportLogisticsPage() {
       invalidate("/api/v1/admin/transport/stops");
       invalidate("/api/v1/admin/transport/routes");
     } catch (err: any) {
-      alert(err.message || "Delete stop failed");
+      toast(err.message || "Delete stop failed");
     } finally {
       setActionLoading(false);
     }
@@ -802,7 +802,7 @@ export default function TransportLogisticsPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <StatusBadge status={v.status} />
+                        <StatusBadge status={v.status} color="blue" />
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -925,7 +925,7 @@ export default function TransportLogisticsPage() {
                         </div>
                       </td>
                       <td className="p-4">
-                        <StatusBadge status={d.status || "ACTIVE"} />
+                        <StatusBadge status={d.status || "ACTIVE"} color="blue" />
                       </td>
                       <td className="p-4 text-right">
                         <button

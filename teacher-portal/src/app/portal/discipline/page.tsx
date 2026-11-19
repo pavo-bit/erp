@@ -70,7 +70,7 @@ export default function TeacherDiscipline() {
         setStudentId(""); setTitle(""); setDescription("");
       }
     } catch (err: any) {
-      alert(err.message || "Error logging incident");
+      toast(err.message || "Error logging incident");
     } finally {
       setSubmitting(false);
     }

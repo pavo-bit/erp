@@ -59,7 +59,7 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
         handleClose();
       }
     } catch (err) {
-      alert((err as Error).message);
+      toast((err as Error).message);
     } finally {
       setSaving(false);
     }
@@ -102,7 +102,7 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
         invalidateAll("/api/v1/stats");
         break;
       case "MARK_ATTENDANCE":
-        alert("Attendance roster initialized. Please visit Attendance module for bulk marking.");
+        toast("Attendance roster initialized. Please visit Attendance module for bulk marking.");
         break;
     }
   };
@@ -139,7 +139,7 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
               if (type === "teachers") invalidateAll("/api/v1/teachers");
               if (type === "invoices") invalidateAll("/api/v1/invoices");
               invalidateAll("/api/v1/stats");
-              alert(`Successfully imported ${data.length} records!`);
+              toast(`Successfully imported ${data.length} records!`);
             }
             resolve();
           } catch (e: any) {

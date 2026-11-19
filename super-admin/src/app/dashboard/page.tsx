@@ -26,7 +26,7 @@ export default function DashboardPage() {
       await apiCall("/api/v1/schools", "POST", schoolForm);
       window.location.reload();
     } catch (e) {
-      alert((e as Error).message);
+      toast((e as Error).message);
     }
   };
 

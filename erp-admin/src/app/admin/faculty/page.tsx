@@ -30,14 +30,14 @@ export default function FacultyPage() {
       await apiCall("/api/v1/faculty", "POST", formData);
       invalidateAll("/api/v1/faculty"); setShowModal(false);
       setFName(""); setFDesig(""); setFDept(""); setFQual(""); setFPhoto(null);
-    } catch (err) { alert((err as Error).message); }
+    } catch (err) { toast((err as Error).message); }
     finally { setSaving(false); }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Remove this faculty member?")) return;
     try { await apiCall(`/api/v1/faculty/${id}`, "DELETE"); invalidateAll("/api/v1/faculty"); }
-    catch (err) { alert((err as Error).message); }
+    catch (err) { toast((err as Error).message); }
   };
 
   const deptColors: Record<string, string> = { 

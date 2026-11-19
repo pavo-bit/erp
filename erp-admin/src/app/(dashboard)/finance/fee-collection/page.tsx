@@ -345,7 +345,7 @@ export default function CashFeeCollectionPage() {
       }
       loadDailyRegister(registerDate);
     } catch (err: any) {
-      alert(err.message || "Failed to reprint receipt");
+      toast(err.message || "Failed to reprint receipt");
     }
   };
 

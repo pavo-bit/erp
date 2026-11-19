@@ -165,7 +165,7 @@ function RegistrationModal({ isOpen, onClose }: { isOpen: boolean, onClose: () =
       }
       setSuccess(true);
     } catch (err: any) {
-      alert(err.message);
+      toast(err.message);
     } finally {
       setLoading(false);
     }

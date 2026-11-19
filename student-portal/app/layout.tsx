@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@/lib/toast";
 
 export const metadata: Metadata = {
   title: "Student Portal - SSVM College Square",

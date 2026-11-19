@@ -20,14 +20,14 @@ export default function ExamsPage() {
       invalidateAll("/api/v1/exams");
       setShowCreate(false);
       setForm({ name: "", class: "", session: "2025-26", startDate: "", endDate: "" });
-    } catch (e) { alert((e as Error).message); }
+    } catch (e) { toast((e as Error).message); }
   };
 
   const togglePublish = async (id: string, current: boolean) => {
     try {
       await apiCall(`/api/v1/exams/${id}`, "PUT", { isPublished: !current });
       invalidateAll("/api/v1/exams");
-    } catch (e) { alert((e as Error).message); }
+    } catch (e) { toast((e as Error).message); }
   };
 
   return (

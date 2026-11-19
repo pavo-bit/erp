@@ -68,10 +68,10 @@ export default function Checkout() {
               transactionId
             });
             const receiptNo = (verifyRes as any)?.receiptNo || "";
-            alert("Payment Successful!" + (receiptNo ? " Receipt: " + receiptNo : ""));
+            toast("Payment Successful!" + (receiptNo ? " Receipt: " + receiptNo : ""));
             setInvoices(invoices.map(inv => inv.id === feeId ? { ...inv, status: "PAID", remainingAmount: 0 } : inv));
           } catch (e: any) {
-            alert("Verification Failed: " + e.message);
+            toast("Verification Failed: " + e.message);
           }
         },
         prefill: {
@@ -84,11 +84,11 @@ export default function Checkout() {
 
       const rzp = new (window as any).Razorpay(options);
       rzp.on("payment.failed", function (response: any) {
-        alert("Payment Failed. Reason: " + response.error.description);
+        toast("Payment Failed. Reason: " + response.error.description);
       });
       rzp.open();
     } catch (err: any) {
-      alert("Error initiating payment: " + err.message);
+      toast("Error initiating payment: " + err.message);
     } finally {
       setProcessingId(null);
     }

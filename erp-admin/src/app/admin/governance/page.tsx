@@ -18,13 +18,13 @@ export default function GovernancePage() {
   const handleClosePeriod = () => {
     setIsClosing(true);
     setTimeout(() => {
-      alert("Ledger locked. Financial period successfully closed. Transactions are now immutable.");
+      toast("Ledger locked. Financial period successfully closed. Transactions are now immutable.");
       setIsClosing(false);
     }, 2000);
   };
 
   const handleArchive = () => {
-    alert("Archival Job Queued to AWS Glacier Vault.");
+    toast("Archival Job Queued to AWS Glacier Vault.");
   };
 
   return (

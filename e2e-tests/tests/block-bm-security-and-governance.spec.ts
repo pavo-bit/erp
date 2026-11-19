@@ -69,6 +69,35 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
   test.setTimeout(90000);
 
   // ═════════════════════════════════════════════════════════════════════
+  // F1b: Cross-portal cookie isolation — logging into one portal must not
+  //      grant access to the other portal in the same browser context.
+  // ═════════════════════════════════════════════════════════════════════
+  test('F1b: Cross-portal cookie isolation', async ({ page, context }) => {
+    // 1. Log in as super admin in this browser context
+    await context.clearCookies();
+    await createAuthenticatedSession('superadmin@ssvm-erp.com', SUPER_ADMIN_URL, context);
+
+    // 2. Opening erp-admin in the same context must land on the login page
+    await page.goto(`${ERP_ADMIN_URL}/admin`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    const erpShowsLogin =
+      page.url().includes('/login') ||
+      (await page.getByText(/sign in|log in|login/i).count()) > 0;
+    expect(erpShowsLogin).toBeTruthy();
+
+    // 3. Reverse: log in as school ERP admin, then open super-admin
+    await context.clearCookies();
+    await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
+
+    await page.goto(`${SUPER_ADMIN_URL}/dashboard`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    const superShowsLogin =
+      page.url().includes('/login') ||
+      (await page.getByText(/sign in|log in|login/i).count()) > 0;
+    expect(superShowsLogin).toBeTruthy();
+  });
+
+  // ═════════════════════════════════════════════════════════════════════
   // F6: School ERP Admin cannot open Grafana or platform URLs
   // ═════════════════════════════════════════════════════════════════════
   test('F6: School ERP Admin cannot open Grafana or platform URLs', async ({ page, context }) => {

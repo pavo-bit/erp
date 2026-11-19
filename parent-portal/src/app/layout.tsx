@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "@/lib/toast";
 import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {

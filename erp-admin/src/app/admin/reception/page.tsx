@@ -20,7 +20,7 @@ export default function ReceptionPage() {
       setShowModal(false);
       setFormData({ visitorName: "", phone: "", purpose: "", personToMeet: "" });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to log visitor");
+      toast(err instanceof Error ? err.message : "Failed to log visitor");
     }
   };
 

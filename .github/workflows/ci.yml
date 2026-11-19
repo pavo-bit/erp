@@ -333,6 +333,16 @@ jobs:
       - name: Build Next.js App
         run: npm run build
 
+  api-hooks-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check canonical api-hooks core
+        run: node scripts/check-api-hooks-sync.js
+
   e2e-harness:
     runs-on: ubuntu-latest
     continue-on-error: true

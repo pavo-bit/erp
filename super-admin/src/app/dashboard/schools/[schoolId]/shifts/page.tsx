@@ -263,7 +263,7 @@ export default function SchoolShiftsPage({ params }: { params: Promise<{ schoolI
   const handleSaveShift = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!modalForm.name || !modalForm.startTime || !modalForm.endTime) {
-      alert("Please complete all required fields.");
+      toast("Please complete all required fields.");
       return;
     }
 

@@ -24,16 +24,16 @@ export default function NotificationsPage() {
       invalidateAll("/api/v1/notifications");
       setShowSend(false);
       setForm({ type: "SMS", recipientName: "", recipientPhone: "", recipientEmail: "", subject: "", message: "" });
-    } catch (e) { alert((e as Error).message); }
+    } catch (e) { toast((e as Error).message); }
     setSending(false);
   };
 
   const handleFeeReminder = async () => {
     try {
       const result = await apiCall("/api/v1/notifications/fee-reminder", "POST");
-      alert(result?.message || "Fee reminders sent!");
+      toast(result?.message || "Fee reminders sent!");
       invalidateAll("/api/v1/notifications");
-    } catch (e) { alert((e as Error).message); }
+    } catch (e) { toast((e as Error).message); }
   };
 
   const typeColors: Record<string, string> = { SMS: "#3B82F6", EMAIL: "#10B981", WHATSAPP: "#25D366" };

@@ -28,7 +28,7 @@ export default function GalleryPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) { alert("Please select an image"); return; }
+    if (!file) { toast("Please select an image"); return; }
     setSaving(true);
     try {
       const formData = new FormData();
@@ -46,7 +46,7 @@ export default function GalleryPage() {
       invalidateAll("/api/v1/gallery");
       setShowModal(false);
       setFormTitle(""); setFormStudentClass(""); setFormDesc(""); setFile(null);
-    } catch (err) { alert((err as Error).message); }
+    } catch (err) { toast((err as Error).message); }
     finally { setSaving(false); }
   };
 
@@ -56,7 +56,7 @@ export default function GalleryPage() {
       await apiCall(`/api/v1/gallery/${id}`, "DELETE"); 
       invalidateAll("/api/v1/gallery"); 
     }
-    catch (err) { alert((err as Error).message); }
+    catch (err) { toast((err as Error).message); }
     finally { 
       setDeletingId(null);
       setConfirmDeleteId(null);

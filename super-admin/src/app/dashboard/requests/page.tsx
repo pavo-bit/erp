@@ -33,10 +33,10 @@ export default function RegistrationRequestsPage() {
     setLoadingId(id);
     try {
       await apiCall(`/api/v1/saas/approve/${id}`, "POST");
-      alert("School successfully provisioned!");
+      toast("School successfully provisioned!");
       mutate();
     } catch (e: any) {
-      alert(e.message || "Approval failed");
+      toast(e.message || "Approval failed");
     } finally {
       setLoadingId(null);
     }
@@ -50,7 +50,7 @@ export default function RegistrationRequestsPage() {
       await apiCall(`/api/v1/saas/reject/${id}`, "POST");
       mutate();
     } catch (e: any) {
-      alert(e.message || "Rejection failed");
+      toast(e.message || "Rejection failed");
     } finally {
       setLoadingId(null);
     }

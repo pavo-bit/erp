@@ -30,7 +30,7 @@ export default function AttendanceMatrixPage() {
   const handleSubmit = () => {
     setIsSubmitting(true);
     setTimeout(() => {
-      alert("Attendance successfully pushed to the MDM engine and synced with the Parent Portal!");
+      toast("Attendance successfully pushed to the MDM engine and synced with the Parent Portal!");
       setIsSubmitting(false);
     }, 1500);
   };

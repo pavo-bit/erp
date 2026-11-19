@@ -28,8 +28,8 @@ export default function CurriculumSubjectsPage() {
         description="Master catalog of institutional academic courses, subject codes, and credit hours."
         moduleId="subjects"
         entityName="Subject"
-        onAddNew={() => alert("Create Subject Dialog")}
-        onImportSuccess={() => alert("Subjects imported successfully!")}
+        onAddNew={() => toast("Create Subject Dialog")}
+        onImportSuccess={() => toast("Subjects imported successfully!")}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -63,7 +63,7 @@ export default function CurriculumSubjectsPage() {
                 <td className="p-3 text-text-secondary font-mono">{sub.credits || "—"}</td>
                 <td className="p-3 text-right">
                   <button
-                    onClick={() => alert(`Edit ${sub.code}`)}
+                    onClick={() => toast(`Edit ${sub.code}`)}
                     className="p-1.5 text-text-secondary hover:text-primary hover:bg-surface rounded-lg transition"
                     title="Edit Subject"
                   >

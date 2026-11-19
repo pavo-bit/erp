@@ -12,7 +12,6 @@ export default function FeesPage() {
   const [loading, setLoading] = useState(true);
   const [payingId, setPayingId] = useState<string | null>(null);
 
-  // Derive children from the AuthContext
   const children = user?.guardian?.students || [];
 
   useEffect(() => {
@@ -26,7 +25,6 @@ export default function FeesPage() {
   const fetchInvoices = async (studentId: string) => {
     try {
       setLoading(true);
-      // Fetch from the robust Phase E backend Ledger
       const res = await apiCall(`/api/v1/invoices?studentId=${studentId}`);
       setInvoices(res || []);
     } catch (e) {
@@ -36,30 +34,55 @@ export default function FeesPage() {
     }
   };
 
-  const handlePayment = async (amount: number, invId: string) => {
+  const loadRazorpay = () => new Promise<boolean>((resolve) => {
+    if ((window as any).Razorpay) { resolve(true); return; }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
+  const handlePayment = async (_amount: number, invId: string) => {
     setPayingId(invId);
-    
-    // Simulate Razorpay SDK UI delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-
     try {
-      // Simulate the Webhook firing or directly hit the /pay endpoint to record Ledger Entry
-      const res = await apiCall(`/api/v1/invoices/${invId}/pay`, "PUT", {
-        amountPaid: amount,
-        gateway: "RAZORPAY",
-        transactionId: `pay_${Math.random().toString(36).substring(2, 10)}`
-      });
+      const loaded = await loadRazorpay();
+      if (!loaded) throw new Error("Razorpay SDK failed to load");
 
-      {
-        // Optimistic update
-        setInvoices(prev => prev.map(inv => 
-          inv.id === invId 
-            ? { ...inv, status: "PAID", amountPaid: amount, remainingAmount: 0, paidDate: new Date().toISOString() } 
-            : inv
-        ));
-      }
+      const { order, transactionId } = await apiCall("/api/v1/payments/create-order", "POST", { feeId: invId });
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.NEXT_PUBLIC_RAZORPAY_KEY || "rzp_test_placeholder",
+        amount: order.amount,
+        currency: order.currency || "INR",
+        name: "SSVM College Square",
+        description: "School Fee Payment",
+        order_id: order.id,
+        handler: async (response: any) => {
+          try {
+            await apiCall("/api/v1/payments/verify", "POST", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              transactionId,
+            });
+            toast("Payment successful!");
+            if (selectedStudentId) await fetchInvoices(selectedStudentId);
+          } catch (e) {
+            toast("Payment verification failed: " + (e as Error).message);
+          }
+        },
+        prefill: { name: user?.name || "Parent" },
+        theme: { color: "#0d9488" },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", (response: any) => {
+        toast("Payment failed: " + (response?.error?.description || "Unknown error"));
+      });
+      rzp.open();
     } catch (e) {
-      alert("Payment failed: " + (e as Error).message);
+      toast("Payment initiation failed: " + (e as Error).message);
     } finally {
       setPayingId(null);
     }
@@ -79,8 +102,6 @@ export default function FeesPage() {
 
   return (
     <div className="space-y-6 animate-fade-in relative">
-      
-      {/* Absolute Aesthetic Background Glows */}
       <div className="absolute top-[-10%] left-[-10%] w-96 h-96 bg-indigo-500/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-96 h-96 bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none" />
 
@@ -110,8 +131,6 @@ export default function FeesPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 relative z-10">
-        
-        {/* Main Invoice List */}
         <div className="lg:col-span-2 space-y-6">
           <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
             <Wallet className="w-5 h-5 text-indigo-500" />
@@ -132,10 +151,7 @@ export default function FeesPage() {
             ) : (
               invoices.map((inv) => (
                 <div key={inv.id} className="group relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden flex flex-col sm:flex-row transition-all hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1">
-                  
-                  {/* Left Status Bar */}
                   <div className={`w-full sm:w-2 transition-colors ${inv.status === 'PAID' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                  
                   <div className="p-6 flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div>
                       <div className="flex items-center space-x-2 mb-1">
@@ -184,20 +200,16 @@ export default function FeesPage() {
           </div>
         </div>
 
-        {/* Sidebar Widgets */}
         <div className="space-y-6">
-          {/* Outstanding Balance */}
           <div className="relative overflow-hidden p-6 rounded-3xl bg-gradient-to-br from-indigo-900 to-slate-900 border border-slate-700 text-white shadow-2xl group hover:shadow-indigo-500/20 transition-all">
             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
               <Sparkles className="w-24 h-24" />
             </div>
-            
             <h2 className="font-medium text-indigo-300 mb-2 flex items-center">
               <AlertCircle size={18} className="mr-2 text-amber-400" /> Outstanding Balance
             </h2>
             <div className="text-5xl font-black mb-1 tracking-tight">₹{outstandingBalance.toLocaleString()}</div>
             <p className="text-sm text-slate-400 mb-8">Unpaid receivables across active invoices</p>
-            
             {outstandingBalance > 0 ? (
               <button className="w-full py-3.5 bg-white text-slate-900 hover:bg-slate-100 rounded-xl text-sm font-bold flex justify-center items-center transition-transform active:scale-95 shadow-xl">
                 Clear Total Balance
@@ -239,7 +251,6 @@ export default function FeesPage() {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );

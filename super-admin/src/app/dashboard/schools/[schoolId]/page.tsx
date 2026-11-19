@@ -145,7 +145,7 @@ export default function SchoolDetailPage() {
       await apiCall(`/api/v1/platform/support-sessions/${sessionId}/revoke`, "POST");
       mutateSession();
     } catch (err: any) {
-      alert(err.message || "Failed to revoke support session");
+      toast(err.message || "Failed to revoke support session");
     }
   };
 

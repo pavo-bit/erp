@@ -38,11 +38,11 @@ export default function TeachersPage() {
     setIsDeactivating(true);
     try {
       await apiCall(`/api/v1/teachers/${id}`, "DELETE");
-      alert("Teacher deactivated successfully!");
+      toast("Teacher deactivated successfully!");
       setSelectedTeacher(null);
       invalidateAll("/api/v1/teachers"); // refresh data
     } catch (e: any) {
-      alert(e.message || "Failed to deactivate teacher");
+      toast(e.message || "Failed to deactivate teacher");
     } finally {
       setIsDeactivating(false);
     }

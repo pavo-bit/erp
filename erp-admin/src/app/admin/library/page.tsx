@@ -21,7 +21,7 @@ export default function LibraryPage() {
       setShowIssueModal(false);
       setFormData({ bookId: "", studentId: "" });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to issue book");
+      toast(err instanceof Error ? err.message : "Failed to issue book");
     }
   };
 
@@ -32,7 +32,7 @@ export default function LibraryPage() {
       invalidate("/api/v1/library/transactions");
       invalidate("/api/v1/library/books");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to return book");
+      toast(err instanceof Error ? err.message : "Failed to return book");
     }
   };
 

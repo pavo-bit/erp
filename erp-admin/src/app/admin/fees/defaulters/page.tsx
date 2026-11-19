@@ -26,7 +26,7 @@ export default function DefaultersPage() {
 
   const handleAction = async (actionType: string, studentName: string) => {
     // Mock action since notification integration requires specific SMS/Email gateways
-    alert(`${actionType} sent to ${studentName}'s Guardian!`);
+    toast(`${actionType} sent to ${studentName}'s Guardian!`);
   };
 
   return (
@@ -34,7 +34,7 @@ export default function DefaultersPage() {
       <PageHeader 
         title="Defaulters Dashboard" 
         subtitle="Track and notify students with overdue invoices"
-        action={<button onClick={() => alert("Bulk reminders generated!")} className="px-4 py-2 bg-danger text-white rounded-md text-sm font-semibold border-none cursor-pointer">Generate Reminders</button>}
+        action={<button onClick={() => toast("Bulk reminders generated!")} className="px-4 py-2 bg-danger text-white rounded-md text-sm font-semibold border-none cursor-pointer">Generate Reminders</button>}
       />
 
       <div className="bg-white rounded-2xl border border-border p-6">

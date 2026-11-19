@@ -38,7 +38,7 @@ export default function AcademicSessionsPage() {
           subtitle="Manage institutional academic years, term dates, and active working sessions."
         />
         <button
-          onClick={() => alert("New Academic Session Dialog")}
+          onClick={() => toast("New Academic Session Dialog")}
           className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-semibold shadow-sm transition"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -78,7 +78,7 @@ export default function AcademicSessionsPage() {
                 <td className="p-3 text-right">
                   {!s.isCurrent && (
                     <button
-                      onClick={() => alert(`Set ${s.name} as current session`)}
+                      onClick={() => toast(`Set ${s.name} as current session`)}
                       className="px-2.5 py-1 text-xs font-semibold text-primary hover:bg-surface rounded-lg transition"
                     >
                       Make Active

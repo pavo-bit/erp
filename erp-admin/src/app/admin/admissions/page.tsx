@@ -150,7 +150,7 @@ export default function AdmissionsPage() {
 
   const handleIssueForm = async () => {
     if (!applicantName.trim()) {
-      alert("Please provide the applicant full name.");
+      toast("Please provide the applicant full name.");
       return;
     }
     setIsIssuing(true);
@@ -170,7 +170,7 @@ export default function AdmissionsPage() {
         "_blank"
       );
     } catch (err: any) {
-      alert(err.message || "Failed to issue form.");
+      toast(err.message || "Failed to issue form.");
     } finally {
       setIsIssuing(false);
     }

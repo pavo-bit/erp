@@ -29,7 +29,7 @@ export default function ResultsPage() {
     try {
       await apiCall("/api/v1/results", "POST", { studentId: formStudentId, examName: formExam, subject: formSubject, totalMarks: +formTotal, obtained: +formObtained, grade: formGrade || null });
       invalidateAll("/api/v1/results"); setShowModal(false);
-    } catch (err) { alert((err as Error).message); }
+    } catch (err) { toast((err as Error).message); }
     finally { setSaving(false); }
   };
 

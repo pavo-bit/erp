@@ -23,7 +23,7 @@ export default function AssignmentsPage() {
       await apiCall("/api/v1/assignments", "POST", { title: fTitle, subject: fSubject, class: fClass, description: fDesc, dueDate: fDue });
       invalidateAll("/api/v1/assignments"); setShowModal(false);
       setFTitle(""); setFSubject(""); setFDesc(""); setFDue("");
-    } catch (err) { alert((err as Error).message); }
+    } catch (err) { toast((err as Error).message); }
     finally { setSaving(false); }
   };
 

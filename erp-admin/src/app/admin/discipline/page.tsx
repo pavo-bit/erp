@@ -67,7 +67,7 @@ export default function DisciplineDashboard() {
         fetchIncidents(); // refresh
       }
     } catch (err: any) {
-      alert(err.message || "Error resolving incident");
+      toast(err.message || "Error resolving incident");
     } finally {
       setSubmitting(false);
     }

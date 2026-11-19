@@ -46,8 +46,8 @@ export default function SettingsPage() {
         { section: "admission", key: "ctaDescription", value: ctaDesc },
       ]});
       invalidateAll("/api/v1/site-content");
-      alert("Settings saved!");
-    } catch (err) { alert((err as Error).message); }
+      toast("Settings saved!");
+    } catch (err) { toast((err as Error).message); }
     finally { setSaving(false); }
   };
 
@@ -57,7 +57,7 @@ export default function SettingsPage() {
       await apiCall("/api/v1/testimonials", "POST", { name: tName, role: tRole, content: tContent, rating: +tRating });
       invalidateAll("/api/v1/testimonials"); setShowTestimonialModal(false);
       setTName(""); setTRole(""); setTContent("");
-    } catch (err) { alert((err as Error).message); }
+    } catch (err) { toast((err as Error).message); }
     finally { setSaving(false); }
   };
 

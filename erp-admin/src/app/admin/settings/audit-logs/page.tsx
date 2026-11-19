@@ -96,7 +96,7 @@ export default function AuditLogsPage() {
           </div>
         </div>
         <button
-          onClick={() => alert("Audit log export generated.")}
+          onClick={() => toast("Audit log export generated.")}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-surface-hover border border-border text-xs font-semibold rounded-lg text-text-primary transition"
         >
           <Download className="w-3.5 h-3.5 text-text-secondary" />

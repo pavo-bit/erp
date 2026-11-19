@@ -74,7 +74,7 @@ export default function NoticesPage() {
       invalidateAll("/api/v1/notices");
       setShowModal(false);
     } catch (err) {
-      alert((err as Error).message);
+      toast((err as Error).message);
     } finally {
       setSaving(false);
     }
@@ -86,7 +86,7 @@ export default function NoticesPage() {
       await apiCall(`/api/v1/notices/${id}`, "DELETE");
       invalidateAll("/api/v1/notices");
     } catch (err) {
-      alert((err as Error).message);
+      toast((err as Error).message);
     }
   };
 

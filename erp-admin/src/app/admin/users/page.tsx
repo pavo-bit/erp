@@ -44,7 +44,7 @@ export default function UserManagement() {
       setIsModalOpen(false);
       fetchUsers();
     } catch (err) {
-      alert((err as Error).message);
+      toast((err as Error).message);
     }
   };
 

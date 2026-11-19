@@ -46,10 +46,10 @@ const options = {
               razorpay_signature: response.razorpay_signature,
             });
 
-            alert('Payment successful!');
+            toast('Payment successful!');
             mutate(); // Refresh invoices
           } catch (err) {
-            alert('Payment verification error');
+            toast('Payment verification error');
           }
         },
         prefill: {
@@ -65,7 +65,7 @@ const options = {
       const rzp = new window.Razorpay(options);
       rzp.open();
     } catch (err) {
-      alert('Payment initiation failed');
+      toast('Payment initiation failed');
     }
   };
 

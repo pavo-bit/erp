@@ -59,10 +59,10 @@ export default function SaaSRequestsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Failed to ${action}`);
       
-      alert(data.message || `Successfully ${action}d`);
+      toast(data.message || `Successfully ${action}d`);
       fetchRequests();
     } catch (err: any) {
-      alert(err.message);
+      toast(err.message);
     } finally {
       setActionLoading(null);
     }

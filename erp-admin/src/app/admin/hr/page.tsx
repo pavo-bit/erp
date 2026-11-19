@@ -24,14 +24,14 @@ export default function HRPage() {
     try {
       await apiCall(`/api/v1/hr/salaries/${id}/pay`, "PUT");
       invalidateAll("/api/v1/hr/salaries");
-    } catch (e) { alert((e as Error).message); }
+    } catch (e) { toast((e as Error).message); }
   };
 
   const handleLeaveAction = async (id: string, status: string) => {
     try {
       await apiCall(`/api/v1/hr/leaves/${id}`, "PUT", { status });
       invalidateAll("/api/v1/hr/leaves");
-    } catch (e) { alert((e as Error).message); }
+    } catch (e) { toast((e as Error).message); }
   };
 
   const statusColors: Record<string, string> = {

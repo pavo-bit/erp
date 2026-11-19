@@ -225,7 +225,7 @@ export default function HostelManagementPage() {
       invalidate("/api/v1/ancillary/hostel/stats");
       if (selectedRoomId) mutateActiveRoom();
     } catch (err: any) {
-      alert(err.message || "Checkout failed");
+      toast(err.message || "Checkout failed");
     } finally {
       setActionLoading(false);
     }
@@ -676,7 +676,7 @@ export default function HostelManagementPage() {
                   <div className="p-3 bg-surface rounded-xl border border-border text-center">
                     <span className="text-[11px] font-bold text-text-secondary uppercase">Status</span>
                     <p className="text-sm font-bold text-text-primary mt-1.5">
-                      <StatusBadge status={activeRoomDetail.status} />
+                      <StatusBadge status={activeRoomDetail.status} color="blue" />
                     </p>
                   </div>
                 </div>

@@ -14,7 +14,7 @@ export default function FinancialCloseDashboard() {
       await apiCall(`/api/v1/finance/governance/periods/${periodId}/close`, "POST");
       mutate();
     } catch (err: any) {
-      alert(err.message || "Failed to close period. Ensure no pending transactions exist.");
+      toast(err.message || "Failed to close period. Ensure no pending transactions exist.");
     } finally {
       setClosingId(null);
     }

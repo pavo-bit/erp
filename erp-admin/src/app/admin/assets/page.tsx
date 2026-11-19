@@ -19,7 +19,7 @@ export default function AssetsPage() {
       setShowModal(false);
       setFormData({ name: "", categoryId: "", vendorId: "", serialNumber: "", purchaseCost: "" });
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to create asset");
+      toast(err instanceof Error ? err.message : "Failed to create asset");
     }
   };
 

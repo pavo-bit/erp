@@ -17,7 +17,7 @@ export default function AlumniMgmtPage() {
 
   const toggleFeatured = async (id: string, current: boolean) => {
     try { await apiCall("/api/v1/alumni", "PUT", { id, isFeatured: !current }); invalidateAll("/api/v1/alumni"); }
-    catch (err) { alert((err as Error).message); }
+    catch (err) { toast((err as Error).message); }
   };
 
   const handleApproval = async (id: string, status: "APPROVED" | "DECLINED") => {
@@ -25,7 +25,7 @@ export default function AlumniMgmtPage() {
     try { 
       await apiCall("/api/v1/alumni/status", "PUT", { id, status }); 
       invalidateAll("/api/v1/alumni"); 
-    } catch (err) { alert((err as Error).message); }
+    } catch (err) { toast((err as Error).message); }
   };
 
   return (

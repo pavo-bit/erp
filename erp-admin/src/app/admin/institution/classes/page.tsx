@@ -51,8 +51,8 @@ export default function ClassesSectionsPage() {
         description="Configure institutional academic class structures, section capacities, and grade levels."
         moduleId="classes"
         entityName="Class"
-        onAddNew={() => alert("Class creation form.")}
-        onImportSuccess={() => alert("Classes successfully imported!")}
+        onAddNew={() => toast("Class creation form.")}
+        onImportSuccess={() => toast("Classes successfully imported!")}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -108,7 +108,7 @@ export default function ClassesSectionsPage() {
                   <td className="p-3 text-text-secondary">{totalCap} Seats</td>
                   <td className="p-3 text-right">
                     <button
-                      onClick={() => alert(`Edit ${c.name}`)}
+                      onClick={() => toast(`Edit ${c.name}`)}
                       className="p-1.5 text-text-secondary hover:text-primary hover:bg-surface rounded-lg transition"
                       title="Edit Class"
                     >

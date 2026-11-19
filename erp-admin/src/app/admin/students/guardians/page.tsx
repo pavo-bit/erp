@@ -44,8 +44,8 @@ export default function ParentsGuardiansPage() {
         description="Parent contact details, emergency communications, and child mapping."
         moduleId="guardians"
         entityName="Guardian"
-        onAddNew={() => alert("Create Guardian Dialog")}
-        onImportSuccess={() => alert("Guardians imported successfully!")}
+        onAddNew={() => toast("Create Guardian Dialog")}
+        onImportSuccess={() => toast("Guardians imported successfully!")}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -86,7 +86,7 @@ export default function ParentsGuardiansPage() {
                 </td>
                 <td className="p-3 text-right">
                   <button
-                    onClick={() => alert(`Edit ${g.name}`)}
+                    onClick={() => toast(`Edit ${g.name}`)}
                     className="p-1.5 text-text-secondary hover:text-primary hover:bg-surface rounded-lg transition"
                     title="Edit Guardian"
                   >

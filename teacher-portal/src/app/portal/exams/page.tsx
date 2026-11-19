@@ -92,7 +92,7 @@ export default function ExamsGradingPage() {
         setTimeout(() => setSuccess(false), 3000);
       }
     } catch (error) {
-      alert("Failed to save marks. Check your connection or permissions.");
+      toast("Failed to save marks. Check your connection or permissions.");
     } finally {
       setSaving(false);
     }
