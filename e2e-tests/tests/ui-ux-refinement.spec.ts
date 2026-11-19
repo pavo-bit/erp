@@ -18,15 +18,41 @@ interface CookieHeaderItem {
 }
 
 async function createAuthenticatedSession(email: string, portalUrl: string, browserContext?: BrowserContext) {
+  let portal = 'erp-admin';
+  if (portalUrl.includes('3001') || portalUrl.includes('super-admin')) {
+    portal = 'super-admin';
+  } else if (portalUrl.includes('3002') || portalUrl.includes('teacher')) {
+    portal = 'teacher-portal';
+  } else if (portalUrl.includes('3003') || portalUrl.includes('student')) {
+    portal = 'student-portal';
+  } else if (portalUrl.includes('3006') || portalUrl.includes('parent')) {
+    portal = 'parent-portal';
+  } else if (portalUrl.includes('3007') || portalUrl.includes('payment')) {
+    portal = 'payment-portal';
+  } else if (portalUrl.includes('3008') || portalUrl.includes('saas')) {
+    portal = 'saas-frontend';
+  }
+
   const apiContext = await playwrightRequest.newContext();
   const loginRes = await apiContext.post(`${BACKEND_URL}/api/v1/auth/login`, {
-    data: { email, password: 'Admin@123' },
+    data: { email, password: 'Admin@123', portal },
   });
   expect(loginRes.status()).toBe(200);
 
+  const meRes = await apiContext.get(`${BACKEND_URL}/api/v1/auth/me`);
+  const csrfToken = meRes.headers()['x-csrf-token'] || loginRes.headers()['x-csrf-token'] || '';
+
+  const headers = (loginRes.headersArray ? loginRes.headersArray() : []) as CookieHeaderItem[];
+  const setCookies = headers.filter((h: CookieHeaderItem) => h.name.toLowerCase() === 'set-cookie');
+  const accessCookie = setCookies.find(
+    (h: CookieHeaderItem) =>
+      h.value.startsWith('access_token=') ||
+      h.value.startsWith('platform_access_token=') ||
+      h.value.startsWith('school_access_token=')
+  );
+  const accessToken = accessCookie ? accessCookie.value.split(';')[0].split('=')[1] : '';
+
   if (browserContext) {
-    const headers = (loginRes.headersArray ? loginRes.headersArray() : []) as CookieHeaderItem[];
-    const setCookies = headers.filter((h: CookieHeaderItem) => h.name.toLowerCase() === 'set-cookie');
     const cookiesToSet = setCookies.map((h: CookieHeaderItem) => {
       const parts = h.value.split(';');
       const [name, ...valParts] = parts[0].trim().split('=');
@@ -42,7 +68,20 @@ async function createAuthenticatedSession(email: string, portalUrl: string, brow
     }
   }
 
-  return apiContext;
+  const authHeaders: Record<string, string> = {};
+  if (csrfToken) {
+    authHeaders['x-csrf-token'] = csrfToken;
+  }
+  if (accessToken) {
+    authHeaders['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  const authenticatedContext = await playwrightRequest.newContext({
+    storageState: await apiContext.storageState(),
+    extraHTTPHeaders: authHeaders,
+  });
+
+  return authenticatedContext;
 }
 
 test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', () => {

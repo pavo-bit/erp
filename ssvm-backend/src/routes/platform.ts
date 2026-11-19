@@ -6,8 +6,7 @@ import prisma from "../lib/prisma";
 import logger from "../lib/logger";
 import { ModuleRegistryService } from "../services/module-registry.service";
 import { SupportSessionService } from "../services/support-session.service";
-import { getAuthPrisma } from "../lib/authPrisma";
-import { verifySync } from "otplib";
+import { verifyUserMfaToken } from "../lib/authPrisma";
 import { register } from "../middleware/metrics";
 import { KpiRegistry, KpiResult } from "../kpi/registry";
 import { createProxyMiddleware } from "http-proxy-middleware";
@@ -243,55 +242,10 @@ router.post(
       }
 
       // MFA Re-Authentication Check
-      if (!mfaCode) {
-        res.status(400).json({
-          success: false,
-          error: "MFA code is required for support session authorization",
-          code: "MFA_REQUIRED",
-        });
+      const mfaCheck = await verifyUserMfaToken(req.user!.email, mfaCode);
+      if (!mfaCheck.success) {
+        res.status(mfaCheck.code === "MFA_REQUIRED" ? 400 : 401).json(mfaCheck);
         return;
-      }
-
-      const authDb = getAuthPrisma();
-      const user = await authDb.user.findUnique({
-        where: { email: req.user!.email },
-      });
-
-      if (!user) {
-        res.status(401).json({ success: false, error: "User not found" });
-        return;
-      }
-
-      // If user has 2FA enabled, verify against TOTP secret
-      if (user.twoFactorEnabled && user.twoFactorSecret) {
-        try {
-          const verification = verifySync({ token: mfaCode, secret: user.twoFactorSecret });
-          if (!verification || !verification.valid) {
-            res.status(401).json({
-              success: false,
-              error: "Invalid MFA verification code",
-              code: "INVALID_MFA_CODE",
-            });
-            return;
-          }
-        } catch {
-          res.status(401).json({
-            success: false,
-            error: "Invalid MFA verification code",
-            code: "INVALID_MFA_CODE",
-          });
-          return;
-        }
-      } else {
-        // When 2FA not formally set up, verify standard 6-digit challenge code
-        if (mfaCode !== "000000" && !/^\d{6}$/.test(mfaCode)) {
-          res.status(401).json({
-            success: false,
-            error: "Invalid MFA verification code format",
-            code: "INVALID_MFA_CODE",
-          });
-          return;
-        }
       }
 
       // Verify school exists
@@ -307,7 +261,7 @@ router.post(
       const { session, token } = await SupportSessionService.createSession({
         schoolId,
         superAdminId: req.user!.id,
-        superAdminEmail: req.user!.email || user.email,
+        superAdminEmail: req.user!.email,
         reason,
         durationMinutes: durationMinutes ? Number(durationMinutes) : 15,
       });

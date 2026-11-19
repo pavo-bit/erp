@@ -14,6 +14,16 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+function getSubjectCount(subjects: string | string[] | undefined | null): number {
+  if (!subjects) return 2;
+  if (Array.isArray(subjects)) return subjects.length || 2;
+  if (typeof subjects === "string") {
+    const parts = subjects.split(",").map((s) => s.trim()).filter(Boolean);
+    return parts.length || 2;
+  }
+  return 2;
+}
+
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const teacher = user?.teacher;
@@ -21,7 +31,7 @@ export default function TeacherDashboard() {
   const quickStats = [
     { icon: CalendarCheck, label: "Classes Today", value: "5 Assigned", color: "text-teal-700 bg-teal-50 border-teal-200" },
     { icon: Users, label: "Total Students", value: "185", color: "text-blue-700 bg-blue-50 border-blue-200" },
-    { icon: BookOpen, label: "Active Subjects", value: String(teacher?.subjects ? (typeof teacher.subjects === "string" ? teacher.subjects.split(",").length : teacher.subjects.length) : 2), color: "text-purple-700 bg-purple-50 border-purple-200" },
+    { icon: BookOpen, label: "Active Subjects", value: String(getSubjectCount(teacher?.subjects)), color: "text-purple-700 bg-purple-50 border-purple-200" },
     { icon: Clock, label: "Next Period", value: "10:30 AM (Sec 10-A)", color: "text-amber-700 bg-amber-50 border-amber-200" },
   ];
 

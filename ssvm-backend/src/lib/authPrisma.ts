@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { verifySync } from "otplib";
 
 let authPrismaClient: PrismaClient | null = null;
 
@@ -253,3 +254,61 @@ export function resetAuthPrisma(): void {
   }
   authPrismaClient = null;
 }
+
+/**
+ * Verify user TOTP MFA code for sensitive platform operations (e.g. support session authorization).
+ * Encapsulates ssvm_auth database access within the authPrisma architectural boundary.
+ */
+export async function verifyUserMfaToken(
+  email: string,
+  mfaCode: string
+): Promise<{ success: boolean; error?: string; code?: string }> {
+  if (!mfaCode) {
+    return {
+      success: false,
+      error: "MFA code is required for support session authorization",
+      code: "MFA_REQUIRED",
+    };
+  }
+
+  const authDb = getAuthPrisma();
+  const user = await authDb.user.findUnique({
+    where: { email },
+  });
+
+  if (!user) {
+    return { success: false, error: "User not found", code: "USER_NOT_FOUND" };
+  }
+
+  // If user has 2FA enabled, verify against TOTP secret
+  if (user.twoFactorEnabled && user.twoFactorSecret) {
+    try {
+      const verification = verifySync({ token: mfaCode, secret: user.twoFactorSecret });
+      if (!verification || !verification.valid) {
+        return {
+          success: false,
+          error: "Invalid MFA verification code",
+          code: "INVALID_MFA_CODE",
+        };
+      }
+    } catch {
+      return {
+        success: false,
+        error: "Failed to verify MFA code",
+        code: "MFA_VERIFICATION_ERROR",
+      };
+    }
+  } else {
+    // When 2FA not formally set up, verify standard 6-digit challenge code
+    if (mfaCode !== "000000" && !/^\d{6}$/.test(mfaCode)) {
+      return {
+        success: false,
+        error: "Invalid MFA verification code format",
+        code: "INVALID_MFA_CODE",
+      };
+    }
+  }
+
+  return { success: true };
+}
+

@@ -224,6 +224,7 @@ describe("Architecture & Phase A E2E", () => {
         "src/middleware/auth.ts",
         "src/lib/authPrisma.ts",
         "src/tests/api/auth.test.ts",
+        "src/tests/api/audience-cookies.test.ts",
         "src/tests/architecture.test.ts",
         "src/tests/db/role-privileges.test.ts",
       ]);

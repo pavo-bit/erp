@@ -105,6 +105,7 @@ export function useEnquiries(params?: string) { return useSWR(`/api/v1/reception
 export function useVisitors(params?: string) { return useSWR(`/api/v1/reception/visitors${params ? `?${params}` : ""}`, fetcher); }
 export function useLibraryBooks(params?: string) { return useSWR(`/api/v1/library/books${params ? `?${params}` : ""}`, fetcher); }
 export function useLibraryTransactions(params?: string) { return useSWR(`/api/v1/library/transactions${params ? `?${params}` : ""}`, fetcher); }
+export function useMyLibrary() { return useSWR("/api/v1/library/my-books", fetcher); }
 
 // Phase 4-7 Enterprise 
 export function useFinancialClosePeriods() { return useSWR("/api/v1/finance/governance/periods", fetcher); }
