@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
+import process from 'node:process';
 
 /**
  * Playwright E2E configuration for SSVM ERP

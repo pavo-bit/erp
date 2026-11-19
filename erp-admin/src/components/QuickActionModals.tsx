@@ -1,11 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiCall, invalidateAll } from "@/lib/api-hooks";
-import Papa from "papaparse";
+import { toast } from "@/lib/toast";
+import { X, Upload, ArrowRight, Check } from "lucide-react";
 
-export type ModalType = "NONE" | "NEW_ADMISSION" | "ADD_STUDENT" | "RECORD_FEE" | "MARK_ATTENDANCE" | "CREATE_EXAM" | "ADD_TEACHER" | "SEND_NOTICE";
+export type ModalType =
+  | "NONE"
+  | "NEW_ADMISSION"
+  | "ADD_STUDENT"
+  | "RECORD_FEE"
+  | "MARK_ATTENDANCE"
+  | "CREATE_EXAM"
+  | "ADD_TEACHER"
+  | "SEND_NOTICE";
 
 interface Props {
   isOpen: ModalType;
@@ -14,154 +24,131 @@ interface Props {
 
 export function QuickActionModals({ isOpen, onClose }: Props) {
   const [saving, setSaving] = useState(false);
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkFile, setBulkFile] = useState<File | null>(null);
-  const [validationReport, setValidationReport] = useState<any[] | null>(null);
-  const [isValidated, setIsValidated] = useState(false);
-  
-  // States for specific forms
-  const [studentForm, setStudentForm] = useState({ name: "", rollNo: "", class: "", section: "", guardianName: "", guardianPhone: "" });
-  const [feeForm, setFeeForm] = useState({ studentId: "", amount: "", type: "MONTHLY", dueDate: "" });
-  const [examForm, setExamForm] = useState({ name: "", class: "", session: "2025-26", startDate: "", endDate: "" });
-  const [teacherForm, setTeacherForm] = useState({ name: "", email: "", department: "", designation: "" });
-  const [noticeForm, setNoticeForm] = useState({ title: "", content: "", category: "General" });
-  const [attendanceForm, setAttendanceForm] = useState({ class: "", date: new Date().toISOString().split('T')[0] });
-  const [admissionForm, setAdmissionForm] = useState({ applicantName: "", applyingForClass: "", parentName: "", parentPhone: "" });
+
+  // States for specific single-entry forms
+  const [studentForm, setStudentForm] = useState({
+    name: "",
+    rollNo: "1",
+    class: "10",
+    section: "A",
+    guardianName: "",
+    guardianPhone: "",
+  });
+  const [feeForm, setFeeForm] = useState({
+    studentId: "",
+    amount: "",
+    type: "MONTHLY",
+    dueDate: new Date().toISOString().split("T")[0],
+  });
+  const [examForm, setExamForm] = useState({
+    name: "",
+    class: "10",
+    session: "2026-2027",
+    startDate: "",
+    endDate: "",
+  });
+  const [teacherForm, setTeacherForm] = useState({
+    name: "",
+    email: "",
+    department: "Academics",
+    designation: "Teacher",
+  });
+  const [noticeForm, setNoticeForm] = useState({
+    title: "",
+    content: "",
+    category: "General",
+  });
+  const [attendanceForm, setAttendanceForm] = useState({
+    class: "10",
+    date: new Date().toISOString().split("T")[0],
+  });
+  const [admissionForm, setAdmissionForm] = useState({
+    applicantName: "",
+    applyingForClass: "10",
+    parentName: "",
+    parentPhone: "",
+  });
 
   if (isOpen === "NONE") return null;
 
   const resetState = () => {
-    setStudentForm({ name: "", rollNo: "", class: "", section: "", guardianName: "", guardianPhone: "" });
-    setFeeForm({ studentId: "", amount: "", type: "MONTHLY", dueDate: "" });
-    setBulkFile(null);
-    setValidationReport(null);
-    setIsValidated(false);
-  }
+    setStudentForm({ name: "", rollNo: "1", class: "10", section: "A", guardianName: "", guardianPhone: "" });
+    setFeeForm({ studentId: "", amount: "", type: "MONTHLY", dueDate: new Date().toISOString().split("T")[0] });
+    setTeacherForm({ name: "", email: "", department: "Academics", designation: "Teacher" });
+  };
 
   const handleClose = () => {
     onClose();
     resetState();
-  }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      if (bulkMode && bulkFile) {
-        if (!isValidated) {
-          await handleBulkUpload(true);
-        } else {
-          await handleBulkUpload(false);
-          handleClose();
+      switch (isOpen) {
+        case "ADD_STUDENT":
+          await apiCall("/api/v1/students", "POST", studentForm);
+          invalidateAll("/api/v1/students");
+          invalidateAll("/api/v1/stats");
+          toast("Student record created successfully!");
+          break;
+        case "RECORD_FEE":
+          await apiCall("/api/v1/invoices", "POST", { ...feeForm, amount: Number(feeForm.amount) });
+          invalidateAll("/api/v1/invoices");
+          invalidateAll("/api/v1/stats");
+          toast("Fee invoice recorded successfully!");
+          break;
+        case "CREATE_EXAM":
+          await apiCall("/api/v1/exams", "POST", examForm);
+          invalidateAll("/api/v1/exams");
+          toast("Examination scheduled successfully!");
+          break;
+        case "ADD_TEACHER":
+          await apiCall("/api/v1/teachers", "POST", teacherForm);
+          invalidateAll("/api/v1/teachers");
+          invalidateAll("/api/v1/stats");
+          toast("Faculty member added successfully!");
+          break;
+        case "SEND_NOTICE": {
+          const fd = new FormData();
+          fd.append("title", noticeForm.title);
+          fd.append("content", noticeForm.content);
+          fd.append("category", noticeForm.category);
+          fd.append("status", "PUBLISHED");
+          await apiCall("/api/v1/notices", "POST", fd);
+          invalidateAll("/api/v1/notices");
+          invalidateAll("/api/v1/stats");
+          toast("Notice broadcasted successfully!");
+          break;
         }
-      } else {
-        await handleSingleSubmit();
-        handleClose();
+        case "NEW_ADMISSION":
+          await apiCall("/api/v1/admissions", "POST", admissionForm);
+          invalidateAll("/api/v1/admissions");
+          invalidateAll("/api/v1/stats");
+          toast("Admission application submitted!");
+          break;
+        case "MARK_ATTENDANCE":
+          toast("Attendance roster initialized. Redirecting to attendance roll call.");
+          break;
       }
-    } catch (err) {
-      toast((err as Error).message);
+      handleClose();
+    } catch (err: any) {
+      toast(err.message || "Failed to process request");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSingleSubmit = async () => {
-    switch (isOpen) {
-      case "ADD_STUDENT":
-        await apiCall("/api/v1/students", "POST", studentForm);
-        invalidateAll("/api/v1/students");
-        invalidateAll("/api/v1/stats");
-        break;
-      case "RECORD_FEE":
-        await apiCall("/api/v1/invoices", "POST", { ...feeForm, amount: Number(feeForm.amount) });
-        invalidateAll("/api/v1/invoices");
-        invalidateAll("/api/v1/stats");
-        break;
-      case "CREATE_EXAM":
-        await apiCall("/api/v1/exams", "POST", examForm);
-        invalidateAll("/api/v1/exams");
-        break;
-      case "ADD_TEACHER":
-        await apiCall("/api/v1/teachers", "POST", teacherForm);
-        invalidateAll("/api/v1/teachers");
-        invalidateAll("/api/v1/stats");
-        break;
-      case "SEND_NOTICE":
-        const fd = new FormData();
-        fd.append("title", noticeForm.title);
-        fd.append("content", noticeForm.content);
-        fd.append("category", noticeForm.category);
-        fd.append("status", "PUBLISHED");
-        await apiCall("/api/v1/notices", "POST", fd);
-        invalidateAll("/api/v1/notices");
-        invalidateAll("/api/v1/stats");
-        break;
-      case "NEW_ADMISSION":
-        await apiCall("/api/v1/admissions", "POST", admissionForm);
-        invalidateAll("/api/v1/admissions");
-        invalidateAll("/api/v1/stats");
-        break;
-      case "MARK_ATTENDANCE":
-        toast("Attendance roster initialized. Please visit Attendance module for bulk marking.");
-        break;
-    }
-  };
-
-  const handleBulkUpload = async (validateOnly: boolean) => {
-    if (!bulkFile) return;
-
-    return new Promise<void>((resolve, reject) => {
-      Papa.parse(bulkFile, {
-        header: true,
-        skipEmptyLines: true,
-        complete: async (results) => {
-          try {
-            const { data } = results;
-            let type = "";
-            if (isOpen === "ADD_STUDENT") type = "students";
-            else if (isOpen === "ADD_TEACHER") type = "teachers";
-            else if (isOpen === "RECORD_FEE") type = "invoices";
-            
-            if (!type) {
-              throw new Error("Bulk upload not supported for this action.");
-            }
-
-            const payload = { type, data };
-            const endpoint = validateOnly ? "/api/v1/bulk/upload?action=validate" : "/api/v1/bulk/upload";
-
-            const res = await apiCall(endpoint, "POST", payload);
-            
-            if (validateOnly) {
-              setValidationReport(res?.report || []);
-              setIsValidated(true);
-            } else {
-              if (type === "students") invalidateAll("/api/v1/students");
-              if (type === "teachers") invalidateAll("/api/v1/teachers");
-              if (type === "invoices") invalidateAll("/api/v1/invoices");
-              invalidateAll("/api/v1/stats");
-              toast(`Successfully imported ${data.length} records!`);
-            }
-            resolve();
-          } catch (e: any) {
-            reject(new Error(e.message || "Bulk upload failed"));
-          }
-        },
-        error: (error: any) => {
-          reject(new Error(error.message));
-        }
-      });
-    });
-  };
-
   const titles: Record<ModalType, string> = {
     NONE: "",
     NEW_ADMISSION: "New Admission Application",
-    ADD_STUDENT: "Add New Student",
+    ADD_STUDENT: "Quick Add Student",
     RECORD_FEE: "Record Fee Payment",
-    MARK_ATTENDANCE: "Mark Attendance",
-    CREATE_EXAM: "Create New Exam",
-    ADD_TEACHER: "Add New Teacher",
-    SEND_NOTICE: "Send School Notice"
+    MARK_ATTENDANCE: "Mark Attendance Roll Call",
+    CREATE_EXAM: "Schedule Examination",
+    ADD_TEACHER: "Quick Add Faculty Member",
+    SEND_NOTICE: "Publish School Notice",
   };
 
   return (
@@ -170,162 +157,378 @@ export function QuickActionModals({ isOpen, onClose }: Props) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-4"
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-[100] flex items-center justify-center p-4"
         onClick={handleClose}
       >
         <motion.div
           role="dialog"
           aria-modal="true"
           aria-labelledby="quick-modal-title"
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0, scale: 0.95, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto"
-          onClick={e => e.stopPropagation()}
+          exit={{ opacity: 0, scale: 0.95, y: 16 }}
+          className="w-full max-w-lg bg-white rounded-2xl p-6 sm:p-7 shadow-2xl relative max-h-[90vh] overflow-y-auto border border-slate-200"
+          onClick={(e) => e.stopPropagation()}
         >
-          <button aria-label="Close modal" onClick={handleClose} className="absolute top-4 right-4 text-text-secondary hover:text-text-primary bg-transparent border-none cursor-pointer text-lg">✕</button>
-          
-          <h2 id="quick-modal-title" className="text-xl font-bold mb-6 font-[var(--font-heading)]">{titles[isOpen]}</h2>
+          {/* Header */}
+          <div className="flex items-center justify-between pb-3 mb-5 border-b border-slate-100">
+            <h2 id="quick-modal-title" className="text-[19px] font-bold text-slate-900 font-[var(--font-heading)]">
+              {titles[isOpen]}
+            </h2>
+            <button
+              type="button"
+              aria-label="Close modal"
+              onClick={handleClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors bg-transparent border-none cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-          {["ADD_STUDENT", "ADD_TEACHER", "RECORD_FEE"].includes(isOpen) && (
-            <div className="flex gap-2 mb-6 bg-surface p-1 rounded-lg">
-              <button onClick={() => { setBulkMode(false); resetState(); }} className={`flex-1 py-1.5 text-[13px] font-semibold rounded-md border-none cursor-pointer transition-all ${!bulkMode ? "bg-white shadow-sm text-primary" : "bg-transparent text-text-secondary"}`}>Manual Entry</button>
-              <button onClick={() => { setBulkMode(true); resetState(); }} className={`flex-1 py-1.5 text-[13px] font-semibold rounded-md border-none cursor-pointer transition-all ${bulkMode ? "bg-white shadow-sm text-primary" : "bg-transparent text-text-secondary"}`}>Bulk Import (CSV)</button>
+          {/* Canonical Bulk Import Alternative Link */}
+          {isOpen === "ADD_STUDENT" && (
+            <div className="mb-5 p-3.5 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-between gap-3 text-[13px]">
+              <span className="text-blue-900 font-medium">Need to import multiple students from spreadsheet?</span>
+              <Link
+                href="/admin/students/import"
+                onClick={handleClose}
+                className="inline-flex items-center gap-1 font-bold text-blue-700 hover:underline shrink-0 no-underline"
+              >
+                <span>Bulk Import</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {bulkMode ? (
-              <div className="flex flex-col gap-4">
-                {!isValidated ? (
-                  <div className="border-2 border-dashed border-border rounded-xl p-8 text-center bg-surface/50">
-                    <p className="text-[13px] text-text-secondary mb-4">Upload a CSV file with headers matching the fields.</p>
-                    <input type="file" accept=".csv" onChange={e => { setBulkFile(e.target.files?.[0] || null); setIsValidated(false); setValidationReport(null); }} className="text-[12px] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer" required />
-                  </div>
-                ) : (
-                  <div className="bg-surface p-4 rounded-xl border border-border">
-                    <h4 className="font-semibold text-sm mb-3">Validation Report</h4>
-                    <div className="max-h-40 overflow-y-auto space-y-2">
-                      {validationReport?.map((r, i) => (
-                        <div key={i} className={`p-2 rounded text-xs font-mono flex gap-2 ${r.status === 'ERROR' ? 'bg-red-100 text-red-700' : r.status === 'WARNING' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                          <span className="font-bold whitespace-nowrap">Row {r.row}:</span>
-                          <span>{r.message}</span>
-                        </div>
-                      ))}
-                    </div>
-                    {validationReport?.some(r => r.status === 'ERROR') ? (
-                      <div className="flex flex-col items-start gap-2 mt-3">
-                        <p className="text-red-500 text-xs font-semibold">Please fix the errors in your CSV and upload again.</p>
-                        <button 
-                          type="button"
-                          onClick={() => {
-                            const errorRows = validationReport.filter(r => r.status === 'ERROR');
-                            const csvContent = "data:text/csv;charset=utf-8," 
-                              + "Row,Error Message\n"
-                              + errorRows.map(e => `${e.row},"${e.message}"`).join("\n");
-                            const encodedUri = encodeURI(csvContent);
-                            const link = document.createElement("a");
-                            link.setAttribute("href", encodedUri);
-                            link.setAttribute("download", "import_errors.csv");
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                          }}
-                          className="bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded text-xs font-semibold hover:bg-red-100 transition-colors cursor-pointer"
-                        >
-                          Download Error CSV
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-green-600 text-xs mt-3 font-semibold">Validation successful! You can now import the data.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
+          {isOpen === "ADD_TEACHER" && (
+            <div className="mb-5 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-3 text-[13px]">
+              <span className="text-emerald-900 font-medium">Need to bulk import teaching faculty roster?</span>
+              <Link
+                href="/admin/teachers/import"
+                onClick={handleClose}
+                className="inline-flex items-center gap-1 font-bold text-emerald-700 hover:underline shrink-0 no-underline"
+              >
+                <span>Staff Import</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {isOpen === "NEW_ADMISSION" && (
               <>
-                {isOpen === "NEW_ADMISSION" && (
-                  <>
-                    <input aria-label="Applicant Name" placeholder="Applicant Name" required value={admissionForm.applicantName} onChange={e => setAdmissionForm({...admissionForm, applicantName: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Applying For Class" placeholder="Applying For Class" required value={admissionForm.applyingForClass} onChange={e => setAdmissionForm({...admissionForm, applyingForClass: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Parent Name" placeholder="Parent Name" required value={admissionForm.parentName} onChange={e => setAdmissionForm({...admissionForm, parentName: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Parent Phone" placeholder="Parent Phone" required value={admissionForm.parentPhone} onChange={e => setAdmissionForm({...admissionForm, parentPhone: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                  </>
-                )}
-
-                {isOpen === "ADD_STUDENT" && (
-                  <>
-                    <input aria-label="Student Name" placeholder="Student Name" required value={studentForm.name} onChange={e => setStudentForm({...studentForm, name: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input aria-label="Roll No" placeholder="Roll No" required value={studentForm.rollNo} onChange={e => setStudentForm({...studentForm, rollNo: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                      <input aria-label="Class" placeholder="Class" required value={studentForm.class} onChange={e => setStudentForm({...studentForm, class: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    </div>
-                    <input aria-label="Section" placeholder="Section" required value={studentForm.section} onChange={e => setStudentForm({...studentForm, section: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Guardian Name" placeholder="Guardian Name" value={studentForm.guardianName} onChange={e => setStudentForm({...studentForm, guardianName: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                  </>
-                )}
-
-                {isOpen === "RECORD_FEE" && (
-                  <>
-                    <input aria-label="Student ID" placeholder="Student ID" required value={feeForm.studentId} onChange={e => setFeeForm({...feeForm, studentId: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Amount" placeholder="Amount (₹)" type="number" required value={feeForm.amount} onChange={e => setFeeForm({...feeForm, amount: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <select aria-label="Fee Type" required value={feeForm.type} onChange={e => setFeeForm({...feeForm, type: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary bg-white">
-                      <option value="MONTHLY">Monthly Fee</option>
-                      <option value="ADMISSION">Admission Fee</option>
-                      <option value="EXAM">Exam Fee</option>
-                      <option value="TRANSPORT">Transport Fee</option>
-                    </select>
-                    <input aria-label="Due Date" type="date" required value={feeForm.dueDate} onChange={e => setFeeForm({...feeForm, dueDate: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                  </>
-                )}
-
-                {isOpen === "MARK_ATTENDANCE" && (
-                  <>
-                    <input aria-label="Class" placeholder="Class (e.g. X)" required value={attendanceForm.class} onChange={e => setAttendanceForm({...attendanceForm, class: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Date" type="date" required value={attendanceForm.date} onChange={e => setAttendanceForm({...attendanceForm, date: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <p className="text-[12px] text-text-secondary mt-2">Proceeding will initialize the attendance roster for this class and date.</p>
-                  </>
-                )}
-
-                {isOpen === "CREATE_EXAM" && (
-                  <>
-                    <input aria-label="Exam Name" placeholder="Exam Name" required value={examForm.name} onChange={e => setExamForm({...examForm, name: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Class" placeholder="Class" required value={examForm.class} onChange={e => setExamForm({...examForm, class: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input aria-label="Start Date" type="date" required value={examForm.startDate} onChange={e => setExamForm({...examForm, startDate: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                      <input aria-label="End Date" type="date" required value={examForm.endDate} onChange={e => setExamForm({...examForm, endDate: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    </div>
-                  </>
-                )}
-
-                {isOpen === "ADD_TEACHER" && (
-                  <>
-                    <input aria-label="Full Name" placeholder="Full Name" required value={teacherForm.name} onChange={e => setTeacherForm({...teacherForm, name: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Email" placeholder="Email" type="email" required value={teacherForm.email} onChange={e => setTeacherForm({...teacherForm, email: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Department" placeholder="Department" required value={teacherForm.department} onChange={e => setTeacherForm({...teacherForm, department: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <input aria-label="Designation" placeholder="Designation" value={teacherForm.designation} onChange={e => setTeacherForm({...teacherForm, designation: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                  </>
-                )}
-
-                {isOpen === "SEND_NOTICE" && (
-                  <>
-                    <input aria-label="Notice Title" placeholder="Notice Title" required value={noticeForm.title} onChange={e => setNoticeForm({...noticeForm, title: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary" />
-                    <select aria-label="Notice Category" required value={noticeForm.category} onChange={e => setNoticeForm({...noticeForm, category: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary bg-white">
-                      <option>General</option>
-                      <option>Admission</option>
-                      <option>Results</option>
-                      <option>Finance</option>
-                      <option>Events</option>
-                    </select>
-                    <textarea aria-label="Notice Content" placeholder="Notice Content" required rows={4} value={noticeForm.content} onChange={e => setNoticeForm({...noticeForm, content: e.target.value})} className="px-4 py-2.5 rounded-xl border border-border text-[13px] outline-none focus:border-primary resize-none" />
-                  </>
-                )}
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Applicant Full Name *</label>
+                  <input
+                    required
+                    value={admissionForm.applicantName}
+                    onChange={(e) => setAdmissionForm({ ...admissionForm, applicantName: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Applying For Class *</label>
+                  <input
+                    required
+                    value={admissionForm.applyingForClass}
+                    onChange={(e) => setAdmissionForm({ ...admissionForm, applyingForClass: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Parent / Guardian Name *</label>
+                  <input
+                    required
+                    value={admissionForm.parentName}
+                    onChange={(e) => setAdmissionForm({ ...admissionForm, parentName: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Parent Contact Phone *</label>
+                  <input
+                    type="tel"
+                    required
+                    value={admissionForm.parentPhone}
+                    onChange={(e) => setAdmissionForm({ ...admissionForm, parentPhone: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </>
             )}
 
-            <button type="submit" disabled={saving || (bulkMode && isValidated && validationReport?.some(r => r.status === 'ERROR'))} className="mt-4 w-full py-3 rounded-xl text-[14px] font-bold text-white border-none cursor-pointer gradient-btn font-[var(--font-heading)] disabled:opacity-50">
-              {saving ? "Processing..." : bulkMode ? (!isValidated ? "Validate Data" : "Import Data") : "Submit"}
-            </button>
+            {isOpen === "ADD_STUDENT" && (
+              <>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Student Full Name *</label>
+                  <input
+                    required
+                    value={studentForm.name}
+                    onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">Class *</label>
+                    <input
+                      required
+                      value={studentForm.class}
+                      onChange={(e) => setStudentForm({ ...studentForm, class: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">Section *</label>
+                    <input
+                      required
+                      value={studentForm.section}
+                      onChange={(e) => setStudentForm({ ...studentForm, section: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">Roll No *</label>
+                    <input
+                      required
+                      value={studentForm.rollNo}
+                      onChange={(e) => setStudentForm({ ...studentForm, rollNo: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Guardian Phone (Optional)</label>
+                  <input
+                    type="tel"
+                    value={studentForm.guardianPhone}
+                    onChange={(e) => setStudentForm({ ...studentForm, guardianPhone: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </>
+            )}
+
+            {isOpen === "RECORD_FEE" && (
+              <>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Student Identifier *</label>
+                  <input
+                    required
+                    placeholder="Student ID or Roll No"
+                    value={feeForm.studentId}
+                    onChange={(e) => setFeeForm({ ...feeForm, studentId: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Amount (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    placeholder="e.g. 2500"
+                    value={feeForm.amount}
+                    onChange={(e) => setFeeForm({ ...feeForm, amount: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">Fee Type *</label>
+                    <select
+                      required
+                      value={feeForm.type}
+                      onChange={(e) => setFeeForm({ ...feeForm, type: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    >
+                      <option value="MONTHLY">Monthly Tuition</option>
+                      <option value="ADMISSION">Admission Fee</option>
+                      <option value="EXAM">Examination Fee</option>
+                      <option value="TRANSPORT">Transport Fee</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">Due Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={feeForm.dueDate}
+                      onChange={(e) => setFeeForm({ ...feeForm, dueDate: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {isOpen === "MARK_ATTENDANCE" && (
+              <>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Class Standard *</label>
+                  <input
+                    required
+                    value={attendanceForm.class}
+                    onChange={(e) => setAttendanceForm({ ...attendanceForm, class: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Attendance Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={attendanceForm.date}
+                    onChange={(e) => setAttendanceForm({ ...attendanceForm, date: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </>
+            )}
+
+            {isOpen === "CREATE_EXAM" && (
+              <>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Examination Title *</label>
+                  <input
+                    required
+                    placeholder="e.g. Mid-Term Summative Assessment"
+                    value={examForm.name}
+                    onChange={(e) => setExamForm({ ...examForm, name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Class Standard *</label>
+                  <input
+                    required
+                    value={examForm.class}
+                    onChange={(e) => setExamForm({ ...examForm, class: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">Start Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={examForm.startDate}
+                      onChange={(e) => setExamForm({ ...examForm, startDate: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">End Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={examForm.endDate}
+                      onChange={(e) => setExamForm({ ...examForm, endDate: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {isOpen === "ADD_TEACHER" && (
+              <>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Full Name *</label>
+                  <input
+                    required
+                    value={teacherForm.name}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, name: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Institutional Email *</label>
+                  <input
+                    type="email"
+                    required
+                    value={teacherForm.email}
+                    onChange={(e) => setTeacherForm({ ...teacherForm, email: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">Department</label>
+                    <input
+                      value={teacherForm.department}
+                      onChange={(e) => setTeacherForm({ ...teacherForm, department: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-700 mb-1">Designation</label>
+                    <input
+                      value={teacherForm.designation}
+                      onChange={(e) => setTeacherForm({ ...teacherForm, designation: e.target.value })}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {isOpen === "SEND_NOTICE" && (
+              <>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Notice Title *</label>
+                  <input
+                    required
+                    value={noticeForm.title}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Category *</label>
+                  <select
+                    required
+                    value={noticeForm.category}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, category: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    <option>General</option>
+                    <option>Academic</option>
+                    <option>Examination</option>
+                    <option>Finance</option>
+                    <option>Emergency Alert</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[13px] font-semibold text-slate-700 mb-1">Announcement Body *</label>
+                  <textarea
+                    required
+                    rows={4}
+                    value={noticeForm.content}
+                    onChange={(e) => setNoticeForm({ ...noticeForm, content: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14px] focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  />
+                </div>
+              </>
+            )}
+
+            {/* Actions */}
+            <div className="pt-3 flex items-center justify-end gap-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={handleClose}
+                className="px-4 py-2.5 rounded-xl text-[14px] font-semibold text-slate-700 hover:bg-slate-100 transition-colors bg-transparent border-none cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-6 py-2.5 h-[44px] rounded-xl text-[14px] font-semibold text-white bg-blue-700 hover:bg-blue-800 disabled:opacity-50 transition-colors cursor-pointer border-none shadow-xs"
+              >
+                {saving ? "Processing..." : "Submit Record"}
+              </button>
+            </div>
           </form>
         </motion.div>
       </motion.div>
