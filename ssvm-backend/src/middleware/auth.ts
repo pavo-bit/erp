@@ -286,7 +286,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       const supportPayload = payload as AccessTokenPayload;
       const safeMethods = ["GET", "HEAD", "OPTIONS"];
       const supportSession = supportPayload.sid
-        ? SupportSessionService.getSession(supportPayload.sid)
+        ? await SupportSessionService.getSession(supportPayload.sid)
         : null;
 
       // A support token is a distinct, school-scoped principal. Never rebuild it
