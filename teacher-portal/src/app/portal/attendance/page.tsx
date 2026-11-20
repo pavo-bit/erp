@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { CheckCircle2, XCircle, Clock, Save, Users, AlertCircle } from "lucide-react";
 import { PageHeader, StatusBadge } from "@/components/ui/DataTable";
 import { Button } from "@/components/ui/Button";
+import { apiCall } from "@/lib/api-hooks";
 
 interface StudentRecord {
   id: string;
@@ -31,6 +32,7 @@ export default function TeacherAttendancePage() {
   const [students, setStudents] = useState<StudentRecord[]>(INITIAL_ROSTER);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const setStatus = (id: string, status: "PRESENT" | "ABSENT" | "LATE") => {
     setStudents((prev) =>
@@ -42,13 +44,27 @@ export default function TeacherAttendancePage() {
     setStudents((prev) => prev.map((s) => ({ ...s, status })));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setSubmitError(null);
+    try {
+      const records = students.map((s) => ({
+        studentId: s.id,
+        status: s.status,
+        remarks: s.remarks || null,
+      }));
+      await apiCall("/api/v1/attendance", "POST", {
+        sectionId: `${selectedClass}-${selectedSection}`,
+        date,
+        records,
+      });
       setSubmitted(true);
-    }, 800);
+    } catch (err: any) {
+      setSubmitError(err.message || "Failed to submit attendance records");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const presentCount = students.filter((s) => s.status === "PRESENT").length;
@@ -140,6 +156,24 @@ export default function TeacherAttendancePage() {
           </Button>
         </div>
       </div>
+
+      {submitError && (
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-900 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            <div>
+              <p className="text-[14px] font-bold">Submission Failed</p>
+              <p className="text-[12px] text-rose-700">{submitError}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => setSubmitError(null)}
+            className="text-[12px] font-bold text-rose-700 hover:text-rose-900 cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {submitted && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex items-center justify-between">

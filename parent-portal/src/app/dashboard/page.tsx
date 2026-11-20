@@ -16,24 +16,33 @@ export default function DashboardOverview() {
       if (!selectedStudentId) return;
       setLoading(true);
       try {
-        // We will mock this response until we build a dedicated parent dashboard endpoint
-        // Or we can use existing endpoints if they support parent role nicely
-        const [attendanceRes, invoiceRes] = await Promise.all([
-          apiCall(`/api/v1/attendance?studentId=${selectedStudentId}&limit=10`),
-          apiCall(`/api/v1/invoices?studentId=${selectedStudentId}&status=PENDING`)
+        const [attendanceRes, invoiceRes, assignmentRes, resultRes] = await Promise.all([
+          apiCall(`/api/v1/attendance?studentId=${selectedStudentId}&limit=10`).catch(() => []),
+          apiCall(`/api/v1/invoices?studentId=${selectedStudentId}&status=PENDING`).catch(() => []),
+          apiCall(`/api/v1/assignments?studentId=${selectedStudentId}`).catch(() => []),
+          apiCall(`/api/v1/results?studentId=${selectedStudentId}`).catch(() => [])
         ]);
 
         const attendances = (Array.isArray(attendanceRes) ? attendanceRes : attendanceRes?.data) || [];
         const invoices = (Array.isArray(invoiceRes) ? invoiceRes : invoiceRes?.data) || [];
+        const assignments = (Array.isArray(assignmentRes) ? assignmentRes : assignmentRes?.data) || [];
+        const results = (Array.isArray(resultRes) ? resultRes : resultRes?.data) || [];
 
         const presentCount = attendances.filter((a: any) => a.status === 'PRESENT').length;
         const totalCount = attendances.length || 1;
+        const pendingAssignCount = assignments.filter((a: any) => a.status !== 'SUBMITTED' && a.status !== 'GRADED').length;
+        const latestResultRecord = results[0];
+        const latestResultText = latestResultRecord
+          ? `${latestResultRecord.marksObtained ?? latestResultRecord.score ?? ""}${latestResultRecord.totalMarks ? `/${latestResultRecord.totalMarks}` : ""} (${latestResultRecord.exam?.title || latestResultRecord.subject || "Latest"})`
+          : "No graded terms";
 
         setStats({
           attendanceRate: Math.round((presentCount / totalCount) * 100) || 0,
-          pendingFees: invoices.reduce((sum: number, inv: any) => sum + inv.remainingAmount, 0),
+          pendingFees: invoices.reduce((sum: number, inv: any) => sum + (Number(inv.remainingAmount) || 0), 0),
           recentAttendances: attendances.slice(0, 5),
-          upcomingDues: invoices.slice(0, 3)
+          upcomingDues: invoices.slice(0, 3),
+          pendingAssignmentsCount: pendingAssignCount,
+          latestResultSummary: latestResultText
         });
       } catch (err) {
         console.error(err);
@@ -64,10 +73,10 @@ export default function DashboardOverview() {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Attendance Rate", value: loading ? "..." : `${stats?.attendanceRate}%`, icon: CalendarClock, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-          { label: "Pending Fees", value: loading ? "..." : `₹${stats?.pendingFees.toLocaleString()}`, icon: IndianRupeeIcon, color: "text-amber-500", bg: "bg-amber-500/10" },
-          { label: "Recent Assignments", value: "3 Pending", icon: BookOpen, color: "text-blue-500", bg: "bg-blue-500/10" },
-          { label: "Latest Result", value: "88% (Term 1)", icon: Award, color: "text-purple-500", bg: "bg-purple-500/10" },
+          { label: "Attendance Rate", value: loading ? "..." : `${stats?.attendanceRate ?? 0}%`, icon: CalendarClock, color: "text-emerald-500", bg: "bg-emerald-500/10" },
+          { label: "Pending Fees", value: loading ? "..." : `₹${(stats?.pendingFees ?? 0).toLocaleString()}`, icon: IndianRupeeIcon, color: "text-amber-500", bg: "bg-amber-500/10" },
+          { label: "Recent Assignments", value: loading ? "..." : `${stats?.pendingAssignmentsCount ?? 0} Pending`, icon: BookOpen, color: "text-blue-500", bg: "bg-blue-500/10" },
+          { label: "Latest Result", value: loading ? "..." : (stats?.latestResultSummary || "No graded terms"), icon: Award, color: "text-purple-500", bg: "bg-purple-500/10" },
         ].map((stat, i) => (
           <motion.div
             key={i}

@@ -1,6 +1,13 @@
 'use client';
 
-import { useMyProfile, useMyAttendance, useSchoolNotices } from '@/lib/student-api-hooks';
+import {
+  useMyProfile,
+  useMyAttendance,
+  useSchoolNotices,
+  useMyAssignments,
+  useMyExams,
+  useMyInvoices,
+} from '@/lib/student-api-hooks';
 
 function StatCard({ title, value, icon, color }: { title: string; value: string; icon: string; color: string }) {
   return (
@@ -20,15 +27,35 @@ export default function DashboardPage() {
   const { data: profileData } = useMyProfile();
   const { data: attendanceData } = useMyAttendance();
   const { data: noticesData } = useSchoolNotices();
+  const { data: assignmentsData } = useMyAssignments();
+  const { data: examsData } = useMyExams();
+  const { data: invoicesData } = useMyInvoices();
 
   const profile = profileData?.data;
   const attendance = attendanceData?.data || [];
   const notices = noticesData?.data || [];
+  const assignments = Array.isArray(assignmentsData) ? assignmentsData : assignmentsData?.data || [];
+  const exams = Array.isArray(examsData) ? examsData : examsData?.data || [];
+  const invoices = Array.isArray(invoicesData) ? invoicesData : invoicesData?.data || [];
 
   // Calculate attendance percentage
   const totalDays = attendance.length;
   const presentDays = attendance.filter((a: any) => a.status === 'PRESENT').length;
   const attendancePercentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+
+  // Calculate pending assignments
+  const pendingAssignments = assignments.filter((a: any) => a.status !== 'SUBMITTED' && a.status !== 'GRADED').length;
+
+  // Calculate upcoming exams
+  const upcomingExams = exams.filter((e: any) => {
+    const examDate = e.startDate || e.date;
+    return examDate ? new Date(examDate) >= new Date() : true;
+  }).length;
+
+  // Calculate total fee due
+  const totalDue = invoices
+    .filter((inv: any) => inv.status === 'PENDING' || inv.status === 'OVERDUE')
+    .reduce((sum: number, inv: any) => sum + (Number(inv.remainingAmount ?? inv.amount) || 0), 0);
 
   return (
     <div className="space-y-8">
@@ -49,19 +76,19 @@ export default function DashboardPage() {
         />
         <StatCard
           title="Pending Assignments"
-          value="0"
+          value={String(pendingAssignments)}
           icon="📝"
           color="text-orange-600"
         />
         <StatCard
           title="Upcoming Exams"
-          value="0"
+          value={String(upcomingExams)}
           icon="📚"
           color="text-blue-600"
         />
         <StatCard
           title="Fee Due"
-          value="₹0"
+          value={`₹${totalDue.toLocaleString()}`}
           icon="💰"
           color="text-red-600"
         />

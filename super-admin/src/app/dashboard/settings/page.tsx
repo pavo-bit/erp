@@ -2,31 +2,22 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { Shield, Sparkles, Sliders, AlertCircle, Info, Lock } from "lucide-react";
 
 export default function GlobalSettingsPage() {
   const [activeTab, setActiveTab] = useState("branding");
 
-  const [brandingForm, setBrandingForm] = useState({
+  const brandingForm = {
     themeMode: "DARK_PREMIUM",
     primaryColor: "#a855f7",
     logoUrl: "https://greyscales.io/logo.png",
-  });
+  };
 
-  const [featuresForm, setFeaturesForm] = useState({
+  const featuresForm = {
     enableAIInsights: true,
     enableCryptoPayments: false,
     enforceMFA: true,
     betaTransportV2: false,
-  });
-
-  const handleSaveBranding = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast("Global Branding Saved Successfully. All tenants will receive these fallback defaults.");
-  };
-
-  const handleSaveFeatures = (e: React.FormEvent) => {
-    e.preventDefault();
-    toast("Feature Flags Updated. Nodes are restarting...");
   };
 
   return (
@@ -46,7 +37,7 @@ export default function GlobalSettingsPage() {
             transition={{ delay: 0.1 }}
             className="text-[40px] font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-emerald-200 to-[var(--color-text-secondary)] font-[var(--font-heading)] leading-tight"
           >
-            System Core
+            System Core Configuration
           </motion.h1>
           <motion.p
             initial={{ opacity: 0 }}
@@ -54,14 +45,25 @@ export default function GlobalSettingsPage() {
             transition={{ delay: 0.2 }}
             className="text-[15px] text-[var(--color-text-secondary)] mt-2 font-medium max-w-xl"
           >
-            Global configurations, fallback white-labeling, and feature toggles for the entire SaaS network.
+            Global cluster configuration, fallback white-labeling, and core feature entitlements across all tenant schools.
           </motion.p>
+        </div>
+      </div>
+
+      {/* Contract Pending Notice */}
+      <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm flex items-start gap-3">
+        <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+        <div>
+          <p className="font-bold text-amber-200">Cluster Settings — Backend Contract Ingest In-Progress (Part 2)</p>
+          <p className="text-xs text-amber-400/80 mt-1">
+            Dynamic cluster configuration persistence (`PATCH /api/v1/platform/settings`) is scheduled for backend ingestion. Values shown below reflect the active platform cluster defaults and are currently in read-only mode to prevent uncommitted configuration drift.
+          </p>
         </div>
       </div>
 
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-[var(--color-border-dark)] overflow-x-auto pb-px">
-        {["branding", "features", "security", "webhooks"].map((tab) => (
+        {["branding", "features", "security"].map((tab) => (
           <button
             key={tab}
             type="button"
@@ -87,8 +89,7 @@ export default function GlobalSettingsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="grid grid-cols-1 lg:grid-cols-2 gap-8"
         >
-          <form
-            onSubmit={handleSaveBranding}
+          <div
             className="rounded-[1.5rem] p-8 relative overflow-hidden"
             style={{
               background: "var(--color-bg-card)",
@@ -98,111 +99,87 @@ export default function GlobalSettingsPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-teal-500/5 pointer-events-none" />
             <div className="relative z-10">
               <h3 className="text-[20px] font-black text-white font-[var(--font-heading)] mb-6 flex items-center gap-2">
-                <span className="text-emerald-400">🎨</span> Fallback White Labeling
+                <Sparkles className="w-5 h-5 text-emerald-400" /> Platform White-Labeling (Read-Only)
               </h3>
 
               <div className="space-y-6">
                 <div>
-                  <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
-                    Platform Theme Engine
+                  <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
+                    Default Platform Theme
                   </label>
-                  <select
+                  <input
+                    disabled
                     value={brandingForm.themeMode}
-                    onChange={(e) =>
-                      setBrandingForm({ ...brandingForm, themeMode: e.target.value })
-                    }
-                    className="w-full px-4 py-3.5 rounded-xl text-[14px] font-medium text-white outline-none bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)] focus:border-emerald-500 transition-colors appearance-none cursor-pointer"
-                  >
-                    <option value="DARK_PREMIUM">Greyscales Ultra Dark (Default)</option>
-                    <option value="LIGHT_CLASSIC">Classic Light</option>
-                    <option value="GLASSMORPHISM">Dynamic Glassmorphism</option>
-                  </select>
+                    className="w-full px-4 py-3 rounded-xl bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)] text-slate-400 text-sm font-semibold opacity-75 cursor-not-allowed"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
-                    Global Primary Hex Color
+                  <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
+                    Primary Brand Color
                   </label>
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <span className="w-8 h-8 rounded-lg border border-white/20" style={{ background: brandingForm.primaryColor }} />
                     <input
-                      type="color"
+                      disabled
                       value={brandingForm.primaryColor}
-                      onChange={(e) =>
-                        setBrandingForm({ ...brandingForm, primaryColor: e.target.value })
-                      }
-                      className="w-12 h-12 rounded-xl bg-transparent border-none cursor-pointer"
-                    />
-                    <input
-                      type="text"
-                      value={brandingForm.primaryColor}
-                      onChange={(e) =>
-                        setBrandingForm({ ...brandingForm, primaryColor: e.target.value })
-                      }
-                      className="flex-1 px-4 py-3.5 rounded-xl text-[14px] font-medium text-white outline-none bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)] focus:border-emerald-500 transition-colors"
+                      className="flex-1 px-4 py-3 rounded-xl bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)] text-slate-400 text-sm font-mono opacity-75 cursor-not-allowed"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
-                    Fallback Global Logo URL
+                  <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-2">
+                    Platform Logo URL
                   </label>
                   <input
-                    type="url"
+                    disabled
                     value={brandingForm.logoUrl}
-                    onChange={(e) =>
-                      setBrandingForm({ ...brandingForm, logoUrl: e.target.value })
-                    }
-                    className="w-full px-4 py-3.5 rounded-xl text-[14px] font-medium text-white outline-none bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)] focus:border-emerald-500 transition-colors"
+                    className="w-full px-4 py-3 rounded-xl bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)] text-slate-400 text-sm font-mono opacity-75 cursor-not-allowed"
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full mt-4 px-6 py-3.5 rounded-xl text-[14px] font-bold text-white bg-gradient-to-r from-emerald-500 to-teal-500 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:scale-[1.02] transition-transform border-none cursor-pointer"
-                >
-                  Save Global Branding
-                </button>
+                <div className="flex items-center gap-2 text-xs text-slate-500 pt-2">
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Modifications restricted until backend platform settings router is deployed.</span>
+                </div>
               </div>
             </div>
-          </form>
+          </div>
 
-          {/* Preview Card */}
-          <div className="rounded-[1.5rem] p-8 flex flex-col items-center justify-center relative overflow-hidden border border-dashed border-[var(--color-border-dark)] bg-slate-900/40">
-            <h4 className="text-[12px] font-bold text-[var(--color-text-secondary)] uppercase tracking-widest absolute top-6 left-6">
-              Live Preview
-            </h4>
+          <div
+            className="rounded-[1.5rem] p-8 flex flex-col justify-between relative overflow-hidden"
+            style={{
+              background: "var(--color-bg-card)",
+              border: "1px solid var(--color-border-dark)",
+            }}
+          >
+            <div>
+              <h4 className="text-[14px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)] mb-2">
+                Live Preview
+              </h4>
+              <p className="text-[12px] text-[var(--color-text-secondary)]">
+                Active tenant login portal visual representation.
+              </p>
+            </div>
+
             <div
-              className="w-full max-w-[300px] h-[380px] rounded-3xl border border-white/10 shadow-2xl relative overflow-hidden"
+              className="mt-6 rounded-2xl p-6 border border-white/10 relative overflow-hidden flex flex-col items-center justify-center min-h-[220px]"
               style={{
-                background:
-                  brandingForm.themeMode === "LIGHT_CLASSIC" ? "#ffffff" : "#0a0a0a",
+                background: "radial-gradient(ellipse at top, #1e1b4b, #09090b)",
               }}
             >
+              <div className="w-14 h-14 rounded-2xl mb-3 shadow-lg flex items-center justify-center text-xl bg-[var(--color-bg-card)] border border-white/10">
+                🏫
+              </div>
+              <div className="text-base font-black tracking-widest uppercase font-[var(--font-heading)] text-white">
+                SSVM ERP Platform
+              </div>
               <div
-                className="absolute top-0 left-0 right-0 h-32 opacity-20"
-                style={{
-                  background: `linear-gradient(to bottom, ${brandingForm.primaryColor}, transparent)`,
-                }}
-              />
-              <div className="relative z-10 flex flex-col items-center pt-12">
-                <div className="w-16 h-16 rounded-2xl mb-4 shadow-lg flex items-center justify-center text-2xl bg-[var(--color-bg-card)] border border-white/10">
-                  🔮
-                </div>
-                <div
-                  className="text-lg font-black tracking-widest uppercase font-[var(--font-heading)]"
-                  style={{
-                    color: brandingForm.themeMode === "LIGHT_CLASSIC" ? "#000" : "#fff",
-                  }}
-                >
-                  Greyscales
-                </div>
-                <div
-                  className="mt-8 w-[80%] h-12 rounded-xl flex items-center justify-center font-bold text-sm text-white shadow-lg"
-                  style={{ background: brandingForm.primaryColor }}
-                >
-                  Login
-                </div>
+                className="mt-6 px-6 py-2.5 rounded-xl font-bold text-xs text-white shadow-lg"
+                style={{ background: brandingForm.primaryColor }}
+              >
+                Sign In
               </div>
             </div>
           </div>
@@ -214,10 +191,9 @@ export default function GlobalSettingsPage() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+          className="max-w-2xl"
         >
-          <form
-            onSubmit={handleSaveFeatures}
+          <div
             className="rounded-[1.5rem] p-8 relative overflow-hidden"
             style={{
               background: "var(--color-bg-card)",
@@ -225,7 +201,7 @@ export default function GlobalSettingsPage() {
             }}
           >
             <h3 className="text-[20px] font-black text-white font-[var(--font-heading)] mb-6 flex items-center gap-2">
-              <span className="text-teal-400">⚡</span> Global Feature Flags
+              <Sliders className="w-5 h-5 text-teal-400" /> Global Feature Flags (Cluster Invariants)
             </h3>
             <div className="space-y-4">
               {Object.entries(featuresForm).map(([key, value]) => (
@@ -240,35 +216,61 @@ export default function GlobalSettingsPage() {
                         .replace(/^./, (str) => str.toUpperCase())}
                     </div>
                     <div className="text-[11px] text-[var(--color-text-secondary)] mt-1">
-                      Globally override configuration for all tenant nodes.
+                      Platform-wide feature activation state.
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setFeaturesForm({ ...featuresForm, [key]: !value })
-                    }
-                    className={`w-12 h-6 rounded-full relative transition-colors border-none cursor-pointer ${
-                      value ? "bg-teal-500" : "bg-gray-700"
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                      value
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                        : "bg-slate-800 border-slate-700 text-slate-400"
                     }`}
                   >
-                    <motion.div
-                      layout
-                      className={`w-4 h-4 rounded-full bg-white absolute top-1 ${
-                        value ? "right-1" : "left-1"
-                      }`}
-                    />
-                  </button>
+                    {value ? "ENABLED" : "DISABLED"}
+                  </span>
                 </div>
               ))}
-              <button
-                type="submit"
-                className="w-full mt-6 px-6 py-3.5 rounded-xl text-[14px] font-bold text-white bg-gradient-to-r from-teal-500 to-cyan-500 shadow-[0_0_20px_rgba(20,184,166,0.3)] hover:scale-[1.02] transition-transform border-none cursor-pointer"
-              >
-                Deploy Feature Changes
-              </button>
             </div>
-          </form>
+            <div className="flex items-center gap-2 text-xs text-slate-500 mt-6 pt-4 border-t border-[var(--color-border-dark)]">
+              <Lock className="w-3.5 h-3.5 text-slate-400" />
+              <span>Feature flag mutations require environment restart and backend cluster controller integration.</span>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Tab Content: Security */}
+      {activeTab === "security" && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-2xl"
+        >
+          <div
+            className="rounded-[1.5rem] p-8 relative overflow-hidden"
+            style={{
+              background: "var(--color-bg-card)",
+              border: "1px solid var(--color-border-dark)",
+            }}
+          >
+            <h3 className="text-[20px] font-black text-white font-[var(--font-heading)] mb-6 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-emerald-400" /> Platform Security & RLS Invariants
+            </h3>
+            <div className="space-y-4 text-sm text-slate-300">
+              <div className="p-4 rounded-xl bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)]">
+                <p className="font-bold text-white">PostgreSQL Multi-Tenancy RLS</p>
+                <p className="text-xs text-slate-400 mt-1">Enforced at kernel database level (`app.current_school_id`). Non-bypassable by application runtime role `ssvm_app`.</p>
+              </div>
+              <div className="p-4 rounded-xl bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)]">
+                <p className="font-bold text-white">Audience Segregated Cookies</p>
+                <p className="text-xs text-slate-400 mt-1">Platform tokens (`platform_access_token`) and School tokens (`school_access_token`) are mutually exclusive. Cross-portal elevation returns 403 WRONG_PORTAL.</p>
+              </div>
+              <div className="p-4 rounded-xl bg-[var(--color-bg-dark)] border border-[var(--color-border-dark)]">
+                <p className="font-bold text-white">Support Session Timed Delegation</p>
+                <p className="text-xs text-slate-400 mt-1">Super Admin support sessions require TOTP MFA verification and automatically expire after the granted window.</p>
+              </div>
+            </div>
+          </div>
         </motion.div>
       )}
     </div>
