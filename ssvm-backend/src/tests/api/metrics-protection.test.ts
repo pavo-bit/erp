@@ -111,13 +111,37 @@ describe("Block M2 — /metrics Access Protection Suite", { timeout: 30000 }, ()
 
   describe("Production Mode Hardening", () => {
     const savedNodeEnv = process.env.NODE_ENV;
+    const savedSentryDsn = process.env.SENTRY_DSN;
+    const savedRazorpayKeyId = process.env.RAZORPAY_KEY_ID;
+    const savedRazorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+    const savedRazorpayWebhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
     beforeAll(() => {
+      // This suite changes NODE_ENV only to exercise the /metrics production branch.
+      // Supply the minimum non-production-test values required by the production
+      // environment validator so this test does not abort before reaching /metrics.
       process.env.NODE_ENV = "production";
+      process.env.SENTRY_DSN = "https://ci.invalid/metrics-protection-test";
+      delete process.env.RAZORPAY_KEY_ID;
+      delete process.env.RAZORPAY_KEY_SECRET;
+      delete process.env.RAZORPAY_WEBHOOK_SECRET;
     });
 
     afterAll(() => {
-      process.env.NODE_ENV = savedNodeEnv;
+      if (savedNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = savedNodeEnv;
+
+      if (savedSentryDsn === undefined) delete process.env.SENTRY_DSN;
+      else process.env.SENTRY_DSN = savedSentryDsn;
+
+      if (savedRazorpayKeyId === undefined) delete process.env.RAZORPAY_KEY_ID;
+      else process.env.RAZORPAY_KEY_ID = savedRazorpayKeyId;
+
+      if (savedRazorpayKeySecret === undefined) delete process.env.RAZORPAY_KEY_SECRET;
+      else process.env.RAZORPAY_KEY_SECRET = savedRazorpayKeySecret;
+
+      if (savedRazorpayWebhookSecret === undefined) delete process.env.RAZORPAY_WEBHOOK_SECRET;
+      else process.env.RAZORPAY_WEBHOOK_SECRET = savedRazorpayWebhookSecret;
     });
 
     it("requires bearer token always in production (rejects loopback request without token)", async () => {
