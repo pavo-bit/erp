@@ -3,7 +3,7 @@
 **Date:** 2026-11-20
 **Branch:** integration/ssvm-release-completion
 **Starting SHA:** 3b5036cceb7f98555e45c19ab6bb376c7664a915
-**Final SHA:** 5fd73f0 (fix(api): resolve canonical section identifier; harden parent summary types)
+**Final SHA:** ca844b3029a0f3febc3cc629f344c84d5fc61144
 
 ## Implemented fixes
 - Teacher auth-context subjects type (string | string[])
