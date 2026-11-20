@@ -58,63 +58,233 @@ router.get("/", authenticate, async (req: AuthRequest, res: Response) => {
   }
 });
 
-router.post("/", authenticate, requireRole("ADMIN", "TEACHER"), async (req: AuthRequest, res: Response) => {
-  try {
-    const { records, sectionId, date } = req.body;
-    const schoolId = req.user!.schoolId!;
-    const markedById = req.user!.id;
+const attendanceSubmissionSchema = z.object({
+  sectionId: z.string().trim().min(1),
+  sessionId: z.string().trim().min(1).optional(),
+  date: z.string().trim().min(1),
+  records: z.array(z.object({
+    studentId: z.string().trim().min(1),
+    status: z.enum(["PRESENT", "ABSENT", "LATE", "HOLIDAY"]),
+    remarks: z.string().max(1000).optional().nullable(),
+  })).min(1).max(500),
+});
 
-    if (!records?.length || !sectionId || !date) {
-      res.status(400).json({ success: false, error: "Records, sectionId and date required" });
+router.post("/", authenticate, requireRole("ADMIN", "ERP_ADMIN", "TEACHER"), async (req: AuthRequest, res: Response) => {
+  try {
+    const parsed = attendanceSubmissionSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid attendance payload",
+        details: parsed.error.flatten().fieldErrors,
+      });
       return;
     }
 
-    // Canonical section resolution: accept either a CUID sectionId or a
-    // composite "className-sectionName" (e.g. "10-A") and resolve it to the
-    // school's section within the active academic session.
-    let resolvedSectionId = sectionId as string;
-    const section = await prisma.section.findFirst({ where: { id: resolvedSectionId, class: { schoolId } } });
-    if (!section) {
-      const match = String(sectionId).match(/^(.+?)[-_](.+)$/);
-      if (match) {
-        const className = match[1].trim();
-        const sectionName = match[2].trim();
-        const resolved = await prisma.section.findFirst({
-          where: { name: sectionName, class: { name: className, schoolId } },
+    const { records, sectionId, sessionId } = parsed.data;
+    const schoolId = req.user!.schoolId;
+    if (!schoolId) {
+      res.status(403).json({ success: false, error: "School context required" });
+      return;
+    }
+
+    const date = new Date(parsed.data.date);
+    if (!Number.isFinite(date.getTime())) {
+      res.status(400).json({ success: false, error: "Invalid attendance date" });
+      return;
+    }
+
+    const distinctStudentIds = [...new Set(records.map((record) => record.studentId))];
+    if (distinctStudentIds.length !== records.length) {
+      res.status(400).json({ success: false, error: "Duplicate student IDs are not allowed in one attendance batch" });
+      return;
+    }
+
+    // Resolve the academic session for the date, unless an explicit session is supplied.
+    // Both paths remain scoped to the authenticated school.
+    const session = sessionId
+      ? await prisma.academicSession.findFirst({
+          where: {
+            id: sessionId,
+            schoolId,
+            startDate: { lte: date },
+            endDate: { gte: date },
+          },
+          select: { id: true },
+        })
+      : await prisma.academicSession.findFirst({
+          where: {
+            schoolId,
+            isCurrent: true,
+            startDate: { lte: date },
+            endDate: { gte: date },
+          },
+          orderBy: { startDate: "desc" },
+          select: { id: true },
         });
-        if (resolved) resolvedSectionId = resolved.id;
+
+    if (!session) {
+      res.status(400).json({
+        success: false,
+        error: "No valid academic session covers the attendance date for this school",
+        code: "ACADEMIC_SESSION_NOT_FOUND",
+      });
+      return;
+    }
+
+    // Resolve either a canonical Section CUID or the legacy className-sectionName
+    // representation, but always constrain the lookup to this school and session.
+    let resolvedSectionId: string | null = null;
+    const sectionById = await prisma.section.findFirst({
+      where: {
+        id: sectionId,
+        class: { schoolId, sessionId: session.id },
+      },
+      select: { id: true, classId: true },
+    });
+
+    if (sectionById) {
+      resolvedSectionId = sectionById.id;
+    } else {
+      const composite = sectionId.match(/^(.+?)[-_]([^-_]+)$/);
+      if (composite) {
+        const className = composite[1].trim();
+        const sectionName = composite[2].trim();
+        const matches = await prisma.section.findMany({
+          where: {
+            name: sectionName,
+            class: {
+              name: className,
+              schoolId,
+              sessionId: session.id,
+            },
+          },
+          select: { id: true },
+          take: 2,
+        });
+
+        // Never guess when legacy names are ambiguous.
+        if (matches.length === 1) {
+          resolvedSectionId = matches[0].id;
+        } else if (matches.length > 1) {
+          res.status(400).json({
+            success: false,
+            error: "Section identifier is ambiguous; submit the canonical section CUID",
+            code: "AMBIGUOUS_SECTION_IDENTIFIER",
+          });
+          return;
+        }
       }
     }
+
     if (!resolvedSectionId) {
-      res.status(400).json({ success: false, error: "Invalid section identifier" });
+      res.status(400).json({
+        success: false,
+        error: "Invalid section identifier for the authenticated school and academic session",
+        code: "INVALID_SECTION_IDENTIFIER",
+      });
       return;
     }
 
-    const created = await prisma.$transaction(
-      records.map((r: any) =>
-        prisma.attendance.upsert({
-          where: { studentId_date: { studentId: r.studentId, date: new Date(date) } },
+    // Teachers may only mark attendance for sections assigned to them.
+    if (req.user!.role === "TEACHER") {
+      const teacher = await prisma.teacher.findFirst({
+        where: { userId: req.user!.id, schoolId, isActive: true, deletedAt: null },
+        select: { id: true },
+      });
+      if (!teacher) {
+        res.status(403).json({ success: false, error: "Teacher profile not found" });
+        return;
+      }
+      const assignment = await prisma.classTeacher.findFirst({
+        where: { teacherId: teacher.id, sectionId: resolvedSectionId },
+        select: { id: true },
+      });
+      if (!assignment) {
+        res.status(403).json({ success: false, error: "You are not assigned to this section" });
+        return;
+      }
+    }
+
+    // Validate every student before writing any attendance row. Active
+    // StudentEnrollment records are authoritative; Student.sectionId is retained
+    // as a legacy fallback only where the student has no enrollment for this session.
+    const students = await prisma.student.findMany({
+      where: {
+        id: { in: distinctStudentIds },
+        schoolId,
+        deletedAt: null,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        sectionId: true,
+        enrollments: {
+          where: {
+            schoolId,
+            sessionId: session.id,
+            status: "ACTIVE",
+            startDate: { lte: date },
+            OR: [{ endDate: null }, { endDate: { gte: date } }],
+          },
+          select: { sectionId: true },
+        },
+      },
+    });
+
+    const studentById = new Map(students.map((student) => [student.id, student]));
+    const invalidStudentIds = distinctStudentIds.filter((studentId) => {
+      const student = studentById.get(studentId);
+      if (!student) return true;
+      if (student.enrollments.length > 0) {
+        return !student.enrollments.some((enrollment) => enrollment.sectionId === resolvedSectionId);
+      }
+      return student.sectionId !== resolvedSectionId;
+    });
+
+    if (invalidStudentIds.length > 0) {
+      res.status(400).json({
+        success: false,
+        error: "Every student must be active, belong to this school, and be enrolled in the selected section for the attendance date",
+        code: "INVALID_STUDENT_SECTION_ASSIGNMENT",
+        invalidStudentIds,
+      });
+      return;
+    }
+
+    const markedById = req.user!.id;
+    const created = await runWithTenantDatabaseTransaction(schoolId, async (tx) =>
+      Promise.all(records.map((record) =>
+        tx.attendance.upsert({
+          where: {
+            studentId_date: {
+              studentId: record.studentId,
+              date,
+            },
+          },
           create: {
             schoolId,
-            sectionId: resolvedSectionId,
-            studentId: r.studentId,
-            date: new Date(date),
-            status: r.status,
-            remarks: r.remarks || null,
-            markedById
+            sectionId: resolvedSectionId!,
+            studentId: record.studentId,
+            date,
+            status: record.status,
+            remarks: record.remarks || null,
+            markedById,
           },
           update: {
-            status: r.status,
-            remarks: r.remarks || null,
-            markedById
-          }
+            schoolId,
+            sectionId: resolvedSectionId!,
+            status: record.status,
+            remarks: record.remarks || null,
+            markedById,
+          },
         })
-      )
+      ))
     );
 
     res.json({ success: true, data: created });
   } catch (e) {
-    console.error(e);
+    logger.error({ err: e }, "Attendance submission failed");
     res.status(500).json({ success: false, error: "Server error" });
   }
 });
