@@ -61,7 +61,7 @@ router.get("/me/support-session", authenticate, async (req: AuthRequest, res: Re
       return;
     }
 
-    const session = SupportSessionService.getActiveSessionForSchool(schoolId);
+    const session = await SupportSessionService.getActiveSessionForSchool(schoolId);
     res.json({
       success: true,
       data: {
