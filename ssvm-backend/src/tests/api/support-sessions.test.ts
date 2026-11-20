@@ -65,8 +65,8 @@ describe("Block M7 — Platform Health & Support Session Suite", { timeout: 3000
     });
   });
 
-  beforeEach(() => {
-    SupportSessionService.clear();
+  beforeEach(async () => {
+    await SupportSessionService.clear();
   });
 
   describe("Platform Health & Usage Endpoints", () => {
