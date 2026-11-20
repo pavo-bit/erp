@@ -101,7 +101,21 @@ describe("Block M4 — Grafana Hardening & Platform Access Suite", { timeout: 30
   });
 
   it("verifies ssvm_grafana_ro database role permissions in PostgreSQL", async () => {
-    const dbUrl = "postgresql://ssvm_grafana_ro:grafana_ro_secure_pass_2026@127.0.0.1:5433/ssvm_platform";
+    // Use the isolated test database provisioned by the current test runner.
+    // The migration creates ssvm_grafana_ro and grants it SELECT only on platform_metrics.
+    // Never connect this test to the local/production ssvm_platform database implicitly.
+    const dbUrl =
+      process.env.DATABASE_URL_GRAFANA ||
+      (() => {
+        const testDatabaseUrl = process.env.DATABASE_URL_TEST;
+        if (!testDatabaseUrl) {
+          throw new Error("DATABASE_URL_TEST is required for the Grafana read-only role test");
+        }
+        const url = new URL(testDatabaseUrl);
+        url.username = "ssvm_grafana_ro";
+        url.password = process.env.GRAFANA_DB_PASSWORD || "grafana_ro_secure_pass_2026";
+        return url.toString();
+      })();
     const grafanaDb = new PrismaClient({
       datasources: { db: { url: dbUrl } },
     });
