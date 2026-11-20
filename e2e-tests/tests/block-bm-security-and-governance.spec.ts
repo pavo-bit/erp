@@ -82,6 +82,13 @@ async function createAuthenticatedSession(email: string, portalUrl: string, brow
     if (cookiesToSet.length > 0) {
       await browserContext.addCookies(cookiesToSet);
     }
+    // The application reads its CSRF token from browser sessionStorage.
+    // Seed it from the token returned by the authenticated API session; do not bypass CSRF.
+    if (csrfToken) {
+      await browserContext.addInitScript((token: string) => {
+        window.sessionStorage.setItem("csrfToken", token);
+      }, csrfToken);
+    }
   }
 
   // Construct authenticated request context configured with CSRF token and Bearer token
