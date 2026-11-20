@@ -703,7 +703,7 @@ export const KPI_REGISTRY: KpiDefinition[] = [
     compute: async () => {
       // In-memory support session service tracks active sessions
       const { SupportSessionService } = await import("../services/support-session.service");
-      return SupportSessionService.getActiveSessionCount();
+      return await SupportSessionService.getActiveSessionCount();
     },
   },
   {
