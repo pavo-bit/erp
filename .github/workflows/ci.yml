@@ -450,6 +450,7 @@ jobs:
         run: npm run db:seed
         env:
           DATABASE_URL: ${{ env.DIRECT_URL }}
+          ALLOW_DEMO_SEED: "true"
 
       - name: Start Backend Server
         working-directory: ./ssvm-backend
