@@ -1,8 +1,9 @@
-import { getTrustedPrisma } from '../src/lib/trustedPrisma';
+import { PrismaClient } from '@prisma/client';
 
 import * as bcrypt from 'bcryptjs';
 
-const prisma = getTrustedPrisma("TEST");
+const seedUrl = process.env.DIRECT_URL || process.env.DATABASE_URL_ADMIN || process.env.DATABASE_URL;
+const prisma = new PrismaClient({ datasources: { db: { url: seedUrl } } });
 
 
 async function main() {
