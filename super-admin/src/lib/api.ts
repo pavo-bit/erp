@@ -88,13 +88,28 @@ export function usePlatformSchoolsHealthUsage() { return useSWR("/api/v1/platfor
 export function useSchoolModules(schoolId?: string) { return useSWR(schoolId ? `/api/v1/schools/${schoolId}/modules` : null, fetcher); }
 export function useActiveSupportSession(schoolId?: string) { return useSWR(schoolId ? `/api/v1/platform/support-sessions/school/${schoolId}` : null, fetcher); }
 export function useSecurityAuditLogs() { return useSWR("/api/v1/saas/security/audit-logs", fetcher); }
-export function useSuperAdminStats() { return useSWR("/api/v1/stats/detailed", fetcher); }
+
+// Canonical platform totals come from the real SaaS metrics contract.
+// Keep the dashboard's legacy view model as a thin adapter; do not call removed /stats/detailed.
+export function useSuperAdminStats() {
+  return useSWR("/api/v1/saas/metrics", async (url: string) => {
+    const metrics = await fetcher(url);
+    return {
+      totalSchools: metrics?.schools?.total ?? null,
+      totalStudents: metrics?.users?.activeStudents ?? null,
+      totalTeachers: metrics?.users?.activeTeachers ?? null,
+      totalRevenue: metrics?.financials?.totalRevenueCollected == null
+        ? null
+        : Number(metrics.financials.totalRevenueCollected),
+    };
+  });
+}
 export function useDataRetentionPolicies() { return useSWR("/api/v1/admin/governance-workflows/retention-policies", fetcher); }
 export function useSaasMetrics() { return useSWR("/api/v1/saas/metrics", fetcher); }
 export function useShfiOverview() { return useSWR("/api/v1/shfi/health/overview", fetcher); }
 export function useShfiIncidents() { return useSWR("/api/v1/shfi/incidents", fetcher); }
-export function useAnalytics() { return useSWR("/api/v1/stats/detailed", fetcher); }
-export function useFinanceStats() { return useSWR("/api/v1/stats/finance", fetcher); }
+export function useAnalytics() { return useSWR("/api/v1/platform/kpi", fetcher); }
+export function useFinanceStats() { return useSWR("/api/v1/saas/metrics", fetcher); }
 export function usePublicStats() { return useSWR("/api/v1/stats/public", fetcher); }
 export function useSearch(query: string) { return useSWR(query.length >= 2 ? `/api/v1/search?q=${query}` : null, fetcher); }
 export function useFinancialClosePeriods() { return useSWR("/api/v1/finance/governance/periods", fetcher); }
