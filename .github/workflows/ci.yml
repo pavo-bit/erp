@@ -417,6 +417,13 @@ jobs:
           cache-dependency-path: |
             ./ssvm-backend/package-lock.json
             ./e2e-tests/package-lock.json
+            ./erp-admin/package-lock.json
+            ./super-admin/package-lock.json
+            ./teacher-portal/package-lock.json
+            ./student-portal/package-lock.json
+            ./parent-portal/package-lock.json
+            ./payment-portal/package-lock.json
+            ./saas-frontend/package-lock.json
 
       - name: Install Backend Dependencies
         working-directory: ./ssvm-backend
@@ -455,6 +462,73 @@ jobs:
             fi
             echo "Waiting for backend..."
             sleep 2
+          done
+
+      - name: Install Frontend Portal Dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          for app in erp-admin super-admin teacher-portal student-portal parent-portal payment-portal saas-frontend; do
+            echo "Installing $app"
+            (cd "$app" && npm ci)
+          done
+
+      - name: Build All Seven Portals for Browser Tests
+        shell: bash
+        env:
+          BACKEND_URL: http://localhost:5000
+          NEXT_PUBLIC_API_URL: http://localhost:5000
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          set -euo pipefail
+          for app in erp-admin super-admin teacher-portal student-portal parent-portal payment-portal saas-frontend; do
+            echo "Building $app"
+            (cd "$app" && npm run build)
+          done
+
+      - name: Start All Seven Portal Servers
+        shell: bash
+        env:
+          BACKEND_URL: http://localhost:5000
+          NEXT_PUBLIC_API_URL: http://localhost:5000
+        run: |
+          set -euo pipefail
+          start_portal() {
+            local app="$1"
+            local port="$2"
+            (
+              cd "$app"
+              nohup npx next start -p "$port" > "$RUNNER_TEMP/$app.log" 2>&1 < /dev/null &
+              echo $! > "$RUNNER_TEMP/$app.pid"
+            )
+          }
+
+          start_portal erp-admin 3000
+          start_portal super-admin 3001
+          start_portal teacher-portal 3002
+          start_portal student-portal 3003
+          start_portal parent-portal 3006
+          start_portal payment-portal 3007
+          start_portal saas-frontend 3008
+
+          for item in "erp-admin:3000" "super-admin:3001" "teacher-portal:3002" "student-portal:3003" "parent-portal:3006" "payment-portal:3007" "saas-frontend:3008"; do
+            app="${item%%:*}"
+            port="${item##*:}"
+            ready=0
+            for attempt in {1..60}; do
+              status="$(curl -sS -o /dev/null -w "%{http_code}" "http://localhost:$port/" || true)"
+              if [[ "$status" =~ ^[23][0-9][0-9]$ ]]; then
+                ready=1
+                break
+              fi
+              sleep 2
+            done
+            if [[ "$ready" -ne 1 ]]; then
+              echo "Portal $app did not become ready on port $port"
+              cat "$RUNNER_TEMP/$app.log" || true
+              exit 1
+            fi
+            echo "$app ready at http://localhost:$port"
           done
 
       - name: Install E2E Dependencies
