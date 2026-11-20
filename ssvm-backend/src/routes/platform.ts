@@ -340,22 +340,31 @@ router.get(
   requireAudience("PLATFORM"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     const schoolId = String(req.params.schoolId);
-    const session = await SupportSessionService.getActiveSessionForSchool(schoolId);
-    res.json({
-      success: true,
-      data: session
-        ? {
-            id: session.id,
-            schoolId: session.schoolId,
-            superAdminEmail: session.superAdminEmail,
-            reason: session.reason,
-            durationMinutes: session.durationMinutes,
-            createdAt: session.createdAt,
-            expiresAt: session.expiresAt,
-            status: session.status,
-          }
-        : null,
-    });
+    try {
+      const session = await SupportSessionService.getActiveSessionForSchool(schoolId);
+      res.json({
+        success: true,
+        data: session
+          ? {
+              id: session.id,
+              schoolId: session.schoolId,
+              superAdminEmail: session.superAdminEmail,
+              reason: session.reason,
+              durationMinutes: session.durationMinutes,
+              createdAt: session.createdAt,
+              expiresAt: session.expiresAt,
+              status: session.status,
+            }
+          : null,
+      });
+    } catch (err: unknown) {
+      logger.error({ err, schoolId }, "Support-session store unavailable");
+      res.status(503).json({
+        success: false,
+        error: "Support-session state is temporarily unavailable",
+        code: "SUPPORT_SESSION_STORE_UNAVAILABLE",
+      });
+    }
   }
 );
 
