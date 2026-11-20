@@ -1,40 +1,60 @@
-# SSVM ERP — Final Integration Acceptance Report
+# SSVM ERP — Main Branch Integration Acceptance Report
 
-**Date:** 2026-11-20
-**Branch:** integration/ssvm-release-completion
-**Starting SHA:** 3b5036cceb7f98555e45c19ab6bb376c7664a915
-**Final SHA:** ca844b3029a0f3febc3cc629f344c84d5fc61144
+**Audit date:** 2026-11-21  
+**Repository:** `pavo-bit/erp`  
+**Working branch:** `main`  
+**Application source audit SHA:** `c21fa0eb343f4bcd42378b53f2731bf3e12c1025`  
+**Acceptance state:** **VERIFICATION IN PROGRESS — NOT PRODUCTION CERTIFIED**
 
-## Implemented fixes
-- Teacher auth-context subjects type (string | string[])
-- Student useMyLibrary hook (real /api/v1/library/my-books)
-- Backend architecture allowlist (platform.ts)
-- Parent summary BFF endpoint (GET /api/v1/parent/children/:studentId/summary)
-- Section CUID resolution in attendance (composite className-sectionName)
-- Parent.ts lint cleanup
+## Scope reviewed on main
 
-## Verification results
+The source review was performed against the application source SHA above. The following previous review findings appear remediated in that source:
 
-| Check | Command | Result | Count | After final change? |
-|---|---|---|---|---|
-| Portal TS | npx tsc --noEmit (7 portals) | PASS | 0 errors | Yes |
-| Portal builds | npm run build (7 portals) | PASS | 0 errors | Yes |
-| Backend TS | npm run type-check | PASS | 0 errors | Yes |
-| E2E TS | node_modules/.bin/tsc --noEmit | PASS | 0 errors | Yes |
-| Backend lint (parent.ts) | npx eslint src/routes/parent.ts | PASS | 0 | Yes |
-| RLS suite | npm run test:rls | NOT RUN (Docker down) | 228 (historical) | No |
-| Backend full suite | npm test | NOT RUN (Docker down) | 636+1 (historical) | No |
-| Playwright | npx playwright test | NOT RUN (Docker down) | — | No |
+1. **Support-session lifecycle and authorization:** session state is stored in shared Redis with expiry and revocation checks. Authentication validates the support session ID, JTI, target school, original Super Admin, status, and expiry; it establishes a distinct `SUPPORT_READONLY` principal and rejects non-safe HTTP methods centrally.
+2. **Attendance integrity:** the attendance submission resolves the academic session and section within the authenticated school, rejects invalid or ambiguous legacy section identifiers, checks teacher assignment, validates the full student batch against active enrollment before writes, and performs the writes in a tenant-scoped transaction.
+3. **Super Admin metrics contracts:** the Super Admin hooks consume the SaaS metrics and platform KPI endpoints rather than the removed `/stats/detailed` and `/stats/finance` routes.
+4. **Per-school telemetry honesty:** school health responses represent unavailable request-volume and error-rate telemetry as `null` with `telemetryStatus: UNAVAILABLE`, not fabricated zero measurements.
+5. **Playwright environment and CSRF bootstrap:** the CI job builds and starts all seven portals before running Playwright. The browser test helpers seed the app's CSRF token into browser `sessionStorage` using the token returned by the authenticated API session.
 
-## Remaining blockers
-1. P2: Playwright E2E (Docker down, CSRF helper gaps)
-2. P2: Lint baseline 1,150 errors (disclosed, no new)
-3. P2: Backend/RLS not re-run (Docker down)
-4. P2: Platform settings persistence deferred
-5. P2: Section CUID backend resolution implemented; frontend still sends composite string (works via resolution)
+These statements describe source-level review. They are not substitutes for completed runtime regression suites.
+
+## GitHub Actions evidence
+
+Continuous Integration run #149 was still running against application SHA `c21fa0eb343f4bcd42378b53f2731bf3e12c1025` at the time of this report.
+
+| Check | State at audit |
+|---|---|
+| API hooks synchronization (7 portals) | PASS |
+| Restricted-role PostgreSQL migration/RLS job | PASS |
+| Backend TypeScript check | PASS |
+| Security scan | PASS |
+| ERP Admin build | PASS |
+| Teacher Portal build | PASS |
+| Payment Portal build | PASS |
+| Backend test shards 1–4 | IN PROGRESS |
+| Backend lint | IN PROGRESS |
+| Student Portal build | IN PROGRESS |
+| Super Admin build | IN PROGRESS |
+| Parent Portal build | IN PROGRESS |
+| SaaS frontend build | IN PROGRESS |
+| Playwright E2E | No result available at audit time |
+
+No final backend-suite, lint, remaining portal-build, or Playwright result is claimed here.
+
+## Production pipeline blocker
+
+Production CI/CD run #105 failed before it connected to the database. The `DATABASE_URL` GitHub Actions secret was empty/unavailable on the `push` event, so the receipt-duplicate pre-check exited with an error. This is a workflow configuration blocker; it is **not evidence that duplicate receipt numbers were found**. The downstream backend build and Docker image build were skipped.
+
+**Required action:** the repository owner must configure the `DATABASE_URL` Actions secret and rerun the production workflow. The pre-check must remain fail-closed.
+
+## Remaining acceptance conditions
+
+- Complete all backend test shards and inspect any failures.
+- Complete backend lint and all seven portal builds.
+- Obtain a completed Playwright run with its report.
+- Configure `DATABASE_URL` in GitHub Actions and obtain a successful real-database receipt pre-check.
+- Re-evaluate any failures against the exact final `main` SHA before declaring acceptance.
 
 ## Final decision
 
-**INTEGRATION INCOMPLETE — BLOCKERS REMAIN**
-
-P1 blockers resolved and verified (tsc/build pass). Playwright E2E, lint baseline, and backend/RLS re-run remain. Docker unavailable prevented full verification.
+**NOT YET ACCEPTED FOR PRODUCTION.** The current source review shows the previous remediation is present, and several CI gates have passed, but the full CI run is incomplete and the production pre-check is blocked by a missing Actions secret.

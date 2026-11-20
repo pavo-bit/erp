@@ -3,7 +3,7 @@
 **Canonical Document:** `AGENTS.md`  
 **Target:** All AI Assistant and Autonomous Engineering Subagents  
 **Working Repository:** `pavo-bit/erp`  
-**Default Working Branch:** `lane/d-portals`
+**Default Working Branch:** `main`
 
 ---
 
@@ -134,8 +134,9 @@ All 428 endpoints are classified into 5 security tiers:
 
 ## 9. Safe Migration & Git Safety Rules
 
-1. **No Migration Destruction:** Never delete or alter existing Prisma migration folders in `ssvm-backend/prisma/migrations/`.
-2. **Database Isolation:** Tests run against dedicated test databases (`ssvm_test`, `ssvm_test_worker_*`). Never execute destructive schema migrations on production databases without review.
-3. **No Automatic Unchecked Commits:** AI assistants must present changes and test verification results cleanly before committing.
-4. **Documentation Discipline:** Maintain only the 10 canonical documents in `docs/` plus `README.md` and `AGENTS.md`. Do not create temporary or phase-specific Markdown files.
+1. **Main-Only Workflow:** Make project changes directly on `main`. Do not create or switch to feature or integration branches, and do not open pull requests, unless the repository owner explicitly requests them. Refresh the current `main` SHA before every update and use expected-SHA, fast-forward-only ref updates. Never force-push. If `main` moves concurrently, re-read the affected files and reconcile before retrying.
+2. **No Migration Destruction:** Never delete or alter existing Prisma migration folders in `ssvm-backend/prisma/migrations/`.
+3. **Database Isolation:** Tests run against dedicated test databases (`ssvm_test`, `ssvm_test_worker_*`). Never execute destructive schema migrations on production databases without review.
+4. **No Automatic Unchecked Commits:** AI assistants must present changes and test verification results cleanly before committing.
+5. **Documentation Discipline:** Maintain only the 10 canonical documents in `docs/` plus `README.md` and `AGENTS.md`. Do not create temporary or phase-specific Markdown files.
 
