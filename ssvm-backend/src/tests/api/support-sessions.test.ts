@@ -185,6 +185,29 @@ describe("Block M7 — Platform Health & Support Session Suite", { timeout: 3000
       expect(res.body.data.status).toBe("ACTIVE");
       expect(res.body.data.schoolId).toBe(testSchoolId);
 
+      const supportToken = res.body.data.token as string;
+
+      // The support principal can read the target school's data.
+      const readStudents = await request(app)
+        .get("/api/v1/students")
+        .set("Authorization", `Bearer ${supportToken}`);
+      expect(readStudents.status).toBe(200);
+
+      // It cannot mutate data, even when the target endpoint normally accepts ERP_ADMIN.
+      const writeStudents = await request(app)
+        .post("/api/v1/students")
+        .set("Authorization", `Bearer ${supportToken}`)
+        .send({});
+      expect(writeStudents.status).toBe(403);
+      expect(writeStudents.body.code).toBe("SUPPORT_READ_ONLY");
+
+      // A school-scoped support token cannot access the platform control plane.
+      const platformRead = await request(app)
+        .get("/api/v1/platform/schools/health-usage")
+        .set("Authorization", `Bearer ${supportToken}`);
+      expect(platformRead.status).toBe(401);
+      expect(platformRead.body.code).toBe("SUPPORT_SESSION_INVALID");
+
       // Verify Prometheus metric incremented
       const metricValue = (await (supportSessionsActive as unknown as { get: () => Promise<{ values: Array<{ value: number }> }> }).get()).values[0]?.value;
       expect(metricValue).toBe(1);
@@ -247,6 +270,11 @@ describe("Block M7 — Platform Health & Support Session Suite", { timeout: 3000
       expect(revokeRes.body.success).toBe(true);
       expect(revokeRes.body.data.session.status).toBe("REVOKED");
 
+      const revokedRead = await request(app)
+        .get("/api/v1/students")
+        .set("Authorization", `Bearer ${createRes.body.data.token}`);
+      expect(revokedRead.status).toBe(401);
+
       // Verify metric decremented back to 0
       const metricValue = (await (supportSessionsActive as unknown as { get: () => Promise<{ values: Array<{ value: number }> }> }).get()).values[0]?.value;
       expect(metricValue).toBe(0);
@@ -259,6 +287,26 @@ describe("Block M7 — Platform Health & Support Session Suite", { timeout: 3000
       expect(schoolCheck.status).toBe(200);
       expect(schoolCheck.body.data.active).toBe(false);
       expect(schoolCheck.body.data.session).toBeNull();
+    });
+
+    it("fails closed when the active support-session record is unavailable", async () => {
+      const { token } = await SupportSessionService.createSession({
+        schoolId: testSchoolId,
+        superAdminId: superAdminUserId,
+        superAdminEmail: "platform-admin@test.local",
+        reason: "Verify missing-session fail-closed behavior",
+        durationMinutes: 15,
+      });
+
+      // Simulate a process restart or a replica without the issuing process's in-memory record.
+      SupportSessionService.clear();
+
+      const res = await request(app)
+        .get("/api/v1/students")
+        .set("Authorization", `Bearer ${token}`);
+
+      expect(res.status).toBe(401);
+      expect(res.body.code).toBe("SUPPORT_SESSION_INVALID");
     });
 
     it("auto-reconciles expired sessions", async () => {
