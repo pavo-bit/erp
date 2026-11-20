@@ -451,6 +451,8 @@ jobs:
         env:
           DATABASE_URL: ${{ env.DIRECT_URL }}
           ALLOW_DEMO_SEED: "true"
+          SEED_SUPER_ADMIN_EMAIL: "admin@greenwood.local"
+          SEED_SUPER_ADMIN_PASSWORD: "Password123!SecurePass"
 
       - name: Start Backend Server
         working-directory: ./ssvm-backend
