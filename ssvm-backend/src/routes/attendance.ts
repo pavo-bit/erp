@@ -186,18 +186,20 @@ router.post("/", authenticate, requireRole("ADMIN", "ERP_ADMIN", "TEACHER"), asy
       return;
     }
 
+    // Attendance.markedById references Teacher.id, not User.id.
+    const markerTeacher = await prisma.teacher.findFirst({
+      where: { userId: req.user!.id, schoolId, isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+
     // Teachers may only mark attendance for sections assigned to them.
     if (req.user!.role === "TEACHER") {
-      const teacher = await prisma.teacher.findFirst({
-        where: { userId: req.user!.id, schoolId, isActive: true, deletedAt: null },
-        select: { id: true },
-      });
-      if (!teacher) {
+      if (!markerTeacher) {
         res.status(403).json({ success: false, error: "Teacher profile not found" });
         return;
       }
       const assignment = await prisma.classTeacher.findFirst({
-        where: { teacherId: teacher.id, sectionId: resolvedSectionId },
+        where: { teacherId: markerTeacher.id, sectionId: resolvedSectionId },
         select: { id: true },
       });
       if (!assignment) {
@@ -252,7 +254,7 @@ router.post("/", authenticate, requireRole("ADMIN", "ERP_ADMIN", "TEACHER"), asy
       return;
     }
 
-    const markedById = req.user!.id;
+    const markedById = markerTeacher?.id ?? null;
     const created = await runWithTenantDatabaseTransaction(schoolId, async (tx) =>
       Promise.all(records.map((record) =>
         tx.attendance.upsert({
