@@ -51,7 +51,7 @@ services:
       - "6379:6379"
     volumes:
       - ssvm_redis:/data
-    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy noeviction
     networks:
       - ssvm-network
     healthcheck:

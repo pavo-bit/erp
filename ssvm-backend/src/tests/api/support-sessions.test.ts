@@ -301,8 +301,8 @@ describe("Block M7 — Platform Health & Support Session Suite", { timeout: 3000
         durationMinutes: 15,
       });
 
-      // Simulate a process restart or a replica without the issuing process's in-memory record.
-      SupportSessionService.clear();
+      // Simulate a process restart or another replica by deleting the shared persisted record.
+      await SupportSessionService.clear();
 
       const res = await request(app)
         .get("/api/v1/students")
