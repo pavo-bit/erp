@@ -232,7 +232,7 @@ class SupportSessionManager {
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0] ?? null;
     } catch (err) {
       logger.error({ err, schoolId }, "School support-session index lookup failed closed");
-      return null;
+      throw new Error("Support session storage is unavailable");
     }
   }
 
@@ -246,7 +246,7 @@ class SupportSessionManager {
       return count;
     } catch (err) {
       logger.error({ err }, "Support-session count lookup failed");
-      return 0;
+      throw new Error("Support session storage is unavailable");
     }
   }
 
