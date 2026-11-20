@@ -49,6 +49,23 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      grafana:
+        image: grafana/grafana:11.3.1
+        ports:
+          - 3004:3000
+        env:
+          GF_AUTH_PROXY_ENABLED: "true"
+          GF_AUTH_PROXY_HEADER_NAME: "X-WEBAUTH-USER"
+          GF_AUTH_PROXY_HEADER_PROPERTY: "username"
+          GF_AUTH_PROXY_AUTO_SIGN_UP: "true"
+          GF_AUTH_PROXY_HEADERS: "Role:X-WEBAUTH-ROLE"
+          GF_USERS_ALLOW_SIGN_UP: "false"
+        options: >-
+          --health-cmd "wget --spider --quiet http://localhost:3000/api/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+
     defaults:
       run:
         working-directory: ./ssvm-backend
@@ -67,6 +84,7 @@ jobs:
       DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_test?schema=public
       DATABASE_URL_ADMIN: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/postgres
       SHADOW_DATABASE_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_shadow?schema=public
+      DATABASE_URL_GRAFANA: postgresql://ssvm_grafana_ro:grafana_ro_secure_pass_2026@localhost:5432/ssvm_test?schema=public
       REDIS_URL: redis://localhost:6379
 
     steps:
