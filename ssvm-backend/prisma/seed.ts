@@ -1,6 +1,8 @@
-import prisma from '../src/lib/prisma';
+import { getTrustedPrisma } from '../src/lib/trustedPrisma';
 
 import * as bcrypt from 'bcryptjs';
+
+const prisma = getTrustedPrisma("TEST");
 
 
 async function main() {
