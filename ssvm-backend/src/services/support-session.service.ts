@@ -98,7 +98,7 @@ class SupportSessionManager {
     reason: string;
     durationMinutes?: number;
   }): Promise<{ session: SupportSessionRecord; token: string }> {
-    const redis = this.requireRedis();
+    this.requireRedis();
     const duration = Math.min(Math.max(params.durationMinutes || 15, 5), 120);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + duration * 60 * 1000);
