@@ -30,38 +30,63 @@ export class IncidentService {
    * Persist incident state durably to Redis and PostgreSQL system_logs.
    * Multi-instance safe and restart-durable.
    */
+  // Serialize persistence operations per incident ID. Lifecycle methods are
+  // intentionally synchronous for current API callers, so they enqueue snapshots
+  // rather than awaiting I/O. This queue prevents a slower earlier write (for
+  // example TRIAGED) from completing after a later ACKNOWLEDGED update.
+  private static persistenceQueues = new Map<string, Promise<void>>();
+
   public static async persistIncident(incident: PlatformIncident): Promise<void> {
-    const serialized = JSON.stringify(incident);
+    // Capture an immutable snapshot at call time; do not serialize a mutable object
+    // later from inside an asynchronous callback.
+    const snapshot = JSON.parse(JSON.stringify(incident)) as PlatformIncident;
+    const serialized = JSON.stringify(snapshot);
+    const previous = this.persistenceQueues.get(snapshot.id) ?? Promise.resolve();
 
-    // 1. Redis durable cache
-    try {
-      if (isRedisAvailable()) {
-        const redis = getRedisClient();
-        if (redis) {
-          await redis.hset(this.REDIS_INCIDENTS_KEY, incident.id, serialized);
+    const current = previous
+      .catch((err: unknown) => {
+        logger.warn({ err, incidentId: snapshot.id }, "Previous incident persistence failed; continuing with latest snapshot");
+      })
+      .then(async () => {
+        // 1. Shared Redis snapshot (latest state wins, writes are ordered per incident)
+        try {
+          if (isRedisAvailable()) {
+            const redis = getRedisClient();
+            if (redis) {
+              await redis.hset(this.REDIS_INCIDENTS_KEY, snapshot.id, serialized);
+            }
+          }
+        } catch (err: unknown) {
+          logger.warn({ err, incidentId: snapshot.id }, "Failed to persist incident to Redis");
         }
-      }
-    } catch (err: any) {
-      logger.warn({ err: err.message, incidentId: incident.id }, "Failed to persist incident to Redis");
-    }
 
-    // 2. PostgreSQL durable system_logs backing via SECURITY DEFINER function
+        // 2. PostgreSQL durable system_logs backing via SECURITY DEFINER function
+        try {
+          await prisma.$executeRawUnsafe(
+            `SELECT log_pre_tenant_system_log(
+               $1, $2, $3, $4,
+               CASE WHEN $5::text IS NOT NULL AND EXISTS (SELECT 1 FROM schools WHERE id = $5) THEN $5 ELSE NULL END,
+               $6
+             )`,
+            snapshot.severity,
+            "SHFI_INCIDENT",
+            snapshot.id,
+            serialized,
+            snapshot.schoolId || null,
+            null
+          );
+        } catch (err: unknown) {
+          logger.warn({ err, incidentId: snapshot.id }, "Failed to persist incident to PostgreSQL");
+        }
+      });
+
+    this.persistenceQueues.set(snapshot.id, current);
     try {
-      await prisma.$executeRawUnsafe(
-        `SELECT log_pre_tenant_system_log(
-           $1, $2, $3, $4,
-           CASE WHEN $5::text IS NOT NULL AND EXISTS (SELECT 1 FROM schools WHERE id = $5) THEN $5 ELSE NULL END,
-           $6
-         )`,
-        incident.severity,
-        "SHFI_INCIDENT",
-        incident.id,
-        serialized,
-        incident.schoolId || null,
-        null
-      );
-    } catch (err: any) {
-      logger.warn({ err: err.message, incidentId: incident.id }, "Failed to persist incident to PostgreSQL");
+      await current;
+    } finally {
+      if (this.persistenceQueues.get(snapshot.id) === current) {
+        this.persistenceQueues.delete(snapshot.id);
+      }
     }
   }
 
