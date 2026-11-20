@@ -80,7 +80,11 @@ router.get("/me/support-session", authenticate, async (req: AuthRequest, res: Re
     });
   } catch (err: unknown) {
     logger.error({ err }, "Get school active support session error");
-    res.status(500).json({ success: false, error: "Server error" });
+    res.status(503).json({
+      success: false,
+      error: "Support-session state is temporarily unavailable",
+      code: "SUPPORT_SESSION_STORE_UNAVAILABLE",
+    });
   }
 });
 
