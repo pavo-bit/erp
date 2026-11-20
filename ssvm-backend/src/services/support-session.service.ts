@@ -46,6 +46,7 @@ class SupportSessionManager {
         name: "Platform Support",
         role: "SUPPORT_READONLY",
         schoolId: params.schoolId,
+        aud: "SCHOOL",
         sid: sessionId,
       },
       duration
