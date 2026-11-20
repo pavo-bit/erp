@@ -20,6 +20,7 @@ import { createTestApp, createTestUser, getTestPrisma } from "../helpers/testApp
 import { SupportSessionService } from "../../services/support-session.service";
 import { supportSessionsActive } from "../../middleware/metrics";
 import { generateSecret, generateSync } from "otplib";
+import { initRedis } from "../../lib/redis";
 
 describe("Block M7 — Platform Health & Support Session Suite", { timeout: 30000 }, () => {
   const app = createTestApp();
@@ -32,6 +33,8 @@ describe("Block M7 — Platform Health & Support Session Suite", { timeout: 3000
   let userMfaSecret: string;
 
   beforeAll(async () => {
+    // Initialize the shared test Redis service before support-session fixtures execute.
+    await initRedis();
     const timestamp = Date.now();
 
     // 1. Create School
