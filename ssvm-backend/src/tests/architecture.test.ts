@@ -223,6 +223,7 @@ describe("Architecture & Phase A E2E", () => {
         "src/routes/auth.ts",
         "src/middleware/auth.ts",
         "src/lib/authPrisma.ts",
+        "src/routes/platform.ts", // Platform support-session authorization requires auth-DB user/MFA lookup.
         "src/tests/api/auth.test.ts",
         "src/tests/api/audience-cookies.test.ts",
         "src/tests/architecture.test.ts",
