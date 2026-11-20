@@ -8,6 +8,7 @@ import { verifyAccessToken, isTokenExpiredError, AccessTokenPayload } from "../l
 import { jwtVerificationTotal, wrongPortalDenialsTotal } from "./metrics";
 import { setAuthenticatedSchoolContext } from "./school-context.middleware";
 import { getAuthPrisma } from "../lib/authPrisma";
+import { SupportSessionService } from "../services/support-session.service";
 
 // ═══════════════════════════════════════════
 // Types
@@ -281,7 +282,58 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     const audClaim = ("aud" in payload ? payload.aud : undefined) as "PLATFORM" | "SCHOOL" | undefined;
     const mfaVerifiedClaim = "mfaVerified" in payload ? (payload as AccessTokenPayload).mfaVerified : undefined;
 
-    if ('impersonated' in payload && payload.impersonated) {
+    if (payload.role === "SUPPORT_READONLY") {
+      const supportPayload = payload as AccessTokenPayload;
+      const safeMethods = ["GET", "HEAD", "OPTIONS"];
+      const supportSession = supportPayload.sid
+        ? SupportSessionService.getSession(supportPayload.sid)
+        : null;
+
+      // A support token is a distinct, school-scoped principal. Never rebuild it
+      // with the database user's SUPER_ADMIN role. Until shared durable storage is
+      // available, absence of the issuing process's live session fails closed.
+      if (
+        isPlatformRoute ||
+        user.role !== "SUPER_ADMIN" ||
+        audClaim !== "SCHOOL" ||
+        !supportPayload.sid ||
+        !supportPayload.jti ||
+        !supportPayload.schoolId ||
+        !supportSession ||
+        supportSession.status !== "ACTIVE" ||
+        supportSession.expiresAt.getTime() <= Date.now() ||
+        supportSession.superAdminId !== user.id ||
+        supportSession.schoolId !== supportPayload.schoolId ||
+        supportSession.jti !== supportPayload.jti
+      ) {
+        res.status(401).json({
+          success: false,
+          error: "Support session is invalid, expired, revoked, or unavailable",
+          code: "SUPPORT_SESSION_INVALID",
+        });
+        return;
+      }
+
+      req.user = {
+        ...user,
+        role: "SUPPORT_READONLY",
+        schoolId: supportSession.schoolId,
+        aud: "SCHOOL",
+        mfaVerified: mfaVerifiedClaim,
+        impersonated: true,
+        originalUserId: user.id,
+      };
+
+      // Read-only is enforced centrally, even for routes that lack a role guard.
+      if (!safeMethods.includes(req.method.toUpperCase())) {
+        res.status(403).json({
+          success: false,
+          error: "Support sessions are read-only",
+          code: "SUPPORT_READ_ONLY",
+        });
+        return;
+      }
+    } else if ('impersonated' in payload && payload.impersonated) {
       req.user = {
         ...user,
         aud: audClaim,
@@ -309,9 +361,9 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
     }
 
     setAuthenticatedSchoolContext({
-      id: user.id,
-      schoolId: user.schoolId,
-      role: user.role,
+      id: req.user!.id,
+      schoolId: req.user!.schoolId,
+      role: req.user!.role,
       impersonated: req.user?.impersonated,
       originalUserId: req.user?.originalUserId,
     });
@@ -334,8 +386,15 @@ export function requireRole(...roles: string[]) {
       return;
     }
 
+    // Support principals may satisfy school-role guards only for safe reads.
+    // They never receive SUPER_ADMIN role semantics or write access.
+    const supportReadOnlyAllowed =
+      req.user.role === "SUPPORT_READONLY" &&
+      ["GET", "HEAD", "OPTIONS"].includes(req.method.toUpperCase()) &&
+      roles.some((role) => role !== "SUPER_ADMIN" && role !== "SUPPORT_READONLY");
+
     // Direct role match or SUPER_ADMIN platform override
-    if (req.user.role === "SUPER_ADMIN" || roles.includes(req.user.role)) {
+    if (supportReadOnlyAllowed || req.user.role === "SUPER_ADMIN" || roles.includes(req.user.role)) {
       next();
       return;
     }
