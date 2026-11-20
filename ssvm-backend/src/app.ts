@@ -82,6 +82,7 @@ export async function createApp(): Promise<Express> {
   const messagesRoutes = (await import("./routes/messages")).default;
   const certificatesRoutes = (await import("./routes/certificates")).default;
   const guardiansRoutes = (await import("./routes/guardians")).default;
+  const parentRoutes = (await import("./routes/parent")).default;
   const preferencesRoutes = (await import("./routes/preferences")).default;
   const documentsRoutes = (await import("./routes/documents")).default;
   const saasSettingsRoutes = (await import("./routes/admin/saasSettings")).default;
@@ -454,6 +455,7 @@ app.use("/api/v1/governance", governanceRoutes);
 app.use("/api/v1/ancillary", ancillaryRoutes);
 app.use("/api/v1/certificates", certificatesRoutes);
 app.use("/api/v1/guardians", guardiansRoutes);
+app.use("/api/v1/parent", parentRoutes);
 app.use("/api/v1/documents", uploadLimiter, documentsRoutes);
 app.use("/api/v1/saas", saasRoutes);
 app.use("/api/v1/platform", platformRoutes);
