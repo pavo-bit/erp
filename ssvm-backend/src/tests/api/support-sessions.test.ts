@@ -147,6 +147,24 @@ describe("Block M7 — Platform Health & Support Session Suite", { timeout: 3000
       expect(res.body.code).toBe("INVALID_MFA_CODE");
     });
 
+    it("fails closed when Super Admin has not enrolled a real MFA factor", async () => {
+      const unEnrolledAdmin = await createTestUser(Role.SUPER_ADMIN);
+
+      const res = await request(app)
+        .post("/api/v1/platform/support-sessions/request")
+        .set("Authorization", `Bearer ${unEnrolledAdmin.token}`)
+        .send({
+          schoolId: testSchoolId,
+          reason: "Attempted support session without enrolled MFA",
+          durationMinutes: 15,
+          mfaCode: "000000",
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe("MFA_REQUIRED");
+      expect(res.body.error).toContain("MFA enrollment is required");
+    });
+
     it("successfully requests support session with valid TOTP code", async () => {
       const validTotp = generateSync({ secret: userMfaSecret });
 
