@@ -452,7 +452,9 @@ describe('Transport Trips, Geofencing & Biometric Device Registry Tests', () => 
 
     expect(res.status).toBe(200);
     expect(res.body.count).toBeGreaterThanOrEqual(1);
-    expect(res.body.data[0].id).toBe('ZKT-EAST-01');
+    // The registry may contain other devices created by earlier tests in this
+    // suite. The API does not promise insertion order, so assert membership.
+    expect(res.body.data.map((device: { id: string }) => device.id)).toContain('ZKT-EAST-01');
   });
 
   it('maps terminal device badge number to ERP teacher record', async () => {
