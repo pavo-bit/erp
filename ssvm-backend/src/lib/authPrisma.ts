@@ -280,33 +280,31 @@ export async function verifyUserMfaToken(
     return { success: false, error: "User not found", code: "USER_NOT_FOUND" };
   }
 
-  // If user has 2FA enabled, verify against TOTP secret
-  if (user.twoFactorEnabled && user.twoFactorSecret) {
-    try {
-      const verification = verifySync({ token: mfaCode, secret: user.twoFactorSecret });
-      if (!verification || !verification.valid) {
-        return {
-          success: false,
-          error: "Invalid MFA verification code",
-          code: "INVALID_MFA_CODE",
-        };
-      }
-    } catch {
+  // Privileged support access must fail closed unless the account has a
+  // genuine enrolled TOTP factor. A numeric format check is not MFA.
+  if (!user.twoFactorEnabled || !user.twoFactorSecret) {
+    return {
+      success: false,
+      error: "MFA enrollment is required before initiating a support session",
+      code: "MFA_REQUIRED",
+    };
+  }
+
+  try {
+    const verification = verifySync({ token: mfaCode, secret: user.twoFactorSecret });
+    if (!verification || !verification.valid) {
       return {
         success: false,
-        error: "Failed to verify MFA code",
-        code: "MFA_VERIFICATION_ERROR",
-      };
-    }
-  } else {
-    // When 2FA not formally set up, verify standard 6-digit challenge code
-    if (mfaCode !== "000000" && !/^\d{6}$/.test(mfaCode)) {
-      return {
-        success: false,
-        error: "Invalid MFA verification code format",
+        error: "Invalid MFA verification code",
         code: "INVALID_MFA_CODE",
       };
     }
+  } catch {
+    return {
+      success: false,
+      error: "Failed to verify MFA code",
+      code: "MFA_VERIFICATION_ERROR",
+    };
   }
 
   return { success: true };
