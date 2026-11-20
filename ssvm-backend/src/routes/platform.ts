@@ -443,7 +443,7 @@ router.get(
       ]);
 
       // 4. Support Sessions
-      const activeSessionsCount = SupportSessionService.getActiveSessionCount();
+      const activeSessionsCount = await SupportSessionService.getActiveSessionCount();
       const recentAuditSessions = await prisma.auditLog.count({
         where: {
           action: "SUPPORT_SESSION_INITIATED",
