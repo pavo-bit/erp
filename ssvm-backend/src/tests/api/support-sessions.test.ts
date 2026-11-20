@@ -323,16 +323,15 @@ describe("Block M7 — Platform Health & Support Session Suite", { timeout: 3000
         });
 
       const sessionId = createRes.body.data.sessionId;
-      const session = SupportSessionService.getSession(sessionId);
+      const session = await SupportSessionService.getSession(
+        sessionId,
+        new Date(Date.now() + 6 * 60 * 1000)
+      );
       expect(session).toBeDefined();
+      expect(session?.status).toBe("EXPIRED");
 
-      // Simulate expiry by setting expiresAt to the past
-      if (session) {
-        session.expiresAt = new Date(Date.now() - 1000);
-      }
-
-      // Check active session for school — should detect expiry and return null
-      const activeSession = SupportSessionService.getActiveSessionForSchool(testSchoolId);
+      // Check active session for school — the shared index must exclude expired sessions.
+      const activeSession = await SupportSessionService.getActiveSessionForSchool(testSchoolId);
       expect(activeSession).toBeNull();
       expect(session?.status).toBe("EXPIRED");
     });
