@@ -69,13 +69,34 @@ router.post("/", authenticate, requireRole("ADMIN", "TEACHER"), async (req: Auth
       return;
     }
 
+    // Canonical section resolution: accept either a CUID sectionId or a
+    // composite "className-sectionName" (e.g. "10-A") and resolve it to the
+    // school's section within the active academic session.
+    let resolvedSectionId = sectionId as string;
+    const section = await prisma.section.findFirst({ where: { id: resolvedSectionId, class: { schoolId } } });
+    if (!section) {
+      const match = String(sectionId).match(/^(.+?)[-_](.+)$/);
+      if (match) {
+        const className = match[1].trim();
+        const sectionName = match[2].trim();
+        const resolved = await prisma.section.findFirst({
+          where: { name: sectionName, class: { name: className, schoolId } },
+        });
+        if (resolved) resolvedSectionId = resolved.id;
+      }
+    }
+    if (!resolvedSectionId) {
+      res.status(400).json({ success: false, error: "Invalid section identifier" });
+      return;
+    }
+
     const created = await prisma.$transaction(
       records.map((r: any) =>
         prisma.attendance.upsert({
           where: { studentId_date: { studentId: r.studentId, date: new Date(date) } },
           create: {
             schoolId,
-            sectionId,
+            sectionId: resolvedSectionId,
             studentId: r.studentId,
             date: new Date(date),
             status: r.status,

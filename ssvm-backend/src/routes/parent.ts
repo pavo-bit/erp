@@ -4,9 +4,12 @@ import { authenticate } from "../middleware/auth";
 
 const router = Router();
 
+interface GuardianStudent { id: string; }
+interface GuardianRecord { students?: GuardianStudent[]; }
+
 router.get("/children/:studentId/summary", authenticate, async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
+    const user = (req as { user?: { id: string; role: string; schoolId?: string | null } }).user;
     if (!user) return res.status(401).json({ success: false, error: "Unauthorized" });
 
     const studentId = req.params.studentId;
@@ -18,8 +21,8 @@ router.get("/children/:studentId/summary", authenticate, async (req: Request, re
       const guardian = await prisma.guardian.findUnique({
         where: { userId: user.id },
         include: { students: { select: { id: true } } },
-      });
-      const allowed = guardian?.students?.some((s: any) => s.id === studentId);
+      }) as GuardianRecord | null;
+      const allowed = guardian?.students?.some((s: GuardianStudent) => s.id === sid) ?? false;
       if (!allowed) {
         return res.status(403).json({ success: false, error: "Access denied to this child" });
       }
@@ -41,17 +44,17 @@ router.get("/children/:studentId/summary", authenticate, async (req: Request, re
     const attendanceRecords = await prisma.attendance.findMany({
       where: { studentId: sid, date: { gte: thirtyDaysAgo } },
       select: { status: true },
-    });
+    }) as { status: string }[];
     const total = attendanceRecords.length;
-    const present = attendanceRecords.filter((a: any) => a.status === "PRESENT" || a.status === "LATE").length;
+    const present = attendanceRecords.filter((a) => a.status === "PRESENT" || a.status === "LATE").length;
     const attendanceRate = total > 0 ? Math.round((present / total) * 100) : null;
 
     // Pending fees
     const invoices = await prisma.invoice.findMany({
       where: { studentId: sid, status: { in: ["PENDING", "OVERDUE", "PARTIAL"] } },
       select: { remainingAmount: true, amount: true },
-    });
-    const pendingFees = invoices.reduce((sum: number, inv: any) => sum + Number(inv.remainingAmount ?? inv.amount ?? 0), 0);
+    }) as { remainingAmount: unknown; amount: unknown }[];
+    const pendingFees = invoices.reduce((sum: number, inv) => sum + Number(inv.remainingAmount ?? inv.amount ?? 0), 0);
 
     // Pending assignments count
     const pendingAssignmentsCount = await prisma.assignmentSubmission.count({
@@ -72,7 +75,7 @@ router.get("/children/:studentId/summary", authenticate, async (req: Request, re
       orderBy: { date: "desc" },
       take: 5,
       select: { date: true, status: true },
-    });
+    }) as { date: Date; status: string }[];
 
     const upcomingDues = await prisma.invoice.findMany({
       where: { studentId: sid, status: { in: ["PENDING", "OVERDUE", "PARTIAL"] } },
@@ -93,8 +96,9 @@ router.get("/children/:studentId/summary", authenticate, async (req: Request, re
         upcomingDues,
       },
     });
-  } catch (e: any) {
-    res.status(500).json({ success: false, error: e.message || "Server error" });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Server error";
+    res.status(500).json({ success: false, error: msg });
   }
 });
 
