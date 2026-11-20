@@ -551,6 +551,11 @@ describe("K6 — KPI Deterministic Formulas, Tenancy Isolation & Legacy Deprecat
   // ───────────────────────────────────────────────────────────────────────────
 
   it("verifies GET /api/v1/platform/kpi returns real numbers for platform KPIs and Prometheus metrics", async () => {
+    // Ensure at least one completed instrumented request has incremented the
+    // HTTP request counter before reading platform metrics (counter increments
+    // on the response 'finish' event).
+    await request(app).get("/api/v1/health");
+
     const res = await request(app)
       .get("/api/v1/platform/kpi")
       .set("Authorization", `Bearer ${superAdminToken}`);
