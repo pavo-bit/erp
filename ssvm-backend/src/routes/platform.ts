@@ -340,7 +340,7 @@ router.get(
   requireAudience("PLATFORM"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     const schoolId = String(req.params.schoolId);
-    const session = SupportSessionService.getActiveSessionForSchool(schoolId);
+    const session = await SupportSessionService.getActiveSessionForSchool(schoolId);
     res.json({
       success: true,
       data: session
