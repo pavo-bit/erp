@@ -131,8 +131,11 @@ router.get(
             modules: enabledModules,
             lastLogin: lastLoginUser?.lastLogin || null,
             activeUsers,
-            requestVolume: 0, // Telemetry aggregate
-            errorRate: 0.0,
+            // Per-school HTTP telemetry is not yet attributable with sufficient
+            // confidence. Never represent missing telemetry as a measured zero.
+            requestVolume: null,
+            errorRate: null,
+            telemetryStatus: "UNAVAILABLE",
           };
         })
       );
@@ -204,8 +207,11 @@ router.get(
           modules: enabledModules,
           lastLogin: lastLoginUser?.lastLogin || null,
           activeUsers,
-          requestVolume: 0,
-          errorRate: 0.0,
+          // Per-school HTTP telemetry is not yet attributable with sufficient
+          // confidence. Never represent missing telemetry as a measured zero.
+          requestVolume: null,
+          errorRate: null,
+          telemetryStatus: "UNAVAILABLE",
         },
       });
     } catch (err: unknown) {
