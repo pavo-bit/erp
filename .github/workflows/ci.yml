@@ -408,6 +408,12 @@ jobs:
       PORT: 5000
       BACKEND_URL: http://localhost:5000
       CI: true
+      NODE_ENV: development
+      ACCESS_TOKEN_PRIVATE_KEY: "test-private-key"
+      ACCESS_TOKEN_PUBLIC_KEY: "test-public-key"
+      REFRESH_TOKEN_PRIVATE_KEY: "test-refresh-private-key"
+      REFRESH_TOKEN_PUBLIC_KEY: "test-refresh-public-key"
+      FIELD_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -457,6 +463,15 @@ jobs:
       - name: Start Backend Server
         working-directory: ./ssvm-backend
         run: |
+          # Generate ephemeral RSA keys for JWT signing (test-only)
+          mkdir -p /tmp/keys
+          openssl genrsa -out /tmp/keys/priv.pem 2048 2>/dev/null
+          openssl rsa -in /tmp/keys/priv.pem -pubout -out /tmp/keys/pub.pem 2>/dev/null
+          export ACCESS_TOKEN_PRIVATE_KEY="$(cat /tmp/keys/priv.pem)"
+          export ACCESS_TOKEN_PUBLIC_KEY="$(cat /tmp/keys/pub.pem)"
+          export REFRESH_TOKEN_PRIVATE_KEY="$(cat /tmp/keys/priv.pem)"
+          export REFRESH_TOKEN_PUBLIC_KEY="$(cat /tmp/keys/pub.pem)"
+          export FIELD_ENCRYPTION_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
           npm run dev &
           for i in {1..30}; do
             if curl -s http://localhost:5000/api/v1/health | grep -q "healthy"; then
