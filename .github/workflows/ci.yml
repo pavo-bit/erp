@@ -408,7 +408,6 @@ jobs:
       PORT: 5000
       BACKEND_URL: http://localhost:5000
       CI: true
-      NODE_ENV: development
       ACCESS_TOKEN_PRIVATE_KEY: "test-private-key"
       ACCESS_TOKEN_PUBLIC_KEY: "test-public-key"
       REFRESH_TOKEN_PRIVATE_KEY: "test-refresh-private-key"
@@ -471,6 +470,7 @@ jobs:
           export ACCESS_TOKEN_PUBLIC_KEY="$(cat /tmp/keys/pub.pem)"
           export REFRESH_TOKEN_PRIVATE_KEY="$(cat /tmp/keys/priv.pem)"
           export REFRESH_TOKEN_PUBLIC_KEY="$(cat /tmp/keys/pub.pem)"
+          export NODE_ENV=development
           export FIELD_ENCRYPTION_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
           npm run dev &
           for i in {1..30}; do
