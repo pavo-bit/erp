@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
@@ -45,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/v1/auth/login", {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, portal: "super-admin" }),
       });
       const data = await res.json();
       

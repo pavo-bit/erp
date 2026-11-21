@@ -18,12 +18,33 @@ import { PageHeader, StatCard, StatusBadge } from "@/components/DashboardLayout"
 type TransportTab = "overview" | "vehicles" | "drivers" | "routes";
 
 export default function TransportLogisticsPage() {
-  const { data: moduleData } = useSchoolModules();
-  const { data: overviewData, isLoading: overviewLoading } = useTransportOverview();
-  const { data: vehiclesData, isLoading: vehiclesLoading } = useTransportVehicles();
-  const { data: driversData, isLoading: driversLoading } = useTransportDrivers();
-  const { data: routesData, isLoading: routesLoading } = useTransportRoutes();
-  const { data: stopsData, isLoading: stopsLoading } = useTransportStops();
+  const { data: moduleData, isLoading: modulesLoading } = useSchoolModules();
+
+  // Entitlement Check: fail closed until loaded
+  const isTransportEnabled = useMemo(() => {
+    if (!moduleData) return false;
+    const raw = (moduleData as any).data?.modules ?? (moduleData as any).modules ?? moduleData;
+    const modules = Array.isArray(raw) ? raw : [];
+    const found = modules.find(
+      (m: any) =>
+        m.module?.code?.toUpperCase() === "TRANSPORT" ||
+        m.module?.id?.toUpperCase() === "TRANSPORT" ||
+        m.code?.toUpperCase() === "TRANSPORT" ||
+        m.id?.toUpperCase() === "TRANSPORT"
+    );
+    if (found) return Boolean(found.isEnabled ?? found.enabled);
+    if (typeof raw === "object" && raw !== null) {
+      if ((raw as any).TRANSPORT !== undefined) return Boolean((raw as any).TRANSPORT);
+      if ((raw as any).transport !== undefined) return Boolean((raw as any).transport);
+    }
+    return false;
+  }, [moduleData]);
+
+  const { data: overviewData, isLoading: overviewLoading } = useTransportOverview(isTransportEnabled);
+  const { data: vehiclesData, isLoading: vehiclesLoading } = useTransportVehicles(isTransportEnabled);
+  const { data: driversData, isLoading: driversLoading } = useTransportDrivers(isTransportEnabled);
+  const { data: routesData, isLoading: routesLoading } = useTransportRoutes(isTransportEnabled);
+  const { data: stopsData, isLoading: stopsLoading } = useTransportStops(undefined, isTransportEnabled);
   const { data: facultyData } = useFaculty();
 
   const [activeTab, setActiveTab] = useState<TransportTab>("overview");
@@ -94,27 +115,6 @@ export default function TransportLogisticsPage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Entitlement Check
-  const isTransportEnabled = useMemo(() => {
-    if (!moduleData) return true;
-    const modules = moduleData.modules ?? moduleData;
-    if (Array.isArray(modules)) {
-      const found = modules.find(
-        (m: any) =>
-          m.module?.code?.toUpperCase() === "TRANSPORT" ||
-          m.module?.id?.toUpperCase() === "TRANSPORT" ||
-          m.code?.toUpperCase() === "TRANSPORT" ||
-          m.id?.toUpperCase() === "TRANSPORT"
-      );
-      return found ? Boolean(found.isEnabled ?? found.enabled) : true;
-    }
-    if (typeof modules === "object" && modules !== null) {
-      if (modules.TRANSPORT !== undefined) return Boolean(modules.TRANSPORT);
-      if (modules.transport !== undefined) return Boolean(modules.transport);
-    }
-    return true;
-  }, [moduleData]);
 
   const vehicles = useMemo(() => (Array.isArray(vehiclesData) ? vehiclesData : []), [vehiclesData]);
   const drivers = useMemo(() => (Array.isArray(driversData) ? driversData : []), [driversData]);
@@ -461,6 +461,14 @@ export default function TransportLogisticsPage() {
       setActionLoading(false);
     }
   };
+
+  if (modulesLoading) {
+    return (
+      <div className="p-12 text-center text-slate-500">
+        Checking module entitlements...
+      </div>
+    );
+  }
 
   if (!isTransportEnabled) {
     return (

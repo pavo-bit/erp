@@ -16,7 +16,7 @@ export default function ResultsPage() {
     );
   }
 
-  const exams = examsData?.data || [];
+  const exams = Array.isArray(examsData) ? examsData : (examsData?.data || []);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">

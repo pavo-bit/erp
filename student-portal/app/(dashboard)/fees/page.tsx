@@ -79,10 +79,11 @@ const options = {
     }
   };
 
+  const invoiceList = Array.isArray(invoices) ? invoices : (invoices?.data || []);
   const groupedInvoices = {
-    overdue: invoices?.data?.filter((i: any) => i.status === 'OVERDUE') || [],
-    pending: invoices?.data?.filter((i: any) => i.status === 'PENDING') || [],
-    paid: invoices?.data?.filter((i: any) => i.status === 'PAID') || [],
+    overdue: invoiceList.filter((i: any) => i.status === 'OVERDUE'),
+    pending: invoiceList.filter((i: any) => i.status === 'PENDING'),
+    paid: invoiceList.filter((i: any) => i.status === 'PAID'),
   };
 
   return (

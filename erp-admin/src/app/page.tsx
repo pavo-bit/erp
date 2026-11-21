@@ -71,7 +71,11 @@ function LoginContent() {
     }
 
     if (!result.success) {
-      setError(result.error || "Invalid credentials or unauthorized.");
+      if (result.error === "WRONG_PORTAL" || result.error?.includes("platform") || result.role === "SUPER_ADMIN") {
+        setError("This portal is for school staff");
+      } else {
+        setError(result.error || "Invalid credentials or unauthorized.");
+      }
       setIsLoading(false);
     } else {
       setSuccess(true);

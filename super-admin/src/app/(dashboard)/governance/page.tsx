@@ -52,11 +52,16 @@ export default function GovernanceDashboard() {
         {/* Create Policy Card */}
         <div className="lg:col-span-1">
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-xl border border-slate-200 dark:border-slate-800">
-            <h2 className="text-xl font-bold flex items-center gap-2 mb-6">
-              <Plus className="w-5 h-5 text-indigo-500" />
-              New Retention Policy
-            </h2>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Plus className="w-5 h-5 text-indigo-500" />
+                New Retention Policy
+              </h2>
+              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                Not available yet
+              </span>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); }} className="space-y-4 opacity-75">
               <div>
                 <label className="text-xs font-semibold uppercase text-slate-500 mb-1 block">Tenant (School ID)</label>
                 <input 
@@ -103,8 +108,8 @@ export default function GovernanceDashboard() {
                   </select>
                 </div>
               </div>
-              <button disabled={isCreating} className="w-full h-12 mt-4 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold text-white flex items-center justify-center">
-                {isCreating ? <Loader2 className="animate-spin w-5 h-5" /> : "Enforce Policy"}
+              <button disabled className="w-full h-12 mt-4 bg-slate-400 dark:bg-slate-700 cursor-not-allowed rounded-xl font-bold text-white flex items-center justify-center">
+                Not available yet
               </button>
             </form>
           </div>

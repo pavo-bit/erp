@@ -8,6 +8,7 @@ function ProfileContent() {
   const searchParams = useSearchParams();
   const forceChange = searchParams?.get('forceChange') === 'true';
   const { data: profile } = useMyProfile();
+  const p = profile?.data ?? profile;
   
   const [showPasswordForm, setShowPasswordForm] = useState(forceChange);
   const [passwordData, setPasswordData] = useState({
@@ -62,55 +63,55 @@ function ProfileContent() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-600">Name</label>
-            <p className="mt-1 text-gray-900">{profile?.data?.name || '-'}</p>
+            <p className="mt-1 text-gray-900">{p?.name || '-'}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600">Admission Number</label>
-            <p className="mt-1 text-gray-900">{profile?.data?.admissionNo || '-'}</p>
+            <p className="mt-1 text-gray-900">{p?.admissionNo || '-'}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600">Roll Number</label>
-            <p className="mt-1 text-gray-900">{profile?.data?.rollNo || '-'}</p>
+            <p className="mt-1 text-gray-900">{p?.rollNo || '-'}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600">Class</label>
             <p className="mt-1 text-gray-900">
-              {profile?.data?.sectionRef?.class?.name || '-'} - {profile?.data?.sectionRef?.name || '-'}
+              {p?.sectionRef?.class?.name || '-'} - {p?.sectionRef?.name || '-'}
             </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600">Date of Birth</label>
             <p className="mt-1 text-gray-900">
-              {profile?.data?.dob ? new Date(profile.data.dob).toLocaleDateString() : '-'}
+              {p?.dob ? new Date(p.dob).toLocaleDateString() : '-'}
             </p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-600">Blood Group</label>
-            <p className="mt-1 text-gray-900">{profile?.data?.bloodGroup || '-'}</p>
+            <p className="mt-1 text-gray-900">{p?.bloodGroup || '-'}</p>
           </div>
         </div>
       </div>
 
       {/* Guardian Information */}
-      {profile?.data?.guardian && (
+      {p?.guardian && (
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Guardian Information</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-600">Primary Name</label>
-              <p className="mt-1 text-gray-900">{profile.data.guardian.primaryName || '-'}</p>
+              <p className="mt-1 text-gray-900">{p.guardian.primaryName || p.guardian.name || '-'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-600">Primary Phone</label>
-              <p className="mt-1 text-gray-900">{profile.data.guardian.primaryPhone || '-'}</p>
+              <p className="mt-1 text-gray-900">{p.guardian.primaryPhone || p.guardian.phone || '-'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-600">Email</label>
-              <p className="mt-1 text-gray-900">{profile.data.guardian.primaryEmail || '-'}</p>
+              <p className="mt-1 text-gray-900">{p.guardian.primaryEmail || p.guardian.email || '-'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-600">Relation</label>
-              <p className="mt-1 text-gray-900">{profile.data.guardian.primaryRelation || '-'}</p>
+              <p className="mt-1 text-gray-900">{p.guardian.primaryRelation || p.guardian.relationship || '-'}</p>
             </div>
           </div>
         </div>

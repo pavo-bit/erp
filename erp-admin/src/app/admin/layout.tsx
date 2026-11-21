@@ -79,23 +79,27 @@ function resolveModuleStatus(moduleData: any, code?: string): ModuleStatusInfo {
 
 /**
  * Institutional ERP Admin Navigation Architecture
- * Exact hierarchy in compliance with Section 5.1 of the UI/UX Specification:
- * - Overview / Dashboard
- * - Admissions and Students
- * - Staff and Academics
- * - Daily Operations
- * - Finance
- * - Assessment
- * - Campus Operations
- * - Reports and Administration
+ * Exact hierarchy in compliance with approved Block B-A plan:
+ * 1. Admissions & Students
+ * 2. Academics
+ * 3. Examinations (EXAMS)
+ * 4. Finance (FINANCE)
+ * 5. HR & Payroll (HR_PAYROLL)
+ * 6. Transport (TRANSPORT)
+ * 7. Hostel (HOSTEL)
+ * 8. Library (LIBRARY)
+ * 9. Inventory & Procurement (INVENTORY)
+ * 10. Communications (COMMUNICATIONS)
+ * 11. Biometric attendance (BIOMETRIC_ATTENDANCE)
+ * 12. Reports
+ * 13. Administration
  */
 const NAV_GROUPS: NavGroupDefinition[] = [
-  // 1. Admissions and Students
+  // 1. Admissions & Students
   {
     icon: "👥",
-    label: "Admissions and Students",
+    label: "Admissions & Students",
     href: "/admin/admissions",
-    moduleCode: "ACADEMICS",
     children: [
       { icon: "📋", label: "Admissions CRM", href: "/admin/admissions" },
       { icon: "👨‍🎓", label: "Student Directory", href: "/admin/students" },
@@ -105,12 +109,11 @@ const NAV_GROUPS: NavGroupDefinition[] = [
     ],
   },
 
-  // 2. Staff and Academics
+  // 2. Academics
   {
-    icon: "👔",
-    label: "Staff and Academics",
+    icon: "🎓",
+    label: "Academics",
     href: "/admin/teachers",
-    moduleCode: "ACADEMICS",
     children: [
       { icon: "👨‍🏫", label: "Teachers & Staff", href: "/admin/teachers" },
       { icon: "📥", label: "Import Staff", href: "/admin/teachers/import" },
@@ -120,66 +123,139 @@ const NAV_GROUPS: NavGroupDefinition[] = [
     ],
   },
 
-  // 3. Daily Operations
+  // 3. Examinations (EXAMS)
   {
-    icon: "✅",
-    label: "Daily Operations",
-    href: "/admin/attendance",
+    icon: "📝",
+    label: "Examinations",
+    href: "/admin/exams",
+    moduleCode: "EXAMS",
     children: [
-      { icon: "📅", label: "Student & Staff Attendance", href: "/admin/attendance" },
-      { icon: "📢", label: "Announcements & Alerts", href: "/admin/notifications", moduleCode: "COMMUNICATIONS" },
-      { icon: "🗓️", label: "School Events Calendar", href: "/admin/events", moduleCode: "COMMUNICATIONS" },
-      { icon: "🛎️", label: "Reception & Visitors", href: "/admin/reception" },
+      { icon: "📑", label: "Examinations", href: "/admin/exams", moduleCode: "EXAMS" },
+      { icon: "🏆", label: "Marks & Results", href: "/admin/results", moduleCode: "EXAMS" },
+      { icon: "📚", label: "Assignments & LMS", href: "/admin/assignments", moduleCode: "EXAMS" },
     ],
   },
 
-  // 4. Finance & Accounts
+  // 4. Finance (FINANCE)
   {
     icon: "💰",
     label: "Finance",
     href: "/admin/fees",
     moduleCode: "FINANCE",
     children: [
-      { icon: "💳", label: "Fee Management & Structure", href: "/admin/fees" },
-      { icon: "⚠️", label: "Payments & Dues", href: "/admin/fees/defaulters" },
-      { icon: "📒", label: "Receipts & General Ledger", href: "/admin/fees/ledger" },
+      { icon: "💳", label: "Fee Management & Structure", href: "/admin/fees", moduleCode: "FINANCE" },
+      { icon: "⚠️", label: "Payments & Dues", href: "/admin/fees/defaulters", moduleCode: "FINANCE" },
+      { icon: "📒", label: "Receipts & General Ledger", href: "/admin/fees/ledger", moduleCode: "FINANCE" },
+      { icon: "💵", label: "Cashier Fee Collection", href: "/finance/fee-collection", moduleCode: "FINANCE" },
+      { icon: "🔒", label: "Financial Period Close", href: "/finance/close", moduleCode: "FINANCE" },
     ],
   },
 
-  // 5. Assessment
+  // 5. HR & Payroll (HR_PAYROLL)
   {
-    icon: "📝",
-    label: "Assessment",
-    href: "/admin/exams",
-    moduleCode: "EXAMS",
+    icon: "👔",
+    label: "HR & Payroll",
+    href: "/admin/faculty",
+    moduleCode: "HR_PAYROLL",
     children: [
-      { icon: "📑", label: "Examinations", href: "/admin/exams", moduleCode: "EXAMS" },
-      { icon: "🏆", label: "Marks & Results", href: "/admin/results", moduleCode: "EXAMS" },
-      { icon: "📚", label: "Assignments & LMS", href: "/admin/assignments" },
+      { icon: "👥", label: "Staff Directory", href: "/admin/faculty", moduleCode: "HR_PAYROLL" },
+      { icon: "🏖️", label: "HR & Leaves", href: "/admin/hr", moduleCode: "HR_PAYROLL" },
     ],
   },
 
-  // 6. Campus Operations (Dynamic Group: collapses if HOSTEL and TRANSPORT are both disabled)
+  // 6. Transport (TRANSPORT)
   {
-    icon: "🏫",
-    label: "Campus Operations",
-    href: "/admin/hostel",
+    icon: "🚌",
+    label: "Transport",
+    href: "/admin/transport",
+    moduleCode: "TRANSPORT",
     children: [
-      { icon: "🛏️", label: "Hostel Management", href: "/admin/hostel", moduleCode: "HOSTEL" },
       { icon: "🚌", label: "Transport & Vehicles", href: "/admin/transport", moduleCode: "TRANSPORT" },
     ],
   },
 
-  // 7. Reports and Administration
+  // 7. Hostel (HOSTEL)
+  {
+    icon: "🛏️",
+    label: "Hostel",
+    href: "/admin/hostel",
+    moduleCode: "HOSTEL",
+    children: [
+      { icon: "🛏️", label: "Hostel Management", href: "/admin/hostel", moduleCode: "HOSTEL" },
+    ],
+  },
+
+  // 8. Library (LIBRARY)
+  {
+    icon: "📚",
+    label: "Library",
+    href: "/admin/library",
+    moduleCode: "LIBRARY",
+    children: [
+      { icon: "📖", label: "Books & Circulation", href: "/admin/library", moduleCode: "LIBRARY" },
+    ],
+  },
+
+  // 9. Inventory & Procurement (INVENTORY)
+  {
+    icon: "📦",
+    label: "Inventory & Procurement",
+    href: "/admin/assets",
+    moduleCode: "INVENTORY",
+    children: [
+      { icon: "📦", label: "Assets & Inventory", href: "/admin/assets", moduleCode: "INVENTORY" },
+    ],
+  },
+
+  // 10. Communications (COMMUNICATIONS)
+  {
+    icon: "📢",
+    label: "Communications",
+    href: "/admin/notifications",
+    moduleCode: "COMMUNICATIONS",
+    children: [
+      { icon: "🔔", label: "Announcements & Alerts", href: "/admin/notifications", moduleCode: "COMMUNICATIONS" },
+      { icon: "🗓️", label: "School Events Calendar", href: "/admin/events", moduleCode: "COMMUNICATIONS" },
+      { icon: "🖼️", label: "Gallery & Media", href: "/admin/gallery", moduleCode: "COMMUNICATIONS" },
+    ],
+  },
+
+  // 11. Biometric attendance (BIOMETRIC_ATTENDANCE)
+  {
+    icon: "✅",
+    label: "Biometric Attendance",
+    href: "/admin/attendance",
+    moduleCode: "BIOMETRIC_ATTENDANCE",
+    children: [
+      { icon: "📅", label: "Attendance Matrix", href: "/admin/attendance", moduleCode: "BIOMETRIC_ATTENDANCE" },
+    ],
+  },
+
+  // 12. Reports
+  {
+    icon: "📈",
+    label: "Reports",
+    href: "/admin/analytics",
+    children: [
+      { icon: "📊", label: "Institutional Reports", href: "/admin/analytics" },
+    ],
+  },
+
+  // 13. Administration
   {
     icon: "⚙️",
-    label: "Reports and Administration",
+    label: "Administration",
     href: "/admin/settings",
     children: [
-      { icon: "📈", label: "Institutional Reports", href: "/admin/analytics", moduleCode: "ACADEMICS" },
       { icon: "👤", label: "Users & Roles", href: "/admin/users" },
+      { icon: "⚖️", label: "Discipline & Conduct", href: "/admin/discipline" },
+      { icon: "🛎️", label: "Reception & Visitors", href: "/admin/reception" },
       { icon: "⚙️", label: "School Settings", href: "/admin/settings" },
       { icon: "📜", label: "System Audit Logs", href: "/admin/settings/audit-logs" },
+      { icon: "📋", label: "System Policies", href: "/admin/settings/policies" },
+      { icon: "🌐", label: "Site CMS Settings", href: "/admin/site-settings" },
+      { icon: "🩺", label: "SHFI Health", href: "/system/shfi" },
+      { icon: "🎓", label: "Alumni Management", href: "/admin/alumni-mgmt" },
     ],
   },
 ];
@@ -227,19 +303,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       }
     }
 
-    // 3. Platform Super Admin Delegated Links
-    if (user?.role === "SUPER_ADMIN") {
-      items.push({ icon: "🏢", label: "SaaS Requests", href: "/admin/saas-requests" });
-    }
-
     return items;
-  }, [moduleData, user?.role]);
+  }, [moduleData]);
 
   return (
     <>
       <DashboardLayout
         sidebarItems={sidebarItems}
-        role={user?.role === "SUPER_ADMIN" ? "Super Admin" : "ERP Admin"}
+        role="ERP Admin"
         roleIcon="⚙️"
         roleColor="#3B82F6"
         userName={user?.name || "School Administrator"}

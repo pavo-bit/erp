@@ -6,9 +6,9 @@ import { useResults } from "@/lib/api-hooks";
 
 export default function ResultsPage() {
   const [expandedExam, setExpandedExam] = useState<string | null>(null);
-  const { data: resultsData, isLoading } = useResults();
+  const { data: resultsData, isLoading, error } = useResults();
 
-  const exams = Array.isArray(resultsData) ? resultsData : [];
+  const exams = Array.isArray(resultsData) ? resultsData : (resultsData?.data || []);
 
   return (
     <div className="space-y-6 animate-fade-in">

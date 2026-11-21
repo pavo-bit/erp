@@ -124,19 +124,19 @@ export function useLibraryTransactions(params?: string) { return useSWR(`/api/v1
 // Phase 4-7 Enterprise 
 export function useFinancialClosePeriods() { return useSWR("/api/v1/finance/governance/periods", fetcher); }
 export function useLedgerAccounts() { return useSWR("/api/v1/finance/governance/accounts", fetcher); }
-export function useTransportVehicles() { return useSWR("/api/v1/admin/transport/vehicles", fetcher); }
-export function useTransportRoutes() { return useSWR("/api/v1/admin/transport/routes", fetcher); }
-export function useTransportStops(params?: string) { return useSWR(`/api/v1/admin/transport/stops${params ? `?${params}` : ""}`, fetcher); }
-export function useTransportAllocations(params?: string) { return useSWR(`/api/v1/admin/transport/allocations${params ? `?${params}` : ""}`, fetcher); }
-export function useTransportFleetOverview() { return useSWR("/api/v1/admin/transport/fleet/overview", fetcher); }
-export function useTransportOverview() { return useSWR("/api/v1/admin/transport/overview", fetcher); }
-export function useTransportDrivers() { return useSWR("/api/v1/admin/transport/drivers", fetcher); }
+export function useTransportVehicles(enabled = true) { return useSWR(enabled ? "/api/v1/admin/transport/vehicles" : null, fetcher); }
+export function useTransportRoutes(enabled = true) { return useSWR(enabled ? "/api/v1/admin/transport/routes" : null, fetcher); }
+export function useTransportStops(params?: string, enabled = true) { return useSWR(enabled ? `/api/v1/admin/transport/stops${params ? `?${params}` : ""}` : null, fetcher); }
+export function useTransportAllocations(params?: string, enabled = true) { return useSWR(enabled ? `/api/v1/admin/transport/allocations${params ? `?${params}` : ""}` : null, fetcher); }
+export function useTransportFleetOverview(enabled = true) { return useSWR(enabled ? "/api/v1/admin/transport/fleet/overview" : null, fetcher); }
+export function useTransportOverview(enabled = true) { return useSWR(enabled ? "/api/v1/admin/transport/overview" : null, fetcher); }
+export function useTransportDrivers(enabled = true) { return useSWR(enabled ? "/api/v1/admin/transport/drivers" : null, fetcher); }
 
 // Campus Operations — Hostel
-export function useHostelStats() { return useSWR("/api/v1/ancillary/hostel/stats", fetcher); }
-export function useHostelRooms(params?: string) { return useSWR(`/api/v1/ancillary/hostel/rooms${params ? `?${params}` : ""}`, fetcher); }
-export function useHostelRoom(id?: string | null) { return useSWR(id ? `/api/v1/ancillary/hostel/rooms/${id}` : null, fetcher); }
-export function useHostelAllocations(params?: string) { return useSWR(`/api/v1/ancillary/hostel/allocations${params ? `?${params}` : ""}`, fetcher); }
+export function useHostelStats(enabled = true) { return useSWR(enabled ? "/api/v1/ancillary/hostel/stats" : null, fetcher); }
+export function useHostelRooms(params?: string, enabled = true) { return useSWR(enabled ? `/api/v1/ancillary/hostel/rooms${params ? `?${params}` : ""}` : null, fetcher); }
+export function useHostelRoom(id?: string | null, enabled = true) { return useSWR(enabled && id ? `/api/v1/ancillary/hostel/rooms/${id}` : null, fetcher); }
+export function useHostelAllocations(params?: string, enabled = true) { return useSWR(enabled ? `/api/v1/ancillary/hostel/allocations${params ? `?${params}` : ""}` : null, fetcher); }
 
 // School Module Entitlements
 export function useSchoolModules() { return useSWR("/api/v1/schools/me/modules", fetcher); }

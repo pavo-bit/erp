@@ -1,11 +1,14 @@
 "use client";
 
 import { Wallet, Download, Receipt } from "lucide-react";
-import { useSalaries } from "@/lib/api-hooks";
+import { useAuth } from "@/lib/auth-context";
+import { useMyPayslips } from "@/lib/api-hooks";
 
 export default function SalaryPage() {
-  const { data: salaryData, isLoading } = useSalaries();
-  const salaryRecords = Array.isArray(salaryData) ? salaryData : [];
+  const { user } = useAuth();
+  const teacherId = user?.teacher?.id;
+  const { data: salaryData, isLoading } = useMyPayslips(teacherId);
+  const salaryRecords = Array.isArray(salaryData) ? salaryData : (salaryData?.data || []);
 
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto animate-fade-in space-y-6">

@@ -26,7 +26,7 @@ export default function FeesPage() {
     try {
       setLoading(true);
       const res = await apiCall(`/api/v1/invoices?studentId=${studentId}`);
-      setInvoices(res || []);
+      setInvoices(Array.isArray(res) ? res : (res?.data || []));
     } catch (e) {
       console.error("Failed to fetch invoices", e);
     } finally {
@@ -88,13 +88,14 @@ export default function FeesPage() {
     }
   };
 
-  const outstandingBalance = invoices
-    .filter(i => i.status !== "PAID")
-    .reduce((sum, i) => sum + (i.remainingAmount || i.amount), 0);
+  const invoiceList: any[] = Array.isArray(invoices) ? invoices : ((invoices as any)?.data || []);
+  const outstandingBalance = invoiceList
+    .filter((i: any) => i.status !== "PAID")
+    .reduce((sum: number, i: any) => sum + (i.remainingAmount || i.amount || 0), 0);
     
-  const totalPaid = invoices
-    .filter(i => i.status === "PAID")
-    .reduce((sum, i) => sum + (i.amountPaid || i.amount), 0);
+  const totalPaid = invoiceList
+    .filter((i: any) => i.status === "PAID")
+    .reduce((sum: number, i: any) => sum + (i.amountPaid || i.amount || 0), 0);
 
   if (!selectedStudentId) {
     return <div className="p-10 text-center text-slate-500">No student profile linked.</div>;
@@ -142,14 +143,14 @@ export default function FeesPage() {
               <div className="h-48 flex items-center justify-center bg-white/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm">
                 <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
               </div>
-            ) : invoices.length === 0 ? (
+            ) : invoiceList.length === 0 ? (
               <div className="p-8 text-center bg-white/50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700 backdrop-blur-sm">
                 <CheckCircle2 className="w-12 h-12 text-emerald-400 mx-auto mb-3" />
                 <h3 className="font-semibold text-lg">No Invoices Found</h3>
                 <p className="text-slate-500 text-sm mt-1">The billing engine has not generated invoices for this student yet.</p>
               </div>
             ) : (
-              invoices.map((inv) => (
+              invoiceList.map((inv: any) => (
                 <div key={inv.id} className="group relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-slate-700 p-0 overflow-hidden flex flex-col sm:flex-row transition-all hover:shadow-xl hover:shadow-indigo-500/10 hover:-translate-y-1">
                   <div className={`w-full sm:w-2 transition-colors ${inv.status === 'PAID' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                   <div className="p-6 flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-6">

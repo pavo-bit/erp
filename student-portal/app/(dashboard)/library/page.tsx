@@ -15,7 +15,7 @@ export default function LibraryPage() {
     );
   }
 
-  const issues = libraryData?.data || [];
+  const issues = Array.isArray(libraryData) ? libraryData : (libraryData?.data || []);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">

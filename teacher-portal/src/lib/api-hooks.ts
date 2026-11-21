@@ -92,6 +92,7 @@ export function useSiteContent(section?: string) { return useSWR(`/api/v1/site-c
 export function useExams(params?: string) { return useSWR(`/api/v1/exams${params ? `?${params}` : ""}`, fetcher); }
 export function useAdmissions(params?: string) { return useSWR(`/api/v1/admissions${params ? `?${params}` : ""}`, fetcher); }
 export function useSalaries(params?: string) { return useSWR(`/api/v1/hr/salaries${params ? `?${params}` : ""}`, fetcher); }
+export function useMyPayslips(teacherId?: string) { return useSWR(teacherId ? `/api/v1/hr/payslips/${teacherId}` : null, fetcher); }
 export function useLeaves(params?: string) { return useSWR(`/api/v1/hr/leaves${params ? `?${params}` : ""}`, fetcher); }
 export function useTimetable(params?: string) { return useSWR(`/api/v1/timetable${params ? `?${params}` : ""}`, fetcher); }
 export function useNotifications(params?: string) { return useSWR(`/api/v1/notifications${params ? `?${params}` : ""}`, fetcher); }

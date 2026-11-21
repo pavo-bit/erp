@@ -1,6 +1,36 @@
 import { test, expect, request as playwrightRequest, BrowserContext } from '@playwright/test';
 import process from 'node:process';
+import crypto from 'node:crypto';
 import { SCHOOL_A_ID, SCHOOL_B_ID, E2E_PASSWORD, E2E_USERS } from '../fixtures/seed';
+
+function base32Decode(base32: string): Buffer {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  let bits = 0;
+  let value = 0;
+  const output: number[] = [];
+  for (let i = 0; i < base32.length; i++) {
+    const idx = alphabet.indexOf(base32[i].toUpperCase());
+    if (idx === -1) continue;
+    value = (value << 5) | idx;
+    bits += 5;
+    if (bits >= 8) {
+      output.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(output);
+}
+
+function generateTOTP(secret: string, timeStep = 30): string {
+  const counter = Math.floor(Date.now() / 1000 / timeStep);
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64BE(BigInt(counter));
+  const key = base32Decode(secret);
+  const hmac = crypto.createHmac('sha1', key).update(buf).digest();
+  const offset = hmac[hmac.length - 1] & 0xf;
+  const code = (hmac.readUInt32BE(offset) & 0x7fffffff) % 1000000;
+  return code.toString().padStart(6, '0');
+}
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:5000';
 const ERP_ADMIN_URL = process.env.ERP_ADMIN_URL || 'http://localhost:3000';
@@ -118,8 +148,30 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
   //      localhost receives every cookie. Production isolates portals by
   //      domain. We therefore assert the audience contract directly.
   // ═════════════════════════════════════════════════════════════════════
-  test('F1b: Cross-portal cookie isolation', async () => {
-    // 1. Platform login issues a platform-audience cookie, never a school one
+  test('F1b: Cross-portal cookie isolation', async ({ page, context }) => {
+    // 1. Browser context test: log in as super admin, then open erp-admin
+    await context.clearCookies();
+    await createAuthenticatedSession(E2E_USERS.superAdmin.email, SUPER_ADMIN_URL, context);
+    await page.goto(`${ERP_ADMIN_URL}/admin`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    const erpShowsLogin =
+      page.url().includes('/login') ||
+      page.url() === `${ERP_ADMIN_URL}/` ||
+      (await page.getByText(/sign in|log in|login/i).count()) > 0;
+    expect(erpShowsLogin).toBeTruthy();
+
+    // 2. Reverse: log in as school ERP admin, then open super-admin
+    await context.clearCookies();
+    await createAuthenticatedSession(E2E_USERS.erpAdmin.email, ERP_ADMIN_URL, context);
+    await page.goto(`${SUPER_ADMIN_URL}/dashboard`, { timeout: 60000 });
+    await page.waitForTimeout(2000);
+    const superShowsLogin =
+      page.url().includes('/login') ||
+      page.url() === `${SUPER_ADMIN_URL}/` ||
+      (await page.getByText(/sign in|log in|login/i).count()) > 0;
+    expect(superShowsLogin).toBeTruthy();
+
+    // 3. Platform login issues a platform-audience cookie, never a school one
     const platformContext = await createAuthenticatedSession(
       E2E_USERS.superAdmin.email,
       SUPER_ADMIN_URL
@@ -129,14 +181,14 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     expect(platformCookieNames).toContain('platform_access_token');
     expect(platformCookieNames).not.toContain('school_access_token');
 
-    // 2. School login issues a school-audience cookie, never a platform one
+    // 4. School login issues a school-audience cookie, never a platform one
     const schoolContext = await createAuthenticatedSession(E2E_USERS.erpAdmin.email, ERP_ADMIN_URL);
     const schoolState = await schoolContext.storageState();
     const schoolCookieNames = schoolState.cookies.map((cookie) => cookie.name);
     expect(schoolCookieNames).toContain('school_access_token');
     expect(schoolCookieNames).not.toContain('platform_access_token');
 
-    // 3. A platform-audience cookie alone must not authenticate school APIs
+    // 5. A platform-audience cookie alone must not authenticate school APIs
     const platformOnlyState = {
       cookies: platformState.cookies.filter((cookie) => cookie.name === 'platform_access_token'),
       origins: [],
@@ -146,7 +198,7 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     expect(schoolApiAsPlatform.status()).toBe(403);
     expect((await schoolApiAsPlatform.json()).error).toBe('WRONG_PORTAL');
 
-    // 4. A school-audience cookie alone must not authenticate platform APIs
+    // 6. A school-audience cookie alone must not authenticate platform APIs
     const schoolOnlyState = {
       cookies: schoolState.cookies.filter((cookie) => cookie.name === 'school_access_token'),
       origins: [],
@@ -298,14 +350,29 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     // Initially NO support banner visible
     await expect(page.getByText('READ-ONLY PLATFORM ACCESS')).not.toBeVisible();
 
-    // 3. Super Admin starts a support session for School A
+    // 3. Super Admin starts a support session for School A with a genuine TOTP code
+    let totpSecret = 'JBSWY3DPEHPK3PXP';
+    const setupRes = await superApi.post(`${BACKEND_URL}/api/v1/2fa/setup`);
+    if (setupRes.status() === 200) {
+      const setupData = await setupRes.json();
+      if (setupData?.data?.secret) {
+        totpSecret = setupData.data.secret;
+        const initialCode = generateTOTP(totpSecret);
+        await superApi.post(`${BACKEND_URL}/api/v1/2fa/verify-setup`, {
+          data: { token: initialCode },
+        });
+      }
+    }
+
+    const realTotpCode = generateTOTP(totpSecret);
     const sessionReason = `E2E Diagnostic Audit ${Date.now()}`;
     const startSessionRes = await superApi.post(`${BACKEND_URL}/api/v1/platform/support-sessions/request`, {
       data: {
         schoolId: SCHOOL_A_ID,
         reason: sessionReason,
         durationMinutes: 15,
-        mfaToken: '000000',
+        mfaCode: realTotpCode,
+        mfaToken: realTotpCode,
       },
     });
     expect(startSessionRes.status()).toBe(201);
@@ -335,7 +402,10 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     await expect(page.getByText('READ-ONLY PLATFORM ACCESS')).not.toBeVisible();
 
     // 7. Audit log verification: Super Admin queries security audit logs
-    const auditRes = await superApi.get(`${BACKEND_URL}/api/v1/saas/security/audit-logs`);
+    let auditRes = await superApi.get(`${BACKEND_URL}/api/v1/admin/audit`);
+    if (auditRes.status() !== 200) {
+      auditRes = await superApi.get(`${BACKEND_URL}/api/v1/saas/security/audit-logs`);
+    }
     expect(auditRes.status()).toBe(200);
     const auditData = await auditRes.json();
     expect(auditData.success).toBe(true);

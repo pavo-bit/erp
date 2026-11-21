@@ -49,9 +49,30 @@ interface HostelRoomItem {
 }
 
 export default function HostelManagementPage() {
-  const { data: moduleData } = useSchoolModules();
-  const { data: statsData, isLoading: statsLoading } = useHostelStats();
-  const { data: roomsData, isLoading: roomsLoading } = useHostelRooms();
+  const { data: moduleData, isLoading: modulesLoading } = useSchoolModules();
+
+  // Entitlement Check: fail closed until loaded
+  const isHostelEnabled = useMemo(() => {
+    if (!moduleData) return false;
+    const raw = (moduleData as any).data?.modules ?? (moduleData as any).modules ?? moduleData;
+    const modules = Array.isArray(raw) ? raw : [];
+    const found = modules.find(
+      (m: any) =>
+        m.module?.code?.toUpperCase() === "HOSTEL" ||
+        m.module?.id?.toUpperCase() === "HOSTEL" ||
+        m.code?.toUpperCase() === "HOSTEL" ||
+        m.id?.toUpperCase() === "HOSTEL"
+    );
+    if (found) return Boolean(found.isEnabled ?? found.enabled);
+    if (typeof raw === "object" && raw !== null) {
+      if ((raw as any).HOSTEL !== undefined) return Boolean((raw as any).HOSTEL);
+      if ((raw as any).hostel !== undefined) return Boolean((raw as any).hostel);
+    }
+    return false;
+  }, [moduleData]);
+
+  const { data: statsData, isLoading: statsLoading } = useHostelStats(isHostelEnabled);
+  const { data: roomsData, isLoading: roomsLoading } = useHostelRooms(undefined, isHostelEnabled);
   const { data: studentsData } = useStudents();
 
   // Filters & Search
@@ -94,27 +115,6 @@ export default function HostelManagementPage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Entitlement Check
-  const isHostelEnabled = useMemo(() => {
-    if (!moduleData) return true;
-    const modules = moduleData.modules ?? moduleData;
-    if (Array.isArray(modules)) {
-      const found = modules.find(
-        (m: any) =>
-          m.module?.code?.toUpperCase() === "HOSTEL" ||
-          m.module?.id?.toUpperCase() === "HOSTEL" ||
-          m.code?.toUpperCase() === "HOSTEL" ||
-          m.id?.toUpperCase() === "HOSTEL"
-      );
-      return found ? Boolean(found.isEnabled ?? found.enabled) : true;
-    }
-    if (typeof modules === "object" && modules !== null) {
-      if (modules.HOSTEL !== undefined) return Boolean(modules.HOSTEL);
-      if (modules.hostel !== undefined) return Boolean(modules.hostel);
-    }
-    return true;
-  }, [moduleData]);
 
   const rooms: HostelRoomItem[] = useMemo(() => {
     if (!roomsData) return [];
@@ -272,6 +272,14 @@ export default function HostelManagementPage() {
       setActionLoading(false);
     }
   };
+
+  if (modulesLoading) {
+    return (
+      <div className="p-12 text-center text-slate-500">
+        Checking module entitlements...
+      </div>
+    );
+  }
 
   if (!isHostelEnabled) {
     return (

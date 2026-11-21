@@ -1,0 +1,1418 @@
+[
+  {
+    "portal": "erp-admin",
+    "route": "src/app/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/token-exchange"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/token-exchange"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/set-password/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/set-password"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/set-password"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/(dashboard)/finance/close/page.tsx",
+    "endpoints": [
+      "/api/v1/finance/governance/periods",
+      "/api/v1/finance/governance/periods/{id}/close"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/finance/governance/periods"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/(dashboard)/finance/fee-collection/page.tsx",
+    "endpoints": [
+      "/api/v1/finance/cash/students",
+      "/api/v1/finance/cash/students/{id}/invoices",
+      "/api/v1/finance/cash/preview-allocation",
+      "/api/v1/finance/cash/record-payment",
+      "/api/v1/finance/cash/receipts/{id}/html",
+      "/api/v1/finance/cash/daily-register",
+      "/api/v1/finance/cash/receipts/{id}/reprint"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/finance/cash/students"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/(dashboard)/system/shfi/page.tsx",
+    "endpoints": [
+      "/api/v1/shfi/health/overview",
+      "/api/v1/shfi/incidents"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/shfi/health/overview"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/admissions/bulk/page.tsx",
+    "endpoints": [
+      "/api/v1/admin/admissions/bulk/preview",
+      "/api/v1/admin/admissions/bulk/commit"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/admin/admissions/bulk/preview"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/admissions/history/page.tsx",
+    "endpoints": [
+      "/api/v1/admin/admissions/bulk/history"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/admin/admissions/bulk/history"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/admissions/page.tsx",
+    "endpoints": [
+      "/api/v1/admin/admissions/bulk/overview",
+      "/api/v1/admin/admissions/bulk/fee",
+      "/api/v1/admin/admissions/bulk/register",
+      "/api/v1/admin/admissions/bulk/readmissions",
+      "/api/v1/admin/admissions/bulk/forms/issue"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/admin/admissions/bulk/overview"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/alumni-mgmt/page.tsx",
+    "endpoints": [
+      "/api/v1/alumni",
+      "/api/v1/alumni/status"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/alumni"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/analytics/page.tsx",
+    "endpoints": [
+      "/api/v1/analytics/school/overview",
+      "/api/v1/analytics/school/trends"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/analytics/school/overview"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/assets/page.tsx",
+    "endpoints": [
+      "/api/v1/assets",
+      "/api/v1/assets/categories",
+      "/api/v1/assets/vendors"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/assets"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/assignments/page.tsx",
+    "endpoints": [
+      "/api/v1/assignments"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/assignments"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/attendance/page.tsx",
+    "endpoints": [
+      "/api/v1/attendance",
+      "/api/v1/attendance/teachers"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/attendance"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/discipline/page.tsx",
+    "endpoints": [
+      "/api/v1/discipline/incidents",
+      "/api/v1/discipline/incidents/{id}/resolve"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/discipline/incidents"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/documents/page.tsx",
+    "endpoints": [
+      "/api/v1/documents"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/documents"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/events/page.tsx",
+    "endpoints": [
+      "/api/v1/events",
+      "/api/v1/events/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/events"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/exams/page.tsx",
+    "endpoints": [
+      "/api/v1/exams",
+      "/api/v1/exams/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/exams"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/faculty/page.tsx",
+    "endpoints": [
+      "/api/v1/faculty",
+      "/api/v1/faculty/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/faculty"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/fees/defaulters/page.tsx",
+    "endpoints": [
+      "/api/v1/finance/defaulters"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/finance/defaulters"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/fees/ledger/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/fees/page.tsx",
+    "endpoints": [
+      "/api/v1/invoices",
+      "/api/v1/finance/generate-monthly-fees"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/invoices"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/gallery/page.tsx",
+    "endpoints": [
+      "/api/v1/gallery",
+      "/api/v1/gallery/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/gallery"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/governance/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/hostel/page.tsx",
+    "endpoints": [
+      "/api/v1/ancillary/hostel/stats",
+      "/api/v1/ancillary/hostel/rooms",
+      "/api/v1/ancillary/hostel/rooms/{id}",
+      "/api/v1/students",
+      "/api/v1/schools/me/modules",
+      "/api/v1/ancillary/hostel/allocate",
+      "/api/v1/ancillary/hostel/allocations/{id}/checkout",
+      "/api/v1/ancillary/hostel/allocations/{id}/transfer"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/ancillary/hostel/stats"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/hr/page.tsx",
+    "endpoints": [
+      "/api/v1/hr/salaries",
+      "/api/v1/hr/leaves",
+      "/api/v1/hr/salaries/{id}/pay",
+      "/api/v1/hr/leaves/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/hr/salaries"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/institution/classes/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/institution/curriculum/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/institution/sessions/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/library/page.tsx",
+    "endpoints": [
+      "/api/v1/library/books",
+      "/api/v1/library/transactions",
+      "/api/v1/library/transactions/issue",
+      "/api/v1/library/transactions/{id}/return"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/library/books"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/notices/page.tsx",
+    "endpoints": [
+      "/api/v1/notices",
+      "/api/v1/notices/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/notices"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/notifications/page.tsx",
+    "endpoints": [
+      "/api/v1/notifications",
+      "/api/v1/notifications/send",
+      "/api/v1/notifications/fee-reminder"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/notifications"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/notifications/templates/page.tsx",
+    "endpoints": [
+      "/api/v1/notifications/templates",
+      "/api/v1/notifications/templates/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/notifications/templates"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/page.tsx",
+    "endpoints": [
+      "/api/v1/stats/detailed",
+      "/api/v1/notices",
+      "/api/v1/events"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/stats/detailed"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/reception/page.tsx",
+    "endpoints": [
+      "/api/v1/reception/visitors",
+      "/api/v1/reception/enquiries"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/reception/visitors"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/results/page.tsx",
+    "endpoints": [
+      "/api/v1/results",
+      "/api/v1/students"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/results"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/saas-requests/page.tsx",
+    "endpoints": [
+      "/api/v1/saas/requests",
+      "/api/v1/saas/approve/{id}",
+      "/api/v1/saas/reject/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/saas/requests"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/settings/audit-logs/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/settings/page.tsx",
+    "endpoints": [
+      "/api/v1/site-content",
+      "/api/v1/testimonials"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/site-content"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/settings/policies/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/site-settings/page.tsx",
+    "endpoints": [
+      "/api/v1/site-content"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/site-content"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/students/[id]/page.tsx",
+    "endpoints": [
+      "/api/v1/students/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/students/{id}"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/students/guardians/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/students/page.tsx",
+    "endpoints": [
+      "/api/v1/students"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/students"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/teachers/page.tsx",
+    "endpoints": [
+      "/api/v1/teachers",
+      "/api/v1/teachers/{id}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/teachers"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/timetable/page.tsx",
+    "endpoints": [
+      "/api/v1/timetable"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/timetable"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/transport/page.tsx",
+    "endpoints": [
+      "/api/v1/admin/transport/overview",
+      "/api/v1/admin/transport/vehicles",
+      "/api/v1/admin/transport/vehicles/{id}",
+      "/api/v1/admin/transport/drivers",
+      "/api/v1/admin/transport/drivers/{id}",
+      "/api/v1/admin/transport/routes",
+      "/api/v1/admin/transport/routes/{id}",
+      "/api/v1/admin/transport/stops",
+      "/api/v1/admin/transport/stops/{id}",
+      "/api/v1/faculty",
+      "/api/v1/schools/me/modules"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/admin/transport/overview"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/users/page.tsx",
+    "endpoints": [
+      "/api/v1/users",
+      "/api/v1/users/{id}",
+      "/api/v1/users/{id}/status",
+      "/api/v1/users/{id}/reset-password"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/users"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/",
+    "endpoints": [
+      "none"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/login",
+    "endpoints": [
+      "/api/v1/auth/me",
+      "/api/v1/auth/login",
+      "/api/v1/2fa/validate",
+      "/api/v1/auth/logout",
+      "/api/v1/auth/refresh"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/me"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/set-password",
+    "endpoints": [
+      "/api/v1/auth/set-password"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/set-password"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/governance",
+    "endpoints": [
+      "/api/v1/admin/governance-workflows/retention-policies"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/admin/governance-workflows/retention-policies"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard",
+    "endpoints": [
+      "/api/v1/stats/detailed",
+      "/api/v1/schools",
+      "/api/v1/platform/grafana"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/stats/detailed"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/analytics",
+    "endpoints": [
+      "/api/v1/saas/metrics",
+      "/api/v1/shfi/health/overview",
+      "/api/v1/platform/grafana"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/saas/metrics"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/infrastructure",
+    "endpoints": [
+      "/api/v1/platform/grafana"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/platform/grafana"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/requests",
+    "endpoints": [
+      "/api/v1/saas/requests",
+      "/api/v1/saas/approve/:id",
+      "/api/v1/saas/reject/:id"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/saas/requests"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/security",
+    "endpoints": [
+      "/api/v1/saas/security/audit-logs",
+      "/api/v1/platform/grafana"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/saas/security/audit-logs"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/settings",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/shfi",
+    "endpoints": [
+      "/api/v1/shfi/health/overview",
+      "/api/v1/shfi/incidents"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/shfi/health/overview"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/schools",
+    "endpoints": [
+      "/api/v1/schools"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/schools"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/schools/[schoolId]",
+    "endpoints": [
+      "/api/v1/platform/schools/:schoolId/health-usage",
+      "/api/v1/schools/:schoolId/modules",
+      "/api/v1/platform/support-sessions/school/:schoolId",
+      "/api/v1/schools/:schoolId/modules/:moduleCode",
+      "/api/v1/platform/support-sessions/request",
+      "/api/v1/platform/support-sessions/:sessionId/revoke"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/platform/schools/:schoolId/health-usage"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/schools/[schoolId]/modules",
+    "endpoints": [
+      "/api/v1/schools/:schoolId/modules",
+      "/api/v1/schools/:schoolId/modules/:moduleCode"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/schools/:schoolId/modules"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/schools/[schoolId]/shifts",
+    "endpoints": [
+      "/api/v1/schools/:schoolId",
+      "/api/v1/super-admin/schools/:schoolId/sessions",
+      "/api/v1/super-admin/schools/:schoolId/shifts",
+      "/api/v1/super-admin/schools/:schoolId/sessions/:sessionId/classes",
+      "/api/v1/super-admin/schools/:schoolId/shifts/:shiftId",
+      "/api/v1/super-admin/schools/:schoolId/shifts/validate",
+      "/api/v1/super-admin/schools/:schoolId/shifts/publish",
+      "/api/v1/super-admin/schools/:schoolId/shifts/history"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/schools/:schoolId"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/login/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/login",
+      "/api/v1/2fa/validate",
+      "/api/v1/auth/refresh",
+      "/api/v1/auth/logout"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/login"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/set-password/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/set-password"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/set-password"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/portal/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/portal/attendance/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/portal/homework/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/portal/timetable/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/portal/exams/page.tsx",
+    "endpoints": [
+      "/api/v1/exams",
+      "/api/v1/exams/:id/marks"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/exams"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/portal/leaves/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/portal/salary/page.tsx",
+    "endpoints": [
+      "/api/v1/hr/payslips/{teacherId}"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/hr/payslips/{teacherId}"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/portal/discipline/page.tsx",
+    "endpoints": [
+      "/api/v1/discipline/incidents",
+      "/api/v1/students"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/discipline/incidents"
+  },
+  {
+    "portal": "teacher-portal",
+    "route": "src/app/portal/profile/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/login/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/student/login"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/student/login"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/set-password/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/set-password"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/set-password"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/(dashboard)/dashboard/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/me",
+      "/api/v1/attendance",
+      "/api/v1/notices"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/me"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/(dashboard)/fees/page.tsx",
+    "endpoints": [
+      "/api/v1/invoices",
+      "/api/v1/payments/create-order",
+      "/api/v1/payments/verify"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/invoices"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/(dashboard)/timetable/page.tsx",
+    "endpoints": [
+      "/api/v1/timetable"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/timetable"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/(dashboard)/attendance/page.tsx",
+    "endpoints": [
+      "/api/v1/attendance"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/attendance"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/(dashboard)/results/page.tsx",
+    "endpoints": [
+      "/api/v1/exams"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/exams"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/(dashboard)/assignments/page.tsx",
+    "endpoints": [
+      "/api/v1/assignments"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/assignments"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/(dashboard)/notices/page.tsx",
+    "endpoints": [
+      "/api/v1/notices"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/notices"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/(dashboard)/profile/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/me",
+      "/api/v1/auth/change-password"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/me"
+  },
+  {
+    "portal": "student-portal",
+    "route": "app/(dashboard)/library/page.tsx",
+    "endpoints": [
+      "/api/v1/library/books"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/library/books"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/login/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/login",
+      "/api/v1/2fa/validate"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/login"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/set-password/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/set-password"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/set-password"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/dashboard/page.tsx",
+    "endpoints": [
+      "/api/v1/attendance",
+      "/api/v1/invoices"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/attendance"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/dashboard/fees/page.tsx",
+    "endpoints": [
+      "/api/v1/invoices"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/invoices"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/(dashboard)/attendance/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/(dashboard)/transport/page.tsx",
+    "endpoints": [
+      "/api/v1/schools/me/modules",
+      "/api/v1/transport/allocations"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/schools/me/modules"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/(dashboard)/assignments/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/(dashboard)/timetable/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/(dashboard)/notices/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/(dashboard)/fees/page.tsx",
+    "endpoints": [
+      "/api/v1/invoices",
+      "/api/v1/invoices/:id/pay"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/invoices"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/(dashboard)/settings/consent/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "MOCK",
+    "realApi": false,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/(dashboard)/behavior/page.tsx",
+    "endpoints": [
+      "/api/v1/discipline/incidents"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/discipline/incidents"
+  },
+  {
+    "portal": "parent-portal",
+    "route": "src/app/(dashboard)/results/page.tsx",
+    "endpoints": [
+      "/api/v1/results"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/results"
+  },
+  {
+    "portal": "payment-portal",
+    "route": "src/app/page.tsx",
+    "endpoints": [
+      "none"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "none"
+  },
+  {
+    "portal": "payment-portal",
+    "route": "src/app/login/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/student/login",
+      "/api/v1/2fa/validate"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/student/login"
+  },
+  {
+    "portal": "payment-portal",
+    "route": "src/app/checkout/page.tsx",
+    "endpoints": [
+      "/api/v1/invoices",
+      "/api/v1/payments/create-order",
+      "/api/v1/payments/verify"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/invoices"
+  },
+  {
+    "portal": "payment-portal",
+    "route": "src/app/set-password/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/set-password"
+    ],
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/set-password"
+  },
+  {
+    "portal": "saas-frontend",
+    "route": "src/app/page.tsx",
+    "endpoints": [
+      "/api/v1/health",
+      "/api/v1/saas/request"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/health"
+  },
+  {
+    "portal": "saas-frontend",
+    "route": "src/app/set-password/page.tsx",
+    "endpoints": [
+      "/api/v1/auth/set-password"
+    ],
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass",
+    "endpoint": "/api/v1/auth/set-password"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/students/import/page.tsx",
+    "endpoints": [
+      "/api/v1/students/import",
+      "/api/v1/students/import/template"
+    ],
+    "endpoint": "/api/v1/students/import",
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass"
+  },
+  {
+    "portal": "erp-admin",
+    "route": "src/app/admin/teachers/import/page.tsx",
+    "endpoints": [
+      "/api/v1/faculty/import",
+      "/api/v1/faculty/import/template"
+    ],
+    "endpoint": "/api/v1/faculty/import",
+    "status": "REAL",
+    "realApi": true,
+    "mockOrStatic": false,
+    "buildStatus": "pass"
+  },
+  {
+    "portal": "super-admin",
+    "route": "/dashboard/governance",
+    "endpoints": [
+      "/api/v1/saas/governance",
+      "/api/v1/admin/governance-workflows/retention-policies"
+    ],
+    "endpoint": "/api/v1/saas/governance",
+    "status": "PARTIAL",
+    "realApi": true,
+    "mockOrStatic": true,
+    "buildStatus": "pass"
+  }
+]

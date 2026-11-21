@@ -52,6 +52,8 @@ function StudentsDirectoryContent() {
   const queryParams = new URLSearchParams();
   queryParams.set("page", String(page));
   queryParams.set("limit", String(limit));
+  queryParams.set("sortBy", "createdAt");
+  queryParams.set("sortOrder", "desc");
   if (search.trim()) queryParams.set("search", search.trim());
   if (statusFilter !== "ALL") queryParams.set("status", statusFilter);
   if (classFilter !== "ALL") queryParams.set("class", classFilter);

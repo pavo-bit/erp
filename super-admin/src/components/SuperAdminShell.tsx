@@ -22,7 +22,7 @@ export interface SuperAdminNavGroup {
 
 export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
   {
-    title: "Platform Overview",
+    title: "Overview",
     items: [
       {
         icon: "🌌",
@@ -34,7 +34,7 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
     ],
   },
   {
-    title: "Organizations and Schools",
+    title: "Customer Management",
     items: [
       {
         icon: "🏫",
@@ -43,10 +43,17 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
         gradient: "from-blue-500 to-cyan-400",
         matchPrefix: true,
       },
+      {
+        icon: "⚡",
+        label: "Registrations & Onboarding",
+        href: "/dashboard/requests",
+        gradient: "from-pink-500 to-rose-400",
+        matchPrefix: true,
+      },
     ],
   },
   {
-    title: "Platform Analytics",
+    title: "Business",
     items: [
       {
         icon: "📈",
@@ -58,38 +65,7 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
     ],
   },
   {
-    title: "Infrastructure and Health",
-    items: [
-      {
-        icon: "🖥️",
-        label: "Infrastructure",
-        href: "/dashboard/infrastructure",
-        gradient: "from-cyan-500 to-blue-600",
-        matchPrefix: true,
-      },
-      {
-        icon: "🩺",
-        label: "Health & SHFI",
-        href: "/dashboard/shfi",
-        gradient: "from-rose-500 to-pink-500",
-        matchPrefix: true,
-      },
-    ],
-  },
-  {
-    title: "Requests and Support",
-    items: [
-      {
-        icon: "⚡",
-        label: "SaaS Requests",
-        href: "/dashboard/requests",
-        gradient: "from-pink-500 to-rose-400",
-        matchPrefix: true,
-      },
-    ],
-  },
-  {
-    title: "Security and Governance",
+    title: "Security & Governance",
     items: [
       {
         icon: "🛡️",
@@ -108,11 +84,25 @@ export const SUPER_ADMIN_NAV_GROUPS: SuperAdminNavGroup[] = [
     ],
   },
   {
-    title: "Platform Settings",
+    title: "Platform Operations",
     items: [
       {
+        icon: "🖥️",
+        label: "Infrastructure Monitoring",
+        href: "/dashboard/infrastructure",
+        gradient: "from-cyan-500 to-blue-600",
+        matchPrefix: true,
+      },
+      {
+        icon: "🩺",
+        label: "Health & SHFI",
+        href: "/dashboard/shfi",
+        gradient: "from-rose-500 to-pink-500",
+        matchPrefix: true,
+      },
+      {
         icon: "⚙️",
-        label: "System Core",
+        label: "Platform Config",
         href: "/dashboard/settings",
         gradient: "from-emerald-400 to-teal-500",
         matchPrefix: true,
