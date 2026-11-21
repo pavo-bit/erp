@@ -33,7 +33,7 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
     await page.waitForTimeout(1000);
     
     // Click on Add/New Student
-    await page.getByRole('button', { name: /add student/i }).click();
+    await page.getByRole('button', { name: /add student/i }).first().click();
     
     // Wait for the modal to animate in
     await page.waitForTimeout(500);
