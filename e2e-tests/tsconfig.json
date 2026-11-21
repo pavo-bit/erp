@@ -9,5 +9,5 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["tests/**/*.ts", "playwright.config.ts"]
+  "include": ["tests/**/*.ts", "fixtures/**/*.ts", "playwright.config.ts"]
 }

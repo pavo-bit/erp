@@ -84,7 +84,7 @@ export const authLimiter = createLimiter({
 // ─────────────────────────────────────────────────────────────────────
 export const strictLimiter = createLimiter({
   windowMs: 60 * 1000,
-  max: 30,
+  max: Number(process.env.STRICT_RATE_LIMIT_MAX) || 30,
   prefix: "strict",
   keyGenerator: (req: Request) => {
     const userId = (req as any).user?.id || "anonymous";
@@ -133,7 +133,7 @@ export const webhookLimiter = createLimiter({
 // ─────────────────────────────────────────────────────────────────────
 export const defaultLimiter = createLimiter({
   windowMs: 60 * 1000,
-  max: 100,
+  max: Number(process.env.RATE_LIMIT_MAX) || 100,
   prefix: "default",
 });
 

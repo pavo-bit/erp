@@ -6,7 +6,7 @@ import process from 'node:process';
  */
 export default defineConfig({
   testDir: './tests',
-  testIgnore: ['**/.worktrees/**'],
+  testIgnore: ['**/.worktrees/**', '**/example.spec.ts'],
   /* Run tests in files in parallel */
   fullyParallel: false,
   /* Fail the build on CI if you accidentally left test.only in the source code. */

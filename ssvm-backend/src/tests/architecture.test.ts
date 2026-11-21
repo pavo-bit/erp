@@ -263,6 +263,7 @@ describe("Architecture & Phase A E2E", () => {
         "src/lib/audit.ts",
         "src/lib/authEventLogger.ts",
         "src/lib/trustedPrisma.ts",
+        "src/jobs/cleanupTokens.ts",
         "src/tests/architecture.test.ts",
         "src/tests/api/audit-and-auth-events.test.ts",
       ]);

@@ -1,12 +1,10 @@
 import { test, expect, request as playwrightRequest, BrowserContext } from '@playwright/test';
 import process from 'node:process';
+import { SCHOOL_A_ID, SCHOOL_B_ID, E2E_PASSWORD, E2E_USERS } from '../fixtures/seed';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:5000';
 const ERP_ADMIN_URL = process.env.ERP_ADMIN_URL || 'http://localhost:3000';
 const SUPER_ADMIN_URL = process.env.SUPER_ADMIN_URL || 'http://localhost:3001';
-
-const SCHOOL_A_ID = 'cmvwy984q0001qocgpclzv585';
-const SCHOOL_B_ID = 'cmwlv04vd0000plc6gnl6zwhh';
 
 interface CookieHeaderItem {
   name: string;
@@ -50,9 +48,9 @@ async function createAuthenticatedSession(email: string, portalUrl: string, brow
 
   const apiContext = await playwrightRequest.newContext();
   const loginRes = await apiContext.post(`${BACKEND_URL}/api/v1/auth/login`, {
-    data: { email, password: 'Admin@123', portal },
+    data: { email, password: E2E_PASSWORD, portal },
   });
-  expect(loginRes.status()).toBe(200);
+  expect(loginRes.status(), await loginRes.text()).toBe(200);
 
   // Fetch /me to obtain active CSRF token and refresh cookies
   const meRes = await apiContext.get(`${BACKEND_URL}/api/v1/auth/me`);
@@ -112,32 +110,53 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
   test.setTimeout(90000);
 
   // ═════════════════════════════════════════════════════════════════════
-  // F1b: Cross-portal cookie isolation — logging into one portal must not
-  //      grant access to the other portal in the same browser context.
+  // F1b: Cross-portal cookie isolation — audience-specific cookies must not
+  //      authenticate against the other audience's API surface.
+  //
+  //      Browser-level checks on a shared localhost origin cannot prove this:
+  //      cookies are host-scoped, not port-scoped, so every portal on
+  //      localhost receives every cookie. Production isolates portals by
+  //      domain. We therefore assert the audience contract directly.
   // ═════════════════════════════════════════════════════════════════════
-  test('F1b: Cross-portal cookie isolation', async ({ page, context }) => {
-    // 1. Log in as super admin in this browser context
-    await context.clearCookies();
-    await createAuthenticatedSession('superadmin@ssvm-erp.com', SUPER_ADMIN_URL, context);
+  test('F1b: Cross-portal cookie isolation', async () => {
+    // 1. Platform login issues a platform-audience cookie, never a school one
+    const platformContext = await createAuthenticatedSession(
+      E2E_USERS.superAdmin.email,
+      SUPER_ADMIN_URL
+    );
+    const platformState = await platformContext.storageState();
+    const platformCookieNames = platformState.cookies.map((cookie) => cookie.name);
+    expect(platformCookieNames).toContain('platform_access_token');
+    expect(platformCookieNames).not.toContain('school_access_token');
 
-    // 2. Opening erp-admin in the same context must land on the login page
-    await page.goto(`${ERP_ADMIN_URL}/admin`, { timeout: 60000 });
-    await page.waitForTimeout(2000);
-    const erpShowsLogin =
-      page.url().includes('/login') ||
-      (await page.getByText(/sign in|log in|login/i).count()) > 0;
-    expect(erpShowsLogin).toBeTruthy();
+    // 2. School login issues a school-audience cookie, never a platform one
+    const schoolContext = await createAuthenticatedSession(E2E_USERS.erpAdmin.email, ERP_ADMIN_URL);
+    const schoolState = await schoolContext.storageState();
+    const schoolCookieNames = schoolState.cookies.map((cookie) => cookie.name);
+    expect(schoolCookieNames).toContain('school_access_token');
+    expect(schoolCookieNames).not.toContain('platform_access_token');
 
-    // 3. Reverse: log in as school ERP admin, then open super-admin
-    await context.clearCookies();
-    await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
+    // 3. A platform-audience cookie alone must not authenticate school APIs
+    const platformOnlyState = {
+      cookies: platformState.cookies.filter((cookie) => cookie.name === 'platform_access_token'),
+      origins: [],
+    };
+    const platformOnly = await playwrightRequest.newContext({ storageState: platformOnlyState });
+    const schoolApiAsPlatform = await platformOnly.get(`${BACKEND_URL}/api/v1/students`);
+    expect(schoolApiAsPlatform.status()).toBe(403);
+    expect((await schoolApiAsPlatform.json()).error).toBe('WRONG_PORTAL');
 
-    await page.goto(`${SUPER_ADMIN_URL}/dashboard`, { timeout: 60000 });
-    await page.waitForTimeout(2000);
-    const superShowsLogin =
-      page.url().includes('/login') ||
-      (await page.getByText(/sign in|log in|login/i).count()) > 0;
-    expect(superShowsLogin).toBeTruthy();
+    // 4. A school-audience cookie alone must not authenticate platform APIs
+    const schoolOnlyState = {
+      cookies: schoolState.cookies.filter((cookie) => cookie.name === 'school_access_token'),
+      origins: [],
+    };
+    const schoolOnly = await playwrightRequest.newContext({ storageState: schoolOnlyState });
+    const platformApiAsSchool = await schoolOnly.get(
+      `${BACKEND_URL}/api/v1/platform/schools/health-usage`
+    );
+    expect(platformApiAsSchool.status()).toBe(403);
+    expect((await platformApiAsSchool.json()).error).toBe('WRONG_PORTAL');
   });
 
   // ═════════════════════════════════════════════════════════════════════
@@ -145,14 +164,14 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
   // ═════════════════════════════════════════════════════════════════════
   test('F6: School ERP Admin cannot open Grafana or platform URLs', async ({ page, context }) => {
     // 1. Authenticate ERP Admin with isolated API context + browser cookies
-    const erpApi = await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
+    const erpApi = await createAuthenticatedSession(E2E_USERS.erpAdmin.email, ERP_ADMIN_URL, context);
 
     // 2. Strict API Gateway Guard: Platform Grafana Reverse Proxy -> 403 Forbidden
     const grafanaRes = await erpApi.get(`${BACKEND_URL}/api/v1/platform/grafana/dashboard`);
     expect(grafanaRes.status()).toBe(403);
     const grafanaBody = await grafanaRes.json();
     expect(grafanaBody.success).toBe(false);
-    expect(grafanaBody.error).toContain('Forbidden');
+    expect(grafanaBody.error).toMatch(/Forbidden|WRONG_PORTAL/);
 
     // 3. Strict API Gateway Guard: Platform Health/Usage -> 403 Forbidden
     const healthRes = await erpApi.get(`${BACKEND_URL}/api/v1/platform/schools/health-usage`);
@@ -198,7 +217,7 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
   // ═════════════════════════════════════════════════════════════════════
   test('F7: Super Admin enables then disables Hostel for School A, ERP Admin sidebar reflects it, School B unchanged', async ({ page, context }) => {
     // 1. Authenticate Super Admin with dedicated isolated API context
-    const superApi = await createAuthenticatedSession('superadmin@ssvm-erp.com', SUPER_ADMIN_URL);
+    const superApi = await createAuthenticatedSession(E2E_USERS.superAdmin.email, SUPER_ADMIN_URL);
 
     // 2. Initial Setup: Ensure Hostel is disabled for both School A and School B
     await superApi.patch(`${BACKEND_URL}/api/v1/schools/${SCHOOL_A_ID}/modules/HOSTEL`, {
@@ -210,7 +229,7 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
 
     // 3. Authenticate School A ERP Admin in browser context
     await context.clearCookies();
-    await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
+    await createAuthenticatedSession(E2E_USERS.erpAdmin.email, ERP_ADMIN_URL, context);
 
     await page.goto(`${ERP_ADMIN_URL}/admin`, { timeout: 60000 });
     await page.waitForTimeout(2000);
@@ -229,14 +248,12 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     await page.reload();
     await page.waitForTimeout(2500);
 
-    // Click to expand group if closed
-    const facilitiesGroup = page.getByText(/Facilities & Infrastructure/i);
-    if (await facilitiesGroup.isVisible()) {
-      await facilitiesGroup.click().catch(() => { });
-      await page.waitForTimeout(500);
-    }
-    const updatedHostelCount = await page.locator('a[href="/admin/hostel"]').count();
-    expect(updatedHostelCount).toBeGreaterThanOrEqual(1);
+    // The Campus Operations group only renders when at least one of its
+    // module-gated children is entitled; expand it to reach Hostel Management.
+    const campusGroup = page.getByRole('button', { name: /Campus Operations/i });
+    await expect(campusGroup).toBeVisible({ timeout: 15000 });
+    await campusGroup.click();
+    await expect(page.locator('a[href="/admin/hostel"]')).toBeVisible({ timeout: 10000 });
 
     // 6. Verify School B is UNCHANGED: Hostel remains disabled
     const schoolBModulesRes = await superApi.get(`${BACKEND_URL}/api/v1/schools/${SCHOOL_B_ID}/modules`);
@@ -256,12 +273,11 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
     // 8. School A ERP Admin page reloads: Hostel Management is GONE
     await page.reload();
     await page.waitForTimeout(2500);
-    if (await facilitiesGroup.isVisible()) {
-      await facilitiesGroup.click().catch(() => { });
+    if (await campusGroup.isVisible()) {
+      await campusGroup.click().catch(() => { });
       await page.waitForTimeout(500);
     }
-    const finalHostelCount = await page.locator('a[href="/admin/hostel"]').count();
-    expect(finalHostelCount).toBe(0);
+    await expect(page.locator('a[href="/admin/hostel"]')).toHaveCount(0);
   });
 
   // ═════════════════════════════════════════════════════════════════════
@@ -270,11 +286,11 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
   // ═════════════════════════════════════════════════════════════════════
   test('F8: Support session start, banner visible in ERP Admin, revoke, banner gone, audit entry exists', async ({ page, context }) => {
     // 1. Authenticate Super Admin with dedicated isolated API context
-    const superApi = await createAuthenticatedSession('superadmin@ssvm-erp.com', SUPER_ADMIN_URL);
+    const superApi = await createAuthenticatedSession(E2E_USERS.superAdmin.email, SUPER_ADMIN_URL);
 
     // 2. Authenticate School A ERP Admin in browser context
     await context.clearCookies();
-    await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
+    await createAuthenticatedSession(E2E_USERS.erpAdmin.email, ERP_ADMIN_URL, context);
 
     await page.goto(`${ERP_ADMIN_URL}/admin`, { timeout: 60000 });
     await page.waitForTimeout(1500);
@@ -304,7 +320,7 @@ test.describe('Block BM — Security, Module Governance & Audited Support Sessio
 
     await expect(page.getByText('READ-ONLY PLATFORM ACCESS')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(sessionReason)).toBeVisible();
-    await expect(page.getByText('superadmin@ssvm-erp.com')).toBeVisible();
+    await expect(page.getByText(E2E_USERS.superAdmin.email)).toBeVisible();
 
     // 5. Super Admin revokes the support session
     const revokeRes = await superApi.post(`${BACKEND_URL}/api/v1/platform/support-sessions/${sessionId}/revoke`);

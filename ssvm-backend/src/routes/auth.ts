@@ -183,12 +183,10 @@ router.post("/login", validate(loginSchema), async (req: AuthRequest, res: Respo
     });
 
     if (!user) {
-      console.error("DEBUG login: user not found for", email);
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", req, success: false, failReason: "user_not_found", metadata: { email } });
       res.status(401).json({ success: false, error: "Invalid credentials" });
       return;
     }
-    console.error("DEBUG login: found user", email, "role=", user.role, "hasHash=", !!user.passwordHash);
     if (!user.isActive) { 
       await logAuthEvent(prisma, { eventType: "LOGIN_FAILURE", userId: user.id, schoolId: user.schoolId || undefined, req, success: false, failReason: "account_disabled", metadata: { email } });
       res.status(403).json({ success: false, error: "Account deactivated" }); 

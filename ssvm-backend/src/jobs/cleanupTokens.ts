@@ -1,8 +1,6 @@
 import { getTrustedPrisma } from "../lib/trustedPrisma";
 import logger from "../lib/logger";
 
-const prisma = getTrustedPrisma("SESSION_MANAGEMENT");
-
 // ═══════════════════════════════════════════
 // Expired Token Cleanup Job
 // ═══════════════════════════════════════════
@@ -13,6 +11,7 @@ const prisma = getTrustedPrisma("SESSION_MANAGEMENT");
  */
 export async function cleanupExpiredTokens(): Promise<void> {
   try {
+    const prisma = getTrustedPrisma("SESSION_MANAGEMENT");
     const result = await prisma.refreshToken.deleteMany({
       where: {
         OR: [
@@ -35,6 +34,7 @@ export async function cleanupExpiredTokens(): Promise<void> {
  */
 export async function cleanupExpiredOTPs(): Promise<void> {
   try {
+    const prisma = getTrustedPrisma("SESSION_MANAGEMENT");
     const result = await prisma.oTP.deleteMany({
       where: {
         OR: [

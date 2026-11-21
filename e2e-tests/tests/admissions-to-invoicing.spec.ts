@@ -1,77 +1,59 @@
 import { test, expect } from '@playwright/test';
+import { E2E_PASSWORD, E2E_USERS } from '../fixtures/seed';
 
 test.describe('Admissions to Invoicing Critical Flow', () => {
-  // Use a predictable test student data
-  const studentName = `E2E Test Student ${Date.now()}`;
-  const admissionNo = `E2E-${Math.floor(Math.random() * 100000)}`;
+  // Use a predictable test student name unique to this run
+  const stamp = Date.now();
+  const studentName = `E2E Student ${stamp}`;
 
   test('ERP Admin can login, create a student, and generate an invoice', async ({ page }) => {
-    test.setTimeout(90000); // Next.js dev server compiles pages on demand, increasing load times
+    test.setTimeout(90000); // Next.js production server compiles pages on demand, increasing load times
 
     // --- 1. Authentication ---
-    // Navigate to the ERP Admin login page
     await page.goto('/', { timeout: 60000 });
-    
-    // Fill in credentials. We will use the seeded admin credentials.
-    await page.getByPlaceholder(/email/i).fill('erpadmin@ssvm.edu');
-    await page.getByPlaceholder(/password/i).fill('Admin@123');
+
+    await page.getByPlaceholder(/email/i).fill(E2E_USERS.erpAdmin.email);
+    await page.getByPlaceholder(/password/i).fill(E2E_PASSWORD);
     await page.getByRole('button', { name: /secure login/i }).click();
 
     // Verify successful login by waiting for the success message
     await expect(page.getByText(/login successful/i)).toBeVisible();
-    
+
     // Wait for redirect to admin dashboard
     await page.waitForURL('**/admin');
     await expect(page).toHaveURL(/.*\/admin/);
 
     // --- 2. Admissions (Student Creation) ---
-    // Navigate to Students/Admissions module
     await page.goto('/admin/students', { timeout: 60000 });
     await page.waitForURL('**/admin/students');
-    
-    // Wait a bit for React hydration and layout
-    await page.waitForTimeout(1000);
-    
-    // Click on Add/New Student
-    await page.getByRole('button', { name: /add student/i }).first().click();
-    
-    // Wait for the modal to animate in
-    await page.waitForTimeout(500);
-    
-    // Fill out the admission form
-    await page.getByPlaceholder(/full name/i).fill(studentName);
-    await page.getByPlaceholder(/roll no/i).fill(admissionNo);
-    // Submit the form
-    await page.locator('form').getByRole('button', { name: 'Add Student' }).click();
 
-    // Verify student was created
-    await expect(page.getByText('Student created successfully', { exact: false })).toBeVisible({ timeout: 10000 }).catch(() => {});
+    // Click the header "Add Student" action to open the enrollment drawer
+    await page.getByRole('button', { name: 'Add Student' }).click();
+    await expect(page.getByText('Register New Student')).toBeVisible();
+
+    // Fill the official enrollment form
+    await page.locator('input[name="firstName"]').fill(studentName);
+    await page.locator('input[name="className"]').fill('10');
+    await page.locator('input[name="section"]').fill('A');
+    await page.locator('input[name="guardianPhone"]').fill('9876543210');
+    await page.getByRole('button', { name: 'Save Student' }).click();
+
+    // Verify student was created through the success lifecycle modal
+    await expect(page.getByText('Student Added Successfully')).toBeVisible({ timeout: 15000 });
+    await page.getByRole('button', { name: 'Done' }).click();
     await expect(page.getByText(studentName)).toBeVisible();
 
     // --- 3. Invoicing ---
-    // Navigate to Fee Management module
     await page.goto('/admin/fees', { timeout: 60000 });
     await page.waitForURL('**/admin/fees');
-    
-    // Wait a bit for React hydration
-    await page.waitForTimeout(1000);
-    
-    // Auto-accept the confirmation dialog and the success alert
-    let alertMessage = '';
-    page.on('dialog', dialog => {
-      if (dialog.type() === 'alert') {
-        alertMessage = dialog.message();
-      }
-      dialog.accept();
-    });
+    await expect(page.getByText('Fee & Invoice Management')).toBeVisible();
 
-    // Click Auto-Generate Fees
+    // Auto-accept the confirmation dialog raised by Auto-Generate Fees
+    page.once('dialog', (dialog) => dialog.accept());
+
     await page.getByRole('button', { name: /auto-generate fees/i }).click();
-    
-    // Wait for the api call to finish and the second dialog (alert) to be processed
-    await page.waitForTimeout(2000);
 
-    // Verify invoice generation triggered
-    expect(alertMessage).toContain('Monthly fees generated successfully');
+    // The page reports the result inline; verify the API call completed successfully
+    await expect(page.getByText('Monthly fees generated successfully!')).toBeVisible({ timeout: 15000 });
   });
 });

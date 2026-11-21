@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { motion } from "framer-motion";
 import { PageHeader, StatCard } from "@/components/DashboardLayout";
 import Link from "next/link";
@@ -8,18 +9,15 @@ import { apiCall, useInvoices } from "@/lib/api-hooks";
 export default function FeesPage() {
   const { data: raw, isLoading, error } = useInvoices("limit=100");
   const fees = Array.isArray(raw) ? raw : raw?.data || raw || [];
-
-  if (error) return <div role="alert">Error loading fees: {(error as Error).message}</div>;
-  if (isLoading) return <div>Loading fees…</div>;
-  if (fees.length === 0) return <div>No fee records found.</div>;
+  const [notice, setNotice] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const handleGenerateFees = async () => {
     if (confirm("Are you sure you want to auto-generate invoices for all students for this month?")) {
       try {
         await apiCall("/api/v1/finance/generate-monthly-fees", "POST");
-        toast("Monthly fees generated successfully!");
+        setNotice({ type: "success", text: "Monthly fees generated successfully!" });
       } catch (e: any) {
-        toast(e.message || "Failed to generate fees");
+        setNotice({ type: "error", text: e.message || "Failed to generate fees" });
       }
     }
   };
@@ -53,6 +51,25 @@ export default function FeesPage() {
         }
       />
 
+      {notice && (
+        <div
+          role={notice.type === "error" ? "alert" : "status"}
+          className={`mb-6 rounded-xl border px-4 py-3 text-[13px] font-semibold ${
+            notice.type === "error"
+              ? "border-rose-200 bg-rose-50 text-rose-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {notice.text}
+        </div>
+      )}
+
+      {error && (
+        <div role="alert" className="mb-6 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] font-semibold text-rose-700">
+          Error loading fees: {(error as Error).message}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard icon="💰" label="Total Collected" value={`₹${(totalCollected / 1000).toFixed(0)}K`} color="#10B981" />
         <StatCard icon="⏳" label="Pending Dues" value={`₹${(totalPending / 1000).toFixed(0)}K`} color="#F59E0B" />
@@ -66,6 +83,8 @@ export default function FeesPage() {
           <h3 className="text-[16px] font-semibold mb-6 font-[var(--font-heading)]">Recent Fee Records</h3>
           {isLoading ? (
             <div className="py-8 text-center"><div className="w-8 h-8 border-3 border-primary/30 border-t-primary rounded-full animate-spin mx-auto" /></div>
+          ) : fees.length === 0 ? (
+            <p className="text-[13px] text-text-secondary text-center py-6">No fee records found. Use Auto-Generate Fees to create this month&apos;s invoices.</p>
           ) : (
             <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto">
               {fees.slice(0, 10).map((f: Record<string, unknown>) => {

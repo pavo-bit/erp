@@ -1,7 +1,8 @@
 import { test, expect, request as playwrightRequest, BrowserContext } from '@playwright/test';
 import process from 'node:process';
+import { E2E_PASSWORD, E2E_USERS } from '../fixtures/seed';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:5000';
 const ERP_ADMIN_URL = process.env.ERP_ADMIN_URL || 'http://localhost:3000';
 const SUPER_ADMIN_URL = process.env.SUPER_ADMIN_URL || 'http://localhost:3001';
 const TEACHER_PORTAL_URL = process.env.TEACHER_PORTAL_URL || 'http://localhost:3002';
@@ -9,8 +10,6 @@ const STUDENT_PORTAL_URL = process.env.STUDENT_PORTAL_URL || 'http://localhost:3
 const PARENT_PORTAL_URL = process.env.PARENT_PORTAL_URL || 'http://localhost:3006';
 const PAYMENT_PORTAL_URL = process.env.PAYMENT_PORTAL_URL || 'http://localhost:3007';
 const SAAS_FRONTEND_URL = process.env.SAAS_FRONTEND_URL || 'http://localhost:3008';
-
-const SCHOOL_A_ID = 'cmvwy984q0001qocgpclzv585';
 
 interface CookieHeaderItem {
   name: string;
@@ -35,7 +34,7 @@ async function createAuthenticatedSession(email: string, portalUrl: string, brow
 
   const apiContext = await playwrightRequest.newContext();
   const loginRes = await apiContext.post(`${BACKEND_URL}/api/v1/auth/login`, {
-    data: { email, password: 'Admin@123', portal },
+    data: { email, password: E2E_PASSWORD, portal },
   });
   expect(loginRes.status()).toBe(200);
 
@@ -99,7 +98,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
   // ═════════════════════════════════════════════════════════════════════
   test('ERP Admin: Dashboard displays 4 institutional quick actions routing correctly', async ({ page, context }) => {
     await context.clearCookies();
-    await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
+    await createAuthenticatedSession(E2E_USERS.erpAdmin.email, ERP_ADMIN_URL, context);
 
     await page.goto(`${ERP_ADMIN_URL}/admin`, { timeout: 60000 });
     await page.waitForTimeout(2000);
@@ -129,7 +128,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
   // ═════════════════════════════════════════════════════════════════════
   test('ERP Admin: Student drawer opens, validates, and supports Add Another / Done', async ({ page, context }) => {
     await context.clearCookies();
-    await createAuthenticatedSession('erpadmin@ssvm.edu', ERP_ADMIN_URL, context);
+    await createAuthenticatedSession(E2E_USERS.erpAdmin.email, ERP_ADMIN_URL, context);
 
     await page.goto(`${ERP_ADMIN_URL}/admin/students`, { timeout: 60000 });
     await page.waitForTimeout(2000);
@@ -185,7 +184,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
   // ═════════════════════════════════════════════════════════════════════
   test('Super Admin: Multi-school network, health, and governance navigation', async ({ page, context }) => {
     await context.clearCookies();
-    await createAuthenticatedSession('superadmin@ssvm-erp.com', SUPER_ADMIN_URL, context);
+    await createAuthenticatedSession(E2E_USERS.superAdmin.email, SUPER_ADMIN_URL, context);
 
     await page.goto(`${SUPER_ADMIN_URL}/dashboard`, { timeout: 60000 });
     await page.waitForTimeout(2000);
@@ -211,7 +210,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
   // ═════════════════════════════════════════════════════════════════════
   test('Teacher Portal: Teaching dashboard and daily attendance matrix', async ({ page, context }) => {
     await context.clearCookies();
-    await createAuthenticatedSession('teacher1@ssvm.edu', TEACHER_PORTAL_URL, context);
+    await createAuthenticatedSession(E2E_USERS.teacher.email, TEACHER_PORTAL_URL, context);
 
     await page.goto(`${TEACHER_PORTAL_URL}/portal`, { timeout: 60000 });
     await page.waitForTimeout(2000);
@@ -239,7 +238,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
   // ═════════════════════════════════════════════════════════════════════
   test('Student Portal: Academic dashboard, timetable, and notice board', async ({ page, context }) => {
     await context.clearCookies();
-    await createAuthenticatedSession('student1@ssvm.edu', STUDENT_PORTAL_URL, context);
+    await createAuthenticatedSession(E2E_USERS.student.email, STUDENT_PORTAL_URL, context);
 
     await page.goto(`${STUDENT_PORTAL_URL}/dashboard`, { timeout: 60000 });
     await page.waitForTimeout(2000);
@@ -264,7 +263,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
   // ═════════════════════════════════════════════════════════════════════
   test('Parent Portal: Multi-child active selector and fee overview', async ({ page, context }) => {
     await context.clearCookies();
-    await createAuthenticatedSession('parent1@ssvm.edu', PARENT_PORTAL_URL, context);
+    await createAuthenticatedSession(E2E_USERS.parent.email, PARENT_PORTAL_URL, context);
 
     await page.goto(`${PARENT_PORTAL_URL}/dashboard`, { timeout: 60000 });
     await page.waitForTimeout(2000);
@@ -287,7 +286,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.waitForTimeout(2000);
 
     await expect(page.getByText('Enterprise-Grade Education Platform')).toBeVisible();
-    const requestAccessBtn = page.getByRole('button', { name: /Request Access/i }).first();
+    const requestAccessBtn = page.getByRole('button', { name: /Request Access/i });
     await expect(requestAccessBtn).toBeVisible();
     await requestAccessBtn.click();
 
@@ -300,6 +299,6 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.waitForTimeout(2000);
     // Unauthenticated checkout redirects to login
     expect(page.url()).toContain('/login');
-    await expect(page.getByRole('button', { name: /Sign In|Login/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Verify & Continue/i })).toBeVisible();
   });
 });

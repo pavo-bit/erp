@@ -406,9 +406,13 @@ jobs:
       DIRECT_URL: postgresql://postgres:${{ github.run_id }}-postgres-ci@localhost:5432/ssvm_test?schema=public
       REDIS_URL: redis://localhost:6379
       PORT: 5000
-      BACKEND_URL: http://localhost:5000
+      BACKEND_URL: http://127.0.0.1:5000
       CI: true
+      # The E2E suite drives all seven portals from a single loopback IP.
+      # Keep production defaults in code; raise only inside this disposable CI job.
       AUTH_RATE_LIMIT_MAX: "1000"
+      RATE_LIMIT_MAX: "10000"
+      STRICT_RATE_LIMIT_MAX: "5000"
       ACCESS_TOKEN_PRIVATE_KEY: "test-private-key"
       ACCESS_TOKEN_PUBLIC_KEY: "test-public-key"
       REFRESH_TOKEN_PRIVATE_KEY: "test-refresh-private-key"
@@ -473,15 +477,32 @@ jobs:
           export REFRESH_TOKEN_PUBLIC_KEY="$(cat /tmp/keys/pub.pem)"
           export NODE_ENV=development
           export FIELD_ENCRYPTION_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-          npm run dev &
+          export HOST=0.0.0.0
+          export PORT=5000
+          nohup npx tsx src/index.ts > "$RUNNER_TEMP/backend.log" 2>&1 < /dev/null &
+          echo $! > "$RUNNER_TEMP/backend.pid"
+          PID=$(cat "$RUNNER_TEMP/backend.pid")
+          echo "Backend started with PID $PID"
+          ready=0
           for i in {1..30}; do
-            if curl -s http://localhost:5000/api/v1/health | grep -q "healthy"; then
-              echo "Backend is healthy!"
+            if ! kill -0 "$PID" 2>/dev/null; then
+              echo "Backend process $PID died on startup!"
+              cat "$RUNNER_TEMP/backend.log" || true
+              exit 1
+            fi
+            if curl -sS "http://127.0.0.1:5000/api/v1/health" | grep -q "healthy"; then
+              echo "Backend is healthy at http://127.0.0.1:5000!"
+              ready=1
               break
             fi
-            echo "Waiting for backend..."
+            echo "Waiting for backend... attempt $i"
             sleep 2
           done
+          if [ "$ready" -ne 1 ]; then
+            echo "Backend failed to become healthy within 60s"
+            cat "$RUNNER_TEMP/backend.log" || true
+            exit 1
+          fi
 
       - name: Install Frontend Portal Dependencies
         shell: bash
@@ -495,8 +516,8 @@ jobs:
       - name: Build All Seven Portals for Browser Tests
         shell: bash
         env:
-          BACKEND_URL: http://localhost:5000
-          NEXT_PUBLIC_API_URL: http://localhost:5000
+          BACKEND_URL: http://127.0.0.1:5000
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:5000
           NEXT_TELEMETRY_DISABLED: "1"
         run: |
           set -euo pipefail
@@ -508,8 +529,8 @@ jobs:
       - name: Start All Seven Portal Servers
         shell: bash
         env:
-          BACKEND_URL: http://localhost:5000
-          NEXT_PUBLIC_API_URL: http://localhost:5000
+          BACKEND_URL: http://127.0.0.1:5000
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:5000
         run: |
           set -euo pipefail
           start_portal() {
@@ -562,8 +583,37 @@ jobs:
         working-directory: ./e2e-tests
         run: npm run type-check
 
+      - name: Verify Backend Readiness Before Playwright
+        shell: bash
+        run: |
+          if [ -f "$RUNNER_TEMP/backend.pid" ]; then
+            PID=$(cat "$RUNNER_TEMP/backend.pid")
+            if ! kill -0 "$PID" 2>/dev/null; then
+              echo "Backend process $PID died before Playwright tests could start!"
+              cat "$RUNNER_TEMP/backend.log" || true
+              exit 1
+            fi
+            echo "Backend PID $PID is alive"
+          fi
+          ready=0
+          for i in {1..10}; do
+            if curl -sS "http://127.0.0.1:5000/api/v1/health" | grep -q "healthy"; then
+              echo "Backend health verified at http://127.0.0.1:5000"
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Backend not responding at http://127.0.0.1:5000"
+            cat "$RUNNER_TEMP/backend.log" || true
+            exit 1
+          fi
+
       - name: Run Playwright Tests
         working-directory: ./e2e-tests
+        env:
+          BACKEND_URL: http://127.0.0.1:5000
         run: npx playwright test --project=chromium
 
       - name: Upload Playwright Report
@@ -573,6 +623,16 @@ jobs:
           name: playwright-report
           path: ./e2e-tests/playwright-report/
           retention-days: 14
+
+      - name: Upload Service Logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: service-logs
+          path: |
+            ${{ runner.temp }}/backend.log
+            ${{ runner.temp }}/*.log
+          if-no-files-found: warn
 
   security-scan:
     runs-on: ubuntu-latest

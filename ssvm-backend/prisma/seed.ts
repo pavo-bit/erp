@@ -1,4 +1,6 @@
 import { PrismaClient } from '@prisma/client';
+import * as fs from 'fs';
+import * as path from 'path';
 
 import * as bcrypt from 'bcryptjs';
 
@@ -65,18 +67,23 @@ async function main() {
   });
   console.log('✅ Academic Session provisioned:', session.name);
 
-  // 5. Setup CRM Pipeline Stages
-  const stage1 = await prisma.pipelineStage.create({
-    data: { schoolId: school.id, name: 'Lead Captured', orderIndex: 1 }
-  });
-  const stage2 = await prisma.pipelineStage.create({
-    data: { schoolId: school.id, name: 'Campus Tour Booked', orderIndex: 2 }
-  });
+  // 5. Setup CRM Pipeline Stages (idempotent)
+  const existingStages = await prisma.pipelineStage.findMany({ where: { schoolId: school.id } });
+  if (existingStages.length === 0) {
+    await prisma.pipelineStage.create({
+      data: { schoolId: school.id, name: 'Lead Captured', orderIndex: 1 }
+    });
+    await prisma.pipelineStage.create({
+      data: { schoolId: school.id, name: 'Campus Tour Booked', orderIndex: 2 }
+    });
+  }
   console.log('✅ CRM Pipeline provisioned');
 
-  // 6. Setup Double-Entry Ledger System (Chart of Accounts)
-  const cashAccount = await prisma.ledgerAccount.create({
-    data: {
+  // 6. Setup Double-Entry Ledger System (Chart of Accounts - idempotent)
+  await prisma.ledgerAccount.upsert({
+    where: { schoolId_code: { schoolId: school.id, code: '1000' } },
+    update: {},
+    create: {
       schoolId: school.id,
       code: '1000',
       name: 'Main Operating Cash',
@@ -85,8 +92,10 @@ async function main() {
     }
   });
 
-  const tuitionRevenue = await prisma.ledgerAccount.create({
-    data: {
+  await prisma.ledgerAccount.upsert({
+    where: { schoolId_code: { schoolId: school.id, code: '4000' } },
+    update: {},
+    create: {
       schoolId: school.id,
       code: '4000',
       name: 'Tuition Revenue',
@@ -96,9 +105,11 @@ async function main() {
   });
   console.log('✅ Chart of Accounts provisioned');
 
-  // 7. Data Retention Policy (Governance)
-  await prisma.dataRetentionPolicy.create({
-    data: {
+  // 7. Data Retention Policy (Governance - idempotent)
+  await prisma.dataRetentionPolicy.upsert({
+    where: { schoolId_entityName: { schoolId: school.id, entityName: 'VisitorLog' } },
+    update: {},
+    create: {
       schoolId: school.id,
       entityName: 'VisitorLog',
       retentionDays: 90,
@@ -107,14 +118,13 @@ async function main() {
   });
   console.log('✅ Governance Policies provisioned');
 
-    // E2E test fixtures (guarded by ALLOW_DEMO_SEED)
+  // E2E test fixtures (guarded by ALLOW_DEMO_SEED)
   const e2ePassword = "$argon2id$v=19$m=65536,t=3,p=4$EE7DgZ2brHz90WCitLoK1A$OjbQHdC/PaqrklVV11B2GNR/SUZrxyu4rPbIyUQO5jE";
 
   const schoolA = await prisma.school.upsert({
-    where: { id: 'cmvwy984q0001qocgpclzv585' },
+    where: { code: 'SSVMA' },
     update: {},
     create: {
-      id: 'cmvwy984q0001qocgpclzv585',
       name: 'SSVM Test School A',
       code: 'SSVMA',
       address: '1 Test Street',
@@ -125,16 +135,39 @@ async function main() {
   });
 
   const schoolB = await prisma.school.upsert({
-    where: { id: 'cmwlv04vd0000plc6gnl6zwhh' },
+    where: { code: 'SSVMB' },
     update: {},
     create: {
-      id: 'cmwlv04vd0000plc6gnl6zwhh',
       name: 'SSVM Test School B',
       code: 'SSVMB',
       address: '2 Test Street',
       phone: '+1 800 555 0101',
       email: 'contactb@ssvmtest.edu',
       status: 'ACTIVE',
+    },
+  });
+
+  const sessionA = await prisma.academicSession.upsert({
+    where: { schoolId_name: { schoolId: schoolA.id, name: '2026-2027' } },
+    update: {},
+    create: {
+      schoolId: schoolA.id,
+      name: '2026-2027',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2027-12-31'),
+      isCurrent: true,
+    },
+  });
+
+  const sessionB = await prisma.academicSession.upsert({
+    where: { schoolId_name: { schoolId: schoolB.id, name: '2026-2027' } },
+    update: {},
+    create: {
+      schoolId: schoolB.id,
+      name: '2026-2027',
+      startDate: new Date('2026-01-01'),
+      endDate: new Date('2027-12-31'),
+      isCurrent: true,
     },
   });
 
@@ -146,6 +179,8 @@ async function main() {
     { email: 'student1@ssvm.edu', role: 'STUDENT', schoolId: schoolA.id, name: 'Student One' },
     { email: 'parent1@ssvm.edu', role: 'PARENT', schoolId: schoolA.id, name: 'Parent One' },
   ];
+
+  const provisionedUsers: Array<{ id: string; email: string; role: string }> = [];
 
   for (const u of e2eUsers) {
     const user = await prisma.user.upsert({
@@ -160,6 +195,7 @@ async function main() {
         isActive: true,
       },
     });
+    provisionedUsers.push({ id: user.id, email: user.email, role: user.role });
 
     if (u.role === 'STUDENT' && u.schoolId) {
       await prisma.student.upsert({
@@ -177,7 +213,10 @@ async function main() {
     }
 
     if (u.role === 'PARENT' && u.schoolId) {
-      const student = await prisma.student.findFirst({ where: { schoolId: u.schoolId } });
+      const studentUser = await prisma.user.findUnique({ where: { email: 'student1@ssvm.edu' } });
+      const student = studentUser
+        ? await prisma.student.findUnique({ where: { userId: studentUser.id } })
+        : null;
       const guardian = await prisma.guardian.upsert({
         where: { userId: user.id },
         update: {},
@@ -194,6 +233,20 @@ async function main() {
       }
     }
   }
+
+  // Authoritative fixture contract consumed by the Playwright suite.
+  const manifest = {
+    generatedAt: new Date().toISOString(),
+    schools: {
+      schoolA: { id: schoolA.id, code: schoolA.code, name: schoolA.name, sessionId: sessionA.id },
+      schoolB: { id: schoolB.id, code: schoolB.code, name: schoolB.name, sessionId: sessionB.id },
+    },
+    users: provisionedUsers,
+  };
+  const manifestDir = path.resolve(__dirname, '../../e2e-tests/fixtures');
+  fs.mkdirSync(manifestDir, { recursive: true });
+  fs.writeFileSync(path.join(manifestDir, 'seed-manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  console.log(`E2E fixture manifest written to ${path.join(manifestDir, 'seed-manifest.json')}`);
   console.log('E2E test principals provisioned');
 console.log("🚀 Enterprise Database Seeding complete! Run 'npx prisma studio' to view data.");
 }

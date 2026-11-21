@@ -66,3 +66,6 @@ tsconfig.tsbuildinfo
 
 # Prometheus metrics bearer token
 prometheus/metrics_token
+
+# Generated E2E fixture manifest (written by ssvm-backend/prisma/seed.ts)
+e2e-tests/fixtures/seed-manifest.json
