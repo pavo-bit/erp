@@ -107,7 +107,60 @@ async function main() {
   });
   console.log('✅ Governance Policies provisioned');
 
-  console.log("🚀 Enterprise Database Seeding complete! Run 'npx prisma studio' to view data.");
+    // E2E test fixtures (guarded by ALLOW_DEMO_SEED)
+  const e2ePassword = await bcrypt.hash('Admin@123', 10);
+
+  const schoolA = await prisma.school.upsert({
+    where: { id: 'cmvwy984q0001qocgpclzv585' },
+    update: {},
+    create: {
+      id: 'cmvwy984q0001qocgpclzv585',
+      name: 'SSVM Test School A',
+      code: 'SSVMA',
+      address: '1 Test Street',
+      phone: '+1 800 555 0100',
+      email: 'contacta@ssvmtest.edu',
+      status: 'ACTIVE',
+    },
+  });
+
+  const schoolB = await prisma.school.upsert({
+    where: { id: 'cmwlv04vd0000plc6gnl6zwhh' },
+    update: {},
+    create: {
+      id: 'cmwlv04vd0000plc6gnl6zwhh',
+      name: 'SSVM Test School B',
+      code: 'SSVMB',
+      address: '2 Test Street',
+      phone: '+1 800 555 0101',
+      email: 'contactb@ssvmtest.edu',
+      status: 'ACTIVE',
+    },
+  });
+
+  const e2eUsers = [
+    { email: 'erpadmin@ssvm.edu', role: 'ERP_ADMIN', schoolId: schoolA.id, name: 'ERP Admin A' },
+    { email: 'superadmin@ssvm-erp.com', role: 'SUPER_ADMIN', schoolId: null, name: 'Super Admin' },
+    { email: 'superadmin@ssvmerp.com', role: 'SUPER_ADMIN', schoolId: null, name: 'Super Admin' },
+    { email: 'teacher1@ssvm.edu', role: 'TEACHER', schoolId: schoolA.id, name: 'Teacher One' },
+  ];
+
+  for (const u of e2eUsers) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: { passwordHash: e2ePassword },
+      create: {
+        email: u.email,
+        passwordHash: e2ePassword,
+        name: u.name,
+        role: u.role,
+        schoolId: u.schoolId,
+        isActive: true,
+      },
+    });
+  }
+  console.log('E2E test principals provisioned');
+console.log("🚀 Enterprise Database Seeding complete! Run 'npx prisma studio' to view data.");
 }
 
 main()
