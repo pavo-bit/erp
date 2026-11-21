@@ -1,8 +1,6 @@
 # SSVM ERP — Portals & Functional Modules Matrix
 
-**Canonical Document:** `docs/MODULES_AND_PORTALS.md`  
-**Working Branch:** `lane/d-portals`  
-**Classification:** Application Matrix, Module Catalog & User Experiences
+**Canonical document:** `docs/MODULES_AND_PORTALS.md`
 
 ---
 
@@ -100,3 +98,28 @@ router.get("/library/books", authenticate, requireModule("LIBRARY"), handler);
 ```
 When a module is disabled, endpoints return `HTTP 403 Forbidden { success: false, error: "Module not entitled" }`.
 
+## Shared data-entry and bulk-import workflow
+
+The shared data-entry pattern should provide one primary manual-create action, a secondary bulk-import action and accessible template/help guidance. Bulk import is preview-first and auditable.
+
+The documented pipeline is:
+
+1. Parse CSV/XLSX without shifting sparse cell positions.
+2. Map headers through an alias catalog, with explicit administrator override where supported.
+3. Validate types, enumerations, relationships and tenant-scoped references.
+4. Detect duplicates within the file and against existing school records.
+5. Present a preview and require explicit commit.
+6. Apply mutations inside a school-scoped transaction using a non-destructive default for empty fields.
+7. Track progress, created/updated/failed rows and audit history.
+
+Documented template families include students, guardians, staff, classes, subjects, attendance and fee structures. Admission templates additionally cover new admission, re-admission and transfer with placement and relationship data.
+
+### Admission operating boundary
+
+Admissions remain paper-first: printable A4 forms are issued and verified by school staff, then recorded through authorised staff workflows or bulk import. A facility request is not an allocation. Permanent student identity and previous academic history must survive re-admission and transfer.
+
+A page, model or API route alone does not certify end-to-end completion. See [PROJECT_STATUS.md](PROJECT_STATUS.md).
+
+---
+
+Current implementation state and commit-specific verification are maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

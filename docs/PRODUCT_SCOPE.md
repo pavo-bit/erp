@@ -1,8 +1,6 @@
 # SSVM ERP — Product Scope & Requirements Specification
 
-**Canonical Document:** `docs/PRODUCT_SCOPE.md`  
-**Working Branch:** `lane/d-portals`  
-**Classification:** Approved Functional Scope & Boundary Definitions
+**Canonical document:** `docs/PRODUCT_SCOPE.md`
 
 ---
 
@@ -91,3 +89,13 @@ To prevent scope creep and maintain architectural integrity, the following items
 3. **Automated Facial Recognition Training:** High-throughput on-server neural video processing (biometric attendance relies on device-side verification matching IDs).
 4. **Standalone Graduate-Facing Alumni Portal:** Alumni data is managed via the ERP Admin and public registration routes; a separate standalone multi-page social networking application for alumni is not part of this core scope.
 
+## Product workflow boundaries
+
+- Admissions are paper-first: schools issue printable A4 admission forms and staff digitise approved information through controlled registration and bulk-import workflows. Public online admission submission is outside the current scope unless the product owner explicitly changes that decision.
+- Supported admission cases include new admission, re-admission and transfer. Permanent student identity and historical academic placement must be preserved.
+- A facility request (for example hostel or transport) is a request for review, not an actual allocation. The operational allocation must be a separately persisted record.
+- This specification defines intended product scope; it does not certify that every module is complete or production-enabled. Consult [PROJECT_STATUS.md](PROJECT_STATUS.md) for current implementation and verification state.
+
+---
+
+Current implementation state and commit-specific verification are maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

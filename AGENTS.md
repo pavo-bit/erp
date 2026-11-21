@@ -28,7 +28,7 @@ SSVM ERP is a mission-critical multi-tenant SaaS School Enterprise Resource Plan
 .
 ├── AGENTS.md                  # Authoritative AI engineering directives (this file)
 ├── README.md                  # System overview and getting started guide
-├── docs/                      # 10 canonical architecture and specification documents
+├── docs/                      # 12 canonical product, architecture, plan and status documents
 ├── erp-admin/                 # School staff and ERP administrator portal (Next.js)
 ├── super-admin/               # SaaS super-admin platform management portal (Next.js)
 ├── teacher-portal/            # Faculty grading and roll-call portal (Next.js)
@@ -138,5 +138,21 @@ All 428 endpoints are classified into 5 security tiers:
 2. **No Migration Destruction:** Never delete or alter existing Prisma migration folders in `ssvm-backend/prisma/migrations/`.
 3. **Database Isolation:** Tests run against dedicated test databases (`ssvm_test`, `ssvm_test_worker_*`). Never execute destructive schema migrations on production databases without review.
 4. **No Automatic Unchecked Commits:** AI assistants must present changes and test verification results cleanly before committing.
-5. **Documentation Discipline:** Maintain only the 10 canonical documents in `docs/` plus `README.md` and `AGENTS.md`. Do not create temporary or phase-specific Markdown files.
+5. **Documentation Discipline:** Maintain exactly the 12 canonical Markdown files listed below in `docs/`, plus the repository-root `README.md` and `AGENTS.md`. Do not create temporary, phase-specific, duplicate audit or standalone test-report Markdown files.
+
+Canonical allowlist:
+1. `docs/README.md`
+2. `docs/PRODUCT_SCOPE.md`
+3. `docs/SYSTEM_ARCHITECTURE.md`
+4. `docs/SECURITY_AND_TENANCY.md`
+5. `docs/DATABASE_AND_FINANCIAL_INTEGRITY.md`
+6. `docs/API_AND_INTEGRATIONS.md`
+7. `docs/MODULES_AND_PORTALS.md`
+8. `docs/DEVELOPMENT_AND_TESTING.md`
+9. `docs/DEPLOYMENT_AND_OPERATIONS.md`
+10. `docs/PROJECT_PLAN_HIGH_LEVEL.md`
+11. `docs/PROJECT_PLAN_LOW_LEVEL.md`
+12. `docs/PROJECT_STATUS.md`
+
+`PROJECT_STATUS.md` is the single completion and blocker register. Keep the plans aligned with it. When a task is verified, update the status and the relevant technical specification instead of creating another report.
 

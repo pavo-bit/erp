@@ -1,8 +1,6 @@
 # SSVM ERP — Deployment & Operations Specification
 
-**Canonical Document:** `docs/DEPLOYMENT_AND_OPERATIONS.md`  
-**Working Branch:** `lane/d-portals`  
-**Classification:** Infrastructure, Orchestration, Observability & Disaster Recovery
+**Canonical document:** `docs/DEPLOYMENT_AND_OPERATIONS.md`
 
 ---
 
@@ -124,3 +122,20 @@ Public lead-capture and registration endpoints are protected at the edge:
      npm --prefix ssvm-backend run queue:replay-failed-webhooks
      ```
 
+## Production release gates
+
+Production deployment is distinct from CI verification. A hosted CI database is disposable and must never be substituted for a production database.
+
+The production workflow currently requires a production `DATABASE_URL` secret for its receipt pre-check. The latest observed run failed because the secret was absent and stopped before connecting; this does not prove that duplicate receipts exist. Configure the secret only after a real production database and least-privileged access path are approved.
+
+Image build, registry publication and live deployment are separate milestones. Do not call the system deployed unless the image is published, a deployment target is configured, health/smoke checks pass and rollback is available.
+
+## External operations
+
+Before live production use, verify Razorpay production credentials and webhook reconciliation; SMS credentials and approved DLT templates; durable private document storage and key management; automated backup and a successful restore drill with approved RPO/RTO; Prometheus/Grafana/Alertmanager and actual alert delivery; and real platform/school telemetry.
+
+The project owner must select or provision the hosting/deployment target. Do not invent provider-specific infrastructure.
+
+---
+
+Current implementation state and commit-specific verification are maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

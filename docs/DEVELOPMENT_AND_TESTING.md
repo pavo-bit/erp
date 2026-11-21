@@ -1,8 +1,6 @@
 # SSVM ERP — Development & Testing Specification
 
-**Canonical Document:** `docs/DEVELOPMENT_AND_TESTING.md`  
-**Working Branch:** `lane/d-portals`  
-**Classification:** Development Guide, Test Execution & Quality Assurance
+**Canonical document:** `docs/DEVELOPMENT_AND_TESTING.md`
 
 ---
 
@@ -94,3 +92,19 @@ npm --prefix ssvm-backend test
 2. **Fail-Closed Runtime Role:** Tests execute under the non-superuser application role `ssvm_app` to ensure real RLS policy enforcement.
 3. **Data Teardown:** Test fixtures run in isolated transactions or execute automated cleanup in `afterEach` / `afterAll` hooks.
 
+## Hosted CI and evidence rules
+
+The GitHub Actions workflow provisions disposable PostgreSQL and Redis service containers for database-dependent jobs. Local Docker Desktop is not required for those hosted checks, though local database tests still require reachable services.
+
+The CI workflow includes backend test shards and shuffled execution, restricted-role PostgreSQL migration/RLS checks, backend lint/type-check, security scanning, seven portal type-check/build jobs and a Playwright Chromium E2E job.
+
+- A successful build is not a substitute for executed tests.
+- A skipped, queued or blocked job is not a pass.
+- Record the exact commit SHA and workflow run when reporting verification.
+- Do not copy historical test totals into a current report.
+- Keep demo seeding and ephemeral CI signing keys isolated from production.
+- Generate E2E fixture IDs from the current test database; do not hardcode generated school/user/session IDs.
+
+---
+
+Current implementation state and commit-specific verification are maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

@@ -1,8 +1,6 @@
 # SSVM ERP — API Architecture & Integrations Specification
 
-**Canonical Document:** `docs/API_AND_INTEGRATIONS.md`  
-**Working Branch:** `lane/d-portals`  
-**Classification:** Complete API Contracts, Route Matrix & External Integrations
+**Canonical document:** `docs/API_AND_INTEGRATIONS.md`
 
 ---
 
@@ -102,3 +100,26 @@ All 428 endpoints are classified into five security tiers:
 - **Payload:** Latitude, longitude, speed, fuel level, ignition status, timestamp.
 - **Geofencing:** Evaluates vehicle distance against defined stop coordinates and triggers automated arrival notifications.
 
+## Consolidated API contracts
+
+### Module entitlements
+
+The documented entitlement contract includes:
+
+- `GET /api/v1/schools/me/modules` — discover entitlements for the authenticated school context.
+- `GET /api/v1/schools/:id/modules` — Super Admin inspection of target-school entitlements.
+- `PATCH /api/v1/schools/:id/modules/:moduleCode` — Super Admin entitlement mutation subject to core-module and dependency rules.
+
+Server-resolved identity and tenant context are authoritative; a client-supplied school identifier must not override the authenticated context.
+
+### Bulk import and admissions
+
+The general bulk-import route family is under `/api/v1/admin/import/*`; the admission bulk workflow is under `/api/v1/admin/admissions/bulk`. The staged workflow is template selection, parsing, column mapping, validation, duplicate review, preview, transactional commit and job/audit history.
+
+### OpenAPI
+
+The repository-level `ssvm_openapi_documentation.json` is the API reference artifact. Validate it against currently mounted routes before treating endpoint totals or route descriptions in historical reports as current.
+
+---
+
+Current implementation state and commit-specific verification are maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

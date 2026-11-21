@@ -1,8 +1,6 @@
 # SSVM ERP — Database & Financial Integrity Specification
 
-**Canonical Document:** `docs/DATABASE_AND_FINANCIAL_INTEGRITY.md`  
-**Working Branch:** `lane/d-portals`  
-**Classification:** Database Architecture, Migrations & Accounting Invariants
+**Canonical document:** `docs/DATABASE_AND_FINANCIAL_INTEGRITY.md`
 
 ---
 
@@ -106,3 +104,17 @@ To guarantee strictly increasing, duplicate-free receipt numbers under high conc
 - **Ledger Invariant Verification:** `ledger-integrity.test.ts`: **3/3 passed**.
 - **Goods Receipt Concurrency:** `goods-receipt-concurrency.test.ts`: **1/1 passed**.
 
+## Migration and identity-data governance
+
+- Prisma migration directory names and applied migration contents are immutable. Never rename or edit an applied migration; implement schema changes with a new forward migration.
+- Use `prisma migrate deploy` for controlled deployment. Validate both fresh-install and upgrade paths with the repository's upgrade-flow verification before accepting migration changes.
+- Generated tenant-classification reports are inventories, not proof of RLS correctness. Their counts and verification flags must be regenerated and checked against the current schema before citing them.
+- Student-to-user backfill is an owner-decision gate. The login identifier, credential reset, activation state and legacy-login cutover must be approved before a production backfill. Inventory first; never invent credentials or overwrite unrelated accounts.
+
+## Finance policy decisions requiring approval
+
+Current payment implementation defaults are not an approved school finance policy. Before enabling live online collection, the finance owner must approve partial-payment behaviour, refund/reversal rules and chart-of-accounts mapping. A payment may be marked successful only when a valid provider capture is bound to the stored order and the invoice balance plus balanced ledger entry commit atomically.
+
+---
+
+Current implementation state and commit-specific verification are maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

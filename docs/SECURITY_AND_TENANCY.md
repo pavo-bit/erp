@@ -1,8 +1,6 @@
 # SSVM ERP — Security & Multi-Tenancy Architecture
 
-**Canonical Document:** `docs/SECURITY_AND_TENANCY.md`  
-**Working Branch:** `lane/d-portals`  
-**Classification:** Security Guarantees, Tenant Isolation & Access Control
+**Canonical document:** `docs/SECURITY_AND_TENANCY.md`
 
 ---
 
@@ -116,3 +114,21 @@ All 428 endpoints are grouped into five distinct security tiers:
    - **PostgreSQL RLS Suites:** 217/217 real PostgreSQL 16 tests passing (`npm run test:rls`).
    - **Route Boundaries Suite:** 10/10 security test files passing (`vitest run src/tests/security/`).
 
+## Bulk-import and monitoring security contracts
+
+### Bulk import
+
+- Bulk-import routes require authentication, appropriate role checks and module entitlement checks.
+- Spreadsheet parsing must preserve original column positions and sparse empty cells. Empty fields are non-destructive by default; clearing existing data requires explicit user intent.
+- Every mutation must execute within `runWithTenantDatabaseTransaction(schoolId, ...)`. Never trust a school ID from a workbook or an untrusted payload.
+- Import jobs must record actor, school, row totals and failures without logging workbook contents, passwords or other secrets.
+
+### Monitoring
+
+- Grafana is a platform-only service behind the authenticated Super Admin gateway. School-audience sessions must not gain platform monitoring access.
+- Anonymous Grafana access is disabled. The datasource uses a read-only identity scoped to approved aggregate views.
+- Secrets belong in an approved deployment secret manager or CI secret store, never in committed files or workflow logs.
+
+---
+
+Current implementation state and commit-specific verification are maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

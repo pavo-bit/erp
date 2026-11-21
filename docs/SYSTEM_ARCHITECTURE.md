@@ -1,8 +1,6 @@
 # SSVM ERP — System Architecture Specification
 
-**Canonical Document:** `docs/SYSTEM_ARCHITECTURE.md`  
-**Working Branch:** `lane/d-portals`  
-**Classification:** Comprehensive Architecture & Infrastructure Topology
+**Canonical document:** `docs/SYSTEM_ARCHITECTURE.md`
 
 ---
 
@@ -237,3 +235,14 @@ Grouped by domain (representative): User, Student, Guardian, Teacher, Staff, Sch
 - ssvm-backend/docs/cloudflare-config.md and runbooks/incident-response.md deleted.
 - Port numbers in docs now consistent with docker-compose.yml (student portal host 3003, saas 3008).
 - Backend lint count (567) and test DB guard claims remain accurate.
+
+## Observability and monitoring boundaries
+
+- Application metrics use the `ssvm_` namespace. Do not add personal data or unbounded/high-cardinality labels.
+- Prometheus scrapes application and infrastructure metrics. Grafana dashboards should consume approved aggregate data and be accessed through the authenticated backend gateway rather than exposed directly to public clients.
+- The Grafana datasource must use a least-privileged read-only identity with access limited to approved aggregate views, not student, guardian, user or invoice base rows.
+- Liveness, readiness, database health, portal availability and business-flow health are distinct checks. A successful process health endpoint is not proof that end-to-end workflows work.
+
+---
+
+Current implementation state and commit-specific verification are maintained in [PROJECT_STATUS.md](PROJECT_STATUS.md).

@@ -11,7 +11,7 @@
 
 ## 1. Overview & Purpose
 
-SSVM ERP is a production-grade multi-tenant School Enterprise Resource Planning system engineered for educational institutions. It delivers complete administrative control, academic lifecycle management, double-entry financial accounting, biometric attendance, and synchronized communications across administrative staff, educators, students, and guardians.
+SSVM ERP is a enterprise-oriented multi-tenant School Enterprise Resource Planning system under active release hardening engineered for educational institutions. It delivers complete administrative control, academic lifecycle management, double-entry financial accounting, biometric attendance, and synchronized communications across administrative staff, educators, students, and guardians.
 
 ---
 
@@ -62,7 +62,7 @@ SSVM ERP is a production-grade multi-tenant School Enterprise Resource Planning 
 .
 ├── AGENTS.md                  # Authoritative AI agent engineering instructions
 ├── README.md                  # This file
-├── docs/                      # 10 canonical architecture and specification documents
+├── docs/                      # 12 canonical product, architecture, plan and status documents
 ├── erp-admin/                 # School staff and ERP administrator portal (Next.js)
 ├── super-admin/               # SaaS super-admin platform management portal (Next.js)
 ├── teacher-portal/            # Faculty grading and roll-call portal (Next.js)
@@ -127,41 +127,34 @@ npx --prefix ssvm-backend prisma db seed
 
 ## 7. Testing & Verification Commands
 
-All test suites execute against real PostgreSQL and Redis instances:
+Database-dependent local tests require reachable PostgreSQL and Redis services. The hosted GitHub Actions workflow provisions its own disposable service containers, so local Docker Desktop is not required for hosted CI checks.
 
 ```bash
-# 1. PostgreSQL Row-Level Security Suites (5 files, 217 tests)
-npm --prefix ssvm-backend run test:rls
-
-# 2. Comprehensive Vitest Regression Suites (54 files, 401 tests)
+# Backend type-check and tests
+npm --prefix ssvm-backend run type-check
 npm --prefix ssvm-backend test
 
-# 3. Backend TypeScript Compilation Check
-npm --prefix ssvm-backend run type-check
+# PostgreSQL RLS tests
+npm --prefix ssvm-backend run test:rls
 
-# 4. Frontend Portals TypeScript Checks
-npx --prefix erp-admin tsc --noEmit
-npx --prefix super-admin tsc --noEmit
-npx --prefix teacher-portal tsc --noEmit
-npx --prefix student-portal tsc --noEmit
-npx --prefix parent-portal tsc --noEmit
-npx --prefix payment-portal tsc --noEmit
-npx --prefix saas-frontend tsc --noEmit
+# Run in each portal directory
+npx tsc --noEmit
+npm run build
+
+# Browser E2E tests
+cd e2e-tests
+npx playwright test --project=chromium
 ```
 
----
+A build is not equivalent to a passing test suite. Record the exact commit SHA and CI run; distinguish passed, failed, skipped and blocked checks. See [DEVELOPMENT_AND_TESTING.md](docs/DEVELOPMENT_AND_TESTING.md) and [PROJECT_STATUS.md](docs/PROJECT_STATUS.md).
 
 ## 8. Canonical Documentation Entry Points
 
-All system documentation is consolidated into 10 canonical specifications in the [`docs/`](docs/README.md) directory:
+The `docs/` directory is maintained as a concise set of 12 canonical Markdown files.
 
-1. [`docs/README.md`](docs/README.md) — Central documentation index.
-2. [`docs/PRODUCT_SCOPE.md`](docs/PRODUCT_SCOPE.md) — Approved requirements, institutional profiles, school types, and scope boundaries.
-3. [`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md) — End-to-end architecture, domain boundaries, data flows, and infrastructure.
-4. [`docs/SECURITY_AND_TENANCY.md`](docs/SECURITY_AND_TENANCY.md) — Multi-tenant isolation, RLS rules, RBAC, route security tiers, and audit logging.
-5. [`docs/DATABASE_AND_FINANCIAL_INTEGRITY.md`](docs/DATABASE_AND_FINANCIAL_INTEGRITY.md) — 216 Prisma models, double-entry ledger, webhook idempotency, and cash desk concurrency.
-6. [`docs/API_AND_INTEGRATIONS.md`](docs/API_AND_INTEGRATIONS.md) — 428 endpoints, security tiering, request/response contracts, and webhook handlers.
-7. [`docs/MODULES_AND_PORTALS.md`](docs/MODULES_AND_PORTALS.md) — 7 frontend applications, 35 ERP Admin functional modules, and institutional mappings.
-8. [`docs/DEVELOPMENT_AND_TESTING.md`](docs/DEVELOPMENT_AND_TESTING.md) — Development setup, test runner conventions, test database isolation, and QA checklists.
-9. [`docs/DEPLOYMENT_AND_OPERATIONS.md`](docs/DEPLOYMENT_AND_OPERATIONS.md) — Docker Compose topology, monitoring, backup/restore, health probes, and incident runbooks.
-10. [`docs/RELEASE_STATUS_AND_BLOCKERS.md`](docs/RELEASE_STATUS_AND_BLOCKERS.md) — Authoritative release verification register, 618 passing tests, and external credentials blockers.
+- [Documentation Index](docs/README.md)
+- [High-Level Project Plan](docs/PROJECT_PLAN_HIGH_LEVEL.md)
+- [Low-Level Implementation Plan](docs/PROJECT_PLAN_LOW_LEVEL.md)
+- [Consolidated Project Status — completed, partial and remaining work](docs/PROJECT_STATUS.md)
+
+The index links to the major product, architecture, database, API, security, portal, testing and operations specifications. Do not create duplicate phase reports or temporary audit documents.
