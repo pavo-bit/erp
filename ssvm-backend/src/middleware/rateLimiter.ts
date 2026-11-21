@@ -70,7 +70,7 @@ const createLimiter = (options: {
 // ─────────────────────────────────────────────────────────────────────
 export const authLimiter = createLimiter({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: Number(process.env.AUTH_RATE_LIMIT_MAX) || 10,
   prefix: "auth",
   keyGenerator: (req: Request) => {
     const email = req.body?.email || req.body?.admissionNo || "";
