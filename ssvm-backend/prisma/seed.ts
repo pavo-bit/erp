@@ -108,7 +108,7 @@ async function main() {
   console.log('✅ Governance Policies provisioned');
 
     // E2E test fixtures (guarded by ALLOW_DEMO_SEED)
-  const e2ePassword = "$2b$10$qfUVugnkWcwe5ZVP3an.OeJkvNHcfUcUAiHa551XRt10GlvAFTGH6";
+  const e2ePassword = "$2b$10$lE6ryS.5mbvkXQPDWRgyfunVAjD/BpPkDpR8Oy99m4pE9o/bVwCwe";
 
   const schoolA = await prisma.school.upsert({
     where: { id: 'cmvwy984q0001qocgpclzv585' },
@@ -143,10 +143,12 @@ async function main() {
     { email: 'superadmin@ssvm-erp.com', role: 'SUPER_ADMIN', schoolId: null, name: 'Super Admin' },
     { email: 'superadmin@ssvmerp.com', role: 'SUPER_ADMIN', schoolId: null, name: 'Super Admin' },
     { email: 'teacher1@ssvm.edu', role: 'TEACHER', schoolId: schoolA.id, name: 'Teacher One' },
+    { email: 'student1@ssvm.edu', role: 'STUDENT', schoolId: schoolA.id, name: 'Student One' },
+    { email: 'parent1@ssvm.edu', role: 'PARENT', schoolId: schoolA.id, name: 'Parent One' },
   ];
 
   for (const u of e2eUsers) {
-    await prisma.user.upsert({
+    const user = await prisma.user.upsert({
       where: { email: u.email },
       update: { passwordHash: e2ePassword },
       create: {
@@ -158,6 +160,39 @@ async function main() {
         isActive: true,
       },
     });
+
+    if (u.role === 'STUDENT' && u.schoolId) {
+      await prisma.student.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+          schoolId: u.schoolId,
+          admissionNo: 'E2E-STU-001',
+          name: u.name,
+          rollNo: '1',
+          isActive: true,
+        },
+      });
+    }
+
+    if (u.role === 'PARENT' && u.schoolId) {
+      const student = await prisma.student.findFirst({ where: { schoolId: u.schoolId } });
+      const guardian = await prisma.guardian.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: {
+          userId: user.id,
+          schoolId: u.schoolId,
+          primaryName: u.name,
+          primaryPhone: '9999999999',
+          primaryRelation: 'Father',
+        },
+      });
+      if (student) {
+        await prisma.student.update({ where: { id: student.id }, data: { guardianId: guardian.id } }).catch(() => {});
+      }
+    }
   }
   console.log('E2E test principals provisioned');
 console.log("🚀 Enterprise Database Seeding complete! Run 'npx prisma studio' to view data.");
