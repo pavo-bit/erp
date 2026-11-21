@@ -14,7 +14,7 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
     
     // Fill in credentials. We will use the seeded admin credentials.
     await page.getByPlaceholder(/email/i).fill('superadmin@ssvmerp.com');
-    await page.getByPlaceholder(/password/i).fill('admin123');
+    await page.getByPlaceholder(/password/i).fill('Admin@123');
     await page.getByRole('button', { name: /secure login/i }).click();
 
     // Verify successful login by waiting for the success message

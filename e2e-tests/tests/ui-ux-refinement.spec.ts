@@ -286,7 +286,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.goto(SAAS_FRONTEND_URL, { timeout: 60000 });
     await page.waitForTimeout(2000);
 
-    await expect(page.getByText(/Greyscales|School Management/i)).toBeVisible();
+    await expect(page.getByText('Enterprise-Grade Education Platform')).toBeVisible();
     const requestAccessBtn = page.getByRole('button', { name: /Request Access/i }).first();
     await expect(requestAccessBtn).toBeVisible();
     await requestAccessBtn.click();
