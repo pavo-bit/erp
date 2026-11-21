@@ -1,5 +1,7 @@
-import prisma from "../lib/prisma";
+import { getTrustedPrisma } from "../lib/trustedPrisma";
 import logger from "../lib/logger";
+
+const prisma = getTrustedPrisma("SESSION_MANAGEMENT");
 
 // ═══════════════════════════════════════════
 // Expired Token Cleanup Job
