@@ -459,7 +459,7 @@ jobs:
         run: |
           npm run dev &
           for i in {1..30}; do
-            if curl -s http://localhost:5000/api/v1/health | grep -q "ok\|true\|UP"; then
+            if curl -s http://localhost:5000/api/v1/health | grep -q "healthy"; then
               echo "Backend is healthy!"
               break
             fi
