@@ -108,7 +108,7 @@ async function main() {
   console.log('✅ Governance Policies provisioned');
 
     // E2E test fixtures (guarded by ALLOW_DEMO_SEED)
-  const e2ePassword = "$2b$10$lE6ryS.5mbvkXQPDWRgyfunVAjD/BpPkDpR8Oy99m4pE9o/bVwCwe";
+  const e2ePassword = "$argon2id$v=19$m=65536,t=3,p=4$EE7DgZ2brHz90WCitLoK1A$OjbQHdC/PaqrklVV11B2GNR/SUZrxyu4rPbIyUQO5jE";
 
   const schoolA = await prisma.school.upsert({
     where: { id: 'cmvwy984q0001qocgpclzv585' },
