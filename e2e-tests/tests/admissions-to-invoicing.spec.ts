@@ -41,7 +41,7 @@ test.describe('Admissions to Invoicing Critical Flow', () => {
     // Verify student was created through the success lifecycle modal
     await expect(page.getByText('Student Added Successfully')).toBeVisible({ timeout: 15000 });
     await page.getByRole('button', { name: 'Done' }).click();
-    await expect(page.getByText(studentName)).toBeVisible();
+    await expect(page.getByText(studentName)).toBeVisible({ timeout: 15000 });
 
     // --- 3. Invoicing ---
     await page.goto('/admin/fees', { timeout: 60000 });

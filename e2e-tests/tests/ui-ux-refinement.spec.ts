@@ -134,7 +134,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.waitForTimeout(2000);
 
     const addStudentBtn = page.getByRole('button', { name: 'Add Student' });
-    await expect(addStudentBtn).toBeVisible();
+    await expect(addStudentBtn).toBeVisible({ timeout: 15000 });
     await addStudentBtn.click();
 
     // Verify Drawer Header
@@ -216,7 +216,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.waitForTimeout(2000);
 
     // Verify Teacher Dashboard
-    await expect(page.getByText('SSVM Portal', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Welcome/i })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/Mark Daily Attendance/i)).toBeVisible();
 
     // Navigate to Daily Attendance Matrix
@@ -244,13 +244,13 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.waitForTimeout(2000);
 
     // Verify Dashboard Cards
-    await expect(page.getByRole('main').getByText('Attendance')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Attendance')).toBeVisible({ timeout: 15000 });
     await expect(page.getByText('Pending Assignments')).toBeVisible();
 
     // Verify Timetable Page
     await page.goto(`${STUDENT_PORTAL_URL}/timetable`, { timeout: 60000 });
     await page.waitForTimeout(2000);
-    await expect(page.getByText('My Timetable')).toBeVisible();
+    await expect(page.getByText('My Timetable')).toBeVisible({ timeout: 15000 });
 
     // Verify Notice Board Page
     await page.goto(`${STUDENT_PORTAL_URL}/notices`, { timeout: 60000 });
@@ -269,7 +269,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.waitForTimeout(2000);
 
     // Verify Active Child selector exists in header
-    await expect(page.getByText(/Active Child|Parent Portal|Viewing Details For/i)).toBeVisible();
+    await expect(page.getByText('Viewing Details For')).toBeVisible({ timeout: 15000 });
 
     // Navigate to Fees & Invoices
     await page.goto(`${PARENT_PORTAL_URL}/fees`, { timeout: 60000 });

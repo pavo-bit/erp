@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function proxy(request: NextRequest) {
-  const token = request.cookies.get('access_token');
+  const token = request.cookies.get('school_access_token') || request.cookies.get('access_token');
   const isLoginPage = request.nextUrl.pathname === '/login';
 
   if (!token && !isLoginPage) {

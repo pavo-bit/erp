@@ -476,6 +476,7 @@ jobs:
           export REFRESH_TOKEN_PRIVATE_KEY="$(cat /tmp/keys/priv.pem)"
           export REFRESH_TOKEN_PUBLIC_KEY="$(cat /tmp/keys/pub.pem)"
           export NODE_ENV=development
+          export ALLOW_DEMO_SEED=true
           export FIELD_ENCRYPTION_KEY="0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
           export HOST=0.0.0.0
           export PORT=5000

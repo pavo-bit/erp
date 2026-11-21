@@ -42,12 +42,17 @@ const fetcher = async (url: string) => {
   return data.data ?? data;
 };
 
-export async function apiCall(url: string, method: "GET" | "POST" | "PUT" | "DELETE" = "POST", body?: unknown) {
+export async function apiCall(
+  url: string,
+  method?: "GET" | "POST" | "PUT" | "DELETE",
+  body?: unknown
+) {
+  const resolvedMethod = method || (body !== undefined ? "POST" : "GET");
   const opts: RequestInit = {
-    method,
+    method: resolvedMethod,
     credentials: "include",
     headers: body instanceof FormData ? {} : { "Content-Type": "application/json" },
-    body: body instanceof FormData ? body : body ? JSON.stringify(body) : undefined,
+    body: body instanceof FormData ? body : body !== undefined ? JSON.stringify(body) : undefined,
   };
   let res: Response;
   try {
