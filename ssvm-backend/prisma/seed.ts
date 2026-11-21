@@ -108,7 +108,7 @@ async function main() {
   console.log('✅ Governance Policies provisioned');
 
     // E2E test fixtures (guarded by ALLOW_DEMO_SEED)
-  const e2ePassword = await bcrypt.hash('Admin@123', 10);
+  const e2ePassword = "$2b$10$qfUVugnkWcwe5ZVP3an.OeJkvNHcfUcUAiHa551XRt10GlvAFTGH6";
 
   const schoolA = await prisma.school.upsert({
     where: { id: 'cmvwy984q0001qocgpclzv585' },
