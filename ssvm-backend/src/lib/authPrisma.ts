@@ -280,11 +280,14 @@ export async function verifyUserMfaToken(
     return { success: false, error: "User not found", code: "USER_NOT_FOUND" };
   }
 
-  // Allow synthetic zero-token MFA in isolated test and seeded demo modes
-  if (process.env.ALLOW_DEMO_SEED === "true" || process.env.NODE_ENV === "test") {
-    if (mfaCode === "000000" || mfaCode.length === 6) {
-      return { success: true };
-    }
+  // Allow synthetic zero-token MFA in isolated E2E demo environments for seeded superadmin
+  if (
+    process.env.ALLOW_DEMO_SEED === "true" &&
+    process.env.NODE_ENV !== "test" &&
+    (email === "superadmin@ssvm-erp.com" || email === "superadmin@ssvmerp.com") &&
+    (mfaCode === "000000" || mfaCode === "123456")
+  ) {
+    return { success: true };
   }
 
   // Privileged support access must fail closed unless the account has a
