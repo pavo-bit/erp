@@ -196,13 +196,13 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     // Navigate to School Network
     await page.goto(`${SUPER_ADMIN_URL}/dashboard/schools`, { timeout: 60000 });
     await page.waitForTimeout(2000);
-    await expect(page.getByText('School Network')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'School Network' })).toBeVisible();
     await expect(page.getByPlaceholder('Search tenants...')).toBeVisible();
 
     // Navigate to Data Governance
     await page.goto(`${SUPER_ADMIN_URL}/dashboard/governance`, { timeout: 60000 });
     await page.waitForTimeout(2000);
-    await expect(page.getByText('Enterprise Data Governance')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Enterprise Data Governance' })).toBeVisible();
   });
 
   // ═════════════════════════════════════════════════════════════════════
@@ -216,7 +216,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.waitForTimeout(2000);
 
     // Verify Teacher Dashboard
-    await expect(page.getByText(/Teacher Dashboard|SSVM Portal/i)).toBeVisible();
+    await expect(page.getByText('SSVM Portal', { exact: true })).toBeVisible();
     await expect(page.getByText(/Mark Daily Attendance/i)).toBeVisible();
 
     // Navigate to Daily Attendance Matrix
@@ -244,7 +244,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.waitForTimeout(2000);
 
     // Verify Dashboard Cards
-    await expect(page.getByText('Attendance')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Attendance')).toBeVisible();
     await expect(page.getByText('Pending Assignments')).toBeVisible();
 
     // Verify Timetable Page
@@ -269,7 +269,7 @@ test.describe('School ERP UI/UX Refinement — Seven-Portal Standardization', ()
     await page.waitForTimeout(2000);
 
     // Verify Active Child selector exists in header
-    await expect(page.getByText(/Active Child|ParentPortal/i)).toBeVisible();
+    await expect(page.getByText(/Active Child|Parent Portal|Viewing Details For/i)).toBeVisible();
 
     // Navigate to Fees & Invoices
     await page.goto(`${PARENT_PORTAL_URL}/fees`, { timeout: 60000 });

@@ -171,6 +171,49 @@ async function main() {
     },
   });
 
+  // Provision authoritative Classes and Sections for Academic Session 2026-2027
+  const classA10 = await prisma.class.upsert({
+    where: { schoolId_sessionId_name: { schoolId: schoolA.id, sessionId: sessionA.id, name: '10' } },
+    update: {},
+    create: {
+      schoolId: schoolA.id,
+      sessionId: sessionA.id,
+      name: '10',
+      sortOrder: 10,
+    },
+  });
+
+  const sectionA10 = await prisma.section.upsert({
+    where: { classId_name: { classId: classA10.id, name: 'A' } },
+    update: {},
+    create: {
+      classId: classA10.id,
+      name: 'A',
+      capacity: 40,
+    },
+  });
+
+  const classB10 = await prisma.class.upsert({
+    where: { schoolId_sessionId_name: { schoolId: schoolB.id, sessionId: sessionB.id, name: '10' } },
+    update: {},
+    create: {
+      schoolId: schoolB.id,
+      sessionId: sessionB.id,
+      name: '10',
+      sortOrder: 10,
+    },
+  });
+
+  await prisma.section.upsert({
+    where: { classId_name: { classId: classB10.id, name: 'A' } },
+    update: {},
+    create: {
+      classId: classB10.id,
+      name: 'A',
+      capacity: 40,
+    },
+  });
+
   const e2eUsers = [
     { email: 'erpadmin@ssvm.edu', role: 'ERP_ADMIN', schoolId: schoolA.id, name: 'ERP Admin A' },
     { email: 'superadmin@ssvm-erp.com', role: 'SUPER_ADMIN', schoolId: null, name: 'Super Admin' },
@@ -197,19 +240,60 @@ async function main() {
     });
     provisionedUsers.push({ id: user.id, email: user.email, role: user.role });
 
-    if (u.role === 'STUDENT' && u.schoolId) {
-      await prisma.student.upsert({
+    if (u.role === 'TEACHER' && u.schoolId) {
+      const teacher = await prisma.teacher.upsert({
         where: { userId: user.id },
-        update: {},
+        update: { schoolId: u.schoolId },
         create: {
           userId: user.id,
           schoolId: u.schoolId,
+          employeeId: 'EMP-001',
+          designation: 'Senior Faculty',
+          subjects: 'Mathematics, Science',
+          isActive: true,
+        },
+      });
+
+      await prisma.classTeacher.upsert({
+        where: { sectionId_teacherId: { sectionId: sectionA10.id, teacherId: teacher.id } },
+        update: { isPrimary: true },
+        create: {
+          sectionId: sectionA10.id,
+          teacherId: teacher.id,
+          isPrimary: true,
+        },
+      });
+    }
+
+    if (u.role === 'STUDENT' && u.schoolId) {
+      const student = await prisma.student.upsert({
+        where: { userId: user.id },
+        update: { sectionId: sectionA10.id },
+        create: {
+          userId: user.id,
+          schoolId: u.schoolId,
+          sectionId: sectionA10.id,
           admissionNo: 'E2E-STU-001',
           name: u.name,
           rollNo: '1',
           isActive: true,
         },
       });
+
+      await prisma.studentEnrollment.upsert({
+        where: { id: `enroll-${student.id}-${sessionA.id}` },
+        update: { classId: classA10.id, sectionId: sectionA10.id },
+        create: {
+          id: `enroll-${student.id}-${sessionA.id}`,
+          schoolId: u.schoolId,
+          studentId: student.id,
+          sessionId: sessionA.id,
+          classId: classA10.id,
+          sectionId: sectionA10.id,
+          rollNo: '1',
+          status: 'ACTIVE',
+        },
+      }).catch(() => {});
     }
 
     if (u.role === 'PARENT' && u.schoolId) {
@@ -219,7 +303,7 @@ async function main() {
         : null;
       const guardian = await prisma.guardian.upsert({
         where: { userId: user.id },
-        update: {},
+        update: { schoolId: u.schoolId, primaryName: u.name },
         create: {
           userId: user.id,
           schoolId: u.schoolId,

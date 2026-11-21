@@ -236,7 +236,8 @@ router.post(
   requireAudience("PLATFORM"),
   async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { schoolId, reason, durationMinutes, mfaCode } = req.body;
+      const { schoolId, reason, durationMinutes, mfaCode, mfaToken } = req.body;
+      const codeToVerify = mfaCode || mfaToken || "";
 
       if (!schoolId || !reason) {
         res.status(400).json({
@@ -248,7 +249,7 @@ router.post(
       }
 
       // MFA Re-Authentication Check
-      const mfaCheck = await verifyUserMfaToken(req.user!.email, mfaCode);
+      const mfaCheck = await verifyUserMfaToken(req.user!.email, codeToVerify);
       if (!mfaCheck.success) {
         res.status(mfaCheck.code === "MFA_REQUIRED" ? 400 : 401).json(mfaCheck);
         return;
