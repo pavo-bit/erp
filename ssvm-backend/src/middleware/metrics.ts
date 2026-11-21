@@ -11,6 +11,8 @@ const register = new client.Registry();
 register.setDefaultLabels({
   app: "ssvm-backend",
 });
+function safeRegister(metric: Parameters<typeof register.registerMetric>[0]) { try { register.registerMetric(metric); } catch { /* already registered */ } }
+
 
 // Default process & runtime metrics with canonical ssvm_ prefix
 client.collectDefaultMetrics({ register, prefix: "ssvm_" });
@@ -21,7 +23,7 @@ export const httpRequestsTotal = new client.Counter({
   help: "Total number of HTTP requests processed",
   labelNames: ["method", "route", "code"],
 });
-register.registerMetric(httpRequestsTotal);
+safeRegister(httpRequestsTotal);
 
 // ─── HTTP Latency & Throughput (SLI) ───
 export const httpRequestDurationMicroseconds = new client.Histogram({
@@ -30,7 +32,7 @@ export const httpRequestDurationMicroseconds = new client.Histogram({
   labelNames: ["method", "route", "code"],
   buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10],
 });
-register.registerMetric(httpRequestDurationMicroseconds);
+safeRegister(httpRequestDurationMicroseconds);
 
 // ─── HTTP Error Rate (SLI) ───
 export const httpErrorsTotal = new client.Counter({
@@ -38,7 +40,7 @@ export const httpErrorsTotal = new client.Counter({
   help: "Total number of HTTP errors (4xx and 5xx)",
   labelNames: ["method", "route", "code"],
 });
-register.registerMetric(httpErrorsTotal);
+safeRegister(httpErrorsTotal);
 
 // ─── JWT Verification (SLI) ───
 export const jwtVerificationTotal = new client.Counter({
@@ -46,7 +48,7 @@ export const jwtVerificationTotal = new client.Counter({
   help: "Total number of successful JWT verifications by algorithm",
   labelNames: ["algorithm"],
 });
-register.registerMetric(jwtVerificationTotal);
+safeRegister(jwtVerificationTotal);
 
 // ─── Public Form Submissions (GAP A5) ───
 export const publicFormSubmissionsTotal = new client.Counter({
@@ -54,14 +56,14 @@ export const publicFormSubmissionsTotal = new client.Counter({
   help: "Total number of public form submissions with spam/captcha status",
   labelNames: ["endpoint", "status"],
 });
-register.registerMetric(publicFormSubmissionsTotal);
+safeRegister(publicFormSubmissionsTotal);
 
 // ─── Active Connections ───
 export const activeConnectionsGauge = new client.Gauge({
   name: "ssvm_http_active_connections",
   help: "Number of active HTTP connections",
 });
-register.registerMetric(activeConnectionsGauge);
+safeRegister(activeConnectionsGauge);
 
 // ─── Payment Processing ───
 export const paymentProcessingDuration = new client.Histogram({
@@ -70,21 +72,21 @@ export const paymentProcessingDuration = new client.Histogram({
   labelNames: ["gateway", "status"],
   buckets: [0.1, 0.5, 1, 2, 5, 10],
 });
-register.registerMetric(paymentProcessingDuration);
+safeRegister(paymentProcessingDuration);
 
 export const paymentTotal = new client.Counter({
   name: "ssvm_payment_total",
   help: "Total number of payments processed",
   labelNames: ["gateway", "status"],
 });
-register.registerMetric(paymentTotal);
+safeRegister(paymentTotal);
 
 export const paymentRefundsTotal = new client.Counter({
   name: "ssvm_payment_refunds_total",
   help: "Total number of payment refunds processed",
   labelNames: ["gateway", "status"],
 });
-register.registerMetric(paymentRefundsTotal);
+safeRegister(paymentRefundsTotal);
 
 // ─── Webhook Processing (GAP A14) ───
 export const webhookProcessingTotal = new client.Counter({
@@ -92,7 +94,7 @@ export const webhookProcessingTotal = new client.Counter({
   help: "Total number of webhooks processed",
   labelNames: ["gateway", "status", "event"],
 });
-register.registerMetric(webhookProcessingTotal);
+safeRegister(webhookProcessingTotal);
 
 // ─── Database Query Duration ───
 export const dbQueryDuration = new client.Histogram({
@@ -101,7 +103,7 @@ export const dbQueryDuration = new client.Histogram({
   labelNames: ["operation", "model"],
   buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1],
 });
-register.registerMetric(dbQueryDuration);
+safeRegister(dbQueryDuration);
 
 // ─── BullMQ Job Metrics ───
 export const jobProcessingDuration = new client.Histogram({
@@ -110,14 +112,14 @@ export const jobProcessingDuration = new client.Histogram({
   labelNames: ["queue", "name", "status"],
   buckets: [0.1, 0.5, 1, 5, 10, 30],
 });
-register.registerMetric(jobProcessingDuration);
+safeRegister(jobProcessingDuration);
 
 export const jobQueueSize = new client.Gauge({
   name: "ssvm_bullmq_queue_size",
   help: "Current number of jobs waiting in queue",
   labelNames: ["queue"],
 });
-register.registerMetric(jobQueueSize);
+safeRegister(jobQueueSize);
 
 // ─── Auth Metrics ───
 export const authAttemptsTotal = new client.Counter({
@@ -125,14 +127,14 @@ export const authAttemptsTotal = new client.Counter({
   help: "Total authentication attempts",
   labelNames: ["method", "result"],
 });
-register.registerMetric(authAttemptsTotal);
+safeRegister(authAttemptsTotal);
 
 export const activeSessionsGauge = new client.Gauge({
   name: "ssvm_active_sessions_total",
   help: "Number of active user sessions",
   labelNames: ["role"],
 });
-register.registerMetric(activeSessionsGauge);
+safeRegister(activeSessionsGauge);
 
 // ─── Tenant Metrics ───
 export const tenantRequestsTotal = new client.Counter({
@@ -140,7 +142,7 @@ export const tenantRequestsTotal = new client.Counter({
   help: "Total requests per tenant",
   labelNames: ["schoolId"],
 });
-register.registerMetric(tenantRequestsTotal);
+safeRegister(tenantRequestsTotal);
 
 // ═══════════════════════════════════════════
 // Block M3 Security Metrics (Strict No-PII Labels)
@@ -151,77 +153,77 @@ export const authFailuresTotal = new client.Counter({
   help: "Total authentication failures by reason",
   labelNames: ["reason"],
 });
-register.registerMetric(authFailuresTotal);
+safeRegister(authFailuresTotal);
 
 export const accountLockoutsTotal = new client.Counter({
   name: "ssvm_account_lockouts_total",
   help: "Total number of account lockouts triggered",
 });
-register.registerMetric(accountLockoutsTotal);
+safeRegister(accountLockoutsTotal);
 
 export const wrongPortalDenialsTotal = new client.Counter({
   name: "ssvm_wrong_portal_denials_total",
   help: "Total number of wrong-portal access denials",
 });
-register.registerMetric(wrongPortalDenialsTotal);
+safeRegister(wrongPortalDenialsTotal);
 
 export const csrfFailuresTotal = new client.Counter({
   name: "ssvm_csrf_failures_total",
   help: "Total number of CSRF verification failures",
 });
-register.registerMetric(csrfFailuresTotal);
+safeRegister(csrfFailuresTotal);
 
 export const rateLimitHitsTotal = new client.Counter({
   name: "ssvm_rate_limit_hits_total",
   help: "Total number of rate limiter hits",
   labelNames: ["limiter"],
 });
-register.registerMetric(rateLimitHitsTotal);
+safeRegister(rateLimitHitsTotal);
 
 export const webhookSignatureFailuresTotal = new client.Counter({
   name: "ssvm_webhook_signature_failures_total",
   help: "Total number of webhook signature verification failures",
 });
-register.registerMetric(webhookSignatureFailuresTotal);
+safeRegister(webhookSignatureFailuresTotal);
 
 export const rlsContextMissingTotal = new client.Counter({
   name: "ssvm_rls_context_missing_total",
   help: "Total database operations attempted without tenant RLS context",
 });
-register.registerMetric(rlsContextMissingTotal);
+safeRegister(rlsContextMissingTotal);
 
 export const supportSessionsActive = new client.Gauge({
   name: "ssvm_support_sessions_active",
   help: "Number of currently active platform support sessions",
 });
-register.registerMetric(supportSessionsActive);
+safeRegister(supportSessionsActive);
 
 export const auditEventsTotal = new client.Counter({
   name: "ssvm_audit_events_total",
   help: "Total number of audit events recorded",
   labelNames: ["action"],
 });
-register.registerMetric(auditEventsTotal);
+safeRegister(auditEventsTotal);
 
 // ─── Financial Operations & Outbox Metrics (M5) ───
 export const reconciliationGapsTotal = new client.Counter({
   name: "ssvm_reconciliation_gaps_total",
   help: "Total detected financial reconciliation gaps",
 });
-register.registerMetric(reconciliationGapsTotal);
+safeRegister(reconciliationGapsTotal);
 
 export const outboxEventsTotal = new client.Counter({
   name: "ssvm_outbox_events_total",
   help: "Total transactional outbox events processed",
   labelNames: ["status"],
 });
-register.registerMetric(outboxEventsTotal);
+safeRegister(outboxEventsTotal);
 
 export const outboxDeadLettersTotal = new client.Counter({
   name: "ssvm_outbox_dead_letters_total",
   help: "Total outbox events moved to dead-letter queue",
 });
-register.registerMetric(outboxDeadLettersTotal);
+safeRegister(outboxDeadLettersTotal);
 
 // ═══════════════════════════════════════════
 // Middleware
